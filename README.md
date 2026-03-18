@@ -264,7 +264,7 @@ LLM is used as a **transformation layer**, not the core system.
 
 ## 👥 Team
 
-### OSINT — Backend & Systems Lead
+### @postigodev — Backend & Systems Lead
 
 * Backend architecture (NestJS)
 * Database design (Postgres + Prisma)
@@ -272,7 +272,7 @@ LLM is used as a **transformation layer**, not the core system.
 * Infrastructure (Docker, Redis)
 * API contracts and data flow
 
-### Gallo — AI & Intelligence Lead
+### @galgallor — AI & Intelligence Lead
 
 * LLM integration (OpenAI)
 * Recipe adaptation logic
