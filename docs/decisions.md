@@ -1,409 +1,162 @@
-# 🧠 Engineering Decisions — Cart Generator
+# Engineering Decisions - Cart Generator
 
-This document captures the **key architectural and product decisions** behind Cart Generator.
+This document records the main system decisions behind the project.
 
-Its purpose is to:
+## 1. Stateful System Over Stateless Generation
 
-* make implicit assumptions explicit
-* prevent regressions in design
-* align contributors on system philosophy
-* provide strong engineering signal
+Decision:
+- operate on persistent user-owned recipes instead of generating everything from scratch
 
----
+Why:
+- users repeat meals
+- persistence improves consistency
+- historical data enables future optimization
 
-# 🧭 Core Philosophy
+Trade-off:
+- database modeling is required early
 
-Cart Generator is built as:
+## 2. LLM as Transformation Layer
 
-> A **stateful decision system** that transforms stable user habits into constrained economic outputs (grocery carts).
+Decision:
+- use AI only to transform structured inputs
 
----
+Allowed:
+- recipe adaptation
+- structured generation
+- ingredient interpretation when needed
 
-# ⚖️ Decision 1 — Stateful System over Stateless Generation
+Not allowed:
+- aggregation
+- pricing
+- product matching
+- orchestration
 
-## Decision
+Why:
+- deterministic logic must remain reproducible and debuggable
 
-The system stores and operates on **persistent user-owned recipes**, instead of generating everything from scratch each time.
+## 3. Base Recipes and Variants Are Separate
 
-## Why
+Decision:
+- keep immutable base recipes separate from derived variants
 
-* Real users repeat meals and reuse knowledge
-* Stateless generation creates inconsistent outputs
-* Persistence enables accumulation and optimization
+Why:
+- preserves the original recipe
+- supports caching
+- supports auditability of transformations
 
-## Trade-off
+## 4. Aggregation Must Be Deterministic
 
-* Requires database modeling early
-* Adds complexity to system design
+Decision:
+- ingredient aggregation is pure system logic
 
-## Result
+Why:
+- quantity math must be correct
+- behavior must be testable
 
-* Introduced `BaseRecipe`, `RecipeVariant`, `CartDraft`
+## 5. Culinary and Retail Domains Stay Separate
 
----
+Decision:
+- keep recipe ingredients and purchasable products in different models
 
-# ⚖️ Decision 2 — LLM as Transformation Layer (Not Core Logic)
+Why:
+- culinary data and retail data evolve differently
+- matching is an explicit mapping problem
 
-## Decision
+## 6. Product Matching Is Score-Based
 
-LLM is used only to **transform structured inputs**, not to drive the entire system.
+Decision:
+- use deterministic scoring rather than AI to select products
 
-## Allowed Uses
+Why:
+- price selection needs consistency
+- scoring logic is easier to inspect and tune
 
-* recipe adaptation
-* structured generation
-* ingredient interpretation
+Typical signals:
+- name similarity
+- size compatibility
+- price efficiency
 
-## Forbidden Uses
+## 7. Canonical Ingredient Naming Is Required
 
-* aggregation
-* pricing
-* product matching
-* orchestration
+Decision:
+- normalize ingredients to canonical identifiers before aggregation and matching
 
-## Why
+Why:
+- prevents duplicate identities for the same ingredient
+- improves matching accuracy
 
-* LLM outputs are non-deterministic
-* Core system must be reproducible
-* Debugging requires traceable logic
+Example:
 
-## Result
-
-* Deterministic pipeline preserved
-* AI constrained to well-defined boundaries
-
----
-
-# ⚖️ Decision 3 — BaseRecipe vs RecipeVariant Separation
-
-## Decision
-
-Recipes are split into:
-
-* immutable base recipes
-* derived variants
-
-## Why
-
-* prevents loss of original identity
-* enables caching and reuse
-* allows tracking transformations
-
-## Trade-off
-
-* additional complexity in data model
-
-## Result
-
-* `BaseRecipe` remains stable
-* `RecipeVariant` captures adaptation logic
-
----
-
-# ⚖️ Decision 4 — Deterministic Aggregation Layer
-
-## Decision
-
-Ingredient aggregation is fully deterministic.
-
-## Why
-
-* must be mathematically correct
-* must be debuggable
-* cannot depend on AI variability
-
-## Responsibilities
-
-* merge ingredients
-* sum quantities
-* normalize units
-
-## Result
-
-* Introduced `AggregatedIngredient`
-* Clear boundary between input and output
-
----
-
-# ⚖️ Decision 5 — Separate Culinary and Retail Domains
-
-## Decision
-
-Split system into:
-
-* **culinary domain** (recipes, ingredients)
-* **retail domain** (products, pricing)
-
-## Why
-
-* different logic and constraints
-* avoids mixing concerns
-* enables independent evolution
-
-## Trade-off
-
-* requires mapping layer (matching)
-
-## Result
-
-* `DishIngredient` ≠ `Product`
-* Introduced matching pipeline
-
----
-
-# ⚖️ Decision 6 — Product Matching is Deterministic (Not LLM-driven)
-
-## Decision
-
-Product selection is handled via scoring logic, not AI.
-
-## Why
-
-* pricing must be consistent
-* AI hallucination risk is high
-* scoring logic is explainable
-
-## Signals used
-
-* name similarity
-* size compatibility
-* price efficiency
-
-## Result
-
-* `ProductCandidate`
-* `MatchedIngredientProduct`
-
----
-
-# ⚖️ Decision 7 — Use Canonical Ingredient Naming
-
-## Decision
-
-All ingredients are normalized into a canonical form.
-
-## Why
-
-* aggregation requires identity consistency
-* matching requires stable keys
-* prevents duplication
-
-## Example
-
-```text id="4x08cr"
-"chicken breast" → canonical_ingredient
-"boneless chicken breast" → display_ingredient
+```text
+"chicken breast" -> canonical key
+"boneless chicken breast" -> display label
 ```
 
-## Result
+## 8. Monorepo With Shared Contracts
 
-* Canonical layer becomes backbone of system
+Decision:
+- keep web, api, and shared types in one pnpm workspace
 
----
+Why:
+- reduces schema drift
+- speeds up iteration
 
-# ⚖️ Decision 8 — Use Monorepo with Shared Types
+## 9. NestJS for the Backend
 
-## Decision
+Decision:
+- use NestJS modular architecture
 
-All apps share a central TypeScript package.
+Why:
+- clear separation of concerns
+- better long-term maintainability than an ad hoc server
 
-## Why
+## 10. PostgreSQL for Persistence
 
-* prevents schema drift
-* ensures API consistency
-* improves dev velocity
+Decision:
+- use a relational database
 
-## Result
+Why:
+- the system has strong entity relationships
+- structured querying matters
 
-```text id="o4y3xg"
-packages/shared/
-```
+## 11. Redis for Async and Caching
 
----
+Decision:
+- use Redis later for caching and background jobs
 
-# ⚖️ Decision 9 — NestJS for Backend Architecture
+Why:
+- LLM calls and matching workflows can become expensive
 
-## Decision
+## 12. Docker for Local Infra
 
-Backend is built using NestJS modular architecture.
+Decision:
+- run local infrastructure through Docker
 
-## Why
+Why:
+- consistent onboarding
+- reproducible local environments
 
-* enforces separation of concerns
-* scales better than ad-hoc Express
-* aligns with production backend patterns
+## 13. Build the Pipeline Before the UI
 
-## Result
+Decision:
+- prioritize backend workflow and data contracts before frontend complexity
 
-* modules: recipe, cart, aggregation, matching, llm
+Why:
+- the product's core value is the cart-generation pipeline
 
----
+## 14. Mock Retailer First
 
-# ⚖️ Decision 10 — PostgreSQL over NoSQL
+Decision:
+- start with a mock product catalog before real retailer integrations
 
-## Decision
+Why:
+- avoids early third-party API complexity
+- lets matching logic be developed in isolation
 
-Use relational database (PostgreSQL).
+## 15. Avoid Premature Complexity
 
-## Why
+Decision:
+- delay microservices, multi-retailer support, and advanced optimization
 
-* strong relationships (recipes ↔ ingredients ↔ carts)
-* need for joins and constraints
-* structured data model
-
-## Trade-off
-
-* less flexible than NoSQL
-* requires schema design
-
----
-
-# ⚖️ Decision 11 — Redis for Async + Caching (Planned)
-
-## Decision
-
-Use Redis for:
-
-* caching
-* background jobs
-
-## Why
-
-* product matching can be expensive
-* LLM calls can be cached
-* supports async pipelines
-
----
-
-# ⚖️ Decision 12 — Docker for Local Infra
-
-## Decision
-
-Use Docker for:
-
-* Postgres
-* Redis
-
-## Why
-
-* consistent environment
-* easier onboarding
-* reproducibility
-
----
-
-# ⚖️ Decision 13 — Separate Models by Domain
-
-## Decision
-
-Models are grouped into:
-
-* recipe
-* selection
-* aggregation
-* product
-* cart
-
-## Why
-
-* prevents “God objects”
-* keeps boundaries clear
-* improves maintainability
-
----
-
-# ⚖️ Decision 14 — Structured Data over Free Text
-
-## Decision
-
-All core data must be structured.
-
-## Why
-
-* enables deterministic computation
-* avoids parsing complexity
-* ensures type safety
-
-## Result
-
-* all LLM outputs must conform to schema
-
----
-
-# ⚖️ Decision 15 — Build Pipeline First, UI Second
-
-## Decision
-
-Focus on backend pipeline before UI complexity.
-
-## Why
-
-* core value is system logic
-* UI can be layered later
-* prevents premature optimization
-
----
-
-# ⚖️ Decision 16 — Mock Retailer First, Real Integration Later
-
-## Decision
-
-Start with mock product dataset.
-
-## Why
-
-* avoids early API complexity
-* enables rapid iteration
-* isolates matching logic
-
----
-
-# ⚖️ Decision 17 — Avoid Over-Engineering Early
-
-## Decision
-
-Delay:
-
-* microservices
-* multi-retailer support
-* advanced optimization
-
-## Why
-
-* MVP needs a working pipeline first
-* complexity compounds quickly
-
----
-
-# ⚖️ Decision 18 — Explicit Boundaries Between Layers
-
-## Decision
-
-Each layer must have:
-
-* clear inputs
-* clear outputs
-* no hidden dependencies
-
-## Why
-
-* easier debugging
-* easier scaling
-* easier testing
-
----
-
-# 🧭 Summary
-
-The system is intentionally designed as:
-
-* **stateful**
-* **layered**
-* **deterministic at its core**
-* **AI-assisted but not AI-dependent**
-
-These decisions ensure that Cart Generator evolves into:
-
-> A reliable, extensible system that translates human habits into structured economic actions.
-
----
+Why:
+- the MVP still needs a working vertical slice

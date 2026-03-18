@@ -1,22 +1,18 @@
-# 🧩 Models — Cart Generator
+# Models - Cart Generator
 
-## 🧠 Overview
+This document defines the planned core data models for the system.
 
-This document defines the **core data models** of Cart Generator.
+## Layer Split
 
-The system is intentionally divided into **separate model layers** to avoid mixing concerns:
+- Recipe models: what people cook
+- Selection models: what they want now
+- Aggregation models: what is needed
+- Product models: what can be bought
+- Cart models: final output
 
-* **Recipe models** → culinary domain (what people eat)
-* **Selection models** → user intent (what they want now)
-* **Aggregation models** → computation (what is needed)
-* **Product models** → external mapping (what to buy)
-* **Cart models** → final output (what gets purchased)
+## 1. Recipe Models
 
----
-
-# 🍽️ 1. Recipe Models
-
-## 1.1 RecipeStep
+### RecipeStep
 
 ```ts
 type RecipeStep = {
@@ -25,11 +21,7 @@ type RecipeStep = {
 };
 ```
 
-Represents a single instruction in a recipe.
-
----
-
-## 1.2 DishIngredient
+### DishIngredient
 
 ```ts
 type DishIngredient = {
@@ -43,16 +35,11 @@ type DishIngredient = {
 };
 ```
 
-### Notes:
+Notes:
+- `canonical_ingredient` is the normalized key used for aggregation
+- `display_ingredient` preserves the human-readable ingredient label
 
-* `canonical_ingredient` → normalized key used for aggregation
-* `display_ingredient` → original human-readable form
-* `preparation` → e.g. chopped, boiled, minced
-* `group` → optional grouping (sauce, topping, etc.)
-
----
-
-## 1.3 Dish
+### Dish
 
 ```ts
 type Dish = {
@@ -66,11 +53,7 @@ type Dish = {
 };
 ```
 
-Represents a fully structured recipe ready for computation.
-
----
-
-## 1.4 BaseRecipe
+### BaseRecipe
 
 ```ts
 type BaseRecipe = {
@@ -88,15 +71,7 @@ type BaseRecipe = {
 };
 ```
 
-### Role:
-
-* Persistent, user-owned recipe
-* Represents stable eating habits
-* Never modified directly by AI
-
----
-
-## 1.5 RecipeVariant
+### RecipeVariant
 
 ```ts
 type RecipeVariant = {
@@ -113,15 +88,7 @@ type RecipeVariant = {
 };
 ```
 
-### Role:
-
-* Derived version of a BaseRecipe
-* Generated via LLM transformation
-* Can be cached and reused
-
----
-
-## 1.6 RecipeAdaptationRequest
+### RecipeAdaptationRequest
 
 ```ts
 type RecipeAdaptationRequest = {
@@ -140,16 +107,9 @@ type RecipeAdaptationRequest = {
 };
 ```
 
-### Role:
+## 2. Selection Models
 
-* Explicit description of what transformation was requested
-* Separates **intent from result**
-
----
-
-# 🧾 2. Selection Models
-
-## 2.1 SelectedRecipe
+### SelectedRecipe
 
 ```ts
 type SelectedRecipe = {
@@ -169,15 +129,7 @@ type SelectedRecipe = {
 };
 ```
 
-### Role:
-
-* Represents a recipe chosen for a specific cart
-* Supports repetition (quantity)
-* Supports per-selection constraints
-
----
-
-## 2.2 CartDraft
+### CartDraft
 
 ```ts
 type CartDraft = {
@@ -190,16 +142,9 @@ type CartDraft = {
 };
 ```
 
-### Role:
+## 3. Aggregation Models
 
-* Intermediate object before cart generation
-* Captures user intent for a session (e.g. weekly plan)
-
----
-
-# 🧮 3. Aggregation Models
-
-## 3.1 AggregatedIngredient
+### AggregatedIngredient
 
 ```ts
 type AggregatedIngredient = {
@@ -215,15 +160,7 @@ type AggregatedIngredient = {
 };
 ```
 
-### Responsibilities:
-
-* Merge identical ingredients
-* Sum quantities
-* Track provenance (for debugging and UI)
-
----
-
-## 3.2 RecipeBundle (LLM Output)
+### RecipeBundle
 
 ```ts
 type RecipeBundle = {
@@ -238,14 +175,7 @@ type RecipeBundle = {
 };
 ```
 
-### Role:
-
-* Structured output from LLM generation
-* Used in early pipeline stages
-
----
-
-## 3.3 CartComputationResult
+### CartComputationResult
 
 ```ts
 type CartComputationResult = {
@@ -254,15 +184,9 @@ type CartComputationResult = {
 };
 ```
 
-### Role:
+## 4. Product Models
 
-* Output of deterministic pipeline before product matching
-
----
-
-# 🛍️ 4. Product Models
-
-## 4.1 ProductCandidate
+### ProductCandidate
 
 ```ts
 type ProductCandidate = {
@@ -279,13 +203,7 @@ type ProductCandidate = {
 };
 ```
 
-### Role:
-
-* Represents a possible match from retailer search
-
----
-
-## 4.2 RetailerSearchCandidate
+### RetailerSearchCandidate
 
 ```ts
 type RetailerSearchCandidate = {
@@ -296,9 +214,7 @@ type RetailerSearchCandidate = {
 };
 ```
 
----
-
-## 4.3 MatchedIngredientProduct
+### MatchedIngredientProduct
 
 ```ts
 type MatchedIngredientProduct = {
@@ -313,15 +229,9 @@ type MatchedIngredientProduct = {
 };
 ```
 
-### Role:
+## 5. Cart Models
 
-* Final selected product per ingredient
-
----
-
-# 🛒 5. Cart Models
-
-## 5.1 GeneratedCart
+### GeneratedCart
 
 ```ts
 type GeneratedCart = {
@@ -336,9 +246,7 @@ type GeneratedCart = {
 };
 ```
 
----
-
-## 5.2 GenerateCartRequest
+### GenerateCartRequest
 
 ```ts
 type GenerateCartRequest = {
@@ -362,9 +270,7 @@ type GenerateCartRequest = {
 };
 ```
 
----
-
-## 5.3 GenerateCartResponse
+### GenerateCartResponse
 
 ```ts
 type GenerateCartResponse = {
@@ -377,60 +283,10 @@ type GenerateCartResponse = {
 };
 ```
 
----
+## Design Constraints
 
-# 🧠 Model Boundaries
-
-## Separation of Concerns
-
-| Layer       | Models                                     |
-| ----------- | ------------------------------------------ |
-| Recipe      | BaseRecipe, RecipeVariant, Dish            |
-| Selection   | CartDraft, SelectedRecipe                  |
-| Aggregation | AggregatedIngredient                       |
-| Product     | ProductCandidate, MatchedIngredientProduct |
-| Cart        | GeneratedCart                              |
-
----
-
-## Deterministic vs AI-driven
-
-| Type          | Examples                       |
-| ------------- | ------------------------------ |
-| Deterministic | Aggregation, matching, pricing |
-| AI-assisted   | RecipeVariant generation       |
-| Hybrid        | Ingredient normalization       |
-
----
-
-# ⚠️ Design Constraints
-
-* **LLM outputs must be validated**
-* **Canonical ingredient naming is required**
-* **Units must be normalized before aggregation**
-* **Product matching must be deterministic**
-* **Models must remain composable**
-
----
-
-# 🧭 Future Extensions
-
-* Nutrition models (macros, calories)
-* Multi-retailer support
-* Inventory tracking
-* Substitution graphs (ingredient → alternatives)
-* Pricing optimization layer
-
----
-
-# 🧠 Summary
-
-These models define a system where:
-
-* Recipes are **persistent and reusable**
-* Variants are **transformations, not replacements**
-* Aggregation is **deterministic**
-* Product matching is **structured and auditable**
-* Final output is a **real-world actionable cart**
-
----
+- LLM outputs must be validated
+- canonical ingredient naming is required
+- units must be normalized before aggregation
+- product matching must be deterministic
+- models should remain composable

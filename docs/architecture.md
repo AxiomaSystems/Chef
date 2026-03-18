@@ -1,419 +1,175 @@
-# 🧱 Architecture — Cart Generator
+# Architecture - Cart Generator
 
-## 🧠 Overview
+## Overview
 
-Cart Generator is a **layered decision system** that transforms:
-
-> **user-selected recipes + constraints → structured grocery cart**
-
-The architecture is designed to separate:
-
-* **stable user data (recipes)**
-* **transformations (LLM-assisted)**
-* **deterministic computation (aggregation, matching)**
-* **external mapping (retailer products)**
-
----
-
-## 🔁 End-to-End Pipeline
+Cart Generator is intended to be a layered decision system that transforms:
 
 ```text
-Base Recipes
-   ↓
-Recipe Selection (CartDraft)
-   ↓
-Optional Adaptation (LLM)
-   ↓
-Normalized Dishes
-   ↓
-Ingredient Aggregation
-   ↓
-Product Matching
-   ↓
-Cost Estimation
-   ↓
-Generated Cart
+user-selected recipes + constraints -> structured grocery cart
 ```
 
----
+The core design goal is to keep the system stateful and deterministic at its center, with AI used only for controlled transformations.
 
-## 🧩 Core Architectural Principle
+## End-to-End Pipeline
 
-> The system is **stateful and deterministic at its core**, with AI used only for controlled transformations.
+```text
+Base recipes
+  -> Recipe selection
+  -> Optional adaptation
+  -> Dish normalization
+  -> Ingredient aggregation
+  -> Product matching
+  -> Cost estimation
+  -> Generated cart
+```
 
----
+## System Layers
 
-## 🏗️ System Layers
+### 1. Recipe Layer
 
----
+Purpose:
+- store stable, reusable recipes
+- represent what a user actually cooks
 
-### 1. Recipe Layer (Persistent Domain)
+Core entities:
+- `BaseRecipe`
+- `DishIngredient`
+- `RecipeStep`
 
-**Purpose:**
-Represents stable, reusable culinary knowledge owned by the user.
+### 2. Selection Layer
 
-**Entities:**
+Purpose:
+- capture user intent for a specific cooking session or weekly plan
 
-* `BaseRecipe`
-* `DishIngredient`
-* `RecipeStep`
+Core entities:
+- `CartDraft`
+- `SelectedRecipe`
 
-**Characteristics:**
+### 3. Adaptation Layer
 
-* Fully deterministic
-* Stored in database
-* Not generated per request
-* Represents real-world eating habits
+Purpose:
+- transform a base recipe under explicit constraints without replacing the original
 
----
+Examples:
+- cheaper
+- halal
+- vegan
+- calorie-adjusted
 
-### 2. Selection Layer (User Intent)
+Core entities:
+- `RecipeVariant`
+- `RecipeAdaptationRequest`
 
-**Purpose:**
-Captures what the user wants to cook in a given session (e.g. weekly plan).
+### 4. Normalization Layer
 
-**Entities:**
+Purpose:
+- convert recipes into consistent computation-ready dishes
 
-* `CartDraft`
-* `SelectedRecipe`
+Responsibilities:
+- canonical ingredient naming
+- unit normalization
+- quantity normalization
 
-**Responsibilities:**
+### 5. Aggregation Layer
 
-* Select recipes (base or variant)
-* Define quantities (repetition)
-* Apply per-selection constraints
+Purpose:
+- merge multiple dishes into one consolidated ingredient overview
 
-**Key idea:**
+Rules:
+- deterministic only
+- no AI involvement
 
-> Users operate over a **set of known recipes**, not abstract prompts.
-
----
-
-### 3. Adaptation Layer (LLM Transformation)
-
-**Purpose:**
-Modify recipes under constraints without losing their identity.
-
-**Examples:**
-
-* make cheaper
-* make halal
-* make vegan
-* adjust calorie range
-
-**Entities:**
-
-* `RecipeVariant`
-* `RecipeAdaptationRequest`
-
-**Behavior:**
-
-* Input: BaseRecipe + constraints
-* Output: structured variant
-* Stored optionally (caching)
-
-**Important:**
-
-* LLM output is **validated and normalized**
-* Never directly trusted as final state
-
----
-
-### 4. Dish Normalization Layer
-
-**Purpose:**
-Convert recipes into a consistent, computation-ready format.
-
-**Responsibilities:**
-
-* canonical ingredient naming
-* unit normalization
-* quantity normalization
-* cleanup of ambiguous fields
-
-**Output:**
-
-* normalized `Dish[]`
-
----
-
-### 5. Aggregation Layer (Deterministic Core)
-
-**Purpose:**
-Transform multiple dishes into a single consolidated ingredient list.
-
-**Entities:**
-
-* `AggregatedIngredient`
-
-**Responsibilities:**
-
-* merge identical ingredients
-* sum quantities
-* track source dishes
-* generate purchase hints
-
-**Key principle:**
-
-> No AI here — purely deterministic logic
-
----
+Core entity:
+- `AggregatedIngredient`
 
 ### 6. Product Matching Layer
 
-**Purpose:**
-Map ingredients to real-world purchasable products.
+Purpose:
+- map normalized ingredient needs to purchasable products
 
-**Sub-steps:**
-
-1. generate search queries
-2. retrieve candidate products (mock or real)
+Typical flow:
+1. generate a search query
+2. retrieve candidates from a mock or real catalog
 3. score candidates
-4. select best match
+4. select the best fit
 
-**Entities:**
+Core entities:
+- `ProductCandidate`
+- `MatchedIngredientProduct`
 
-* `ProductCandidate`
-* `MatchedIngredientProduct`
+### 7. Cart Layer
 
-**Scoring signals:**
+Purpose:
+- produce the final structured cart returned to the client
 
-* name similarity
-* size compatibility
-* price efficiency
-* brand relevance (optional)
+Core entity:
+- `GeneratedCart`
 
----
-
-### 7. Cart Layer (Final Output)
-
-**Purpose:**
-Produce a structured, user-consumable cart.
-
-**Entity:**
-
-* `GeneratedCart`
-
-**Contains:**
-
-* dishes
-* aggregated ingredients
-* matched products
-* cost estimate
-
----
-
-## ⚙️ Service Architecture (Backend)
-
-Built with **NestJS modular design**.
-
-### Modules (planned)
+## Planned Backend Modules
 
 ```text
-api/
-├── recipe/
-├── variant/
-├── cart/
-├── aggregation/
-├── matching/
-├── llm/
+apps/api/src/
+|-- recipe/
+|-- variant/
+|-- cart/
+|-- aggregation/
+|-- matching/
+`-- llm/
 ```
 
----
+Current implementation note:
+- these modules do not exist yet
+- the current API is still the default Nest starter
 
-### Responsibilities
+## API Direction
 
-| Module      | Responsibility             |
-| ----------- | -------------------------- |
-| recipe      | CRUD for base recipes      |
-| variant     | adaptation logic + caching |
-| cart        | orchestration entry point  |
-| aggregation | ingredient consolidation   |
-| matching    | product selection          |
-| llm         | OpenAI interaction         |
-
----
-
-## 🔌 API Flow
-
-### Main Endpoint
+Planned main endpoint:
 
 ```http
 POST /cart/generate
 ```
 
-### Flow
+Planned service flow:
 
 ```text
-Request → CartService
-        → RecipeService
-        → (optional) LLMService
-        → AggregationService
-        → MatchingService
-        → Response
+request
+  -> CartService
+  -> RecipeService
+  -> optional LLMService
+  -> AggregationService
+  -> MatchingService
+  -> response
 ```
 
----
+## State Boundaries
 
-## 🗄️ Data Flow vs Control Flow
+Persistent state:
+- base recipes
+- recipe variants
+- cart drafts
 
-### Control Flow
+Derived state:
+- aggregated ingredients
+- generated carts
 
-Driven by:
+Ephemeral state:
+- raw LLM output
+- temporary product candidates
 
-* API request
-* user selection
-* explicit constraints
+## Infrastructure Direction
 
-### Data Flow
+Planned local services:
+- PostgreSQL for persistence
+- Redis for cache and async jobs
+- OpenAI for recipe adaptation
 
-Moves through:
+Planned local orchestration:
+- Docker
 
-* recipe → dish → ingredient → product → cart
+## Design Rules
 
----
-
-## 🤖 AI Boundary
-
-### LLM is used ONLY for:
-
-* recipe adaptation
-* ingredient interpretation (optional)
-* structured generation
-
-### LLM is NOT used for:
-
-* aggregation
-* pricing
-* product selection
-* system orchestration
-
----
-
-## ⚡ Sync vs Async Boundaries
-
-### Synchronous (initial MVP)
-
-* cart generation
-* aggregation
-* matching (mock)
-
-### Asynchronous (future)
-
-* product search at scale
-* caching variants
-* recomputing carts
-* price updates
-
-**Tools:**
-
-* Redis
-* BullMQ
-
----
-
-## 🧱 Infrastructure Layer
-
-### Local Development
-
-* Docker (Postgres + Redis)
-
-### Services
-
-* PostgreSQL → persistence
-* Redis → cache + queue
-* OpenAI → LLM
-
----
-
-## 🔐 State vs Computation
-
-| Type             | Examples                             |
-| ---------------- | ------------------------------------ |
-| Persistent State | BaseRecipe, RecipeVariant, CartDraft |
-| Derived State    | AggregatedIngredient, GeneratedCart  |
-| Ephemeral        | product candidates, raw LLM output   |
-
----
-
-## 🧠 Design Principles
-
-### 1. Deterministic Core
-
-All critical logic:
-
-* aggregation
-* pricing
-* selection
-  must be reproducible.
-
----
-
-### 2. LLM as Transformation Layer
-
-AI modifies structured inputs — it does not replace system logic.
-
----
-
-### 3. Separation of Concerns
-
-Clear boundaries between:
-
-* recipe logic
-* AI logic
-* aggregation logic
-* product logic
-
----
-
-### 4. Stateful System
-
-User behavior accumulates over time:
-
-* saved recipes
-* reused variants
-* repeated selections
-
----
-
-### 5. Composability
-
-Each layer can evolve independently:
-
-* better matching
-* better normalization
-* better adaptation
-
----
-
-## 🔮 Evolution Path
-
-### Phase 1
-
-* deterministic pipeline
-* mock product matching
-
-### Phase 2
-
-* variant caching
-* improved normalization
-
-### Phase 3
-
-* real retailer integration
-* async jobs
-
-### Phase 4
-
-* optimization engine
-* personalization
-
----
-
-## 🧭 Summary
-
-Cart Generator is architected as:
-
-> A modular, stateful system where **user-owned recipes + constraints are transformed into economic decisions (carts)** through a pipeline combining deterministic logic and controlled AI transformations.
-
----
+- deterministic logic for aggregation, matching, and pricing
+- AI only for constrained transformations
+- explicit module boundaries
+- structured data over free text
+- shared contracts across apps

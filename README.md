@@ -1,378 +1,122 @@
-# 🛒 Cart Generator
+# Cart Generator
 
-**Cart Generator** is a full-stack system that transforms a user’s **saved recipes and constraints into a structured grocery cart**, combining persistent recipe memory, deterministic backend logic, and LLM-based adaptation.
+Cart Generator is a pnpm monorepo for a grocery-cart generation system built around saved recipes, deterministic backend logic, and an eventual AI-assisted adaptation layer.
 
----
+The repository is still in the scaffold phase. The architecture and model docs are ahead of the implementation.
 
-## 🧠 Core Idea
+## Current State
 
-This project is **not** a generic AI meal planner.
+- `apps/api` is a NestJS starter app with a basic health-style endpoint and starter tests.
+- `apps/web` is a Next.js starter app with template UI.
+- `packages/shared` contains shared TypeScript workspace code, but the domain model is not implemented yet.
+- `docs/` describes the planned architecture, decisions, and models.
 
-It is a **stateful decision system** built around:
-
-* **Recipe memory (what users actually eat)**
-* **Constraint adaptation (diet, cost, preferences)**
-* **Cart generation (real-world output)**
-
----
-
-## 🔁 Core System Flow
-
-```text
-Saved Recipes → Selection → Optional Adaptation → Ingredient Extraction → Consolidation → Product Matching → Cost Estimation → Cart
-```
-
----
-
-## 🎯 Purpose
-
-The system is designed to:
-
-* Model **real-world food consumption patterns** (repetition, variation, constraints)
-* Reduce reliance on raw LLM generation
-* Demonstrate **production-grade backend architecture**
-* Combine:
-
-  * structured data systems
-  * AI-assisted transformations
-  * optimization pipelines
-
----
-
-## 🧩 Key Conceptual Layers
-
-### 1. Base Recipes (Persistent Layer)
-
-Represents stable, user-owned dishes.
-
-Examples:
-
-* Ají de gallina
-* Ceviche
-* Lomo saltado
-
-Each base recipe includes:
-
-* name
-* ingredients
-* quantities
-* preparation steps
-* metadata (tags, cuisine, etc.)
-
----
-
-### 2. Recipe Variants (Transformation Layer)
-
-Derived versions of base recipes under constraints.
-
-Examples:
-
-* cheaper version
-* halal version
-* vegan version
-* 600–800 kcal version
-
-Variants are generated via **LLM-assisted transformation**, but remain structured.
-
----
-
-### 3. Selection Layer
-
-Users select multiple recipes to build a weekly or session-based plan.
-
-This reflects real behavior:
-
-* repetition
-* partial variation
-* stable preferences
-
----
-
-### 4. Cart Generation Layer
-
-Selected recipes are transformed into:
-
-* aggregated ingredients
-* normalized units
-* matched products
-* estimated total cost
-
----
-
-## ⚙️ Tech Stack
-
-### Frontend
-
-* **Next.js (App Router)**
-* **TypeScript**
-* **Tailwind CSS**
-
-### Backend
-
-* **NestJS**
-* **TypeScript**
-* Modular architecture (controllers, services, DTOs)
-
-### Data Layer
-
-* **PostgreSQL**
-* **Prisma ORM**
-
-### Async / Caching
-
-* **Redis**
-* **BullMQ (planned)**
-
-### AI Layer
-
-* **OpenAI API**
-* Structured outputs (JSON)
-* Deterministic post-processing
-
-### Monorepo
-
-* **pnpm workspaces**
-
-### Infrastructure
-
-* **Docker (planned for local orchestration)**
-
----
-
-## 🏗️ Repository Structure
+## Repository Layout
 
 ```text
 cart-generator/
-├── apps/
-│   ├── web/        # Next.js frontend
-│   └── api/        # NestJS backend
-├── packages/
-│   └── shared/     # Shared TypeScript types
-├── infra/
-│   └── docker/     # Docker configs
-├── pnpm-workspace.yaml
-└── package.json
+|-- apps/
+|   |-- api/
+|   `-- web/
+|-- docs/
+|   |-- architecture.md
+|   |-- decisions.md
+|   `-- models.md
+|-- infra/
+|   `-- docker/
+|-- packages/
+|   `-- shared/
+|-- package.json
+|-- pnpm-lock.yaml
+`-- pnpm-workspace.yaml
 ```
 
----
+## Workspace Commands
 
-## 🧱 System Architecture (Target)
-
-### Entities
-
-* `BaseRecipe`
-* `RecipeVariant`
-* `Ingredient`
-* `RecipeIngredient`
-* `CartDraft` (or WeeklySelection)
-* `CartItem`
-* `Product`
-
----
-
-### Relationships
-
-* BaseRecipe → has many → RecipeIngredients
-* BaseRecipe → has many → RecipeVariants
-* CartDraft → has many → Recipes (base or variant)
-* Recipe → has many → Ingredients
-* Ingredients → map to → Products
-* Products → aggregate into → CartItems
-
----
-
-## 🤖 Role of AI
-
-LLM is used as a **transformation layer**, not the core system.
-
-### Responsibilities
-
-* Adapt recipes under constraints
-* Normalize ingredient descriptions
-* Suggest substitutions
-
-### Not responsible for
-
-* pricing logic
-* product matching decisions
-* aggregation
-* optimization
-
-👉 Core system remains **deterministic and auditable**
-
----
-
-## 🚧 Features Roadmap
-
-### Phase 1 — Core System (Current Focus)
-
-* [ ] Create and store base recipes
-* [ ] Display saved recipes (menu UI)
-* [ ] Select multiple recipes for a cart
-* [ ] Extract and normalize ingredients
-* [ ] Consolidate ingredient list
-* [ ] Mock product catalog
-* [ ] Product matching logic
-* [ ] Cost estimation
-* [ ] End-to-end cart generation
-
----
-
-### Phase 2 — Adaptation Layer
-
-* [ ] “Adapt recipe” feature (LLM)
-
-  * cheaper
-  * halal
-  * vegan
-  * calorie range
-* [ ] Store recipe variants
-* [ ] Cache transformations
-* [ ] Track adaptation metadata
-
----
-
-### Phase 3 — Persistence & UX Expansion
-
-* [ ] Save generated carts
-* [ ] View past carts
-* [ ] Edit / replace products
-* [ ] Regenerate selected recipes
-* [ ] Improve ingredient normalization
-
----
-
-### Phase 4 — System Maturity
-
-* [ ] Redis caching
-* [ ] Background job processing (BullMQ)
-* [ ] Retry and fault tolerance
-* [ ] Logging / observability
-* [ ] API validation layers
-
----
-
-### Phase 5 — Advanced Features
-
-* [ ] Real retailer integration (Walmart, etc.)
-* [ ] Budget optimization engine
-* [ ] Ingredient substitution system
-* [ ] Multi-user support (auth)
-* [ ] Personalized recommendations
-
----
-
-## 👥 Team
-
-### [@postigodev](https://github.com/postigodev/) — Backend & Systems Lead 
-
-* Backend architecture (NestJS)
-* Database design (Postgres + Prisma)
-* Orchestration pipeline
-* Infrastructure (Docker, Redis)
-* API contracts and data flow
-
-### [@galgallor](https://github.com/GALGALLOR) — AI & Intelligence Lead
-
-* LLM integration (OpenAI)
-* Recipe adaptation logic
-* Ingredient normalization
-* Product matching and scoring
-* Intelligent transformation pipelines
-
----
-
-## 🚀 Getting Started
-
-### Install dependencies
+Install dependencies:
 
 ```bash
 pnpm install
 ```
 
-### Run backend
+Run both apps:
+
+```bash
+pnpm dev
+```
+
+Run one app at a time:
+
+```bash
+pnpm dev:api
+pnpm dev:web
+```
+
+Build the workspace:
+
+```bash
+pnpm build
+```
+
+Run lint and tests:
+
+```bash
+pnpm lint
+pnpm test
+pnpm typecheck
+```
+
+## App Commands
+
+API:
 
 ```bash
 cd apps/api
-pnpm run start:dev
+pnpm start:dev
+pnpm test -- --runInBand
+pnpm test:e2e -- --runInBand
 ```
 
-### Run frontend
+Web:
 
 ```bash
 cd apps/web
 pnpm dev
+pnpm build
 ```
 
----
+## What Is Planned
 
-## 🔌 API (Current)
+The target product is a layered system that turns selected recipes into a structured cart through:
 
-### Generate Plan (stub)
+1. recipe storage
+2. recipe selection
+3. optional constraint-based adaptation
+4. ingredient normalization
+5. deterministic aggregation
+6. product matching
+7. cart and cost estimation
 
-```http
-POST /plan/generate
-```
+The detailed target architecture lives in:
 
-Example request:
+- [docs/architecture.md](C:/Users/akuma/repos/cart-generator/docs/architecture.md)
+- [docs/decisions.md](C:/Users/akuma/repos/cart-generator/docs/decisions.md)
+- [docs/models.md](C:/Users/akuma/repos/cart-generator/docs/models.md)
 
-```json
-{
-  "budget": 50,
-  "people": 2,
-  "days": 3
-}
-```
+## Known Gaps
 
----
+- No database or Prisma setup yet
+- No recipe CRUD
+- No `POST /cart/generate` endpoint yet
+- No aggregation or matching pipeline yet
+- No Dockerized local infra yet
+- No real frontend product flow yet
 
-## 🧠 Design Principles
+## Immediate Next Steps
 
-* **Stateful over stateless systems**
-* **User memory over constant generation**
-* **Deterministic core over AI chaos**
-* **Structured data over raw text**
-* **Separation of concerns (AI vs system logic)**
-* **Production-oriented design from day one**
-
----
-
-## 🔥 Vision
-
-Cart Generator aims to become:
-
-> A system that transforms stable human habits and constraints into optimized economic decisions.
-
-Not:
-
-* a chatbot
-* a recipe generator
-* or a grocery list tool
-
-But:
-
-* a **decision engine grounded in real consumption patterns**
-
----
-
-## 📌 Status
-
-🟢 Monorepo initialized
-
-🟢 Frontend + backend connected
-
-🟡 Core pipeline in development
-
-🔴 Recipe system + cart generation pending
-
----
-
-## 🧭 Next Steps
-
-* Implement database schema (Prisma)
-* Build BaseRecipe CRUD
-* Implement ingredient extraction + consolidation
-* Add product matching layer
-* Introduce LLM adaptation pipeline
-
----
+- add shared domain types from the models doc to `packages/shared`
+- add Prisma and PostgreSQL
+- build `recipe` CRUD in the API
+- implement deterministic aggregation
+- add a mock product catalog and matching logic
+- replace the starter frontend with a minimal recipe and cart flow
