@@ -48,10 +48,6 @@ export class CreateDishIngredientDto {
 }
 
 export class CreateRecipeDto {
-  @IsOptional()
-  @IsString()
-  user_id?: string;
-
   @IsString()
   name!: string;
 

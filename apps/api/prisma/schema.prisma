@@ -8,9 +8,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  admin
+  user
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String
+  role        UserRole     @default(user)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  ownedRecipes BaseRecipe[]
+}
+
 model BaseRecipe {
   id          String           @id @default(cuid())
-  userId      String?
+  ownerUserId String?
+  isSystemRecipe Boolean       @default(false)
   name        String
   cuisine     String?
   description String?
@@ -18,8 +34,12 @@ model BaseRecipe {
   tags        String[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  owner       User?            @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
   ingredients DishIngredient[]
   steps       RecipeStep[]
+
+  @@index([ownerUserId, createdAt])
+  @@index([isSystemRecipe, createdAt])
 }
 
 model DishIngredient {

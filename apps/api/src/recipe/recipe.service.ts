@@ -7,16 +7,16 @@ import { RecipeRepository } from './recipe.repository';
 export class RecipeService {
   constructor(private readonly recipeRepository: RecipeRepository) {}
 
-  create(input: CreateRecipeDto): Promise<BaseRecipe> {
-    return this.recipeRepository.create(input);
+  create(input: CreateRecipeDto, actorUserId?: string): Promise<BaseRecipe> {
+    return this.recipeRepository.create(input, actorUserId);
   }
 
-  findAll(): Promise<BaseRecipe[]> {
-    return this.recipeRepository.findMany();
+  findAll(actorUserId?: string): Promise<BaseRecipe[]> {
+    return this.recipeRepository.findMany(actorUserId);
   }
 
-  async findOne(id: string): Promise<BaseRecipe> {
-    const recipe = await this.recipeRepository.findById(id);
+  async findOne(id: string, actorUserId?: string): Promise<BaseRecipe> {
+    const recipe = await this.recipeRepository.findById(id, actorUserId);
 
     if (!recipe) {
       throw new NotFoundException(`Recipe ${id} not found`);

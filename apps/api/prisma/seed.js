@@ -1,8 +1,9 @@
 const { PrismaClient } = require("../generated/prisma");
 
 const prisma = new PrismaClient();
+const DEFAULT_DEV_USER_EMAIL = "postigodev@cart-generator.local";
 
-const recipes = [
+const systemRecipes = [
   {
     name: "Aji de gallina",
     cuisine: "Peruvian",
@@ -73,9 +74,37 @@ const recipes = [
   },
 ];
 
-async function upsertRecipe(recipe) {
+const userRecipes = [
+  {
+    name: "Arroz con pollo casero",
+    cuisine: "Peruvian",
+    description: "Home-style chicken rice with peas, cilantro, and bell pepper.",
+    servings: 4,
+    tags: ["peruvian", "chicken", "rice"],
+    ingredients: [
+      { canonicalIngredient: "chicken thigh", amount: 800, unit: "g", displayIngredient: "chicken thighs", sortOrder: 0 },
+      { canonicalIngredient: "rice", amount: 2, unit: "cup", displayIngredient: "white rice", sortOrder: 1 },
+      { canonicalIngredient: "cilantro", amount: 1, unit: "cup", displayIngredient: "cilantro", sortOrder: 2 },
+      { canonicalIngredient: "green pea", amount: 1, unit: "cup", displayIngredient: "green peas", sortOrder: 3 },
+      { canonicalIngredient: "red bell pepper", amount: 1, unit: "unit", displayIngredient: "red bell pepper", sortOrder: 4 },
+      { canonicalIngredient: "chicken stock", amount: 3, unit: "cup", displayIngredient: "chicken stock", sortOrder: 5 },
+    ],
+    steps: [
+      { stepNumber: 1, whatToDo: "Brown the chicken and set aside." },
+      { stepNumber: 2, whatToDo: "Blend cilantro with a little stock and cook the mixture briefly." },
+      { stepNumber: 3, whatToDo: "Add rice, peas, pepper, and stock, then return the chicken to the pot." },
+      { stepNumber: 4, whatToDo: "Cover and cook until the rice is tender." },
+    ],
+  },
+];
+
+async function upsertRecipe(recipe, ownership) {
   const existing = await prisma.baseRecipe.findFirst({
-    where: { name: recipe.name },
+    where: {
+      name: recipe.name,
+      ownerUserId: ownership.ownerUserId ?? null,
+      isSystemRecipe: ownership.isSystemRecipe,
+    },
     select: { id: true },
   });
 
@@ -83,6 +112,8 @@ async function upsertRecipe(recipe) {
     await prisma.baseRecipe.update({
       where: { id: existing.id },
       data: {
+        ownerUserId: ownership.ownerUserId ?? null,
+        isSystemRecipe: ownership.isSystemRecipe,
         cuisine: recipe.cuisine,
         description: recipe.description,
         servings: recipe.servings,
@@ -103,6 +134,8 @@ async function upsertRecipe(recipe) {
 
   await prisma.baseRecipe.create({
     data: {
+      ownerUserId: ownership.ownerUserId ?? null,
+      isSystemRecipe: ownership.isSystemRecipe,
       name: recipe.name,
       cuisine: recipe.cuisine,
       description: recipe.description,
@@ -119,8 +152,54 @@ async function upsertRecipe(recipe) {
 }
 
 async function main() {
-  for (const recipe of recipes) {
-    await upsertRecipe(recipe);
+  const adminUser = await prisma.user.upsert({
+    where: { email: "admin@cart-generator.local" },
+    update: {
+      name: "System Admin",
+      role: "admin",
+    },
+    create: {
+      email: "admin@cart-generator.local",
+      name: "System Admin",
+      role: "admin",
+    },
+  });
+
+  const devUser = await prisma.user.upsert({
+    where: { email: DEFAULT_DEV_USER_EMAIL },
+    update: {
+      name: "postigodev",
+      role: "user",
+    },
+    create: {
+      email: DEFAULT_DEV_USER_EMAIL,
+      name: "postigodev",
+      role: "user",
+    },
+  });
+
+  await prisma.baseRecipe.deleteMany({
+    where: {
+      ownerUserId: null,
+      isSystemRecipe: false,
+      name: {
+        in: systemRecipes.map((recipe) => recipe.name),
+      },
+    },
+  });
+
+  for (const recipe of systemRecipes) {
+    await upsertRecipe(recipe, {
+      ownerUserId: null,
+      isSystemRecipe: true,
+    });
+  }
+
+  for (const recipe of userRecipes) {
+    await upsertRecipe(recipe, {
+      ownerUserId: devUser.id,
+      isSystemRecipe: false,
+    });
   }
 }
 
