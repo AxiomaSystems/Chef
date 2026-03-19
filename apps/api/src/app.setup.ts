@@ -32,7 +32,8 @@ export const configureApp = (app: INestApplication): void => {
         type: 'apiKey',
         in: 'header',
         name: 'x-user-id',
-        description: 'Optional dev-only actor override header.',
+        description:
+          'Optional dev-only actor override header. Example: user-1',
       },
       'x-user-id',
     )
