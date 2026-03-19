@@ -1,14 +1,17 @@
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import {
-  RequestIdMiddleware,
-  REQUEST_ID_HEADER,
-} from './common/http/request-id.middleware';
+import { DEV_USER_ID_HEADER } from './common/http/api-headers.swagger';
+import { RequestContextMiddleware } from './common/http/request-context.middleware';
+import { RequestContextService } from './common/http/request-context.service';
+import { REQUEST_ID_HEADER } from './common/http/request-context.types';
 
 export const configureApp = (app: INestApplication): void => {
-  const requestIdMiddleware = new RequestIdMiddleware();
+  const requestContextService = app.get(RequestContextService);
+  const requestContextMiddleware = new RequestContextMiddleware(
+    requestContextService,
+  );
 
-  app.use(requestIdMiddleware.use.bind(requestIdMiddleware));
+  app.use(requestContextMiddleware.use.bind(requestContextMiddleware));
   app.enableCors();
   app.useGlobalPipes(
     new ValidationPipe({
@@ -31,11 +34,11 @@ export const configureApp = (app: INestApplication): void => {
       {
         type: 'apiKey',
         in: 'header',
-        name: 'x-user-id',
+        name: DEV_USER_ID_HEADER,
         description:
           'Optional dev-only actor override header. Example: user-1',
       },
-      'x-user-id',
+      DEV_USER_ID_HEADER,
     )
     .build();
 

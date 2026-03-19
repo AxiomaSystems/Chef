@@ -1,20 +1,27 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { RequestContextService } from '../common/http/request-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { DEFAULT_DEV_USER_EMAIL } from './user-context.constants';
 
 @Injectable()
 export class UserContextService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly requestContextService: RequestContextService,
+  ) {}
 
   async resolveActorUser(actorUserId?: string): Promise<{ id: string }> {
-    if (actorUserId) {
+    const resolvedActorUserId =
+      actorUserId ?? this.requestContextService.getActorUserId();
+
+    if (resolvedActorUserId) {
       const actor = await this.prisma.user.findUnique({
-        where: { id: actorUserId },
+        where: { id: resolvedActorUserId },
         select: { id: true },
       });
 
       if (!actor) {
-        throw new NotFoundException(`User ${actorUserId} not found`);
+        throw new NotFoundException(`User ${resolvedActorUserId} not found`);
       }
 
       return actor;
