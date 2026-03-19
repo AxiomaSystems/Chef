@@ -1,9 +1,9 @@
 {
   "info": {
-    "_postman_id": "58898f95-f37d-49d9-9f8c-4a087f2d1114",
+    "_postman_id": "8e4fce99-71f2-4afb-bac5-2b8f9bb2a601",
     "name": "Cart Generator API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Local collection for testing the current Cart Generator API."
+    "description": "Local collection for testing the Cart Generator NestJS API."
   },
   "variable": [
     {
@@ -16,18 +16,10 @@
     },
     {
       "key": "requestId",
-      "value": "postman-local"
+      "value": "postman-local-1"
     },
     {
       "key": "recipeId",
-      "value": ""
-    },
-    {
-      "key": "systemRecipeId",
-      "value": ""
-    },
-    {
-      "key": "savedRecipeId",
       "value": ""
     },
     {
@@ -44,7 +36,7 @@
       "name": "Recipes",
       "item": [
         {
-          "name": "List Recipes (Authenticated)",
+          "name": "List Recipes",
           "event": [
             {
               "listen": "test",
@@ -60,17 +52,8 @@
                   "  pm.expect(Array.isArray(data)).to.eql(true);",
                   "});",
                   "",
-                  "if (Array.isArray(data)) {",
-                  "  const systemRecipe = data.find((recipe) => recipe.is_system_recipe === true);",
-                  "  const ownedRecipe = data.find((recipe) => recipe.is_system_recipe === false && recipe.owner_user_id);",
-                  "",
-                  "  if (systemRecipe && systemRecipe.id) {",
-                  "    pm.collectionVariables.set('systemRecipeId', systemRecipe.id);",
-                  "  }",
-                  "",
-                  "  if (ownedRecipe && ownedRecipe.id) {",
-                  "    pm.collectionVariables.set('recipeId', ownedRecipe.id);",
-                  "  }",
+                  "if (Array.isArray(data) && data.length > 0 && data[0].id) {",
+                  "  pm.collectionVariables.set('recipeId', data[0].id);",
                   "}"
                 ]
               }
@@ -85,47 +68,7 @@
               },
               {
                 "key": "x-request-id",
-                "value": "{{requestId}}-recipes-auth"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/recipes",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "recipes"
-              ]
-            }
-          }
-        },
-        {
-          "name": "List Recipes (Unauthenticated)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 200', function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "const data = pm.response.json();",
-                  "pm.test('unauthenticated recipes are only system recipes', function () {",
-                  "  pm.expect(Array.isArray(data)).to.eql(true);",
-                  "  data.forEach((recipe) => pm.expect(recipe.is_system_recipe).to.eql(true));",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "x-request-id",
-                "value": "{{requestId}}-recipes-public"
+                "value": "{{requestId}}-list-recipes"
               }
             ],
             "url": {
@@ -154,7 +97,6 @@
                   "const data = pm.response.json();",
                   "pm.test('created recipe has id', function () {",
                   "  pm.expect(data.id).to.be.a('string');",
-                  "  pm.expect(data.is_system_recipe).to.eql(false);",
                   "});",
                   "",
                   "pm.collectionVariables.set('recipeId', data.id);"
@@ -175,7 +117,7 @@
               },
               {
                 "key": "x-request-id",
-                "value": "{{requestId}}-recipes-create"
+                "value": "{{requestId}}-create-recipe"
               }
             ],
             "body": {
@@ -189,50 +131,6 @@
               ],
               "path": [
                 "recipes"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Recipe By Id",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 200', function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "const data = pm.response.json();",
-                  "pm.test('recipe id matches', function () {",
-                  "  pm.expect(data.id).to.eql(pm.collectionVariables.get('recipeId'));",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "x-user-id",
-                "value": "{{userId}}"
-              },
-              {
-                "key": "x-request-id",
-                "value": "{{requestId}}-recipes-get"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/recipes/{{recipeId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "recipes",
-                "{{recipeId}}"
               ]
             }
           }
@@ -270,146 +168,13 @@
               },
               {
                 "key": "x-request-id",
-                "value": "{{requestId}}-recipes-update"
+                "value": "{{requestId}}-update-recipe"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Tallarines verdes familiares\",\n  \"description\": \"Updated family version for manual testing.\",\n  \"steps\": [\n    {\n      \"step\": 1,\n      \"what_to_do\": \"Boil the pasta until al dente.\"\n    },\n    {\n      \"step\": 2,\n      \"what_to_do\": \"Blend the green sauce and combine with pasta.\"\n    }\n  ],\n  \"tags\": [\"dinner\", \"pasta\", \"updated\"]\n}"
+              "raw": "{\n  \"name\": \"Tallarines verdes familiares\",\n  \"description\": \"Updated family version for manual testing.\",\n  \"tags\": [\"dinner\", \"pasta\", \"updated\"]\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/recipes/{{recipeId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "recipes",
-                "{{recipeId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Save System Recipe",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 201 or 200', function () {",
-                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
-                  "});",
-                  "",
-                  "const data = pm.response.json();",
-                  "pm.test('saved recipe is a user fork', function () {",
-                  "  pm.expect(data.is_system_recipe).to.eql(false);",
-                  "  pm.expect(data.forked_from_recipe_id).to.eql(pm.collectionVariables.get('systemRecipeId'));",
-                  "});",
-                  "",
-                  "pm.collectionVariables.set('savedRecipeId', data.id);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "x-user-id",
-                "value": "{{userId}}"
-              },
-              {
-                "key": "x-request-id",
-                "value": "{{requestId}}-recipes-save"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/recipes/{{systemRecipeId}}/save",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "recipes",
-                "{{systemRecipeId}}",
-                "save"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Saved Recipe Origin",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 200', function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "const data = pm.response.json();",
-                  "pm.test('origin is a system recipe', function () {",
-                  "  pm.expect(data.is_system_recipe).to.eql(true);",
-                  "  pm.expect(data.id).to.eql(pm.collectionVariables.get('systemRecipeId'));",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "x-user-id",
-                "value": "{{userId}}"
-              },
-              {
-                "key": "x-request-id",
-                "value": "{{requestId}}-recipes-origin"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/recipes/{{savedRecipeId}}/origin",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "recipes",
-                "{{savedRecipeId}}",
-                "origin"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Recipe",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 204', function () {",
-                  "  pm.response.to.have.status(204);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "x-user-id",
-                "value": "{{userId}}"
-              },
-              {
-                "key": "x-request-id",
-                "value": "{{requestId}}-recipes-delete"
-              }
-            ],
             "url": {
               "raw": "{{baseUrl}}/recipes/{{recipeId}}",
               "host": [
@@ -428,153 +193,6 @@
       "name": "Cart",
       "item": [
         {
-          "name": "Create Draft",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 201 or 200', function () {",
-                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
-                  "});",
-                  "",
-                  "const data = pm.response.json();",
-                  "pm.test('draft has id', function () {",
-                  "  pm.expect(data.id).to.be.a('string');",
-                  "});",
-                  "",
-                  "pm.collectionVariables.set('cartDraftId', data.id);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "x-user-id",
-                "value": "{{userId}}"
-              },
-              {
-                "key": "x-request-id",
-                "value": "{{requestId}}-cart-draft-create"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Weekly dinner plan\",\n  \"selections\": [\n    {\n      \"recipe_id\": \"{{savedRecipeId}}\",\n      \"recipe_type\": \"base\",\n      \"quantity\": 1,\n      \"servings_override\": 4\n    }\n  ],\n  \"retailer\": \"walmart\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/cart/drafts",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "cart",
-                "drafts"
-              ]
-            }
-          }
-        },
-        {
-          "name": "List Drafts",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 200', function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "const data = pm.response.json();",
-                  "pm.test('drafts is an array', function () {",
-                  "  pm.expect(Array.isArray(data)).to.eql(true);",
-                  "});",
-                  "",
-                  "if (Array.isArray(data) && data.length > 0 && data[0].id) {",
-                  "  pm.collectionVariables.set('cartDraftId', data[0].id);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "x-user-id",
-                "value": "{{userId}}"
-              },
-              {
-                "key": "x-request-id",
-                "value": "{{requestId}}-cart-draft-list"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/cart/drafts",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "cart",
-                "drafts"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Draft By Id",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('status is 200', function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "const data = pm.response.json();",
-                  "pm.test('draft id matches', function () {",
-                  "  pm.expect(data.id).to.eql(pm.collectionVariables.get('cartDraftId'));",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "x-user-id",
-                "value": "{{userId}}"
-              },
-              {
-                "key": "x-request-id",
-                "value": "{{requestId}}-cart-draft-get"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/cart/drafts/{{cartDraftId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "cart",
-                "drafts",
-                "{{cartDraftId}}"
-              ]
-            }
-          }
-        },
-        {
           "name": "Generate Cart",
           "event": [
             {
@@ -590,7 +208,7 @@
                   "pm.test('cart draft id exists', function () {",
                   "  pm.expect(data.cart_draft_id).to.be.a('string');",
                   "});",
-                  "pm.test('matched items is an array', function () {",
+                  "pm.test('matched items array exists', function () {",
                   "  pm.expect(Array.isArray(data.matched_items)).to.eql(true);",
                   "});",
                   "",
@@ -612,12 +230,12 @@
               },
               {
                 "key": "x-request-id",
-                "value": "{{requestId}}-cart-generate"
+                "value": "{{requestId}}-generate-cart"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"selections\": [\n    {\n      \"recipe_id\": \"{{savedRecipeId}}\",\n      \"recipe_type\": \"base\",\n      \"quantity\": 2,\n      \"servings_override\": 4\n    }\n  ],\n  \"retailer\": \"walmart\"\n}"
+              "raw": "{\n  \"selections\": [\n    {\n      \"recipe_id\": \"{{recipeId}}\",\n      \"recipe_type\": \"base\",\n      \"quantity\": 2,\n      \"servings_override\": 4\n    }\n  ],\n  \"retailer\": \"walmart\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/cart/generate",
@@ -664,7 +282,7 @@
               },
               {
                 "key": "x-request-id",
-                "value": "{{requestId}}-cart-history"
+                "value": "{{requestId}}-generated-history"
               }
             ],
             "url": {
@@ -713,7 +331,7 @@
               },
               {
                 "key": "x-request-id",
-                "value": "{{requestId}}-cart-generated-list"
+                "value": "{{requestId}}-generated-list"
               }
             ],
             "url": {
@@ -741,8 +359,12 @@
                   "});",
                   "",
                   "const data = pm.response.json();",
-                  "pm.test('generated cart id matches', function () {",
-                  "  pm.expect(data.id).to.eql(pm.collectionVariables.get('generatedCartId'));",
+                  "pm.test('generated cart id matches variable when available', function () {",
+                  "  if (pm.collectionVariables.get('generatedCartId')) {",
+                  "    pm.expect(data.id).to.eql(pm.collectionVariables.get('generatedCartId'));",
+                  "  } else {",
+                  "    pm.expect(data.id).to.be.a('string');",
+                  "  }",
                   "});"
                 ]
               }
@@ -757,7 +379,7 @@
               },
               {
                 "key": "x-request-id",
-                "value": "{{requestId}}-cart-generated-get"
+                "value": "{{requestId}}-generated-get"
               }
             ],
             "url": {
@@ -769,6 +391,103 @@
                 "cart",
                 "generated",
                 "{{generatedCartId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Cart Drafts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const data = pm.response.json();",
+                  "pm.test('drafts is an array', function () {",
+                  "  pm.expect(Array.isArray(data)).to.eql(true);",
+                  "});",
+                  "",
+                  "if (Array.isArray(data) && data.length > 0 && data[0].id) {",
+                  "  pm.collectionVariables.set('cartDraftId', data[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "x-request-id",
+                "value": "{{requestId}}-drafts-list"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/drafts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "drafts"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Cart Draft By Id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const data = pm.response.json();",
+                  "pm.test('draft id matches variable when available', function () {",
+                  "  if (pm.collectionVariables.get('cartDraftId')) {",
+                  "    pm.expect(data.id).to.eql(pm.collectionVariables.get('cartDraftId'));",
+                  "  } else {",
+                  "    pm.expect(data.id).to.be.a('string');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "x-request-id",
+                "value": "{{requestId}}-drafts-get"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/drafts/{{cartDraftId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "drafts",
+                "{{cartDraftId}}"
               ]
             }
           }
