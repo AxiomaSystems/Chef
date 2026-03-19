@@ -9,6 +9,7 @@ import type { BaseRecipe } from '@cart/shared';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { configureApp, REQUEST_ID_HEADER } from './../src/app.setup';
 import { CartService } from './../src/cart/cart.service';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { RecipeService } from './../src/recipe/recipe.service';
@@ -79,13 +80,7 @@ describe('AppController (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true,
-        forbidNonWhitelisted: true,
-      }),
-    );
+    configureApp(app);
     await app.init();
   });
 
@@ -98,6 +93,25 @@ describe('AppController (e2e)', () => {
       .get('/')
       .expect(200)
       .expect('Hello World!');
+  });
+
+  it('adds an x-request-id response header', async () => {
+    await request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect((response) => {
+        expect(response.headers[REQUEST_ID_HEADER]).toBeDefined();
+      });
+  });
+
+  it('serves Swagger OpenAPI JSON', async () => {
+    await request(app.getHttpServer())
+      .get('/docs/openapi.json')
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.info.title).toBe('Cart Generator API');
+        expect(response.body.paths['/recipes']).toBeDefined();
+      });
   });
 
   it('PATCH /recipes/:id updates a recipe owned by the current user', async () => {
