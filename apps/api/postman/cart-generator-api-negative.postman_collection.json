@@ -1,0 +1,398 @@
+{
+  "info": {
+    "_postman_id": "206a1d73-8df2-4747-9d7a-510783596c7d",
+    "name": "Cart Generator API Negative",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Negative-path collection for validating expected 401/403/404 responses."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001"
+    },
+    {
+      "key": "userId",
+      "value": "postigodev@cart-generator.local"
+    },
+    {
+      "key": "requestId",
+      "value": "postman-negative"
+    },
+    {
+      "key": "systemRecipeId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Setup - Capture System Recipe",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "const systemRecipe = Array.isArray(data) ? data.find((recipe) => recipe.is_system_recipe === true) : null;",
+              "",
+              "pm.test('system recipe exists for negative tests', function () {",
+              "  pm.expect(systemRecipe && systemRecipe.id).to.be.a('string');",
+              "});",
+              "",
+              "if (systemRecipe && systemRecipe.id) {",
+              "  pm.collectionVariables.set('systemRecipeId', systemRecipe.id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-user-id",
+            "value": "{{userId}}"
+          },
+          {
+            "key": "x-request-id",
+            "value": "{{requestId}}-setup"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/recipes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "recipes"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /recipes without auth -> 401",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('message matches auth requirement', function () {",
+              "  pm.expect(data.message).to.eql('Authentication required');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-request-id",
+            "value": "{{requestId}}-recipes-create-401"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Should fail\",\n  \"servings\": 4,\n  \"ingredients\": [\n    {\n      \"canonical_ingredient\": \"rice\",\n      \"amount\": 1,\n      \"unit\": \"cup\"\n    }\n  ],\n  \"steps\": [\n    {\n      \"step\": 1,\n      \"what_to_do\": \"Test\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/recipes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "recipes"
+          ]
+        }
+      }
+    },
+    {
+      "name": "PATCH system recipe -> 403",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 403', function () {",
+              "  pm.response.to.have.status(403);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('forbidden message is correct', function () {",
+              "  pm.expect(data.message).to.eql('System recipes cannot be edited');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-user-id",
+            "value": "{{userId}}"
+          },
+          {
+            "key": "x-request-id",
+            "value": "{{requestId}}-recipes-patch-403"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Should fail\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/recipes/{{systemRecipeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "recipes",
+            "{{systemRecipeId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "DELETE missing recipe -> 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 404', function () {",
+              "  pm.response.to.have.status(404);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('not found message mentions recipe id', function () {",
+              "  pm.expect(data.message).to.eql('Recipe missing-recipe not found');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "x-user-id",
+            "value": "{{userId}}"
+          },
+          {
+            "key": "x-request-id",
+            "value": "{{requestId}}-recipes-delete-404"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/recipes/missing-recipe",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "recipes",
+            "missing-recipe"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /recipes/:id/save without auth -> 401",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('message matches auth requirement', function () {",
+              "  pm.expect(data.message).to.eql('Authentication required');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-request-id",
+            "value": "{{requestId}}-recipes-save-401"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/recipes/{{systemRecipeId}}/save",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "recipes",
+            "{{systemRecipeId}}",
+            "save"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /cart/generate without auth -> 401",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('message matches auth requirement', function () {",
+              "  pm.expect(data.message).to.eql('Authentication required');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-request-id",
+            "value": "{{requestId}}-cart-generate-401"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"selections\": [\n    {\n      \"recipe_id\": \"{{systemRecipeId}}\",\n      \"recipe_type\": \"base\",\n      \"quantity\": 1\n    }\n  ],\n  \"retailer\": \"walmart\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/cart/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cart",
+            "generate"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /cart/drafts without auth -> 401",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('message matches auth requirement', function () {",
+              "  pm.expect(data.message).to.eql('Authentication required');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-request-id",
+            "value": "{{requestId}}-cart-drafts-401"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Should fail\",\n  \"selections\": [\n    {\n      \"recipe_id\": \"{{systemRecipeId}}\",\n      \"recipe_type\": \"base\",\n      \"quantity\": 1\n    }\n  ],\n  \"retailer\": \"walmart\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/cart/drafts",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cart",
+            "drafts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /cart/generated/history without auth -> 401",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('message matches auth requirement', function () {",
+              "  pm.expect(data.message).to.eql('Authentication required');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-request-id",
+            "value": "{{requestId}}-cart-history-401"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/cart/generated/history",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "cart",
+            "generated",
+            "history"
+          ]
+        }
+      }
+    }
+  ]
+}
