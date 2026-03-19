@@ -1,10 +1,42 @@
+export const peruvianCuisineExample = {
+  id: 'cuisine-peruvian',
+  slug: 'peruvian',
+  label: 'Peruvian',
+  kind: 'national',
+  created_at: '2026-03-19T03:12:00.000Z',
+  updated_at: '2026-03-19T03:12:00.000Z',
+};
+
+export const otherCuisineExample = {
+  id: 'cuisine-other',
+  slug: 'other',
+  label: 'Other',
+  kind: 'other',
+  created_at: '2026-03-19T03:12:00.000Z',
+  updated_at: '2026-03-19T03:12:00.000Z',
+};
+
+export const cuisineListExample = [
+  peruvianCuisineExample,
+  {
+    id: 'cuisine-mediterranean',
+    slug: 'mediterranean',
+    label: 'Mediterranean',
+    kind: 'style',
+    created_at: '2026-03-19T03:12:00.000Z',
+    updated_at: '2026-03-19T03:12:00.000Z',
+  },
+  otherCuisineExample,
+];
+
 export const recipeExample = {
   id: 'recipe-1',
   owner_user_id: 'user-1',
   forked_from_recipe_id: undefined,
   is_system_recipe: false,
   name: 'Arroz con pollo casero',
-  cuisine: 'Peruvian',
+  cuisine_id: 'cuisine-peruvian',
+  cuisine: peruvianCuisineExample,
   description: 'Comforting chicken and rice dish.',
   servings: 4,
   ingredients: [
@@ -83,7 +115,7 @@ export const userTagExample = {
 
 export const createRecipeRequestExample = {
   name: 'Arroz con pollo casero',
-  cuisine: 'Peruvian',
+  cuisine_id: 'cuisine-peruvian',
   description: 'Comforting chicken and rice dish.',
   servings: 4,
   ingredients: [
@@ -118,6 +150,7 @@ export const createRecipeRequestExample = {
 
 export const updateRecipeRequestExample = {
   name: 'Arroz con pollo actualizado',
+  cuisine_id: 'cuisine-peruvian',
   description: 'Updated family version with clearer steps.',
   servings: 6,
   ingredients: [

@@ -27,7 +27,7 @@ export const buildCreateRecipeData = (
   ownerUserId,
   isSystemRecipe: false,
   name: input.name,
-  cuisine: input.cuisine,
+  cuisineId: input.cuisine_id,
   description: input.description,
   servings: input.servings,
   ingredients: {
@@ -40,7 +40,7 @@ export const buildCreateRecipeData = (
 
 export const buildUpdateRecipeData = (input: UpdateRecipeDto) => ({
   name: input.name,
-  cuisine: input.cuisine,
+  cuisineId: input.cuisine_id,
   description: input.description,
   servings: input.servings,
   ...(input.ingredients

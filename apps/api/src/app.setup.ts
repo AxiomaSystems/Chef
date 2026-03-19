@@ -30,6 +30,7 @@ export const configureApp = (app: INestApplication): void => {
     .addTag('system')
     .addTag('auth')
     .addTag('me')
+    .addTag('cuisines')
     .addTag('tags')
     .addTag('recipes')
     .addTag('recipe-forks')

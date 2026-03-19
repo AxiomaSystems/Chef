@@ -1,3 +1,4 @@
+import { mapCuisine } from '../cuisines/cuisines.mapper';
 import { mapTag } from '../tags/tags.mapper';
 import type { BaseRecipe, DishIngredient, RecipeStep } from '@cart/shared';
 import type {
@@ -29,7 +30,8 @@ export const mapBaseRecipe = (
   forked_from_recipe_id: recipe.forkedFromRecipeId ?? undefined,
   is_system_recipe: recipe.isSystemRecipe,
   name: recipe.name,
-  cuisine: recipe.cuisine ?? undefined,
+  cuisine_id: recipe.cuisineId,
+  cuisine: mapCuisine(recipe.cuisine),
   description: recipe.description ?? undefined,
   servings: recipe.servings,
   ingredients: recipe.ingredients

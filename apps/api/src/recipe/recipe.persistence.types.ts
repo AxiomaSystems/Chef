@@ -1,5 +1,6 @@
 import type {
   BaseRecipe as PrismaBaseRecipe,
+  Cuisine as PrismaCuisine,
   DishIngredient as PrismaDishIngredient,
   RecipeTag as PrismaRecipeTag,
   RecipeStep as PrismaRecipeStep,
@@ -7,6 +8,7 @@ import type {
 } from '../../generated/prisma/index.js';
 
 export type BaseRecipeWithRelations = PrismaBaseRecipe & {
+  cuisine: PrismaCuisine;
   ingredients: PrismaDishIngredient[];
   recipeTags: Array<
     PrismaRecipeTag & {

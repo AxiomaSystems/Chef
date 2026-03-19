@@ -42,6 +42,26 @@ export class DishIngredientResponseDto {
   group?: string;
 }
 
+export class CuisineResponseDto {
+  @ApiProperty({ example: 'cuisine-peruvian' })
+  id!: string;
+
+  @ApiProperty({ example: 'peruvian' })
+  slug!: string;
+
+  @ApiProperty({ example: 'Peruvian' })
+  label!: string;
+
+  @ApiProperty({ example: 'national' })
+  kind!: 'national' | 'regional' | 'cultural' | 'style' | 'other';
+
+  @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
+  created_at!: string;
+
+  @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
+  updated_at!: string;
+}
+
 export class BaseRecipeResponseDto {
   @ApiProperty({ example: 'recipe-1' })
   id!: string;
@@ -58,8 +78,11 @@ export class BaseRecipeResponseDto {
   @ApiProperty({ example: 'Arroz con pollo casero' })
   name!: string;
 
-  @ApiPropertyOptional({ example: 'Peruvian' })
-  cuisine?: string;
+  @ApiProperty({ example: 'cuisine-peruvian' })
+  cuisine_id!: string;
+
+  @ApiProperty({ type: () => CuisineResponseDto })
+  cuisine!: CuisineResponseDto;
 
   @ApiPropertyOptional({ example: 'Comforting chicken and rice dish.' })
   description?: string;

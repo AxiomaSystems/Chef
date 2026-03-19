@@ -12,7 +12,15 @@ describe('cart.runtime', () => {
     owner_user_id: 'user-1',
     is_system_recipe: false,
     name: 'Arroz con pollo casero',
-    cuisine: 'Peruvian',
+    cuisine_id: 'cuisine-peruvian',
+    cuisine: {
+      id: 'cuisine-peruvian',
+      slug: 'peruvian',
+      label: 'Peruvian',
+      kind: 'national',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
     description: 'Test recipe',
     servings: 4,
     ingredients: [
@@ -33,7 +41,17 @@ describe('cart.runtime', () => {
         what_to_do: 'Brown the chicken thighs.',
       },
     ],
-    tags: ['dinner'],
+    tag_ids: ['tag-1'],
+    tags: [
+      {
+        id: 'tag-1',
+        name: 'Dinner',
+        slug: 'dinner',
+        scope: 'system',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };

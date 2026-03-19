@@ -3,5 +3,6 @@ export * from "./src/selection";
 export * from "./src/aggregation";
 export * from "./src/product";
 export * from "./src/cart";
+export * from "./src/cuisine";
 export * from "./src/tag";
 export * from "./src/user";

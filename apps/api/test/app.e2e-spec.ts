@@ -24,7 +24,15 @@ describe('AppController (e2e)', () => {
     owner_user_id: 'user-1',
     is_system_recipe: false,
     name: 'Arroz con pollo actualizado',
-    cuisine: 'Peruvian',
+    cuisine_id: 'cuisine-peruvian',
+    cuisine: {
+      id: 'cuisine-peruvian',
+      slug: 'peruvian',
+      label: 'Peruvian',
+      kind: 'national',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
     description: 'Updated recipe',
     servings: 4,
     ingredients: [
@@ -205,6 +213,7 @@ describe('AppController (e2e)', () => {
       .post('/api/v1/recipes')
       .send({
         name: 'Should fail',
+        cuisine_id: 'cuisine-peruvian',
         servings: 4,
         ingredients: [
           {

@@ -39,6 +39,7 @@ That flow is implemented in the NestJS API under:
 ```text
 apps/api/src/
 |-- auth/
+|-- cuisines/
 |-- tags/
 |-- recipe/
 |-- cart/
@@ -322,8 +323,9 @@ Status:
 - explicit `Tag` and `RecipeTag` persistence is implemented
 - `/api/v1/tags` is implemented
 - recipes now accept `tag_ids` on write and return expanded `tags` on read
-- `cuisine` is still a free string
-- controlled cuisine is still the next taxonomy step
+- explicit `Cuisine` persistence is implemented
+- `/api/v1/cuisines` is implemented
+- recipes now require `cuisine_id` on write and return expanded `cuisine` on read
 
 ### 3. Real Retailer Provider
 

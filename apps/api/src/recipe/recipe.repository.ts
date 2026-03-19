@@ -49,6 +49,7 @@ export class RecipeRepository {
         isSystemRecipe: false,
       },
       include: {
+        cuisine: true,
         ingredients: true,
         recipeTags: {
           include: {
@@ -90,13 +91,26 @@ export class RecipeRepository {
     return uniqueTagIds;
   }
 
+  private async validateCuisineId(cuisineId: string) {
+    const cuisine = await this.prisma.cuisine.findUnique({
+      where: { id: cuisineId },
+    });
+
+    if (!cuisine) {
+      throw new BadRequestException('cuisine_id is invalid');
+    }
+
+    return cuisine.id;
+  }
+
   async create(input: CreateRecipeDto, actorUserId?: string): Promise<BaseRecipe> {
     const actor = await this.resolveActorUser(actorUserId);
     const tagIds = await this.validateTagIdsForActor(actor.id, input.tag_ids);
+    const cuisineId = await this.validateCuisineId(input.cuisine_id);
 
     const recipe = await this.prisma.baseRecipe.create({
       data: {
-        ...buildCreateRecipeData(input, actor.id),
+        ...buildCreateRecipeData({ ...input, cuisine_id: cuisineId }, actor.id),
         recipeTags: {
           create: tagIds.map((tagId) => ({
             tag: {
@@ -106,6 +120,7 @@ export class RecipeRepository {
         },
       },
       include: {
+        cuisine: true,
         ingredients: true,
         recipeTags: {
           include: {
@@ -125,6 +140,7 @@ export class RecipeRepository {
     const recipes = await this.prisma.baseRecipe.findMany({
       where: buildVisibleRecipeWhere(actor?.id),
       include: {
+        cuisine: true,
         ingredients: true,
         recipeTags: {
           include: {
@@ -150,6 +166,7 @@ export class RecipeRepository {
         ...buildVisibleRecipeWhere(actor?.id),
       },
       include: {
+        cuisine: true,
         ingredients: true,
         recipeTags: {
           include: {
@@ -175,6 +192,7 @@ export class RecipeRepository {
         ...buildVisibleRecipeWhere(actor?.id),
       },
       include: {
+        cuisine: true,
         ingredients: true,
         recipeTags: {
           include: {
@@ -197,6 +215,7 @@ export class RecipeRepository {
     const existing = await this.prisma.baseRecipe.findFirst({
       where: buildOwnedMutableRecipeWhere(id, actor.id),
       include: {
+        cuisine: true,
         ingredients: true,
         recipeTags: {
           include: {
@@ -215,11 +234,18 @@ export class RecipeRepository {
       input.tag_ids !== undefined
         ? await this.validateTagIdsForActor(actor.id, input.tag_ids)
         : null;
+    const cuisineId =
+      input.cuisine_id !== undefined
+        ? await this.validateCuisineId(input.cuisine_id)
+        : undefined;
 
     const recipe = await this.prisma.baseRecipe.update({
       where: { id },
       data: {
-        ...buildUpdateRecipeData(input),
+        ...buildUpdateRecipeData({
+          ...input,
+          ...(cuisineId !== undefined ? { cuisine_id: cuisineId } : {}),
+        }),
         ...(tagIds !== null
           ? {
               recipeTags: {
@@ -234,6 +260,7 @@ export class RecipeRepository {
           : {}),
       },
       include: {
+        cuisine: true,
         ingredients: true,
         recipeTags: {
           include: {
@@ -259,6 +286,7 @@ export class RecipeRepository {
         ownerUserId: null,
       },
       include: {
+        cuisine: true,
         ingredients: true,
         recipeTags: {
           include: {
@@ -284,9 +312,9 @@ export class RecipeRepository {
         data: {
           ownerUserId: actor.id,
           forkedFromRecipeId: sourceRecipe.id,
+          cuisineId: sourceRecipe.cuisineId,
           isSystemRecipe: false,
           name: sourceRecipe.name,
-          cuisine: sourceRecipe.cuisine,
           description: sourceRecipe.description,
           servings: sourceRecipe.servings,
           recipeTags: {
@@ -318,6 +346,7 @@ export class RecipeRepository {
           },
         },
         include: {
+          cuisine: true,
           ingredients: true,
           recipeTags: {
             include: {

@@ -12,6 +12,7 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 
 - user and admin identities in the database
 - real auth endpoints for email/password, Google login, refresh, logout, and `/me`
+- a global controlled cuisine catalog exposed at `/api/v1/cuisines`
 - hybrid tags with explicit `/api/v1/tags` endpoints
 - global system recipes and user-owned recipes
 - recipe CRUD for user-owned recipes
@@ -30,6 +31,7 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 [packages/shared](/C:/Users/akuma/repos/cart-generator/packages/shared) contains the current TypeScript domain contracts for:
 
 - recipes
+- cuisines
 - selection and cart models
 - aggregation
 - matching
@@ -157,6 +159,8 @@ Swagger:
 - authenticated users see global recipes plus their own recipes
 - writes require authentication
 - `/api/v1/me` is the authenticated profile boundary
+- cuisines are now explicit global resources with `kind`-based curation
+- recipe writes now use `cuisine_id`, and recipe reads return both `cuisine_id` and expanded `cuisine`
 - tags are now explicit resources with `system` and `user` scope
 - recipe writes now use `tag_ids`, and recipe reads return both `tag_ids` and expanded `tags`
 - forking a system recipe creates a user-owned editable copy
@@ -201,12 +205,16 @@ This separation is intentional:
 
 - `/api/v1` is now the active internal API contract.
 - auth persistence now includes `AuthIdentity` and `RefreshToken`.
+- cuisine persistence now includes a global `Cuisine` catalog.
 - tags persistence now includes `Tag` and `RecipeTag`.
 - `/api/v1/auth/register`, `/login`, `/google`, `/refresh`, `/logout`, and `/me` are implemented.
+- `/api/v1/cuisines` now exposes the global cuisine catalog.
 - `/api/v1/tags` now supports list/create/update/delete.
 - `POST /api/v1/recipe-forks` replaced the old save-style route.
+- recipes now require `cuisine_id` and return expanded `cuisine` objects.
 - `cart-drafts`, `carts`, and `shopping-carts` are separate resources in API, shared models, and database schema.
 - Prisma migration `20260319113000_split_cart_and_shopping_cart_v1` materializes the new `Cart`/`ShoppingCart` split.
+- Prisma migration `20260319124500_add_cuisine_catalog` materializes the controlled cuisine catalog and recipe relation.
 - the web app dashboard in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web) now reads the `/api/v1` endpoints and reflects the new model vocabulary.
 
 ## Upcoming Work
@@ -214,11 +222,11 @@ This separation is intentional:
 The highest-signal next steps are in backend, not frontend expansion.
 
 1. Migrate the web app off the temporary `x-user-id` fallback onto bearer tokens and remove that fallback from normal protected flows.
-2. Decide whether `cuisine` remains lightweight or becomes a controlled taxonomy tied to tags.
+2. Build onboarding and profile preferences on top of explicit `tags` and `cuisines`.
 3. Keep retailer integration behind `ShoppingCart` and swap mock matching for a real provider later.
-4. Defer recipe variants and AI-assisted adaptation until auth and tagging are settled.
+4. Defer recipe variants and AI-assisted adaptation until auth and taxonomy are settled.
 5. Add captcha to sensitive auth surfaces after the core auth/client migration is stable.
-6. Add richer profile and analytics surfaces such as onboarding preferences and `/api/v1/me/stats`.
+6. Add richer profile and analytics surfaces such as `/api/v1/me/stats`.
 
 ## Current Gaps
 
@@ -226,7 +234,6 @@ The highest-signal next steps are in backend, not frontend expansion.
 - the web app still uses development-style API access and has not yet migrated to bearer-token auth
 - Google OAuth backend exists, but the web app does not expose that UX yet
 - there is no onboarding flow for culinary preferences or dietary interests yet
-- `cuisine` is still a free `string`, not a controlled catalog relation
 - recipe variants and AI-assisted adaptation are not implemented yet
 - retailer matching is still mock data, not a real retailer integration
 

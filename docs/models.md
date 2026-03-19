@@ -10,6 +10,7 @@ The source of truth for implemented types is still the code:
 - [aggregation.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/aggregation.ts)
 - [product.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/product.ts)
 - [cart.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/cart.ts)
+- [cuisine.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/cuisine.ts)
 - [user.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/user.ts)
 
 This file is a readable map of those contracts plus the now-implemented conceptual split between `Cart` and `ShoppingCart`.
@@ -24,6 +25,7 @@ This file is a readable map of those contracts plus the now-implemented conceptu
 - shopping-cart models: what will actually be purchased
 - user models: who owns what
 - auth models: how identities and sessions attach to users
+- cuisine models: controlled culinary classification
 - tag models: shared taxonomy plus private organization
 
 ## 1. Recipe Models
@@ -79,7 +81,8 @@ type BaseRecipe = {
   forked_from_recipe_id?: string;
   is_system_recipe: boolean;
   name: string;
-  cuisine?: string;
+  cuisine_id: string;
+  cuisine: Cuisine;
   description?: string;
   servings: number;
   ingredients: DishIngredient[];
@@ -480,6 +483,36 @@ Interpretation:
 - recipe writes now reference tags by `tag_ids`
 - recipe reads return expanded `tags` alongside `tag_ids`
 
+## 10. Cuisine Models
+
+### CuisineKind
+
+```ts
+type CuisineKind = "national" | "regional" | "cultural" | "style" | "other";
+```
+
+### Cuisine
+
+Current shape:
+
+```ts
+type Cuisine = {
+  id: string;
+  slug: string;
+  label: string;
+  kind: CuisineKind;
+  created_at: string;
+  updated_at: string;
+};
+```
+
+Interpretation:
+
+- cuisines are global and curated
+- recipes reference cuisines by `cuisine_id`
+- recipe reads return expanded `cuisine`
+- `Other` is an intentional valid option to keep the field required without falling back to text input
+
 ## Current Model Constraints
 
 - canonical ingredient naming is required
@@ -488,6 +521,7 @@ Interpretation:
 - a user can only have one saved fork per source system recipe
 - one `Cart` is now the parent of persisted `ShoppingCart` snapshots
 - auth can attach multiple identities to one user account
+- cuisines are stored relationally as a global catalog
 - tags are stored relationally as `Tag` + `RecipeTag`
 - recipe HTTP payloads now use explicit tag references instead of `tags: string[]`
 
@@ -496,4 +530,4 @@ Interpretation:
 - `RecipeVariant` and adaptation models still need runtime implementation
 - the web app still needs to migrate from `x-user-id` fallback to bearer-token auth
 - retailer types will expand beyond `"walmart"` once real integrations exist
-- cuisine will likely move from free string to controlled taxonomy
+- cuisine curation will likely expand, but the field is no longer free text

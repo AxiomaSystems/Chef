@@ -62,10 +62,9 @@ export class CreateRecipeDto {
   @IsString()
   name!: string;
 
-  @ApiPropertyOptional({ example: 'Peruvian' })
-  @IsOptional()
+  @ApiProperty({ example: 'cuisine-peruvian' })
   @IsString()
-  cuisine?: string;
+  cuisine_id!: string;
 
   @ApiPropertyOptional({ example: 'Comforting chicken and rice dish.' })
   @IsOptional()

@@ -202,6 +202,7 @@ export const ApiUpdateRecipe = () =>
           value: {
             name: 'Arroz con pollo familiar',
             description: 'Renamed recipe without replacing ingredients.',
+            cuisine_id: 'cuisine-peruvian',
             tag_ids: ['tag-user-family', 'tag-system-dinner'],
           },
         },

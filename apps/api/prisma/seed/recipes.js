@@ -1,5 +1,6 @@
 const { systemRecipes } = require("./data/system-recipes");
 const { userRecipes } = require("./data/user-recipes");
+const { resolveCuisineId } = require("./cuisines");
 
 function normalizeTagName(tag) {
   return tag.trim().replace(/\s+/g, " ");
@@ -81,6 +82,8 @@ async function connectRecipeTags(prisma, recipeId, ownerUserId, isSystemRecipe, 
 }
 
 async function upsertRecipe(prisma, recipe, ownership) {
+  const cuisineId = await resolveCuisineId(prisma, recipe.cuisine);
+
   const existing = await prisma.baseRecipe.findFirst({
     where: {
       name: recipe.name,
@@ -94,7 +97,7 @@ async function upsertRecipe(prisma, recipe, ownership) {
     ownerUserId: ownership.ownerUserId ?? null,
     isSystemRecipe: ownership.isSystemRecipe,
     name: recipe.name,
-    cuisine: recipe.cuisine,
+    cuisineId,
     description: recipe.description,
     servings: recipe.servings,
     ingredients: {

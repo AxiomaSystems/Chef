@@ -23,6 +23,14 @@ enum TagScope {
   user
 }
 
+enum CuisineKind {
+  national
+  regional
+  cultural
+  style
+  other
+}
+
 model User {
   id             String          @id @default(cuid())
   email          String          @unique
@@ -75,13 +83,14 @@ model BaseRecipe {
   id          String           @id @default(cuid())
   ownerUserId String?
   forkedFromRecipeId String?
+  cuisineId   String
   isSystemRecipe Boolean       @default(false)
   name        String
-  cuisine     String?
   description String?
   servings    Int
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  cuisine     Cuisine          @relation(fields: [cuisineId], references: [id], onDelete: Restrict)
   owner       User?            @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
   forkedFromRecipe BaseRecipe? @relation("ForkedRecipeSource", fields: [forkedFromRecipeId], references: [id], onDelete: SetNull)
   forkedRecipes   BaseRecipe[] @relation("ForkedRecipeSource")
@@ -92,7 +101,20 @@ model BaseRecipe {
   @@index([ownerUserId, createdAt])
   @@index([forkedFromRecipeId])
   @@index([isSystemRecipe, createdAt])
+  @@index([cuisineId])
   @@unique([ownerUserId, forkedFromRecipeId])
+}
+
+model Cuisine {
+  id        String      @id @default(cuid())
+  slug      String      @unique
+  label     String
+  kind      CuisineKind
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  recipes   BaseRecipe[]
+
+  @@index([kind, label])
 }
 
 model Tag {

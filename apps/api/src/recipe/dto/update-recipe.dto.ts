@@ -20,10 +20,10 @@ export class UpdateRecipeDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ example: 'Peruvian' })
+  @ApiPropertyOptional({ example: 'cuisine-peruvian' })
   @IsOptional()
   @IsString()
-  cuisine?: string;
+  cuisine_id?: string;
 
   @ApiPropertyOptional({ example: 'Updated description' })
   @IsOptional()

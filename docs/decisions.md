@@ -349,6 +349,10 @@ Recommended direction:
   - `kind: national | regional | cultural | style`
 - recipes should eventually reference cuisine by relation rather than free text
 
+Status:
+- implemented as a global `Cuisine` catalog
+- recipes now require `cuisine_id` on write and return expanded `cuisine` on read
+
 ## 25. Internal API Should Use A Clean `v1` Boundary
 
 Decision:

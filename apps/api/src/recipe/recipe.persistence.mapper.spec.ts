@@ -10,7 +10,7 @@ describe('recipe.persistence.mapper', () => {
     const result = buildCreateRecipeData(
       {
         name: 'Arroz con pollo casero',
-        cuisine: 'Peruvian',
+        cuisine_id: 'cuisine-peruvian',
         description: 'Comforting chicken and rice dish.',
         servings: 4,
         ingredients: [
@@ -39,7 +39,7 @@ describe('recipe.persistence.mapper', () => {
       ownerUserId: 'user-1',
       isSystemRecipe: false,
       name: 'Arroz con pollo casero',
-      cuisine: 'Peruvian',
+      cuisineId: 'cuisine-peruvian',
       description: 'Comforting chicken and rice dish.',
       servings: 4,
       ingredients: {
@@ -89,7 +89,7 @@ describe('recipe.persistence.mapper', () => {
 
     expect(result).toEqual({
       name: 'Arroz con pollo actualizado',
-      cuisine: undefined,
+      cuisineId: undefined,
       description: undefined,
       servings: 6,
       ingredients: {

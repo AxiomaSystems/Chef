@@ -78,7 +78,7 @@ const toDish = (recipe: BaseRecipe, servings: number): Dish => {
   return {
     id: recipe.id,
     name: recipe.name,
-    cuisine: recipe.cuisine,
+    cuisine: recipe.cuisine.label,
     servings,
     tags: recipe.tags.map((tag) => tag.name),
     steps: recipe.steps,

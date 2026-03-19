@@ -1,3 +1,4 @@
+import type { Cuisine } from './cuisine';
 import type { Tag } from './tag';
 
 export type RecipeStep = {
@@ -31,7 +32,8 @@ export type BaseRecipe = {
   forked_from_recipe_id?: string;
   is_system_recipe: boolean;
   name: string;
-  cuisine?: string;
+  cuisine_id: string;
+  cuisine: Cuisine;
   description?: string;
   servings: number;
   ingredients: DishIngredient[];
