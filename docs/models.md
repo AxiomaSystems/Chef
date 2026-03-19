@@ -1,8 +1,8 @@
 # Models - Cart Generator
 
-This document describes the current shared domain contracts in [packages/shared](/C:/Users/akuma/repos/cart-generator/packages/shared).
+This document describes the conceptual domain contracts in [packages/shared](/C:/Users/akuma/repos/cart-generator/packages/shared) and the approved vocabulary for the next API refactor.
 
-The source of truth for these types is the code, not this markdown file:
+The source of truth for implemented types is still the code:
 
 - [index.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/index.ts)
 - [recipe.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/recipe.ts)
@@ -12,15 +12,16 @@ The source of truth for these types is the code, not this markdown file:
 - [cart.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/cart.ts)
 - [user.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/user.ts)
 
-This file is a readable map of those contracts plus a note on whether they are implemented in runtime yet.
+This file is a readable map of those contracts plus the approved conceptual split between `Cart` and `ShoppingCart`.
 
 ## Layer Split
 
 - recipe models: what people cook and save
 - selection models: what they want now
+- cart models: the meal plan snapshot
 - aggregation models: what is needed
 - product models: what can be bought
-- cart models: final generated output
+- shopping-cart models: what will actually be purchased
 - user models: who owns what
 
 ## 1. Recipe Models
@@ -91,7 +92,7 @@ Important current semantics:
 
 - `is_system_recipe = true` means global immutable catalog content
 - `owner_user_id` is set for user-owned recipes
-- `forked_from_recipe_id` is set when a user saves a system recipe into their own editable library
+- `forked_from_recipe_id` is set when a user saves a system recipe into an editable copy
 
 ### RecipeTransformationType
 
@@ -191,12 +192,41 @@ type CartDraft = {
 };
 ```
 
-Note:
+Interpretation:
 
-- this shared contract expresses the conceptual draft shape
-- the persisted API draft resource currently uses request-oriented `selections` in its DTO/response layer
+- `CartDraft` is editable user intent
+- it is intentionally lighter-weight than a persisted `Cart`
 
-## 3. Aggregation Models
+## 3. Cart Models
+
+### Cart
+
+Conceptual approved shape:
+
+```ts
+type Cart = {
+  id: string;
+  user_id: string;
+  name?: string;
+  selections: SelectedRecipe[];
+  dishes: Dish[];
+  created_at: string;
+  updated_at: string;
+};
+```
+
+Interpretation:
+
+- `Cart` is the stable meal-plan snapshot derived from recipes
+- it answers "what am I planning to cook?"
+- it should not own retailer-matching output directly
+
+Current runtime note:
+
+- the codebase does not yet expose this concept cleanly at the API level
+- some of its responsibilities are currently folded into generated-cart flows
+
+## 4. Aggregation Models
 
 ### AggregatedIngredientSource
 
@@ -232,15 +262,6 @@ type RecipeBundleOverviewItem = {
 };
 ```
 
-### RecipeBundle
-
-```ts
-type RecipeBundle = {
-  overview: RecipeBundleOverviewItem[];
-  dishes: Dish[];
-};
-```
-
 ### CartComputationResult
 
 ```ts
@@ -254,7 +275,7 @@ Status:
 
 - aggregation runtime is implemented
 
-## 4. Product Models
+## 5. Product Models
 
 ### Retailer
 
@@ -314,78 +335,37 @@ Status:
 - runtime matching is implemented against a mock catalog
 - retailer support is still only `"walmart"`
 
-## 5. Cart Models
+## 6. Shopping Cart Models
 
-### GenerateCartSelectionAdaptationRequest
+### ShoppingCart
 
-```ts
-type GenerateCartSelectionAdaptationRequest = {
-  halal?: boolean;
-  vegan?: boolean;
-  calorie_range?: {
-    min?: number;
-    max?: number;
-  };
-  cheaper?: boolean;
-  custom_notes?: string;
-};
-```
-
-### GenerateCartRequestSelection
+Conceptual approved shape:
 
 ```ts
-type GenerateCartRequestSelection = {
-  recipe_id: string;
-  recipe_type: "base" | "variant";
-  quantity: number;
-  servings_override?: number;
-  adaptation_request?: GenerateCartSelectionAdaptationRequest;
-};
-```
-
-### GenerateCartRequest
-
-```ts
-type GenerateCartRequest = {
-  selections: GenerateCartRequestSelection[];
+type ShoppingCart = {
+  id: string;
+  cart_id: string;
   retailer: Retailer;
-};
-```
-
-### GenerateCartResponse
-
-```ts
-type GenerateCartResponse = {
-  cart_draft_id?: string;
-  dishes: Dish[];
-  overview: AggregatedIngredient[];
-  matched_items: MatchedIngredientProduct[];
-  estimated_subtotal: number;
-  retailer: Retailer;
-};
-```
-
-### GeneratedCart
-
-```ts
-type GeneratedCart = {
-  id?: string;
-  dishes: Dish[];
   overview: AggregatedIngredient[];
   matched_items: MatchedIngredientProduct[];
   estimated_subtotal: number;
   estimated_total?: number;
-  retailer: Retailer;
-  created_at?: string;
+  created_at: string;
 };
 ```
 
-Status:
+Interpretation:
 
-- `POST /cart/generate` is implemented
-- cart drafts and generated carts are persisted in the backend
+- `ShoppingCart` is the retailer-facing purchase basket derived from a `Cart`
+- it answers "what do I need to buy?"
+- retailer matching, quantities, and subtotal belong here
 
-## 6. User Models
+Current runtime note:
+
+- this is currently represented as a generated-cart concept
+- the approved direction is to rename and model it explicitly as `ShoppingCart`
+
+## 7. User Models
 
 ### UserRole
 
@@ -417,6 +397,7 @@ Status:
 - aggregation and matching remain deterministic
 - system recipes and user-owned recipes are distinct states
 - a user can only have one saved fork per source system recipe
+- one `Cart` may eventually produce multiple `ShoppingCart` snapshots
 - tags are still plain `string[]` for now
 
 ## Known Future Changes
@@ -425,3 +406,4 @@ Status:
 - tags will likely move from `string[]` to a hybrid shared/private tag model
 - auth will move from `x-user-id` development context to real authentication
 - retailer types will expand beyond `"walmart"` once real integrations exist
+- implemented shared contracts will need to catch up to the approved `Cart` vs `ShoppingCart` vocabulary

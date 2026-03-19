@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type {
+  CreateCartPersistenceInput,
   CreateCartDraftPersistenceInput,
-  CreateGeneratedCartPersistenceInput,
+  CreateShoppingCartPersistenceInput,
+  UpdateCartDraftPersistenceInput,
+  UpdateCartPersistenceInput,
 } from './cart.persistence.types';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -20,16 +23,62 @@ export class CartPersistenceRepository {
     });
   }
 
-  createGeneratedCart(input: CreateGeneratedCartPersistenceInput) {
-    return this.prisma.generatedCart.create({
+  updateDraft(userId: string, id: string, input: UpdateCartDraftPersistenceInput) {
+    return this.prisma.cartDraft.updateMany({
+      where: { id, userId },
+      data: {
+        name: input.name,
+        selections: input.selections,
+        retailer: input.retailer,
+      },
+    });
+  }
+
+  deleteDraft(userId: string, id: string) {
+    return this.prisma.cartDraft.deleteMany({
+      where: { id, userId },
+    });
+  }
+
+  createCart(input: CreateCartPersistenceInput) {
+    return this.prisma.cart.create({
       data: {
         userId: input.userId,
+        name: input.name,
+        selections: input.selections,
+        dishes: input.dishes,
+      },
+    });
+  }
+
+  updateCart(userId: string, id: string, input: UpdateCartPersistenceInput) {
+    return this.prisma.cart.updateMany({
+      where: { id, userId },
+      data: {
+        name: input.name,
+        selections: input.selections,
+        dishes: input.dishes,
+      },
+    });
+  }
+
+  deleteCart(userId: string, id: string) {
+    return this.prisma.cart.deleteMany({
+      where: { id, userId },
+    });
+  }
+
+  createShoppingCart(input: CreateShoppingCartPersistenceInput) {
+    return this.prisma.shoppingCart.create({
+      data: {
+        userId: input.userId,
+        cartId: input.cartId,
         cartDraftId: input.cartDraftId,
-        retailer: input.cart.retailer,
-        dishes: input.cart.dishes,
-        overview: input.cart.overview,
-        matchedItems: input.cart.matched_items,
-        estimatedSubtotal: input.cart.estimated_subtotal,
+        retailer: input.shoppingCart.retailer,
+        overview: input.shoppingCart.overview,
+        matchedItems: input.shoppingCart.matched_items,
+        estimatedSubtotal: input.shoppingCart.estimated_subtotal,
+        estimatedTotal: input.shoppingCart.estimated_total,
       },
     });
   }
@@ -47,15 +96,28 @@ export class CartPersistenceRepository {
     });
   }
 
-  findGeneratedCartsByUser(userId: string) {
-    return this.prisma.generatedCart.findMany({
+  findCartsByUser(userId: string) {
+    return this.prisma.cart.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  findGeneratedCartById(userId: string, id: string) {
-    return this.prisma.generatedCart.findFirst({
+  findCartById(userId: string, id: string) {
+    return this.prisma.cart.findFirst({
+      where: { id, userId },
+    });
+  }
+
+  findShoppingCartsByUser(userId: string) {
+    return this.prisma.shoppingCart.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  findShoppingCartById(userId: string, id: string) {
+    return this.prisma.shoppingCart.findFirst({
       where: { id, userId },
     });
   }

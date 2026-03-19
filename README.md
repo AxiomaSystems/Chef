@@ -1,8 +1,8 @@
 # Cart Generator
 
-Cart Generator is a `pnpm` monorepo for turning saved recipes into generated grocery carts.
+Cart Generator is a `pnpm` monorepo for turning saved recipes into structured meal plans and derived shopping carts.
 
-The backend is now beyond scaffold stage. The API already supports recipe persistence, user/system ownership rules, deterministic ingredient aggregation, mock retailer matching, cart persistence, Swagger docs, and local Postgres via Docker. The frontend is still mostly unfinished.
+The backend is beyond scaffold stage. The API already supports recipe persistence, user/system ownership rules, deterministic ingredient aggregation, mock retailer matching, cart persistence, Swagger docs, and local Postgres via Docker. The frontend is still mostly unfinished.
 
 ## What Exists Today
 
@@ -13,10 +13,9 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - user and admin identities in the database
 - global system recipes and user-owned recipes
 - recipe CRUD for user-owned recipes
-- `POST /recipes/:id/save` to fork a global system recipe into an editable user copy
-- `GET /recipes/:id/origin` to see the source recipe of a saved fork
-- deterministic `POST /cart/generate`
-- persisted cart drafts and generated carts
+- an explicit save/fork flow for copying a system recipe into a user-owned editable recipe
+- deterministic cart generation from recipe selections
+- persisted cart drafts and persisted generated shopping carts
 - mock product matching with subtotal estimation
 - Swagger UI at `/docs`
 - request tracing via `x-request-id`
@@ -26,7 +25,7 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 [packages/shared](/C:/Users/akuma/repos/cart-generator/packages/shared) contains the current TypeScript domain contracts for:
 
 - recipes
-- cart requests and responses
+- selection and cart models
 - aggregation
 - matching
 - users
@@ -48,7 +47,7 @@ The main architecture and design notes live in:
 - [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md)
 - [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md)
 
-Those docs are still useful, but the codebase is now the stronger source of truth for implemented behavior.
+Those docs intentionally describe both implemented behavior and the approved direction for the next API refactor.
 
 ## Repository Layout
 
@@ -154,6 +153,48 @@ Swagger:
 - writes require authentication
 - saving a system recipe creates a user-owned fork
 - duplicate forks of the same source recipe are prevented per user
+- aggregation and retailer matching remain deterministic
+
+## Approved API Direction
+
+The next API refactor should establish a clean internal `v1` contract under `/api/v1`.
+
+Resource families:
+
+- `recipes`
+- `recipe-forks`
+- `cart-drafts`
+- `carts`
+- `shopping-carts`
+
+Approved conceptual flow:
+
+```text
+Recipe -> CartDraft -> Cart -> ShoppingCart
+```
+
+Interpretation:
+
+- `CartDraft` is editable user intent
+- `Cart` is the stable recipe-based meal plan snapshot
+- `ShoppingCart` is the retailer-facing purchase basket derived from a `Cart`
+
+This separation is intentional:
+
+- `Cart` answers "what do I want to cook?"
+- `ShoppingCart` answers "what do I need to buy?"
+- retailer integration belongs behind `ShoppingCart`
+- real auth and future tags should be built on top of this cleaner API shape, not on the current surface
+
+## Recommended Execution Order
+
+1. Refactor the HTTP surface to the internal `/api/v1` contract.
+2. Split the current cart concept into `Cart` and `ShoppingCart` at the API and domain boundary level.
+3. Update the web app to consume the new `v1` contract.
+4. Replace development header identity with real auth centered on `/me`.
+5. Add hybrid tags and controlled cuisine taxonomy.
+6. Replace mock matching with a real retailer provider behind the shopping-cart flow.
+7. Add recipe variants and AI-assisted adaptation later as a separate layer.
 
 ## Current Gaps
 
@@ -167,20 +208,11 @@ Swagger:
 - recipe variants and AI-assisted adaptation are not implemented yet
 - retailer matching is still mock data, not a real retailer integration
 
-## Recommended Next Steps
+## Practical Reading Guide
 
-1. Build the minimal web flow in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web) for recipes, selection, and generated cart results.
-2. Replace free `cuisine: string` with a controlled cuisine catalog relation and migration path.
-3. Replace `tags: string[]` with a real relational tag model that supports shared system tags plus user-scoped tags.
-4. Add user preference models on top of cuisines and tags so onboarding has real taxonomies to write into.
-5. Replace dev header identity with a real auth system centered on:
-   - Google OAuth
-   - email/password
-   - phone login later or as a second-phase provider
-6. Add account/profile endpoints such as:
-   - `GET /me`
-   - `PATCH /me`
-   - auth routes for login, logout, password reset, and provider linking
-7. Add onboarding for culinary preferences, dietary interests, and discovery signals rather than collecting low-value demographic fields.
-8. Add recipe variants and AI-assisted adaptation on top of the current deterministic base.
-9. Replace mock matching with a real retailer integration.
+If you want the current truth of the system:
+
+1. Read [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md) for the layered system and the approved `Cart` vs `ShoppingCart` split.
+2. Read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for the policy and API-shape decisions.
+3. Read [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md) for the conceptual model vocabulary.
+4. Read Swagger at `/docs` for the live implemented contract until the `v1` refactor lands.

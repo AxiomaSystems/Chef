@@ -24,12 +24,15 @@ export const configureApp = (app: INestApplication): void => {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Cart Generator API')
     .setDescription(
-      'Backend API for recipes, cart drafts, generated carts, and matching.',
+      'Backend API for recipes, cart drafts, carts, shopping carts, and matching.',
     )
     .setVersion('0.1.0')
     .addTag('system')
     .addTag('recipes')
-    .addTag('cart')
+    .addTag('recipe-forks')
+    .addTag('cart-drafts')
+    .addTag('carts')
+    .addTag('shopping-carts')
     .addApiKey(
       {
         type: 'apiKey',

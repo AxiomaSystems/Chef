@@ -41,10 +41,7 @@ describe('CartService', () => {
 
   beforeEach(() => {
     recipeService = {
-      create: jest.fn(),
-      findAll: jest.fn(),
       findManyByIds: jest.fn(),
-      findOne: jest.fn(),
     } as unknown as jest.Mocked<RecipeService>;
 
     userContextService = {
@@ -52,31 +49,35 @@ describe('CartService', () => {
     } as unknown as jest.Mocked<UserContextService>;
 
     cartPersistenceService = {
-      createDraft: jest.fn().mockResolvedValue({
-        id: 'draft-1',
-        user_id: 'user-1',
-        selections: [],
-        retailer: 'walmart',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }),
-      createGeneratedCart: jest.fn().mockResolvedValue({
-        id: 'cart-1',
-        user_id: 'user-1',
-        cart_draft_id: 'draft-1',
-        dishes: [],
-        overview: [],
-        matched_items: [],
-        estimated_subtotal: 0,
-        retailer: 'walmart',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }),
+      createDraft: jest.fn(),
+      updateDraft: jest.fn(),
+      deleteDraft: jest.fn(),
       findDraftsByUser: jest.fn(),
       findDraftById: jest.fn(),
-      findGeneratedCartsByUser: jest.fn(),
-      findGeneratedCartHistoryByUser: jest.fn(),
-      findGeneratedCartById: jest.fn(),
+      createCart: jest.fn().mockImplementation(async ({ userId, name, selections, dishes }) => ({
+        id: 'cart-1',
+        user_id: userId,
+        name,
+        selections,
+        dishes,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })),
+      updateCart: jest.fn(),
+      deleteCart: jest.fn(),
+      findCartsByUser: jest.fn(),
+      findCartById: jest.fn(),
+      createShoppingCart: jest.fn().mockImplementation(async ({ userId, cartId, shoppingCart }) => ({
+        id: 'shopping-cart-1',
+        user_id: userId,
+        cart_id: cartId,
+        ...shoppingCart,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })),
+      findShoppingCartsByUser: jest.fn(),
+      findShoppingCartHistoryByUser: jest.fn(),
+      findShoppingCartById: jest.fn(),
     } as unknown as jest.Mocked<CartPersistenceService>;
 
     service = new CartService(
@@ -88,10 +89,11 @@ describe('CartService', () => {
     );
   });
 
-  it('generates a cart with matched items and subtotal', async () => {
+  it('creates a cart with resolved dishes', async () => {
     recipeService.findManyByIds.mockResolvedValue([recipe]);
 
-    const result = await service.generate({
+    const result = await service.createCart({
+      name: 'Weekly dinner plan',
       selections: [
         {
           recipe_id: 'recipe-1',
@@ -99,71 +101,78 @@ describe('CartService', () => {
           quantity: 2,
         },
       ],
-      retailer: 'walmart',
     });
 
     expect(result.dishes).toHaveLength(2);
-    expect(result.overview).toEqual([
-      expect.objectContaining({
-        canonical_ingredient: 'chicken thigh',
-        total_amount: 1600,
-        unit: 'g',
-      }),
-      expect.objectContaining({
-        canonical_ingredient: 'rice',
-        total_amount: 4,
-        unit: 'cup',
-      }),
-    ]);
-    expect(result.matched_items).toEqual([
-      expect.objectContaining({
-        canonical_ingredient: 'chicken thigh',
-        selected_quantity: 2,
-        estimated_line_total: 15.92,
-      }),
-      expect.objectContaining({
-        canonical_ingredient: 'rice',
-        selected_quantity: 1,
-        estimated_line_total: 3.98,
-      }),
-    ]);
-    expect(result.estimated_subtotal).toBe(19.9);
-    expect(cartPersistenceService.createDraft).toHaveBeenCalledTimes(1);
-    expect(cartPersistenceService.createGeneratedCart).toHaveBeenCalledTimes(1);
+    expect(result.selections).toHaveLength(1);
+    expect(cartPersistenceService.createCart).toHaveBeenCalledTimes(1);
   });
 
-  it('lists generated cart history summaries', async () => {
-    cartPersistenceService.findGeneratedCartHistoryByUser = jest
-      .fn()
-      .mockResolvedValue([
+  it('creates a shopping cart from a persisted cart', async () => {
+    cartPersistenceService.findCartById.mockResolvedValue({
+      id: 'cart-1',
+      user_id: 'user-1',
+      name: 'Weekly dinner plan',
+      selections: [
         {
-          id: 'cart-1',
-          user_id: 'user-1',
-          retailer: 'walmart',
-          estimated_subtotal: 19.9,
-          dish_count: 2,
-          overview_count: 2,
-          matched_item_count: 2,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          recipe_id: 'recipe-1',
+          recipe_type: 'base',
+          quantity: 2,
         },
-      ]);
+      ],
+      dishes: [
+        {
+          id: 'recipe-1',
+          name: recipe.name,
+          cuisine: recipe.cuisine,
+          servings: recipe.servings,
+          ingredients: recipe.ingredients,
+          steps: recipe.steps,
+          tags: recipe.tags,
+        },
+      ],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
 
-    const result = await service.listGeneratedHistory();
+    const result = await service.createShoppingCart('cart-1', {
+      retailer: 'walmart',
+    });
+
+    expect(result.cart_id).toBe('cart-1');
+    expect(result.matched_items.length).toBeGreaterThan(0);
+    expect(cartPersistenceService.createShoppingCart).toHaveBeenCalledTimes(1);
+  });
+
+  it('lists shopping cart history summaries', async () => {
+    cartPersistenceService.findShoppingCartHistoryByUser.mockResolvedValue([
+      {
+        id: 'shopping-cart-1',
+        user_id: 'user-1',
+        cart_id: 'cart-1',
+        retailer: 'walmart',
+        estimated_subtotal: 19.9,
+        overview_count: 2,
+        matched_item_count: 2,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]);
+
+    const result = await service.listShoppingCartHistory();
 
     expect(result).toEqual([
       expect.objectContaining({
-        id: 'cart-1',
+        id: 'shopping-cart-1',
         estimated_subtotal: 19.9,
-        dish_count: 2,
       }),
     ]);
   });
 
-  it('scales servings_override before aggregation', async () => {
+  it('scales servings_override before cart persistence', async () => {
     recipeService.findManyByIds.mockResolvedValue([recipe]);
 
-    const result = await service.generate({
+    const result = await service.createCart({
       selections: [
         {
           recipe_id: 'recipe-1',
@@ -172,17 +181,16 @@ describe('CartService', () => {
           servings_override: 2,
         },
       ],
-      retailer: 'walmart',
     });
 
-    expect(result.overview).toEqual([
-      expect.objectContaining({
-        canonical_ingredient: 'chicken thigh',
-        total_amount: 400,
-      }),
+    expect(result.dishes[0].ingredients).toEqual([
       expect.objectContaining({
         canonical_ingredient: 'rice',
-        total_amount: 1,
+        amount: 1,
+      }),
+      expect.objectContaining({
+        canonical_ingredient: 'chicken thigh',
+        amount: 400,
       }),
     ]);
   });
@@ -191,7 +199,7 @@ describe('CartService', () => {
     recipeService.findManyByIds.mockResolvedValue([]);
 
     await expect(
-      service.generate({
+      service.createCart({
         selections: [
           {
             recipe_id: 'missing-recipe',
@@ -199,7 +207,6 @@ describe('CartService', () => {
             quantity: 1,
           },
         ],
-        retailer: 'walmart',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });

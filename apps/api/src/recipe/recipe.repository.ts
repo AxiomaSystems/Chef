@@ -156,7 +156,7 @@ export class RecipeRepository {
   async saveSystemRecipe(
     id: string,
     actorUserId?: string,
-  ): Promise<BaseRecipe | null> {
+  ): Promise<{ recipe: BaseRecipe | null; created: boolean }> {
     const actor = await this.resolveActorUser(actorUserId);
     const sourceRecipe = await this.prisma.baseRecipe.findFirst({
       where: {
@@ -171,13 +171,13 @@ export class RecipeRepository {
     });
 
     if (!sourceRecipe) {
-      return null;
+      return { recipe: null, created: false };
     }
 
     const existingFork = await this.findExistingFork(actor.id, sourceRecipe.id);
 
     if (existingFork) {
-      return mapBaseRecipe(existingFork);
+      return { recipe: mapBaseRecipe(existingFork), created: false };
     }
 
     try {
@@ -216,13 +216,13 @@ export class RecipeRepository {
         },
       });
 
-      return mapBaseRecipe(savedRecipe);
+      return { recipe: mapBaseRecipe(savedRecipe), created: true };
     } catch (error) {
       if (this.isUniqueConstraintError(error)) {
         const concurrentFork = await this.findExistingFork(actor.id, sourceRecipe.id);
 
         if (concurrentFork) {
-          return mapBaseRecipe(concurrentFork);
+          return { recipe: mapBaseRecipe(concurrentFork), created: false };
         }
       }
 

@@ -17,7 +17,6 @@ import {
   ApiGetRecipeOrigin,
   ApiListRecipes,
   ApiRecipeController,
-  ApiSaveRecipe,
   ApiUpdateRecipe,
 } from './recipe.swagger';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
@@ -25,7 +24,7 @@ import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import { RecipeService } from './recipe.service';
 
 @ApiRecipeController()
-@Controller('recipes')
+@Controller('api/v1/recipes')
 export class RecipeController {
   constructor(private readonly recipeService: RecipeService) {}
 
@@ -70,15 +69,6 @@ export class RecipeController {
     @Headers('x-user-id') actorUserId?: string,
   ): Promise<BaseRecipe> {
     return this.recipeService.update(id, input, actorUserId);
-  }
-
-  @Post(':id/save')
-  @ApiSaveRecipe()
-  save(
-    @Param('id') id: string,
-    @Headers('x-user-id') actorUserId?: string,
-  ): Promise<BaseRecipe> {
-    return this.recipeService.save(id, actorUserId);
   }
 
   @Delete(':id')

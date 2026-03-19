@@ -140,7 +140,8 @@ export const createCartDraftRequestExample = {
   retailer: 'walmart',
 };
 
-export const generateCartRequestExample = {
+export const createCartRequestExample = {
+  name: 'Weekly dinner plan',
   selections: [
     {
       recipe_id: 'recipe-1',
@@ -149,11 +150,13 @@ export const generateCartRequestExample = {
       servings_override: 4,
     },
   ],
-  retailer: 'walmart',
 };
 
-export const generatedCartExample = {
-  cart_draft_id: 'draft-1',
+export const cartExample = {
+  id: 'cart-1',
+  user_id: 'user-1',
+  name: 'Weekly dinner plan',
+  selections: createCartRequestExample.selections,
   dishes: [
     {
       id: 'recipe-1',
@@ -181,6 +184,18 @@ export const generatedCartExample = {
       ],
     },
   ],
+  created_at: '2026-03-19T03:15:00.000Z',
+  updated_at: '2026-03-19T03:15:00.000Z',
+};
+
+export const createShoppingCartRequestExample = {
+  retailer: 'walmart',
+};
+
+export const shoppingCartExample = {
+  id: 'shopping-cart-1',
+  user_id: 'user-1',
+  cart_id: 'cart-1',
   overview: [
     {
       canonical_ingredient: 'chicken thigh',
@@ -251,26 +266,19 @@ export const generatedCartExample = {
   ],
   estimated_subtotal: 11.94,
   retailer: 'walmart',
-};
-
-export const persistedGeneratedCartExample = {
-  id: 'cart-1',
-  user_id: 'user-1',
-  ...generatedCartExample,
   created_at: '2026-03-19T03:15:00.000Z',
   updated_at: '2026-03-19T03:15:00.000Z',
 };
 
-export const generatedCartListExample = [persistedGeneratedCartExample];
+export const shoppingCartListExample = [shoppingCartExample];
 
-export const generatedCartHistoryExample = [
+export const shoppingCartHistoryExample = [
   {
-    id: 'cart-1',
+    id: 'shopping-cart-1',
     user_id: 'user-1',
-    cart_draft_id: 'draft-1',
+    cart_id: 'cart-1',
     retailer: 'walmart',
     estimated_subtotal: 11.94,
-    dish_count: 1,
     overview_count: 2,
     matched_item_count: 2,
     created_at: '2026-03-19T03:15:00.000Z',

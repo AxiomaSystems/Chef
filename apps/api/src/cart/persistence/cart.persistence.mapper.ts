@@ -1,12 +1,18 @@
-import type { GenerateCartRequestSelection, GenerateCartResponse } from '@cart/shared';
+import type {
+  Cart,
+  CartSelection,
+  ShoppingCart,
+} from '@cart/shared';
 import type {
   CartDraft as PrismaCartDraft,
-  GeneratedCart as PrismaGeneratedCart,
+  Cart as PrismaCart,
+  ShoppingCart as PrismaShoppingCart,
 } from '../../../generated/prisma/index.js';
 import type {
-  GeneratedCartHistorySummary,
+  PersistedCart,
   PersistedCartDraft,
-  PersistedGeneratedCart,
+  PersistedShoppingCart,
+  PersistedShoppingCartHistorySummary,
 } from './cart.persistence.types';
 
 export const mapPersistedCartDraft = (
@@ -15,40 +21,49 @@ export const mapPersistedCartDraft = (
   id: draft.id,
   user_id: draft.userId,
   name: draft.name ?? undefined,
-  selections: draft.selections as GenerateCartRequestSelection[],
+  selections: draft.selections as CartSelection[],
   retailer: draft.retailer,
   created_at: draft.createdAt.toISOString(),
   updated_at: draft.updatedAt.toISOString(),
 });
 
-export const mapPersistedGeneratedCart = (
-  created: PrismaGeneratedCart,
-): PersistedGeneratedCart => ({
-  id: created.id,
-  user_id: created.userId,
-  cart_draft_id: created.cartDraftId ?? undefined,
-  dishes: created.dishes as GenerateCartResponse['dishes'],
-  overview: created.overview as GenerateCartResponse['overview'],
-  matched_items: created.matchedItems as GenerateCartResponse['matched_items'],
-  estimated_subtotal: created.estimatedSubtotal,
-  retailer: created.retailer as GenerateCartResponse['retailer'],
-  created_at: created.createdAt.toISOString(),
-  updated_at: created.updatedAt.toISOString(),
+export const mapPersistedCart = (cart: PrismaCart): PersistedCart => ({
+  id: cart.id,
+  user_id: cart.userId,
+  name: cart.name ?? undefined,
+  selections: cart.selections as CartSelection[],
+  dishes: cart.dishes as Cart['dishes'],
+  created_at: cart.createdAt.toISOString(),
+  updated_at: cart.updatedAt.toISOString(),
 });
 
-export const mapGeneratedCartHistorySummary = (
-  created: PrismaGeneratedCart,
-): GeneratedCartHistorySummary => ({
-  id: created.id,
-  user_id: created.userId,
-  cart_draft_id: created.cartDraftId ?? undefined,
-  retailer: created.retailer as GenerateCartResponse['retailer'],
-  estimated_subtotal: created.estimatedSubtotal,
-  dish_count: (created.dishes as GenerateCartResponse['dishes']).length,
-  overview_count: (created.overview as GenerateCartResponse['overview']).length,
+export const mapPersistedShoppingCart = (
+  shoppingCart: PrismaShoppingCart,
+): PersistedShoppingCart => ({
+  id: shoppingCart.id,
+  user_id: shoppingCart.userId,
+  cart_id: shoppingCart.cartId,
+  overview: shoppingCart.overview as ShoppingCart['overview'],
+  matched_items: shoppingCart.matchedItems as ShoppingCart['matched_items'],
+  estimated_subtotal: shoppingCart.estimatedSubtotal,
+  estimated_total: shoppingCart.estimatedTotal ?? undefined,
+  retailer: shoppingCart.retailer as ShoppingCart['retailer'],
+  created_at: shoppingCart.createdAt.toISOString(),
+  updated_at: shoppingCart.updatedAt.toISOString(),
+});
+
+export const mapShoppingCartHistorySummary = (
+  shoppingCart: PrismaShoppingCart,
+): PersistedShoppingCartHistorySummary => ({
+  id: shoppingCart.id,
+  user_id: shoppingCart.userId,
+  cart_id: shoppingCart.cartId,
+  retailer: shoppingCart.retailer as ShoppingCart['retailer'],
+  estimated_subtotal: shoppingCart.estimatedSubtotal,
+  overview_count: (shoppingCart.overview as ShoppingCart['overview']).length,
   matched_item_count: (
-    created.matchedItems as GenerateCartResponse['matched_items']
+    shoppingCart.matchedItems as ShoppingCart['matched_items']
   ).length,
-  created_at: created.createdAt.toISOString(),
-  updated_at: created.updatedAt.toISOString(),
+  created_at: shoppingCart.createdAt.toISOString(),
+  updated_at: shoppingCart.updatedAt.toISOString(),
 });

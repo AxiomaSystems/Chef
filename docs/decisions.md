@@ -119,7 +119,7 @@ Why:
 - the system has strong entity relationships
 - structured querying matters
 
-## 11. Redis for Async and Caching
+## 11. Redis For Async And Caching Later
 
 Decision:
 - use Redis later for caching and background jobs
@@ -127,7 +127,7 @@ Decision:
 Why:
 - LLM calls and matching workflows can become expensive
 
-## 12. Docker for Local Infra
+## 12. Docker For Local Infra
 
 Decision:
 - run local infrastructure through Docker
@@ -136,7 +136,7 @@ Why:
 - consistent onboarding
 - reproducible local environments
 
-## 13. Build the Pipeline Before the UI
+## 13. Build The Pipeline Before The UI
 
 Decision:
 - prioritize backend workflow and data contracts before frontend complexity
@@ -161,7 +161,7 @@ Decision:
 Why:
 - the MVP still needs a working vertical slice
 
-## 16. System Recipes Are Global and Immutable
+## 16. System Recipes Are Global And Immutable
 
 Decision:
 - `isSystemRecipe = true` means a recipe is global catalog content, not user-owned content
@@ -179,7 +179,7 @@ Note:
 ## 17. User-Created Recipes Are Private By Default
 
 Decision:
-- `POST /recipes` should create recipes visible only to the owning user
+- recipe creation should produce recipes visible only to the owning user
 - other users should not see those recipes unless an explicit sharing model is introduced later
 
 Why:
@@ -194,14 +194,15 @@ Implication:
   - authenticated admin
   - unauthenticated user
 
-## 18. Saving a System Recipe Should Create an Editable User Copy
+## 18. Saving A System Recipe Should Create An Editable User Copy
 
 Decision:
 - do not allow direct editing of system recipes
 - use an explicit save/fork flow that copies a system recipe into the user's editable library
 
-Implemented shape:
-- `POST /recipes/:id/save`
+Approved API shape:
+- `POST /api/v1/recipe-forks`
+- request body includes `source_recipe_id`
 - resulting record is:
   - `isSystemRecipe = false`
   - `ownerUserId = currentUserId`
@@ -216,7 +217,7 @@ Why:
 
 Decision:
 - keep steps in a separate `RecipeStep` table
-- `PATCH /recipes/:id` should continue accepting `steps`, but as full-array replacement for now
+- recipe update should continue accepting `steps` as full-array replacement for now
 
 Why:
 - step order matters
@@ -281,8 +282,8 @@ Decision:
 
 Current behavior:
 - unauthenticated recipe reads expose only global system recipes
-- mutable endpoints return `401 Authentication required`
-- cart drafts and generated carts are always user-scoped and require an authenticated actor
+- mutable recipe endpoints return `401 Authentication required`
+- cart-draft, cart, and shopping-cart endpoints require an authenticated actor
 
 Why:
 - keeps backend development moving before real auth exists
@@ -290,7 +291,7 @@ Why:
 
 Trade-off:
 - this is not production authentication
-- the API surface must be revisited once real login/session auth is added
+- it should be treated as transitional infrastructure, not as a stable public auth contract
 
 ## 23. Saved Recipe Forks Must Be Unique Per User And Source Recipe
 
@@ -300,7 +301,7 @@ Decision:
 
 Implemented rule:
 - unique constraint on `(ownerUserId, forkedFromRecipeId)`
-- `POST /recipes/:id/save` is idempotent for the same user and source recipe
+- the save/fork operation is idempotent for the same user and source recipe
 
 Why:
 - avoids duplicate user copies of the same source recipe
@@ -344,12 +345,53 @@ Recommended direction:
   - `kind: national | regional | cultural | style`
 - recipes should eventually reference cuisine by relation rather than free text
 
-Pragmatic path:
-- keep the current string short-term
-- document the migration target now
-- update `models` and `architecture` only when the schema and shared contracts actually change
+## 25. Internal API Should Use A Clean `v1` Boundary
 
-## 25. Real Authentication Should Center On `/me` And Linked Identities
+Decision:
+- introduce a clean internal API boundary under `/api/v1` before real auth and tags work
+- prefer resource-oriented route families over action-oriented endpoints
+
+Approved route families:
+- `/api/v1/recipes`
+- `/api/v1/recipe-forks`
+- `/api/v1/cart-drafts`
+- `/api/v1/carts`
+- `/api/v1/shopping-carts`
+
+Why:
+- the web app needs a coherent internal contract even if the API is not public
+- auth and tags should land on top of stable resource boundaries, not on top of temporary route shapes
+- versioning gives a controlled place for future breaking changes
+
+## 26. Cart And ShoppingCart Are Separate Domain Concepts
+
+Decision:
+- separate the recipe-based meal plan from the retailer-facing purchase basket
+
+Interpretation:
+- `Cart` answers "what do I want to cook?"
+- `ShoppingCart` answers "what do I need to buy?"
+
+Why:
+- one cart may produce one or more shopping-cart snapshots
+- retailer integration belongs behind shopping-cart generation
+- this keeps meal-planning state separate from matching and pricing state
+
+Approved flow:
+- `Recipe -> CartDraft -> Cart -> ShoppingCart`
+
+## 27. ShoppingCart Generation Should Not Wait For LLM Integration
+
+Decision:
+- the shopping-cart resource and API boundary should exist before any LLM rollout
+- real retailer integration should plug into the shopping-cart stage behind a provider boundary
+
+Why:
+- retailer matching is a deterministic integration problem, not an LLM prerequisite
+- delaying the boundary would keep the cart model ambiguous longer than necessary
+- the same shopping-cart contract can work with mock matching now and Walmart later
+
+## 28. Real Authentication Should Center On `/me` And Linked Identities
 
 Decision:
 - replace the current development header auth with a real account system
@@ -373,16 +415,7 @@ Recommended model direction:
 - `AuthIdentity`
 - optional `UserPreference`
 
-Suggested `AuthIdentity` responsibilities:
-- provider type
-- provider user id
-- email when relevant
-- phone when relevant
-- password hash for password-based login
-- verification timestamps
-- last login metadata
-
-## 26. Preferences Are Higher-Value Than Demographics For Onboarding
+## 29. Preferences Are Higher-Value Than Demographics For Onboarding
 
 Decision:
 - do not prioritize demographic fields like `nationality` in the first real auth/profile rollout
@@ -403,7 +436,7 @@ Implication:
 - onboarding should eventually connect to controlled taxonomies such as cuisines and tags
 - we should avoid anchoring onboarding on raw `string[]` tags long-term
 
-## 27. Phone Auth Should Not Be In The First Auth Slice
+## 30. Phone Auth Should Not Be In The First Auth Slice
 
 Decision:
 - do not treat phone login as first-phase auth scope
@@ -414,7 +447,7 @@ Why:
 - Google + email/password is enough to unlock real ownership and profile flows
 - sequencing matters more than provider count in the MVP
 
-## 28. Account Security Should Focus On Sensitive Surfaces
+## 31. Account Security Should Focus On Sensitive Surfaces
 
 Decision:
 - use captcha and anti-abuse controls on sensitive auth flows, not everywhere
@@ -428,7 +461,7 @@ Why:
 - broad captcha usage hurts UX
 - the real value is protecting the abuse-prone entry points
 
-## 29. Auth API Should Distinguish Identity, Profile, And Analytics
+## 32. Auth API Should Distinguish Identity, Profile, And Analytics
 
 Decision:
 - separate auth routes from profile routes and user analytics routes

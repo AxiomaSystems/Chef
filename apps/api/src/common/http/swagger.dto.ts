@@ -235,7 +235,7 @@ export class PersistedCartDraftResponseDto {
   updated_at!: string;
 }
 
-export class GeneratedCartHistorySummaryResponseDto {
+export class CartResponseDto {
   @ApiProperty({ example: 'cart-1' })
   id!: string;
 
@@ -243,16 +243,44 @@ export class GeneratedCartHistorySummaryResponseDto {
   user_id!: string;
 
   @ApiPropertyOptional({ example: 'draft-1' })
-  cart_draft_id?: string;
+  name?: string;
+
+  @ApiProperty({
+    example: [
+      {
+        recipe_id: 'recipe-1',
+        recipe_type: 'base',
+        quantity: 2,
+      },
+    ],
+  })
+  selections!: Array<Record<string, unknown>>;
+
+  @ApiProperty({ type: () => [DishResponseDto] })
+  dishes!: DishResponseDto[];
+
+  @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
+  created_at!: string;
+
+  @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
+  updated_at!: string;
+}
+
+export class ShoppingCartHistorySummaryResponseDto {
+  @ApiProperty({ example: 'shopping-cart-1' })
+  id!: string;
+
+  @ApiProperty({ example: 'user-1' })
+  user_id!: string;
+
+  @ApiProperty({ example: 'cart-1' })
+  cart_id!: string;
 
   @ApiProperty({ example: 'walmart' })
   retailer!: string;
 
   @ApiProperty({ example: 19.9 })
   estimated_subtotal!: number;
-
-  @ApiProperty({ example: 2 })
-  dish_count!: number;
 
   @ApiProperty({ example: 5 })
   overview_count!: number;
@@ -267,18 +295,15 @@ export class GeneratedCartHistorySummaryResponseDto {
   updated_at!: string;
 }
 
-export class GeneratedCartResponseDto {
-  @ApiProperty({ example: 'cart-1' })
+export class ShoppingCartResponseDto {
+  @ApiProperty({ example: 'shopping-cart-1' })
   id!: string;
 
   @ApiProperty({ example: 'user-1' })
   user_id!: string;
 
-  @ApiPropertyOptional({ example: 'draft-1' })
-  cart_draft_id?: string;
-
-  @ApiProperty({ type: () => [DishResponseDto] })
-  dishes!: DishResponseDto[];
+  @ApiProperty({ example: 'cart-1' })
+  cart_id!: string;
 
   @ApiProperty({ type: () => [AggregatedIngredientResponseDto] })
   overview!: AggregatedIngredientResponseDto[];
@@ -288,6 +313,9 @@ export class GeneratedCartResponseDto {
 
   @ApiProperty({ example: 19.9 })
   estimated_subtotal!: number;
+
+  @ApiPropertyOptional({ example: 21.5 })
+  estimated_total?: number;
 
   @ApiProperty({ example: 'walmart' })
   retailer!: string;
@@ -297,24 +325,4 @@ export class GeneratedCartResponseDto {
 
   @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
   updated_at!: string;
-}
-
-export class GenerateCartResponseDto {
-  @ApiPropertyOptional({ example: 'draft-1' })
-  cart_draft_id?: string;
-
-  @ApiProperty({ type: () => [DishResponseDto] })
-  dishes!: DishResponseDto[];
-
-  @ApiProperty({ type: () => [AggregatedIngredientResponseDto] })
-  overview!: AggregatedIngredientResponseDto[];
-
-  @ApiProperty({ type: () => [MatchedIngredientProductResponseDto] })
-  matched_items!: MatchedIngredientProductResponseDto[];
-
-  @ApiProperty({ example: 19.9 })
-  estimated_subtotal!: number;
-
-  @ApiProperty({ example: 'walmart' })
-  retailer!: string;
 }

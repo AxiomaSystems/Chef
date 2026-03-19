@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import type { BaseRecipe } from '@cart/shared';
 import {
   buildDishesFromSelections,
-  buildGeneratedCartResponse,
+  buildShoppingCartResponse,
   getBaseSelections,
 } from './cart.runtime';
 
@@ -47,7 +47,6 @@ describe('cart.runtime', () => {
           quantity: 2,
         },
       ],
-      retailer: 'walmart',
     });
 
     expect(result).toEqual([
@@ -69,7 +68,6 @@ describe('cart.runtime', () => {
             quantity: 1,
           },
         ],
-        retailer: 'walmart',
       }),
     ).toThrow(BadRequestException);
   });
@@ -84,7 +82,6 @@ describe('cart.runtime', () => {
           servings_override: 2,
         },
       ],
-      retailer: 'walmart',
     });
 
     expect(dishes).toHaveLength(2);
@@ -116,15 +113,13 @@ describe('cart.runtime', () => {
             quantity: 1,
           },
         ],
-        retailer: 'walmart',
       }),
     ).toThrow(BadRequestException);
   });
 
-  it('builds the generated cart response shape', () => {
-    const response = buildGeneratedCartResponse({
-      cartDraftId: 'draft-1',
-      dishes: [],
+  it('builds the shopping cart response shape', () => {
+    const response = buildShoppingCartResponse({
+      cartId: 'cart-1',
       overview: [],
       matchedItems: [],
       estimatedSubtotal: 19.9,
@@ -132,8 +127,7 @@ describe('cart.runtime', () => {
     });
 
     expect(response).toEqual({
-      cart_draft_id: 'draft-1',
-      dishes: [],
+      cart_id: 'cart-1',
       overview: [],
       matched_items: [],
       estimated_subtotal: 19.9,

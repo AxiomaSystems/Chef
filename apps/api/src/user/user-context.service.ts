@@ -1,6 +1,5 @@
 import {
   Injectable,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { RequestContextService } from '../common/http/request-context.service';
@@ -33,7 +32,7 @@ export class UserContextService {
       const actor = await this.findActorUser(resolvedActorUserId);
 
       if (!actor) {
-        throw new NotFoundException(`User ${resolvedActorUserId} not found`);
+        throw new UnauthorizedException('Authentication required');
       }
 
       return actor;

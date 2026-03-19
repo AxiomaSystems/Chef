@@ -1,19 +1,24 @@
 import { BadRequestException } from '@nestjs/common';
 import type {
   BaseRecipe,
+  Cart,
+  CartSelection,
   Dish,
-  GenerateCartResponse,
+  ShoppingCart,
 } from '@cart/shared';
-import type { GenerateCartDto } from './dto/generate-cart.dto';
 
-export const getBaseSelections = (input: GenerateCartDto) => {
+type SelectionsInput = {
+  selections: CartSelection[];
+};
+
+export const getBaseSelections = (input: SelectionsInput) => {
   const baseSelections = input.selections.filter(
     (selection) => selection.recipe_type === 'base',
   );
 
   if (baseSelections.length !== input.selections.length) {
     throw new BadRequestException(
-      'Variant recipes are not supported yet in cart generation',
+      'Variant recipes are not supported yet in cart creation',
     );
   }
 
@@ -22,7 +27,7 @@ export const getBaseSelections = (input: GenerateCartDto) => {
 
 export const buildDishesFromSelections = (
   recipes: BaseRecipe[],
-  input: GenerateCartDto,
+  input: SelectionsInput,
 ): Dish[] => {
   const baseSelections = getBaseSelections(input);
   const recipesById = new Map(recipes.map((recipe) => [recipe.id, recipe]));
@@ -47,21 +52,25 @@ export const buildDishesFromSelections = (
   return dishes;
 };
 
-export const buildGeneratedCartResponse = (input: {
-  cartDraftId: string;
-  dishes: Dish[];
-  overview: GenerateCartResponse['overview'];
-  matchedItems: GenerateCartResponse['matched_items'];
+export const buildShoppingCartResponse = (input: {
+  cartId: string;
+  overview: ShoppingCart['overview'];
+  matchedItems: ShoppingCart['matched_items'];
   estimatedSubtotal: number;
-  retailer: GenerateCartResponse['retailer'];
-}): GenerateCartResponse => ({
-  cart_draft_id: input.cartDraftId,
-  dishes: input.dishes,
+  retailer: ShoppingCart['retailer'];
+}): Omit<
+  ShoppingCart,
+  'id' | 'user_id' | 'created_at' | 'updated_at'
+> => ({
+  cart_id: input.cartId,
   overview: input.overview,
   matched_items: input.matchedItems,
   estimated_subtotal: input.estimatedSubtotal,
   retailer: input.retailer,
 });
+
+export const cloneCartSelections = (cart: Cart): CartSelection[] =>
+  cart.selections.map((selection) => ({ ...selection }));
 
 const toDish = (recipe: BaseRecipe, servings: number): Dish => {
   const scaleFactor = servings / recipe.servings;

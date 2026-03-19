@@ -22,7 +22,8 @@ model User {
   updatedAt      DateTime        @updatedAt
   ownedRecipes   BaseRecipe[]
   cartDrafts     CartDraft[]
-  generatedCarts GeneratedCart[]
+  carts          Cart[]
+  shoppingCarts  ShoppingCart[]
 }
 
 model BaseRecipe {
@@ -84,17 +85,31 @@ model CartDraft {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  carts      GeneratedCart[]
+  shoppingCarts ShoppingCart[]
 
   @@index([userId, createdAt])
 }
 
-model GeneratedCart {
+model Cart {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String?
+  selections Json
+  dishes     Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shoppingCarts ShoppingCart[]
+
+  @@index([userId, createdAt])
+}
+
+model ShoppingCart {
   id                String   @id @default(cuid())
   userId            String
+  cartId            String
   cartDraftId       String?
   retailer          String
-  dishes            Json
   overview          Json
   matchedItems      Json
   estimatedSubtotal Float
@@ -102,8 +117,10 @@ model GeneratedCart {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cart              Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
   cartDraft         CartDraft? @relation(fields: [cartDraftId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
+  @@index([cartId])
   @@index([cartDraftId])
 }

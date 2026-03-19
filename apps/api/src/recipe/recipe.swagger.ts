@@ -2,6 +2,7 @@ import { applyDecorators } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBody,
+  ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
@@ -30,6 +31,9 @@ import { UpdateRecipeDto } from './dto/update-recipe.dto';
 export const ApiRecipeController = () =>
   applyDecorators(ApiTags('recipes'), ApiDevUserHeader());
 
+export const ApiRecipeForkController = () =>
+  applyDecorators(ApiTags('recipe-forks'), ApiDevUserHeader());
+
 export const ApiCreateRecipe = () =>
   applyDecorators(
     ApiOperation({ summary: 'Create a user-owned recipe' }),
@@ -44,7 +48,7 @@ export const ApiCreateRecipe = () =>
         },
       },
     }),
-    ApiOkResponse({
+    ApiCreatedResponse({
       description: 'Created recipe',
       type: BaseRecipeResponseDto,
       content: {
@@ -269,28 +273,16 @@ export const ApiUpdateRecipe = () =>
     }),
   );
 
-export const ApiSaveRecipe = () =>
+export const ApiCreateRecipeFork = () =>
   applyDecorators(
-    ApiOperation({ summary: 'Save a global system recipe as an editable user copy' }),
-    ApiOkResponse({
-      description: 'Saved recipe copy. If the user already saved this source recipe, the existing copy is returned.',
+    ApiOperation({ summary: 'Create or return a saved editable fork of a system recipe' }),
+    ApiCreatedResponse({
+      description: 'Created recipe fork',
       type: BaseRecipeResponseDto,
-      content: {
-        'application/json': {
-          examples: {
-            savedRecipe: {
-              summary: 'Editable user copy of a system recipe',
-              value: {
-                ...recipeExample,
-                id: 'recipe-user-copy-1',
-                owner_user_id: 'user-1',
-                forked_from_recipe_id: 'recipe-system-1',
-                is_system_recipe: false,
-              },
-            },
-          },
-        },
-      },
+    }),
+    ApiOkResponse({
+      description: 'Existing recipe fork returned',
+      type: BaseRecipeResponseDto,
     }),
     ApiNotFoundResponse({
       description: 'System recipe not found',

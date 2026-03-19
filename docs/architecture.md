@@ -5,15 +5,18 @@
 Cart Generator is a layered system that transforms:
 
 ```text
-user-visible recipes + selections + constraints -> structured grocery cart
+visible recipes + user selections + constraints -> meal plan cart -> shopping cart
 ```
 
-The core design principle is still the same:
+The core design principles remain the same:
 
 - keep the center of the system stateful and deterministic
-- use AI only for constrained transformations, not for core arithmetic or pricing logic
+- use AI only for constrained transformations, not for core arithmetic, matching, or pricing
 
-This document now separates what is already implemented from what is still planned.
+This document distinguishes:
+
+- what is implemented today
+- what is the approved next API direction
 
 ## Current Implemented Flow
 
@@ -26,8 +29,7 @@ Visible recipes
   -> Ingredient aggregation
   -> Product matching (mock catalog)
   -> Cost estimation
-  -> Generated cart
-  -> Cart persistence
+  -> Persisted generated cart
 ```
 
 That flow is implemented in the NestJS API under:
@@ -42,6 +44,29 @@ apps/api/src/
 |-- prisma/
 `-- common/http/
 ```
+
+## Approved Conceptual Flow
+
+The approved model for the next refactor is:
+
+```text
+Recipe
+  -> CartDraft
+  -> Cart
+  -> ShoppingCart
+```
+
+Interpretation:
+
+- `CartDraft` captures editable user intent
+- `Cart` is the stable recipe-based meal-plan snapshot
+- `ShoppingCart` is the derived retailer-facing purchase basket
+
+This split is important because:
+
+- recipes and meal planning belong to the culinary domain
+- shopping-cart generation belongs to the retail resolution domain
+- one `Cart` should be able to produce one or more `ShoppingCart` snapshots over time
 
 ## Current System Layers
 
@@ -70,7 +95,7 @@ Implemented rules:
 
 Purpose:
 
-- capture user intent for a specific plan or shopping session
+- capture user intent for a specific meal-planning session
 
 Implemented entities:
 
@@ -80,14 +105,31 @@ Implemented entities:
 Current status:
 
 - draft persistence exists
-- selection is request-driven and draft-driven
+- selection is currently request-driven and draft-driven
 - there is no dedicated UI flow yet
 
-### 3. Aggregation Layer
+### 3. Cart Layer
 
 Purpose:
 
-- merge selected dishes into one consolidated ingredient overview
+- represent the meal-plan snapshot derived from recipe selections
+
+Approved responsibilities:
+
+- hold recipe selections
+- hold resolved dishes and servings context
+- remain independent from retailer matching details
+
+Current status:
+
+- this concept is only partially explicit today
+- some current endpoints collapse `Cart` and `ShoppingCart` into one generated-cart concept
+
+### 4. Aggregation Layer
+
+Purpose:
+
+- merge dish ingredients into one consolidated overview
 
 Implemented rules:
 
@@ -100,11 +142,11 @@ Implemented entity:
 
 - `AggregatedIngredient`
 
-### 4. Product Matching Layer
+### 5. Product Matching Layer
 
 Purpose:
 
-- map ingredient needs to mock purchasable products
+- map aggregated ingredient needs to purchasable products
 
 Implemented behavior:
 
@@ -123,26 +165,23 @@ Current limitation:
 
 - matching is still mock-catalog based, not a real retailer integration
 
-### 5. Cart Layer
+### 6. Shopping Cart Layer
 
 Purpose:
 
-- return and persist the final structured cart
+- persist the retailer-facing purchase basket derived from a `Cart`
 
-Implemented entities:
+Approved responsibilities:
 
-- `GeneratedCart`
-- `CartDraft`
+- link to a parent `Cart`
+- preserve the aggregated overview snapshot
+- preserve matched products and selected quantities
+- preserve retailer and estimated subtotal
 
-Implemented endpoints:
+Current status:
 
-- `POST /cart/generate`
-- `POST /cart/drafts`
-- `GET /cart/drafts`
-- `GET /cart/drafts/:id`
-- `GET /cart/generated`
-- `GET /cart/generated/history`
-- `GET /cart/generated/:id`
+- this is currently represented as a generated-cart concept
+- the approved direction is to rename and model it explicitly as `ShoppingCart`
 
 ## Current Access Model
 
@@ -150,10 +189,10 @@ The current API uses a development identity header and explicit ownership rules.
 
 Current behavior:
 
-- unauthenticated recipe reads only expose global system recipes
+- unauthenticated recipe reads expose only global system recipes
 - authenticated users can read global recipes plus their own recipes
-- mutable endpoints require authentication
-- drafts and generated carts are always user-scoped
+- mutable recipe endpoints require authentication
+- drafts and generated shopping results are always user-scoped
 
 Current development identity:
 
@@ -162,38 +201,29 @@ Current development identity:
 
 This is temporary developer auth context, not final authentication architecture.
 
-## Current API Shape
+## Approved API Shape
 
-Implemented recipe endpoints:
+The next internal API should live under `/api/v1`.
 
-- `POST /recipes`
-- `GET /recipes`
-- `GET /recipes/:id`
-- `GET /recipes/:id/origin`
-- `PATCH /recipes/:id`
-- `POST /recipes/:id/save`
-- `DELETE /recipes/:id`
+Approved route families:
 
-Implemented cart service flow:
+- `/api/v1/recipes`
+- `/api/v1/recipe-forks`
+- `/api/v1/cart-drafts`
+- `/api/v1/carts`
+- `/api/v1/shopping-carts`
 
-```text
-request
-  -> CartService
-  -> RecipeService
-  -> AggregationService
-  -> MatchingService
-  -> cart persistence
-  -> response
-```
+Approved mapping:
 
-Swagger/OpenAPI is available at:
+- `POST /api/v1/recipe-forks` replaces the current save/fork command route
+- `POST /api/v1/carts` creates the meal-plan snapshot
+- `POST /api/v1/carts/:cartId/shopping-carts` derives a purchase basket from a cart
 
-- `/docs`
-- `/docs/openapi.json`
+This keeps retailer integration behind the shopping-cart boundary instead of coupling it directly to recipe selection endpoints.
 
 ## Current State Boundaries
 
-Persistent state:
+Persistent state today:
 
 - users
 - base recipes
@@ -202,9 +232,19 @@ Persistent state:
 - cart drafts
 - generated carts
 
-Derived but persisted state:
+Approved persistent state direction:
 
-- generated cart dishes
+- users
+- base recipes
+- dish ingredients
+- recipe steps
+- cart drafts
+- carts
+- shopping carts
+
+Derived but persisted shopping state:
+
+- resolved dishes
 - aggregated ingredient overviews
 - matched cart items
 - estimated subtotal
@@ -220,6 +260,7 @@ Not implemented yet:
 - recipe variants
 - raw LLM outputs
 - async matching jobs
+- real retailer provider integration
 
 ## Current Infrastructure
 
@@ -244,7 +285,45 @@ Not implemented yet:
 
 ## Planned Next Layers
 
-### 1. Adaptation Layer
+### 1. Internal API v1 Refactor
+
+Purpose:
+
+- establish a clean internal contract before real auth and tag evolution
+
+Scope:
+
+- move to `/api/v1`
+- make resource names explicit
+- split `Cart` from `ShoppingCart`
+- align status codes and error semantics
+
+### 2. Real Authentication
+
+Purpose:
+
+- replace dev header identity with real user auth
+
+Planned direction:
+
+- authenticated user context
+- `/me` profile surface
+- role-aware admin behavior
+- proper ownership enforcement without relying on manual headers
+
+### 3. Hybrid Tags And Controlled Cuisine
+
+Purpose:
+
+- support shared taxonomy plus private user organization
+
+Status:
+
+- `tags` are still `string[]`
+- `cuisine` is still a free string
+- both should evolve after the `v1` API boundary is in place
+
+### 4. Adaptation Layer
 
 Purpose:
 
@@ -267,46 +346,6 @@ Status:
 - shared types exist
 - runtime implementation does not exist yet
 
-### 2. Better Normalization
-
-Purpose:
-
-- make aggregation and matching more robust
-
-Planned responsibilities:
-
-- stronger canonical ingredient naming
-- richer unit normalization and conversion
-- better ingredient interpretation
-
-Status:
-
-- partially implemented today
-- still incomplete
-
-### 3. Real Authentication
-
-Purpose:
-
-- replace dev header identity with real user auth
-
-Planned direction:
-
-- authenticated user context
-- role-aware admin behavior
-- proper ownership enforcement without relying on manual headers
-
-### 4. Hybrid Tags
-
-Purpose:
-
-- support shared taxonomy plus private user organization
-
-Status:
-
-- currently `tags` are `string[]`
-- future model should support both system and user-scoped tags
-
 ## Design Rules
 
 - deterministic logic for aggregation, matching, and pricing
@@ -316,12 +355,13 @@ Status:
 - shared contracts across apps
 - system recipes remain immutable
 - user-owned data is isolated by default
+- retailer resolution belongs to `ShoppingCart`, not to `Cart`
 
 ## Practical Reading Guide
 
 If you want the current truth of the system:
 
-1. read this file for implemented vs planned architecture
-2. read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for policy and modeling decisions
-3. read [apps/api/README.md](/C:/Users/akuma/repos/cart-generator/apps/api/README.md) for the real runnable backend surface
-4. read Swagger at `/docs` for the live API contract
+1. read this file for implemented vs approved-next architecture
+2. read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for policy and API-shape decisions
+3. read [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md) for the conceptual vocabulary
+4. read Swagger at `/docs` for the live implemented contract until the `v1` refactor lands

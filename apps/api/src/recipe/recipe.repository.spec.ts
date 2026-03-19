@@ -143,14 +143,17 @@ describe('RecipeRepository visibility', () => {
         steps: [],
       });
 
-    const recipe = await repository.saveSystemRecipe('recipe-system-1', 'user-a');
+    const result = await repository.saveSystemRecipe('recipe-system-1', 'user-a');
 
     expect(prisma.baseRecipe.create).not.toHaveBeenCalled();
-    expect(recipe).toMatchObject({
-      id: 'recipe-user-copy-1',
-      owner_user_id: 'user-a',
-      forked_from_recipe_id: 'recipe-system-1',
-      is_system_recipe: false,
+    expect(result).toMatchObject({
+      created: false,
+      recipe: {
+        id: 'recipe-user-copy-1',
+        owner_user_id: 'user-a',
+        forked_from_recipe_id: 'recipe-system-1',
+        is_system_recipe: false,
+      },
     });
   });
 
@@ -193,13 +196,16 @@ describe('RecipeRepository visibility', () => {
       name: 'PrismaClientKnownRequestError',
     });
 
-    const recipe = await repository.saveSystemRecipe('recipe-system-1', 'user-a');
+    const result = await repository.saveSystemRecipe('recipe-system-1', 'user-a');
 
-    expect(recipe).toMatchObject({
-      id: 'recipe-user-copy-1',
-      owner_user_id: 'user-a',
-      forked_from_recipe_id: 'recipe-system-1',
-      is_system_recipe: false,
+    expect(result).toMatchObject({
+      created: false,
+      recipe: {
+        id: 'recipe-user-copy-1',
+        owner_user_id: 'user-a',
+        forked_from_recipe_id: 'recipe-system-1',
+        is_system_recipe: false,
+      },
     });
   });
 });

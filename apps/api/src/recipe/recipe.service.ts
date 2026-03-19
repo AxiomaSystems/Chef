@@ -63,11 +63,16 @@ export class RecipeService {
     return assertMutableRecipeResult(recipe, visibleRecipe, id, 'edited')!;
   }
 
-  async save(id: string, actorUserId?: string): Promise<BaseRecipe> {
-    return assertVisibleRecipe(
-      await this.recipeRepository.saveSystemRecipe(id, actorUserId),
-      id,
-    );
+  async save(
+    id: string,
+    actorUserId?: string,
+  ): Promise<{ recipe: BaseRecipe; created: boolean }> {
+    const saved = await this.recipeRepository.saveSystemRecipe(id, actorUserId);
+
+    return {
+      recipe: assertVisibleRecipe(saved.recipe, id),
+      created: saved.created,
+    };
   }
 
   async remove(id: string, actorUserId?: string): Promise<void> {

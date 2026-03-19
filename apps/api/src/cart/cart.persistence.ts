@@ -1,16 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import {
-  mapGeneratedCartHistorySummary,
+  mapPersistedCart,
   mapPersistedCartDraft,
-  mapPersistedGeneratedCart,
+  mapPersistedShoppingCart,
+  mapShoppingCartHistorySummary,
 } from './persistence/cart.persistence.mapper';
 import { CartPersistenceRepository } from './persistence/cart.persistence.repository';
 import type {
+  CreateCartPersistenceInput,
   CreateCartDraftPersistenceInput,
-  CreateGeneratedCartPersistenceInput,
-  GeneratedCartHistorySummary,
+  CreateShoppingCartPersistenceInput,
+  PersistedCart,
   PersistedCartDraft,
-  PersistedGeneratedCart,
+  PersistedShoppingCart,
+  PersistedShoppingCartHistorySummary,
+  UpdateCartDraftPersistenceInput,
+  UpdateCartPersistenceInput,
 } from './persistence/cart.persistence.types';
 
 @Injectable()
@@ -26,11 +31,34 @@ export class CartPersistenceService {
     return mapPersistedCartDraft(draft);
   }
 
-  async createGeneratedCart(
-    input: CreateGeneratedCartPersistenceInput,
-  ): Promise<PersistedGeneratedCart> {
-    const created = await this.cartPersistenceRepository.createGeneratedCart(input);
-    return mapPersistedGeneratedCart(created);
+  updateDraft(userId: string, id: string, input: UpdateCartDraftPersistenceInput) {
+    return this.cartPersistenceRepository.updateDraft(userId, id, input);
+  }
+
+  deleteDraft(userId: string, id: string) {
+    return this.cartPersistenceRepository.deleteDraft(userId, id);
+  }
+
+  async createCart(input: CreateCartPersistenceInput): Promise<PersistedCart> {
+    const cart = await this.cartPersistenceRepository.createCart(input);
+    return mapPersistedCart(cart);
+  }
+
+  updateCart(userId: string, id: string, input: UpdateCartPersistenceInput) {
+    return this.cartPersistenceRepository.updateCart(userId, id, input);
+  }
+
+  deleteCart(userId: string, id: string) {
+    return this.cartPersistenceRepository.deleteCart(userId, id);
+  }
+
+  async createShoppingCart(
+    input: CreateShoppingCartPersistenceInput,
+  ): Promise<PersistedShoppingCart> {
+    const shoppingCart = await this.cartPersistenceRepository.createShoppingCart(
+      input,
+    );
+    return mapPersistedShoppingCart(shoppingCart);
   }
 
   async findDraftsByUser(userId: string): Promise<PersistedCartDraft[]> {
@@ -46,32 +74,42 @@ export class CartPersistenceService {
     return draft ? mapPersistedCartDraft(draft) : null;
   }
 
-  async findGeneratedCartsByUser(
-    userId: string,
-  ): Promise<PersistedGeneratedCart[]> {
-    const carts = await this.cartPersistenceRepository.findGeneratedCartsByUser(
-      userId,
-    );
-    return carts.map(mapPersistedGeneratedCart);
+  async findCartsByUser(userId: string): Promise<PersistedCart[]> {
+    const carts = await this.cartPersistenceRepository.findCartsByUser(userId);
+    return carts.map(mapPersistedCart);
   }
 
-  async findGeneratedCartHistoryByUser(
-    userId: string,
-  ): Promise<GeneratedCartHistorySummary[]> {
-    const carts = await this.cartPersistenceRepository.findGeneratedCartsByUser(
-      userId,
-    );
-    return carts.map(mapGeneratedCartHistorySummary);
+  async findCartById(userId: string, id: string): Promise<PersistedCart | null> {
+    const cart = await this.cartPersistenceRepository.findCartById(userId, id);
+    return cart ? mapPersistedCart(cart) : null;
   }
 
-  async findGeneratedCartById(
+  async findShoppingCartsByUser(
+    userId: string,
+  ): Promise<PersistedShoppingCart[]> {
+    const carts = await this.cartPersistenceRepository.findShoppingCartsByUser(
+      userId,
+    );
+    return carts.map(mapPersistedShoppingCart);
+  }
+
+  async findShoppingCartHistoryByUser(
+    userId: string,
+  ): Promise<PersistedShoppingCartHistorySummary[]> {
+    const carts = await this.cartPersistenceRepository.findShoppingCartsByUser(
+      userId,
+    );
+    return carts.map(mapShoppingCartHistorySummary);
+  }
+
+  async findShoppingCartById(
     userId: string,
     id: string,
-  ): Promise<PersistedGeneratedCart | null> {
-    const created = await this.cartPersistenceRepository.findGeneratedCartById(
+  ): Promise<PersistedShoppingCart | null> {
+    const created = await this.cartPersistenceRepository.findShoppingCartById(
       userId,
       id,
     );
-    return created ? mapPersistedGeneratedCart(created) : null;
+    return created ? mapPersistedShoppingCart(created) : null;
   }
 }

@@ -2,7 +2,9 @@ import { applyDecorators } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBody,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
+  ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -10,98 +12,30 @@ import {
 } from '@nestjs/swagger';
 import { ApiDevUserHeader } from '../common/http/api-headers.swagger';
 import {
+  CartResponseDto,
   ErrorResponseDto,
-  GenerateCartResponseDto,
-  GeneratedCartHistorySummaryResponseDto,
-  GeneratedCartResponseDto,
   PersistedCartDraftResponseDto,
+  ShoppingCartHistorySummaryResponseDto,
+  ShoppingCartResponseDto,
 } from '../common/http/swagger.dto';
 import {
   badRequestErrorExample,
   cartDraftExample,
+  cartExample,
   createCartDraftRequestExample,
-  generateCartRequestExample,
-  generatedCartExample,
-  generatedCartHistoryExample,
-  generatedCartListExample,
-  persistedGeneratedCartExample,
+  createCartRequestExample,
+  createShoppingCartRequestExample,
+  shoppingCartExample,
+  shoppingCartHistoryExample,
 } from '../common/http/swagger.examples';
 import { CreateCartDraftDto } from './dto/create-cart-draft.dto';
-import { GenerateCartDto } from './dto/generate-cart.dto';
+import { CreateCartDto } from './dto/create-cart.dto';
+import { CreateShoppingCartDto } from './dto/create-shopping-cart.dto';
+import { UpdateCartDraftDto } from './dto/update-cart-draft.dto';
+import { UpdateCartDto } from './dto/update-cart.dto';
 
-export const ApiCartController = () =>
-  applyDecorators(ApiTags('cart'), ApiDevUserHeader());
-
-export const ApiGenerateCart = () =>
-  applyDecorators(
-    ApiOperation({ summary: 'Generate and persist a cart from recipe selections' }),
-    ApiBody({
-      type: GenerateCartDto,
-      required: true,
-      description:
-        'Recipe selections to aggregate, match, and persist as a generated cart.',
-      examples: {
-        simpleCartGeneration: {
-          summary: 'Generate a cart from one base recipe',
-          value: generateCartRequestExample,
-        },
-        scaledCartGeneration: {
-          summary: 'Generate a cart with quantity and serving override',
-          value: {
-            selections: [
-              {
-                recipe_id: 'recipe-1',
-                recipe_type: 'base',
-                quantity: 3,
-                servings_override: 6,
-              },
-            ],
-            retailer: 'walmart',
-          },
-        },
-      },
-    }),
-    ApiOkResponse({
-      description: 'Generated cart response',
-      type: GenerateCartResponseDto,
-      content: {
-        'application/json': {
-          examples: {
-            generatedCart: {
-              summary: 'Generated cart with matching and subtotal',
-              value: generatedCartExample,
-            },
-          },
-        },
-      },
-    }),
-    ApiBadRequestResponse({
-      description: 'Selections are invalid or contain unavailable recipes',
-      type: ErrorResponseDto,
-      content: {
-        'application/json': {
-          examples: {
-            invalidSelections: {
-              summary: 'Recipe unavailable to current user',
-              value: {
-                statusCode: 400,
-                message: 'Recipe missing-recipe is not available to this user',
-                error: 'Bad Request',
-              },
-            },
-            invalidPayload: {
-              summary: 'Validation error',
-              value: badRequestErrorExample,
-            },
-          },
-        },
-      },
-    }),
-    ApiUnauthorizedResponse({
-      description: 'Authentication required',
-      type: ErrorResponseDto,
-    }),
-  );
+export const ApiCartController = (tag: string) =>
+  applyDecorators(ApiTags(tag), ApiDevUserHeader());
 
 export const ApiCreateCartDraft = () =>
   applyDecorators(
@@ -109,7 +43,7 @@ export const ApiCreateCartDraft = () =>
     ApiBody({
       type: CreateCartDraftDto,
       required: true,
-      description: 'Draft payload to save for later cart generation.',
+      description: 'Draft payload to save for later cart creation.',
       examples: {
         weeklyDraft: {
           summary: 'Persist a weekly dinner draft',
@@ -117,7 +51,7 @@ export const ApiCreateCartDraft = () =>
         },
       },
     }),
-    ApiOkResponse({
+    ApiCreatedResponse({
       description: 'Persisted cart draft',
       type: PersistedCartDraftResponseDto,
       content: {
@@ -151,6 +85,43 @@ export const ApiCreateCartDraft = () =>
     }),
   );
 
+export const ApiUpdateCartDraft = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Update a persisted cart draft with partial replacement semantics',
+    }),
+    ApiBody({
+      type: UpdateCartDraftDto,
+      required: true,
+    }),
+    ApiOkResponse({
+      description: 'Updated cart draft',
+      type: PersistedCartDraftResponseDto,
+    }),
+    ApiNotFoundResponse({
+      description: 'Cart draft not found',
+      type: ErrorResponseDto,
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiDeleteCartDraft = () =>
+  applyDecorators(
+    ApiOperation({ summary: 'Delete a persisted cart draft' }),
+    ApiNoContentResponse({ description: 'Cart draft deleted' }),
+    ApiNotFoundResponse({
+      description: 'Cart draft not found',
+      type: ErrorResponseDto,
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
 export const ApiListCartDrafts = () =>
   applyDecorators(
     ApiOperation({ summary: 'List persisted cart drafts for the current user' }),
@@ -158,16 +129,6 @@ export const ApiListCartDrafts = () =>
       description: 'Persisted cart drafts',
       type: PersistedCartDraftResponseDto,
       isArray: true,
-      content: {
-        'application/json': {
-          examples: {
-            draftList: {
-              summary: 'Persisted draft list',
-              value: [cartDraftExample],
-            },
-          },
-        },
-      },
     }),
     ApiUnauthorizedResponse({
       description: 'Authentication required',
@@ -181,34 +142,168 @@ export const ApiGetCartDraft = () =>
     ApiOkResponse({
       description: 'Persisted cart draft',
       type: PersistedCartDraftResponseDto,
+    }),
+    ApiNotFoundResponse({
+      description: 'Cart draft not found',
+      type: ErrorResponseDto,
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiCreateCart = () =>
+  applyDecorators(
+    ApiOperation({ summary: 'Create a meal-plan cart from recipe selections' }),
+    ApiBody({
+      type: CreateCartDto,
+      required: true,
+      description: 'Recipe selections to persist as a stable cart snapshot.',
+      examples: {
+        weeklyCart: {
+          summary: 'Create a cart from recipe selections',
+          value: createCartRequestExample,
+        },
+      },
+    }),
+    ApiCreatedResponse({
+      description: 'Persisted cart',
+      type: CartResponseDto,
       content: {
         'application/json': {
           examples: {
-            draftDetails: {
-              summary: 'Single draft',
-              value: cartDraftExample,
+            persistedCart: {
+              summary: 'Persisted cart',
+              value: cartExample,
+            },
+          },
+        },
+      },
+    }),
+    ApiBadRequestResponse({
+      description: 'Selections are invalid or contain unavailable recipes',
+      type: ErrorResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            invalidCart: {
+              summary: 'Validation error',
+              value: badRequestErrorExample,
+            },
+          },
+        },
+      },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiUpdateCart = () =>
+  applyDecorators(
+    ApiOperation({ summary: 'Update a persisted cart' }),
+    ApiBody({
+      type: UpdateCartDto,
+      required: true,
+    }),
+    ApiOkResponse({
+      description: 'Updated cart',
+      type: CartResponseDto,
+    }),
+    ApiBadRequestResponse({
+      description: 'Selections are invalid or contain unavailable recipes',
+      type: ErrorResponseDto,
+    }),
+    ApiNotFoundResponse({
+      description: 'Cart not found',
+      type: ErrorResponseDto,
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiDeleteCart = () =>
+  applyDecorators(
+    ApiOperation({ summary: 'Delete a persisted cart' }),
+    ApiNoContentResponse({ description: 'Cart deleted' }),
+    ApiNotFoundResponse({
+      description: 'Cart not found',
+      type: ErrorResponseDto,
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiListCarts = () =>
+  applyDecorators(
+    ApiOperation({ summary: 'List persisted carts for the current user' }),
+    ApiOkResponse({
+      description: 'Persisted carts',
+      type: CartResponseDto,
+      isArray: true,
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiGetCart = () =>
+  applyDecorators(
+    ApiOperation({ summary: 'Get a persisted cart by id' }),
+    ApiOkResponse({
+      description: 'Persisted cart',
+      type: CartResponseDto,
+    }),
+    ApiNotFoundResponse({
+      description: 'Cart not found',
+      type: ErrorResponseDto,
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiCreateShoppingCart = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Create a shopping cart from a persisted cart and retailer',
+    }),
+    ApiBody({
+      type: CreateShoppingCartDto,
+      required: true,
+      description: 'Retailer context for resolving the cart into purchasable items.',
+      examples: {
+        walmartShoppingCart: {
+          summary: 'Create a Walmart shopping cart',
+          value: createShoppingCartRequestExample,
+        },
+      },
+    }),
+    ApiCreatedResponse({
+      description: 'Persisted shopping cart',
+      type: ShoppingCartResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            persistedShoppingCart: {
+              summary: 'Persisted shopping cart',
+              value: shoppingCartExample,
             },
           },
         },
       },
     }),
     ApiNotFoundResponse({
-      description: 'Cart draft not found',
+      description: 'Cart not found',
       type: ErrorResponseDto,
-      content: {
-        'application/json': {
-          examples: {
-            missingDraft: {
-              summary: 'Draft not found',
-              value: {
-                statusCode: 404,
-                message: 'Cart draft draft-404 not found',
-                error: 'Not Found',
-              },
-            },
-          },
-        },
-      },
     }),
     ApiUnauthorizedResponse({
       description: 'Authentication required',
@@ -216,25 +311,13 @@ export const ApiGetCartDraft = () =>
     }),
   );
 
-export const ApiListGeneratedCarts = () =>
+export const ApiListShoppingCarts = () =>
   applyDecorators(
-    ApiOperation({
-      summary: 'List full persisted generated carts for the current user',
-    }),
+    ApiOperation({ summary: 'List persisted shopping carts for the current user' }),
     ApiOkResponse({
-      description: 'Persisted generated carts',
-      type: GeneratedCartResponseDto,
+      description: 'Persisted shopping carts',
+      type: ShoppingCartResponseDto,
       isArray: true,
-      content: {
-        'application/json': {
-          examples: {
-            generatedCartList: {
-              summary: 'Generated cart list',
-              value: generatedCartListExample,
-            },
-          },
-        },
-      },
     }),
     ApiUnauthorizedResponse({
       description: 'Authentication required',
@@ -242,25 +325,21 @@ export const ApiListGeneratedCarts = () =>
     }),
   );
 
-export const ApiListGeneratedCartHistory = () =>
+export const ApiListShoppingCartHistory = () =>
   applyDecorators(
     ApiOperation({
-      summary: 'List generated cart history summaries for the current user',
+      summary: 'List shopping cart history summaries for the current user',
     }),
     ApiOkResponse({
-      description: 'Generated cart history summaries',
-      type: GeneratedCartHistorySummaryResponseDto,
+      description: 'Shopping cart history summaries',
+      type: ShoppingCartHistorySummaryResponseDto,
       isArray: true,
       content: {
         'application/json': {
           examples: {
             historySummaries: {
-              summary: 'Generated cart history summaries',
-              value: generatedCartHistoryExample,
-            },
-            emptyHistory: {
-              summary: 'No generated carts yet',
-              value: [],
+              summary: 'Shopping cart history summaries',
+              value: shoppingCartHistoryExample,
             },
           },
         },
@@ -272,40 +351,16 @@ export const ApiListGeneratedCartHistory = () =>
     }),
   );
 
-export const ApiGetGeneratedCart = () =>
+export const ApiGetShoppingCart = () =>
   applyDecorators(
-    ApiOperation({ summary: 'Get a persisted generated cart by id' }),
+    ApiOperation({ summary: 'Get a persisted shopping cart by id' }),
     ApiOkResponse({
-      description: 'Persisted generated cart',
-      type: GeneratedCartResponseDto,
-      content: {
-        'application/json': {
-          examples: {
-            generatedCartDetails: {
-              summary: 'Persisted generated cart',
-              value: persistedGeneratedCartExample,
-            },
-          },
-        },
-      },
+      description: 'Persisted shopping cart',
+      type: ShoppingCartResponseDto,
     }),
     ApiNotFoundResponse({
-      description: 'Generated cart not found',
+      description: 'Shopping cart not found',
       type: ErrorResponseDto,
-      content: {
-        'application/json': {
-          examples: {
-            missingGeneratedCart: {
-              summary: 'Generated cart not found',
-              value: {
-                statusCode: 404,
-                message: 'Generated cart cart-404 not found',
-                error: 'Not Found',
-              },
-            },
-          },
-        },
-      },
     }),
     ApiUnauthorizedResponse({
       description: 'Authentication required',

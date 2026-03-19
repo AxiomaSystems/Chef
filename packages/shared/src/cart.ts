@@ -1,11 +1,11 @@
 import type { AggregatedIngredient } from "./aggregation";
-import type { Dish } from "./recipe";
 import type {
   MatchedIngredientProduct,
   Retailer,
 } from "./product";
+import type { Dish } from "./recipe";
 
-export type GenerateCartSelectionAdaptationRequest = {
+export type CartSelectionAdaptationRequest = {
   halal?: boolean;
   vegan?: boolean;
   calorie_range?: {
@@ -16,19 +16,65 @@ export type GenerateCartSelectionAdaptationRequest = {
   custom_notes?: string;
 };
 
-export type GenerateCartRequestSelection = {
+export type CartSelection = {
   recipe_id: string;
   recipe_type: "base" | "variant";
   quantity: number;
   servings_override?: number;
-  adaptation_request?: GenerateCartSelectionAdaptationRequest;
+  adaptation_request?: CartSelectionAdaptationRequest;
 };
 
-export type GenerateCartRequest = {
-  selections: GenerateCartRequestSelection[];
+export type CreateCartRequest = {
+  name?: string;
+  selections: CartSelection[];
+};
+
+export type Cart = {
+  id?: string;
+  user_id?: string;
+  name?: string;
+  selections: CartSelection[];
+  dishes: Dish[];
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CreateShoppingCartRequest = {
   retailer: Retailer;
 };
 
+export type ShoppingCart = {
+  id?: string;
+  user_id?: string;
+  cart_id: string;
+  overview: AggregatedIngredient[];
+  matched_items: MatchedIngredientProduct[];
+  estimated_subtotal: number;
+  estimated_total?: number;
+  retailer: Retailer;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ShoppingCartHistorySummary = {
+  id: string;
+  user_id: string;
+  cart_id: string;
+  retailer: Retailer;
+  estimated_subtotal: number;
+  overview_count: number;
+  matched_item_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+// Legacy aliases kept temporarily while the API refactor lands.
+export type GenerateCartSelectionAdaptationRequest =
+  CartSelectionAdaptationRequest;
+export type GenerateCartRequestSelection = CartSelection;
+export type GenerateCartRequest = CreateCartRequest & {
+  retailer: Retailer;
+};
 export type GenerateCartResponse = {
   cart_draft_id?: string;
   dishes: Dish[];
@@ -37,14 +83,4 @@ export type GenerateCartResponse = {
   estimated_subtotal: number;
   retailer: Retailer;
 };
-
-export type GeneratedCart = {
-  id?: string;
-  dishes: Dish[];
-  overview: AggregatedIngredient[];
-  matched_items: MatchedIngredientProduct[];
-  estimated_subtotal: number;
-  estimated_total?: number;
-  retailer: Retailer;
-  created_at?: string;
-};
+export type GeneratedCart = ShoppingCart;

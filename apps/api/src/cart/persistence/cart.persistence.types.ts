@@ -1,47 +1,62 @@
 import type {
-  GenerateCartRequestSelection,
-  GenerateCartResponse,
+  Cart,
+  CartSelection,
+  ShoppingCart,
+  ShoppingCartHistorySummary,
 } from '@cart/shared';
 
 export type PersistedCartDraft = {
   id: string;
   user_id: string;
   name?: string;
-  selections: GenerateCartRequestSelection[];
+  selections: CartSelection[];
   retailer: string;
   created_at: string;
   updated_at: string;
 };
 
-export type GeneratedCartHistorySummary = {
+export type PersistedCart = Cart & {
   id: string;
   user_id: string;
-  cart_draft_id?: string;
-  retailer: GenerateCartResponse['retailer'];
-  estimated_subtotal: number;
-  dish_count: number;
-  overview_count: number;
-  matched_item_count: number;
-  created_at: string;
-  updated_at: string;
-};
-
-export type PersistedGeneratedCart = GenerateCartResponse & {
-  id: string;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
 };
 
 export type CreateCartDraftPersistenceInput = {
   userId: string;
   name?: string;
-  selections: GenerateCartRequestSelection[];
+  selections: CartSelection[];
   retailer: string;
 };
 
-export type CreateGeneratedCartPersistenceInput = {
+export type UpdateCartDraftPersistenceInput = {
+  name?: string;
+  selections?: CartSelection[];
+  retailer?: string;
+};
+
+export type CreateCartPersistenceInput = {
   userId: string;
+  name?: string;
+  selections: CartSelection[];
+  dishes: Cart['dishes'];
+};
+
+export type UpdateCartPersistenceInput = {
+  name?: string;
+  selections?: CartSelection[];
+  dishes?: Cart['dishes'];
+};
+
+export type PersistedShoppingCart = ShoppingCart & {
+  id: string;
+  user_id: string;
+  cart_id: string;
+};
+
+export type PersistedShoppingCartHistorySummary = ShoppingCartHistorySummary;
+
+export type CreateShoppingCartPersistenceInput = {
+  userId: string;
+  cartId: string;
   cartDraftId?: string;
-  cart: GenerateCartResponse;
+  shoppingCart: Omit<ShoppingCart, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
 };
