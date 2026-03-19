@@ -348,3 +348,106 @@ Pragmatic path:
 - keep the current string short-term
 - document the migration target now
 - update `models` and `architecture` only when the schema and shared contracts actually change
+
+## 25. Real Authentication Should Center On `/me` And Linked Identities
+
+Decision:
+- replace the current development header auth with a real account system
+- use `/me` as the primary authenticated profile surface
+- support multiple login methods that can resolve to the same user account
+
+Primary authentication methods:
+- Google OAuth
+- email and password
+
+Planned later or second-phase method:
+- phone login
+
+Why:
+- users should not fragment into separate accounts based on auth provider
+- `/me` is the cleanest profile-oriented API convention for the current product
+- linked identities are more robust than overloading a single `User` row with provider-specific fields
+
+Recommended model direction:
+- `User`
+- `AuthIdentity`
+- optional `UserPreference`
+
+Suggested `AuthIdentity` responsibilities:
+- provider type
+- provider user id
+- email when relevant
+- phone when relevant
+- password hash for password-based login
+- verification timestamps
+- last login metadata
+
+## 26. Preferences Are Higher-Value Than Demographics For Onboarding
+
+Decision:
+- do not prioritize demographic fields like `nationality` in the first real auth/profile rollout
+- prioritize culinary preferences, dietary interests, and discovery signals instead
+
+Examples:
+- cuisines of interest
+- dietary restrictions
+- cooking interests
+- budget sensitivity later
+
+Why:
+- these fields improve discovery and personalization directly
+- they are more actionable than demographics for the product
+- they create better onboarding UX than asking for profile data with weak product impact
+
+Implication:
+- onboarding should eventually connect to controlled taxonomies such as cuisines and tags
+- we should avoid anchoring onboarding on raw `string[]` tags long-term
+
+## 27. Phone Auth Should Not Be In The First Auth Slice
+
+Decision:
+- do not treat phone login as first-phase auth scope
+- keep it as a later provider after Google OAuth and email/password are stable
+
+Why:
+- phone auth adds more operational and anti-abuse complexity
+- Google + email/password is enough to unlock real ownership and profile flows
+- sequencing matters more than provider count in the MVP
+
+## 28. Account Security Should Focus On Sensitive Surfaces
+
+Decision:
+- use captcha and anti-abuse controls on sensitive auth flows, not everywhere
+
+Priority surfaces:
+- registration
+- login if abuse appears
+- forgot password / reset password
+
+Why:
+- broad captcha usage hurts UX
+- the real value is protecting the abuse-prone entry points
+
+## 29. Auth API Should Distinguish Identity, Profile, And Analytics
+
+Decision:
+- separate auth routes from profile routes and user analytics routes
+
+Recommended route families:
+- `/auth/*`
+- `/me`
+- `/me/stats`
+
+Examples:
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/google`
+- `POST /auth/password/forgot`
+- `POST /auth/password/reset`
+- `GET /me`
+- `PATCH /me`
+- `GET /me/stats`
+
+Why:
+- identity management, profile editing, and product stats are different concerns
+- cleaner route boundaries make future policy and ownership rules easier to maintain

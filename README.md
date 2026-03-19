@@ -159,6 +159,9 @@ Swagger:
 
 - the web app in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web) is still not a real product UI
 - authentication is still header-based development context, not a real login/session flow
+- there is no real account system yet for Google OAuth, email/password, or phone login
+- there is no `/me` profile surface yet
+- there is no onboarding flow for culinary preferences or dietary interests yet
 - `cuisine` is still a free `string`, not a controlled catalog relation
 - tags are still `string[]` and not yet modeled as hybrid system/user tags
 - recipe variants and AI-assisted adaptation are not implemented yet
@@ -167,8 +170,17 @@ Swagger:
 ## Recommended Next Steps
 
 1. Build the minimal web flow in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web) for recipes, selection, and generated cart results.
-2. Replace dev header identity with real authentication.
-3. Replace free `cuisine: string` with a controlled cuisine catalog relation and migration path.
-4. Normalize tags into a richer shared/private model.
-5. Add recipe variants and AI-assisted adaptation on top of the current deterministic base.
-6. Replace mock matching with a real retailer integration.
+2. Replace free `cuisine: string` with a controlled cuisine catalog relation and migration path.
+3. Replace `tags: string[]` with a real relational tag model that supports shared system tags plus user-scoped tags.
+4. Add user preference models on top of cuisines and tags so onboarding has real taxonomies to write into.
+5. Replace dev header identity with a real auth system centered on:
+   - Google OAuth
+   - email/password
+   - phone login later or as a second-phase provider
+6. Add account/profile endpoints such as:
+   - `GET /me`
+   - `PATCH /me`
+   - auth routes for login, logout, password reset, and provider linking
+7. Add onboarding for culinary preferences, dietary interests, and discovery signals rather than collecting low-value demographic fields.
+8. Add recipe variants and AI-assisted adaptation on top of the current deterministic base.
+9. Replace mock matching with a real retailer integration.
