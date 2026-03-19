@@ -49,6 +49,9 @@ export class BaseRecipeResponseDto {
   @ApiPropertyOptional({ example: 'user-1' })
   owner_user_id?: string;
 
+  @ApiPropertyOptional({ example: 'recipe-system-1' })
+  forked_from_recipe_id?: string;
+
   @ApiProperty({ example: false })
   is_system_recipe!: boolean;
 

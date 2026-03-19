@@ -25,6 +25,7 @@ export const mapBaseRecipe = (
 ): BaseRecipe => ({
   id: recipe.id,
   owner_user_id: recipe.ownerUserId ?? undefined,
+  forked_from_recipe_id: recipe.forkedFromRecipeId ?? undefined,
   is_system_recipe: recipe.isSystemRecipe,
   name: recipe.name,
   cuisine: recipe.cuisine ?? undefined,

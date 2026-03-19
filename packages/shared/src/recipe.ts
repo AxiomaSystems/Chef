@@ -26,6 +26,7 @@ export type Dish = {
 export type BaseRecipe = {
   id: string;
   owner_user_id?: string;
+  forked_from_recipe_id?: string;
   is_system_recipe: boolean;
   name: string;
   cuisine?: string;

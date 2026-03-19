@@ -14,8 +14,10 @@ import {
   ApiCreateRecipe,
   ApiDeleteRecipe,
   ApiGetRecipe,
+  ApiGetRecipeOrigin,
   ApiListRecipes,
   ApiRecipeController,
+  ApiSaveRecipe,
   ApiUpdateRecipe,
 } from './recipe.swagger';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
@@ -42,6 +44,15 @@ export class RecipeController {
     return this.recipeService.findAll(actorUserId);
   }
 
+  @Get(':id/origin')
+  @ApiGetRecipeOrigin()
+  findOrigin(
+    @Param('id') id: string,
+    @Headers('x-user-id') actorUserId?: string,
+  ): Promise<BaseRecipe> {
+    return this.recipeService.findOrigin(id, actorUserId);
+  }
+
   @Get(':id')
   @ApiGetRecipe()
   findOne(
@@ -59,6 +70,15 @@ export class RecipeController {
     @Headers('x-user-id') actorUserId?: string,
   ): Promise<BaseRecipe> {
     return this.recipeService.update(id, input, actorUserId);
+  }
+
+  @Post(':id/save')
+  @ApiSaveRecipe()
+  save(
+    @Param('id') id: string,
+    @Headers('x-user-id') actorUserId?: string,
+  ): Promise<BaseRecipe> {
+    return this.recipeService.save(id, actorUserId);
   }
 
   @Delete(':id')

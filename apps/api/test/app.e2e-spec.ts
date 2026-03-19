@@ -2,7 +2,7 @@ import {
   ForbiddenException,
   INestApplication,
   NotFoundException,
-  ValidationPipe,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { BaseRecipe } from '@cart/shared';
@@ -51,6 +51,8 @@ describe('AppController (e2e)', () => {
       findAll: jest.fn(),
       findManyByIds: jest.fn(),
       findOne: jest.fn(),
+      findOrigin: jest.fn(),
+      save: jest.fn(),
       update: jest.fn(),
       remove: jest.fn(),
     } as unknown as jest.Mocked<RecipeService>;
@@ -150,6 +152,123 @@ describe('AppController (e2e)', () => {
     );
   });
 
+  it('POST /recipes/:id/save creates an editable user copy from a system recipe', async () => {
+    recipeService.save.mockResolvedValue({
+      ...recipeResponse,
+      id: 'recipe-copy-1',
+      owner_user_id: 'user-1',
+      forked_from_recipe_id: 'system-recipe-1',
+      is_system_recipe: false,
+    });
+
+    await request(app.getHttpServer())
+      .post('/recipes/system-recipe-1/save')
+      .set('x-user-id', 'user-1')
+      .expect(201)
+      .expect({
+        ...recipeResponse,
+        id: 'recipe-copy-1',
+        owner_user_id: 'user-1',
+        forked_from_recipe_id: 'system-recipe-1',
+        is_system_recipe: false,
+      });
+
+    expect(recipeService.save).toHaveBeenCalledWith('system-recipe-1', 'user-1');
+  });
+
+  it('GET /recipes/:id/origin returns the source recipe for a saved fork', async () => {
+    recipeService.findOrigin.mockResolvedValue({
+      ...recipeResponse,
+      id: 'system-recipe-1',
+      owner_user_id: undefined,
+      forked_from_recipe_id: undefined,
+      is_system_recipe: true,
+      name: 'Aji de gallina',
+    });
+
+    await request(app.getHttpServer())
+      .get('/recipes/recipe-copy-1/origin')
+      .set('x-user-id', 'user-1')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          id: 'system-recipe-1',
+          is_system_recipe: true,
+          name: 'Aji de gallina',
+          cuisine: 'Peruvian',
+          description: 'Updated recipe',
+          servings: 4,
+          ingredients: [
+            {
+              canonical_ingredient: 'rice',
+              amount: 2,
+              unit: 'cup',
+            },
+          ],
+          steps: [
+            {
+              step: 1,
+              what_to_do: 'Cook the rice',
+            },
+          ],
+          tags: ['updated'],
+        });
+        expect(body.owner_user_id).toBeUndefined();
+        expect(body.forked_from_recipe_id).toBeUndefined();
+      });
+
+    expect(recipeService.findOrigin).toHaveBeenCalledWith(
+      'recipe-copy-1',
+      'user-1',
+    );
+  });
+
+  it('POST /recipes returns 401 without auth', async () => {
+    recipeService.create.mockRejectedValue(
+      new UnauthorizedException('Authentication required'),
+    );
+
+    await request(app.getHttpServer())
+      .post('/recipes')
+      .send({
+        name: 'Should fail',
+        servings: 4,
+        ingredients: [
+          {
+            canonical_ingredient: 'rice',
+            amount: 1,
+            unit: 'cup',
+          },
+        ],
+        steps: [
+          {
+            step: 1,
+            what_to_do: 'Test',
+          },
+        ],
+      })
+      .expect(401)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Authentication required');
+      });
+  });
+
+  it('PATCH /recipes/:id returns 401 without auth', async () => {
+    recipeService.update.mockRejectedValue(
+      new UnauthorizedException('Authentication required'),
+    );
+
+    await request(app.getHttpServer())
+      .patch('/recipes/recipe-1')
+      .send({
+        name: 'Should fail',
+      })
+      .expect(401)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Authentication required');
+      });
+  });
+
   it('DELETE /recipes/:id returns 204 when the recipe is deleted', async () => {
     recipeService.remove.mockResolvedValue(undefined);
 
@@ -159,6 +278,19 @@ describe('AppController (e2e)', () => {
       .expect(204);
 
     expect(recipeService.remove).toHaveBeenCalledWith('recipe-1', 'user-1');
+  });
+
+  it('POST /recipes/:id/save returns 401 without auth', async () => {
+    recipeService.save.mockRejectedValue(
+      new UnauthorizedException('Authentication required'),
+    );
+
+    await request(app.getHttpServer())
+      .post('/recipes/system-recipe-1/save')
+      .expect(401)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Authentication required');
+      });
   });
 
   it('PATCH /recipes/:id returns 403 for a system recipe', async () => {
@@ -189,6 +321,65 @@ describe('AppController (e2e)', () => {
       .expect(404)
       .expect(({ body }) => {
         expect(body.message).toBe('Recipe missing-recipe not found');
+      });
+  });
+
+  it('DELETE /recipes/:id returns 401 without auth', async () => {
+    recipeService.remove.mockRejectedValue(
+      new UnauthorizedException('Authentication required'),
+    );
+
+    await request(app.getHttpServer())
+      .delete('/recipes/recipe-1')
+      .expect(401)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Authentication required');
+      });
+  });
+
+  it('POST /cart/generate returns 401 without auth', async () => {
+    cartService.generate.mockRejectedValue(
+      new UnauthorizedException('Authentication required'),
+    );
+
+    await request(app.getHttpServer())
+      .post('/cart/generate')
+      .send({
+        selections: [
+          {
+            recipe_id: 'recipe-1',
+            recipe_type: 'base',
+            quantity: 1,
+          },
+        ],
+        retailer: 'walmart',
+      })
+      .expect(401)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Authentication required');
+      });
+  });
+
+  it('POST /cart/drafts returns 401 without auth', async () => {
+    cartService.createDraft.mockRejectedValue(
+      new UnauthorizedException('Authentication required'),
+    );
+
+    await request(app.getHttpServer())
+      .post('/cart/drafts')
+      .send({
+        selections: [
+          {
+            recipe_id: 'recipe-1',
+            recipe_type: 'base',
+            quantity: 1,
+          },
+        ],
+        retailer: 'walmart',
+      })
+      .expect(401)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Authentication required');
       });
   });
 

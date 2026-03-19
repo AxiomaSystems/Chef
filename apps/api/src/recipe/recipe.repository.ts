@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { BaseRecipe } from '@cart/shared';
+import { Prisma } from '../../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
@@ -27,6 +28,31 @@ export class RecipeRepository {
 
   private resolveActorUser(actorUserId?: string): Promise<{ id: string }> {
     return this.userContextService.resolveActorUser(actorUserId);
+  }
+
+  private isUniqueConstraintError(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError
+        ? error.code === 'P2002'
+        : typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          error.code === 'P2002'
+    );
+  }
+
+  private findExistingFork(ownerUserId: string, sourceRecipeId: string) {
+    return this.prisma.baseRecipe.findFirst({
+      where: {
+        ownerUserId,
+        forkedFromRecipeId: sourceRecipeId,
+        isSystemRecipe: false,
+      },
+      include: {
+        ingredients: true,
+        steps: true,
+      },
+    });
   }
 
   async create(input: CreateRecipeDto, actorUserId?: string): Promise<BaseRecipe> {
@@ -125,6 +151,83 @@ export class RecipeRepository {
     });
 
     return mapBaseRecipe(recipe);
+  }
+
+  async saveSystemRecipe(
+    id: string,
+    actorUserId?: string,
+  ): Promise<BaseRecipe | null> {
+    const actor = await this.resolveActorUser(actorUserId);
+    const sourceRecipe = await this.prisma.baseRecipe.findFirst({
+      where: {
+        id,
+        isSystemRecipe: true,
+        ownerUserId: null,
+      },
+      include: {
+        ingredients: true,
+        steps: true,
+      },
+    });
+
+    if (!sourceRecipe) {
+      return null;
+    }
+
+    const existingFork = await this.findExistingFork(actor.id, sourceRecipe.id);
+
+    if (existingFork) {
+      return mapBaseRecipe(existingFork);
+    }
+
+    try {
+      const savedRecipe = await this.prisma.baseRecipe.create({
+        data: {
+          ownerUserId: actor.id,
+          forkedFromRecipeId: sourceRecipe.id,
+          isSystemRecipe: false,
+          name: sourceRecipe.name,
+          cuisine: sourceRecipe.cuisine,
+          description: sourceRecipe.description,
+          servings: sourceRecipe.servings,
+          tags: sourceRecipe.tags,
+          ingredients: {
+            create: sourceRecipe.ingredients.map((ingredient) => ({
+              canonicalIngredient: ingredient.canonicalIngredient,
+              amount: ingredient.amount,
+              unit: ingredient.unit,
+              displayIngredient: ingredient.displayIngredient,
+              preparation: ingredient.preparation,
+              optional: ingredient.optional,
+              ingredientGroup: ingredient.ingredientGroup,
+              sortOrder: ingredient.sortOrder,
+            })),
+          },
+          steps: {
+            create: sourceRecipe.steps.map((step) => ({
+              stepNumber: step.stepNumber,
+              whatToDo: step.whatToDo,
+            })),
+          },
+        },
+        include: {
+          ingredients: true,
+          steps: true,
+        },
+      });
+
+      return mapBaseRecipe(savedRecipe);
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        const concurrentFork = await this.findExistingFork(actor.id, sourceRecipe.id);
+
+        if (concurrentFork) {
+          return mapBaseRecipe(concurrentFork);
+        }
+      }
+
+      throw error;
+    }
   }
 
   async delete(id: string, actorUserId?: string): Promise<boolean> {

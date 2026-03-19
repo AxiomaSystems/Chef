@@ -8,6 +8,7 @@ describe('RecipeRepository visibility', () => {
     baseRecipe: {
       findMany: jest.Mock;
       findFirst: jest.Mock;
+      create: jest.Mock;
     };
   };
   let userContextService: {
@@ -20,6 +21,7 @@ describe('RecipeRepository visibility', () => {
       baseRecipe: {
         findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
       },
     };
 
@@ -105,5 +107,99 @@ describe('RecipeRepository visibility', () => {
         },
       }),
     );
+  });
+
+  it('returns an existing saved fork instead of creating a duplicate fork', async () => {
+    userContextService.resolveActorUser.mockResolvedValue({ id: 'user-a' });
+    prisma.baseRecipe.findFirst
+      .mockResolvedValueOnce({
+        id: 'recipe-system-1',
+        ownerUserId: null,
+        forkedFromRecipeId: null,
+        isSystemRecipe: true,
+        name: 'Aji de gallina',
+        cuisine: 'Peruvian',
+        description: null,
+        servings: 4,
+        tags: ['dinner'],
+        createdAt: new Date('2026-03-19T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-19T00:00:00.000Z'),
+        ingredients: [],
+        steps: [],
+      })
+      .mockResolvedValueOnce({
+        id: 'recipe-user-copy-1',
+        ownerUserId: 'user-a',
+        forkedFromRecipeId: 'recipe-system-1',
+        isSystemRecipe: false,
+        name: 'Aji de gallina',
+        cuisine: 'Peruvian',
+        description: null,
+        servings: 4,
+        tags: ['dinner'],
+        createdAt: new Date('2026-03-19T00:10:00.000Z'),
+        updatedAt: new Date('2026-03-19T00:10:00.000Z'),
+        ingredients: [],
+        steps: [],
+      });
+
+    const recipe = await repository.saveSystemRecipe('recipe-system-1', 'user-a');
+
+    expect(prisma.baseRecipe.create).not.toHaveBeenCalled();
+    expect(recipe).toMatchObject({
+      id: 'recipe-user-copy-1',
+      owner_user_id: 'user-a',
+      forked_from_recipe_id: 'recipe-system-1',
+      is_system_recipe: false,
+    });
+  });
+
+  it('returns the concurrent saved fork when the database unique constraint is hit', async () => {
+    userContextService.resolveActorUser.mockResolvedValue({ id: 'user-a' });
+    prisma.baseRecipe.findFirst
+      .mockResolvedValueOnce({
+        id: 'recipe-system-1',
+        ownerUserId: null,
+        forkedFromRecipeId: null,
+        isSystemRecipe: true,
+        name: 'Aji de gallina',
+        cuisine: 'Peruvian',
+        description: null,
+        servings: 4,
+        tags: ['dinner'],
+        createdAt: new Date('2026-03-19T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-19T00:00:00.000Z'),
+        ingredients: [],
+        steps: [],
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'recipe-user-copy-1',
+        ownerUserId: 'user-a',
+        forkedFromRecipeId: 'recipe-system-1',
+        isSystemRecipe: false,
+        name: 'Aji de gallina',
+        cuisine: 'Peruvian',
+        description: null,
+        servings: 4,
+        tags: ['dinner'],
+        createdAt: new Date('2026-03-19T00:10:00.000Z'),
+        updatedAt: new Date('2026-03-19T00:10:00.000Z'),
+        ingredients: [],
+        steps: [],
+      });
+    prisma.baseRecipe.create.mockRejectedValue({
+      code: 'P2002',
+      name: 'PrismaClientKnownRequestError',
+    });
+
+    const recipe = await repository.saveSystemRecipe('recipe-system-1', 'user-a');
+
+    expect(recipe).toMatchObject({
+      id: 'recipe-user-copy-1',
+      owner_user_id: 'user-a',
+      forked_from_recipe_id: 'recipe-system-1',
+      is_system_recipe: false,
+    });
   });
 });

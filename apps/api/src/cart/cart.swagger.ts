@@ -6,6 +6,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ApiDevUserHeader } from '../common/http/api-headers.swagger';
 import {
@@ -96,6 +97,10 @@ export const ApiGenerateCart = () =>
         },
       },
     }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
   );
 
 export const ApiCreateCartDraft = () =>
@@ -140,6 +145,10 @@ export const ApiCreateCartDraft = () =>
         },
       },
     }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
   );
 
 export const ApiListCartDrafts = () =>
@@ -159,6 +168,10 @@ export const ApiListCartDrafts = () =>
           },
         },
       },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
     }),
   );
 
@@ -197,6 +210,10 @@ export const ApiGetCartDraft = () =>
         },
       },
     }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
   );
 
 export const ApiListGeneratedCarts = () =>
@@ -218,6 +235,10 @@ export const ApiListGeneratedCarts = () =>
           },
         },
       },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
     }),
   );
 
@@ -244,6 +265,10 @@ export const ApiListGeneratedCartHistory = () =>
           },
         },
       },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
     }),
   );
 
@@ -281,5 +306,9 @@ export const ApiGetGeneratedCart = () =>
           },
         },
       },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
     }),
   );

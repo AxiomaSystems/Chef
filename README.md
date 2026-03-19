@@ -1,15 +1,54 @@
 # Cart Generator
 
-Cart Generator is a pnpm monorepo for a grocery-cart generation system built around saved recipes, deterministic backend logic, and an eventual AI-assisted adaptation layer.
+Cart Generator is a `pnpm` monorepo for turning saved recipes into generated grocery carts.
 
-The repository is still in the scaffold phase. The architecture and model docs are ahead of the implementation.
+The backend is now beyond scaffold stage. The API already supports recipe persistence, user/system ownership rules, deterministic ingredient aggregation, mock retailer matching, cart persistence, Swagger docs, and local Postgres via Docker. The frontend is still mostly unfinished.
 
-## Current State
+## What Exists Today
 
-- `apps/api` is a NestJS starter app with a basic health-style endpoint and starter tests.
-- `apps/web` is a Next.js starter app with template UI.
-- `packages/shared` contains shared TypeScript workspace code, but the domain model is not implemented yet.
-- `docs/` describes the planned architecture, decisions, and models.
+### API
+
+The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) currently supports:
+
+- user and admin identities in the database
+- global system recipes and user-owned recipes
+- recipe CRUD for user-owned recipes
+- `POST /recipes/:id/save` to fork a global system recipe into an editable user copy
+- `GET /recipes/:id/origin` to see the source recipe of a saved fork
+- deterministic `POST /cart/generate`
+- persisted cart drafts and generated carts
+- mock product matching with subtotal estimation
+- Swagger UI at `/docs`
+- request tracing via `x-request-id`
+
+### Shared Package
+
+[packages/shared](/C:/Users/akuma/repos/cart-generator/packages/shared) contains the current TypeScript domain contracts for:
+
+- recipes
+- cart requests and responses
+- aggregation
+- matching
+- users
+
+### Database and Infra
+
+The API uses Prisma + PostgreSQL.
+
+- Prisma schema: [apps/api/prisma/schema.prisma](/C:/Users/akuma/repos/cart-generator/apps/api/prisma/schema.prisma)
+- Migrations: [apps/api/prisma/migrations](/C:/Users/akuma/repos/cart-generator/apps/api/prisma/migrations)
+- Seed data: [apps/api/prisma/seed](/C:/Users/akuma/repos/cart-generator/apps/api/prisma/seed)
+- Local Docker stack: [infra/docker/docker-compose.yml](/C:/Users/akuma/repos/cart-generator/infra/docker/docker-compose.yml)
+
+### Documentation
+
+The main architecture and design notes live in:
+
+- [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md)
+- [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md)
+- [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md)
+
+Those docs are still useful, but the codebase is now the stronger source of truth for implemented behavior.
 
 ## Repository Layout
 
@@ -19,9 +58,6 @@ cart-generator/
 |   |-- api/
 |   `-- web/
 |-- docs/
-|   |-- architecture.md
-|   |-- decisions.md
-|   `-- models.md
 |-- infra/
 |   `-- docker/
 |-- packages/
@@ -45,7 +81,7 @@ Run both apps:
 pnpm dev
 ```
 
-Run one app at a time:
+Run one app:
 
 ```bash
 pnpm dev:api
@@ -58,7 +94,7 @@ Build the workspace:
 pnpm build
 ```
 
-Run lint and tests:
+Run workspace checks:
 
 ```bash
 pnpm lint
@@ -66,57 +102,71 @@ pnpm test
 pnpm typecheck
 ```
 
-## App Commands
+## Local API Setup
 
-API:
+Start PostgreSQL:
+
+```bash
+docker compose -f infra/docker/docker-compose.yml up -d
+```
+
+Apply migrations:
 
 ```bash
 cd apps/api
-pnpm start:dev
-pnpm test -- --runInBand
-pnpm test:e2e -- --runInBand
+pnpm prisma:migrate:dev
 ```
 
-Web:
+Seed the database:
 
 ```bash
-cd apps/web
-pnpm dev
-pnpm build
+pnpm db:seed
 ```
 
-## What Is Planned
+Start the API:
 
-The target product is a layered system that turns selected recipes into a structured cart through:
+```bash
+pnpm start:dev
+```
 
-1. recipe storage
-2. recipe selection
-3. optional constraint-based adaptation
-4. ingredient normalization
-5. deterministic aggregation
-6. product matching
-7. cart and cost estimation
+Useful API commands:
 
-The detailed target architecture lives in:
+```bash
+pnpm build
+pnpm test --runInBand
+pnpm test:e2e
+pnpm test:e2e:ci
+pnpm prisma:generate
+pnpm prisma:studio
+```
 
-- [docs/architecture.md](C:/Users/akuma/repos/cart-generator/docs/architecture.md)
-- [docs/decisions.md](C:/Users/akuma/repos/cart-generator/docs/decisions.md)
-- [docs/models.md](C:/Users/akuma/repos/cart-generator/docs/models.md)
+Swagger:
 
-## Known Gaps
+- UI: [http://localhost:3001/docs](http://localhost:3001/docs)
+- OpenAPI JSON: [http://localhost:3001/docs/openapi.json](http://localhost:3001/docs/openapi.json)
 
-- No database or Prisma setup yet
-- No recipe CRUD
-- No `POST /cart/generate` endpoint yet
-- No aggregation or matching pipeline yet
-- No Dockerized local infra yet
-- No real frontend product flow yet
+## Current Product Rules
 
-## Immediate Next Steps
+- system recipes are global and immutable
+- user-created recipes are private by default
+- unauthenticated recipe reads only see global system recipes
+- authenticated users see global recipes plus their own recipes
+- writes require authentication
+- saving a system recipe creates a user-owned fork
+- duplicate forks of the same source recipe are prevented per user
 
-- add shared domain types from the models doc to `packages/shared`
-- add Prisma and PostgreSQL
-- build `recipe` CRUD in the API
-- implement deterministic aggregation
-- add a mock product catalog and matching logic
-- replace the starter frontend with a minimal recipe and cart flow
+## Current Gaps
+
+- the web app in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web) is still not a real product UI
+- authentication is still header-based development context, not a real login/session flow
+- tags are still `string[]` and not yet modeled as hybrid system/user tags
+- recipe variants and AI-assisted adaptation are not implemented yet
+- retailer matching is still mock data, not a real retailer integration
+
+## Recommended Next Steps
+
+1. Build the minimal web flow in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web) for recipes, selection, and generated cart results.
+2. Replace dev header identity with real authentication.
+3. Normalize tags into a richer shared/private model.
+4. Add recipe variants and AI-assisted adaptation on top of the current deterministic base.
+5. Replace mock matching with a real retailer integration.

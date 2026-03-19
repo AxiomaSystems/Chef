@@ -28,6 +28,7 @@ model User {
 model BaseRecipe {
   id          String           @id @default(cuid())
   ownerUserId String?
+  forkedFromRecipeId String?
   isSystemRecipe Boolean       @default(false)
   name        String
   cuisine     String?
@@ -37,11 +38,15 @@ model BaseRecipe {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   owner       User?            @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  forkedFromRecipe BaseRecipe? @relation("ForkedRecipeSource", fields: [forkedFromRecipeId], references: [id], onDelete: SetNull)
+  forkedRecipes   BaseRecipe[] @relation("ForkedRecipeSource")
   ingredients DishIngredient[]
   steps       RecipeStep[]
 
   @@index([ownerUserId, createdAt])
+  @@index([forkedFromRecipeId])
   @@index([isSystemRecipe, createdAt])
+  @@unique([ownerUserId, forkedFromRecipeId])
 }
 
 model DishIngredient {

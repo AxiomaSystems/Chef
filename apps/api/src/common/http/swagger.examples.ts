@@ -1,6 +1,7 @@
 export const recipeExample = {
   id: 'recipe-1',
   owner_user_id: 'user-1',
+  forked_from_recipe_id: undefined,
   is_system_recipe: false,
   name: 'Arroz con pollo casero',
   cuisine: 'Peruvian',

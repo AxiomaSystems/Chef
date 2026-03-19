@@ -198,14 +198,14 @@ Implication:
 
 Decision:
 - do not allow direct editing of system recipes
-- instead add a future `save recipe` or `fork recipe` flow that copies a system recipe into the user's editable library
+- use an explicit save/fork flow that copies a system recipe into the user's editable library
 
-Suggested shape:
+Implemented shape:
 - `POST /recipes/:id/save`
 - resulting record is:
   - `isSystemRecipe = false`
   - `ownerUserId = currentUserId`
-  - optionally `forkedFromRecipeId = originalSystemRecipeId`
+  - `forkedFromRecipeId = originalSystemRecipeId`
 
 Why:
 - preserves catalog integrity
@@ -269,5 +269,40 @@ Why:
 
 Pragmatic path:
 - keep the boolean short-term
-- add `forkedFromRecipeId` when we implement save/fork
+- keep `forkedFromRecipeId` as the current bridge state
 - revisit a richer enum-based model only when those states become real
+
+## 22. Development Identity Is Header-Based For Now
+
+Decision:
+- use a development-only actor resolution model based on `x-user-id`
+- allow the header to resolve either a seeded user id or a seeded user email
+- treat missing actor context as unauthenticated access
+
+Current behavior:
+- unauthenticated recipe reads expose only global system recipes
+- mutable endpoints return `401 Authentication required`
+- cart drafts and generated carts are always user-scoped and require an authenticated actor
+
+Why:
+- keeps backend development moving before real auth exists
+- still lets ownership and visibility rules be enforced consistently
+
+Trade-off:
+- this is not production authentication
+- the API surface must be revisited once real login/session auth is added
+
+## 23. Saved Recipe Forks Must Be Unique Per User And Source Recipe
+
+Decision:
+- a user may have at most one saved fork of a given source system recipe
+- enforce this both in application logic and at the database level
+
+Implemented rule:
+- unique constraint on `(ownerUserId, forkedFromRecipeId)`
+- `POST /recipes/:id/save` is idempotent for the same user and source recipe
+
+Why:
+- avoids duplicate user copies of the same source recipe
+- makes the save action safe to repeat
+- protects against races between concurrent requests

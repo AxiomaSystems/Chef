@@ -2,169 +2,310 @@
 
 ## Overview
 
-Cart Generator is intended to be a layered decision system that transforms:
+Cart Generator is a layered system that transforms:
 
 ```text
-user-selected recipes + constraints -> structured grocery cart
+user-visible recipes + selections + constraints -> structured grocery cart
 ```
 
-The core design goal is to keep the system stateful and deterministic at its center, with AI used only for controlled transformations.
+The core design principle is still the same:
 
-## End-to-End Pipeline
+- keep the center of the system stateful and deterministic
+- use AI only for constrained transformations, not for core arithmetic or pricing logic
+
+This document now separates what is already implemented from what is still planned.
+
+## Current Implemented Flow
+
+Today the backend can already do this:
 
 ```text
-Base recipes
-  -> Recipe selection
-  -> Optional adaptation
-  -> Dish normalization
+Visible recipes
+  -> User selection
+  -> Dish expansion
   -> Ingredient aggregation
-  -> Product matching
+  -> Product matching (mock catalog)
   -> Cost estimation
   -> Generated cart
+  -> Cart persistence
 ```
 
-## System Layers
-
-### 1. Recipe Layer
-
-Purpose:
-- store stable, reusable recipes
-- represent what a user actually cooks
-
-Core entities:
-- `BaseRecipe`
-- `DishIngredient`
-- `RecipeStep`
-
-### 2. Selection Layer
-
-Purpose:
-- capture user intent for a specific cooking session or weekly plan
-
-Core entities:
-- `CartDraft`
-- `SelectedRecipe`
-
-### 3. Adaptation Layer
-
-Purpose:
-- transform a base recipe under explicit constraints without replacing the original
-
-Examples:
-- cheaper
-- halal
-- vegan
-- calorie-adjusted
-
-Core entities:
-- `RecipeVariant`
-- `RecipeAdaptationRequest`
-
-### 4. Normalization Layer
-
-Purpose:
-- convert recipes into consistent computation-ready dishes
-
-Responsibilities:
-- canonical ingredient naming
-- unit normalization
-- quantity normalization
-
-### 5. Aggregation Layer
-
-Purpose:
-- merge multiple dishes into one consolidated ingredient overview
-
-Rules:
-- deterministic only
-- no AI involvement
-
-Core entity:
-- `AggregatedIngredient`
-
-### 6. Product Matching Layer
-
-Purpose:
-- map normalized ingredient needs to purchasable products
-
-Typical flow:
-1. generate a search query
-2. retrieve candidates from a mock or real catalog
-3. score candidates
-4. select the best fit
-
-Core entities:
-- `ProductCandidate`
-- `MatchedIngredientProduct`
-
-### 7. Cart Layer
-
-Purpose:
-- produce the final structured cart returned to the client
-
-Core entity:
-- `GeneratedCart`
-
-## Planned Backend Modules
+That flow is implemented in the NestJS API under:
 
 ```text
 apps/api/src/
 |-- recipe/
-|-- variant/
 |-- cart/
 |-- aggregation/
 |-- matching/
-`-- llm/
+|-- user/
+|-- prisma/
+`-- common/http/
 ```
 
-Current implementation note:
-- these modules do not exist yet
-- the current API is still the default Nest starter
+## Current System Layers
 
-## API Direction
+### 1. Recipe Layer
 
-Planned main endpoint:
+Purpose:
 
-```http
-POST /cart/generate
-```
+- store stable recipes
+- separate global catalog recipes from user-owned recipes
+- support editable user forks of system recipes
 
-Planned service flow:
+Implemented entities:
+
+- `BaseRecipe`
+- `DishIngredient`
+- `RecipeStep`
+
+Implemented rules:
+
+- system recipes are global and immutable
+- user-created recipes are private by default
+- saving a system recipe creates a user-owned editable fork
+- duplicate forks of the same source recipe are prevented per user
+
+### 2. Selection Layer
+
+Purpose:
+
+- capture user intent for a specific plan or shopping session
+
+Implemented entities:
+
+- `CartDraft`
+- `SelectedRecipe`
+
+Current status:
+
+- draft persistence exists
+- selection is request-driven and draft-driven
+- there is no dedicated UI flow yet
+
+### 3. Aggregation Layer
+
+Purpose:
+
+- merge selected dishes into one consolidated ingredient overview
+
+Implemented rules:
+
+- deterministic only
+- no AI involvement
+- ingredients are grouped by canonical ingredient + unit
+- dish provenance is preserved in the aggregated output
+
+Implemented entity:
+
+- `AggregatedIngredient`
+
+### 4. Product Matching Layer
+
+Purpose:
+
+- map ingredient needs to mock purchasable products
+
+Implemented behavior:
+
+1. generate a search query from canonical ingredient data
+2. score candidates from a mock catalog
+3. account for unit compatibility and basic conversion
+4. pick a product and quantity
+5. compute line totals and subtotal
+
+Implemented entities:
+
+- `ProductCandidate`
+- `MatchedIngredientProduct`
+
+Current limitation:
+
+- matching is still mock-catalog based, not a real retailer integration
+
+### 5. Cart Layer
+
+Purpose:
+
+- return and persist the final structured cart
+
+Implemented entities:
+
+- `GeneratedCart`
+- `CartDraft`
+
+Implemented endpoints:
+
+- `POST /cart/generate`
+- `POST /cart/drafts`
+- `GET /cart/drafts`
+- `GET /cart/drafts/:id`
+- `GET /cart/generated`
+- `GET /cart/generated/history`
+- `GET /cart/generated/:id`
+
+## Current Access Model
+
+The current API uses a development identity header and explicit ownership rules.
+
+Current behavior:
+
+- unauthenticated recipe reads only expose global system recipes
+- authenticated users can read global recipes plus their own recipes
+- mutable endpoints require authentication
+- drafts and generated carts are always user-scoped
+
+Current development identity:
+
+- `x-user-id`
+- accepts seeded user id or seeded user email
+
+This is temporary developer auth context, not final authentication architecture.
+
+## Current API Shape
+
+Implemented recipe endpoints:
+
+- `POST /recipes`
+- `GET /recipes`
+- `GET /recipes/:id`
+- `GET /recipes/:id/origin`
+- `PATCH /recipes/:id`
+- `POST /recipes/:id/save`
+- `DELETE /recipes/:id`
+
+Implemented cart service flow:
 
 ```text
 request
   -> CartService
   -> RecipeService
-  -> optional LLMService
   -> AggregationService
   -> MatchingService
+  -> cart persistence
   -> response
 ```
 
-## State Boundaries
+Swagger/OpenAPI is available at:
+
+- `/docs`
+- `/docs/openapi.json`
+
+## Current State Boundaries
 
 Persistent state:
-- base recipes
-- recipe variants
-- cart drafts
 
-Derived state:
-- aggregated ingredients
+- users
+- base recipes
+- dish ingredients
+- recipe steps
+- cart drafts
 - generated carts
 
+Derived but persisted state:
+
+- generated cart dishes
+- aggregated ingredient overviews
+- matched cart items
+- estimated subtotal
+
 Ephemeral state:
-- raw LLM output
-- temporary product candidates
 
-## Infrastructure Direction
+- request-scoped actor context
+- request-scoped request id
+- intermediate matching candidates during computation
 
-Planned local services:
+Not implemented yet:
+
+- recipe variants
+- raw LLM outputs
+- async matching jobs
+
+## Current Infrastructure
+
+Implemented local services:
+
 - PostgreSQL for persistence
-- Redis for cache and async jobs
-- OpenAI for recipe adaptation
+- Docker for local orchestration
+- Prisma for schema, migrations, and client generation
 
-Planned local orchestration:
-- Docker
+Implemented supporting infrastructure:
+
+- Swagger/OpenAPI
+- request logging with `x-request-id`
+- Postman collection for manual API testing
+
+Not implemented yet:
+
+- Redis
+- background jobs
+- real external retailer integration
+- OpenAI integration
+
+## Planned Next Layers
+
+### 1. Adaptation Layer
+
+Purpose:
+
+- transform a base recipe under explicit constraints without replacing the original
+
+Examples:
+
+- cheaper
+- halal
+- vegan
+- calorie-adjusted
+
+Planned entities:
+
+- `RecipeVariant`
+- `RecipeAdaptationRequest`
+
+Status:
+
+- shared types exist
+- runtime implementation does not exist yet
+
+### 2. Better Normalization
+
+Purpose:
+
+- make aggregation and matching more robust
+
+Planned responsibilities:
+
+- stronger canonical ingredient naming
+- richer unit normalization and conversion
+- better ingredient interpretation
+
+Status:
+
+- partially implemented today
+- still incomplete
+
+### 3. Real Authentication
+
+Purpose:
+
+- replace dev header identity with real user auth
+
+Planned direction:
+
+- authenticated user context
+- role-aware admin behavior
+- proper ownership enforcement without relying on manual headers
+
+### 4. Hybrid Tags
+
+Purpose:
+
+- support shared taxonomy plus private user organization
+
+Status:
+
+- currently `tags` are `string[]`
+- future model should support both system and user-scoped tags
 
 ## Design Rules
 
@@ -173,3 +314,14 @@ Planned local orchestration:
 - explicit module boundaries
 - structured data over free text
 - shared contracts across apps
+- system recipes remain immutable
+- user-owned data is isolated by default
+
+## Practical Reading Guide
+
+If you want the current truth of the system:
+
+1. read this file for implemented vs planned architecture
+2. read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for policy and modeling decisions
+3. read [apps/api/README.md](/C:/Users/akuma/repos/cart-generator/apps/api/README.md) for the real runnable backend surface
+4. read Swagger at `/docs` for the live API contract

@@ -8,6 +8,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ApiDevUserHeader } from '../common/http/api-headers.swagger';
 import {
@@ -71,6 +72,10 @@ export const ApiCreateRecipe = () =>
         },
       },
     }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
   );
 
 export const ApiListRecipes = () =>
@@ -116,6 +121,55 @@ export const ApiGetRecipe = () =>
       content: {
         'application/json': {
           examples: {
+            missingRecipe: {
+              summary: 'Recipe not found',
+              value: notFoundErrorExample,
+            },
+          },
+        },
+      },
+    }),
+  );
+
+export const ApiGetRecipeOrigin = () =>
+  applyDecorators(
+    ApiOperation({ summary: 'Get the source recipe for a saved forked recipe' }),
+    ApiOkResponse({
+      description: 'Origin recipe details',
+      type: BaseRecipeResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            originRecipe: {
+              summary: 'Source system recipe for a saved user copy',
+              value: {
+                ...recipeExample,
+                id: 'recipe-system-1',
+                owner_user_id: undefined,
+                forked_from_recipe_id: undefined,
+                is_system_recipe: true,
+                name: 'Aji de gallina',
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiNotFoundResponse({
+      description:
+        'Recipe was not found, is not visible, or does not have an origin recipe',
+      type: ErrorResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            recipeWithoutOrigin: {
+              summary: 'Recipe is not a fork',
+              value: {
+                statusCode: 404,
+                message: 'Recipe recipe-1 does not have an origin recipe',
+                error: 'Not Found',
+              },
+            },
             missingRecipe: {
               summary: 'Recipe not found',
               value: notFoundErrorExample,
@@ -209,6 +263,53 @@ export const ApiUpdateRecipe = () =>
         },
       },
     }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiSaveRecipe = () =>
+  applyDecorators(
+    ApiOperation({ summary: 'Save a global system recipe as an editable user copy' }),
+    ApiOkResponse({
+      description: 'Saved recipe copy. If the user already saved this source recipe, the existing copy is returned.',
+      type: BaseRecipeResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            savedRecipe: {
+              summary: 'Editable user copy of a system recipe',
+              value: {
+                ...recipeExample,
+                id: 'recipe-user-copy-1',
+                owner_user_id: 'user-1',
+                forked_from_recipe_id: 'recipe-system-1',
+                is_system_recipe: false,
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiNotFoundResponse({
+      description: 'System recipe not found',
+      type: ErrorResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            missingRecipe: {
+              summary: 'System recipe not found',
+              value: notFoundErrorExample,
+            },
+          },
+        },
+      },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
   );
 
 export const ApiDeleteRecipe = () =>
@@ -246,5 +347,9 @@ export const ApiDeleteRecipe = () =>
           },
         },
       },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
     }),
   );
