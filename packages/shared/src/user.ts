@@ -5,6 +5,7 @@ export type User = {
   email: string;
   name: string;
   role: UserRole;
+  auth_providers?: Array<"google" | "password">;
   onboarding_completed_at?: string;
   created_at: string;
   updated_at: string;
@@ -30,4 +31,13 @@ export type UserPreferences = {
     created_at: string;
     updated_at: string;
   }>;
+};
+
+export type UserStats = {
+  owned_recipe_count: number;
+  cart_draft_count: number;
+  cart_count: number;
+  shopping_cart_count: number;
+  preferred_cuisine_count: number;
+  preferred_tag_count: number;
 };

@@ -141,6 +141,15 @@ export const mePreferencesExample = {
   ],
 };
 
+export const meStatsExample = {
+  owned_recipe_count: 12,
+  cart_draft_count: 3,
+  cart_count: 9,
+  shopping_cart_count: 6,
+  preferred_cuisine_count: 2,
+  preferred_tag_count: 4,
+};
+
 export const meProfileExample = {
   id: 'user-1',
   email: 'postigodev@cart-generator.local',

@@ -309,6 +309,7 @@ Current status:
 - `/me/onboarding/complete` is implemented
 - the web app now uses bearer-token auth for its dashboard flow
 - the temporary `x-user-id` fallback has now been removed from normal backend flows and Swagger guidance
+- the web app now exposes an authenticated `/account` surface for profile and preference management
 
 ### 2. Hybrid Tags And Controlled Cuisine
 

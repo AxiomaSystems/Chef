@@ -5,6 +5,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import {
   ApiGetMe,
   ApiGetMePreferences,
+  ApiGetMeStats,
   ApiMeController,
   ApiCompleteOnboarding,
   ApiUpdateMe,
@@ -24,6 +25,12 @@ export class MeController {
   @ApiGetMe()
   getMe(@CurrentUser() user: AuthenticatedUser) {
     return this.meService.getProfile(user.sub);
+  }
+
+  @Get('stats')
+  @ApiGetMeStats()
+  getStats(@CurrentUser() user: AuthenticatedUser) {
+    return this.meService.getStats(user.sub);
   }
 
   @Get('preferences')

@@ -13,6 +13,7 @@ const HOME_PATH = "/";
 const LOGIN_PATH = "/login";
 const SIGNUP_PATH = "/signup";
 const ONBOARDING_PATH = "/onboarding";
+const ACCOUNT_PATH = "/account";
 
 async function hasValidSession(accessToken?: string) {
   if (!accessToken) {
@@ -30,7 +31,8 @@ export async function proxy(request: NextRequest) {
     pathname !== HOME_PATH &&
     pathname !== LOGIN_PATH &&
     pathname !== SIGNUP_PATH &&
-    pathname !== ONBOARDING_PATH
+    pathname !== ONBOARDING_PATH &&
+    pathname !== ACCOUNT_PATH
   ) {
     return NextResponse.next();
   }
@@ -83,5 +85,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/login", "/signup", "/onboarding"],
+  matcher: ["/", "/login", "/signup", "/onboarding", "/account"],
 };

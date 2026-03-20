@@ -13,12 +13,14 @@ import {
   ErrorResponseDto,
   MeResponseDto,
   UserPreferencesResponseDto,
+  UserStatsResponseDto,
 } from '../common/http/swagger.dto';
 import {
   badRequestErrorExample,
   forbiddenErrorExample,
   meProfileExample,
   mePreferencesExample,
+  meStatsExample,
   updateMePreferencesRequestExample,
 } from '../common/http/swagger.examples';
 import { UpdateMeDto } from './dto/update-me.dto';
@@ -43,6 +45,30 @@ export const ApiGetMe = () =>
           },
         },
       },
+    }),
+  );
+
+export const ApiGetMeStats = () =>
+  applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({ summary: 'Get simple counters for the current authenticated user' }),
+    ApiOkResponse({
+      description: 'Returns lightweight account counters for the authenticated user.',
+      type: UserStatsResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            meStats: {
+              summary: 'Account counters',
+              value: meStatsExample,
+            },
+          },
+        },
+      },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
     }),
   );
 

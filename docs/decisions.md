@@ -460,6 +460,7 @@ Status:
 - backend preference persistence and `/me/preferences` are implemented
 - onboarding completion is tracked separately from preferences
 - onboarding UI is implemented as a required first-run flow with explicit skip support
+- post-onboarding account/preferences editing is now exposed in the web app through `/account`
 
 ## 29.5. Onboarding Completion Must Be Separate From Preference Contents
 
@@ -527,7 +528,7 @@ Why:
 
 Status:
 - auth and `/me` route families are now implemented
-- `/me/stats` remains pending
+- `/me/stats` is now implemented as a lightweight counter surface
 
 ## 33. Backend Priorities Now Shift To Auth And Tags
 

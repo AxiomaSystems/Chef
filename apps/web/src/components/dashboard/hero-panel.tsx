@@ -1,4 +1,5 @@
 import type { User } from "@cart/shared";
+import Link from "next/link";
 
 export function HeroPanel(props: {
   me: User | null;
@@ -62,14 +63,22 @@ export function HeroPanel(props: {
             <div className="mt-1 text-sm text-[color:var(--paper-strong)]/78">
               {props.me?.email ?? "Missing profile"}
             </div>
-            <form action={props.logoutAction} className="mt-4">
-              <button
-                type="submit"
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Link
+                href="/account"
                 className="inline-flex items-center rounded-full border border-white/14 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--paper)] transition hover:bg-white/16"
               >
-                Sign out
-              </button>
-            </form>
+                Account
+              </Link>
+              <form action={props.logoutAction}>
+                <button
+                  type="submit"
+                  className="inline-flex items-center rounded-full border border-white/14 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--paper)] transition hover:bg-white/16"
+                >
+                  Sign out
+                </button>
+              </form>
+            </div>
           </div>
 
           {metrics.map((metric) => (

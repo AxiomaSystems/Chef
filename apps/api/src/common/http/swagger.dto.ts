@@ -146,6 +146,26 @@ export class UserPreferencesResponseDto {
   preferred_tags!: TagResponseDto[];
 }
 
+export class UserStatsResponseDto {
+  @ApiProperty({ example: 12 })
+  owned_recipe_count!: number;
+
+  @ApiProperty({ example: 3 })
+  cart_draft_count!: number;
+
+  @ApiProperty({ example: 9 })
+  cart_count!: number;
+
+  @ApiProperty({ example: 6 })
+  shopping_cart_count!: number;
+
+  @ApiProperty({ example: 2 })
+  preferred_cuisine_count!: number;
+
+  @ApiProperty({ example: 4 })
+  preferred_tag_count!: number;
+}
+
 export class MeResponseDto {
   @ApiProperty({ example: 'user-1' })
   id!: string;

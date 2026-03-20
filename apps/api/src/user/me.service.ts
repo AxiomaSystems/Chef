@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { UserPreferences } from '@cart/shared';
+import type { UserPreferences, UserStats } from '@cart/shared';
 import { mapCuisine } from '../cuisines/cuisines.mapper';
 import { PrismaService } from '../prisma/prisma.service';
 import { mapTag } from '../tags/tags.mapper';
@@ -74,6 +74,50 @@ export class MeService {
   async getProfile(userId: string) {
     const user = await this.findUserOrThrow(userId);
     return this.mapProfile(user);
+  }
+
+  async getStats(userId: string): Promise<UserStats> {
+    await this.findUserOrThrow(userId);
+
+    const [
+      owned_recipe_count,
+      cart_draft_count,
+      cart_count,
+      shopping_cart_count,
+      preferred_cuisine_count,
+      preferred_tag_count,
+    ] = await Promise.all([
+      this.prisma.baseRecipe.count({
+        where: {
+          ownerUserId: userId,
+          isSystemRecipe: false,
+        },
+      }),
+      this.prisma.cartDraft.count({
+        where: { userId },
+      }),
+      this.prisma.cart.count({
+        where: { userId },
+      }),
+      this.prisma.shoppingCart.count({
+        where: { userId },
+      }),
+      this.prisma.userPreferredCuisine.count({
+        where: { userId },
+      }),
+      this.prisma.userPreferredTag.count({
+        where: { userId },
+      }),
+    ]);
+
+    return {
+      owned_recipe_count,
+      cart_draft_count,
+      cart_count,
+      shopping_cart_count,
+      preferred_cuisine_count,
+      preferred_tag_count,
+    };
   }
 
   async updateProfile(userId: string, input: UpdateMeDto) {
