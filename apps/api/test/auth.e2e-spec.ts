@@ -68,6 +68,7 @@ describe('Auth flow (e2e)', () => {
       }),
     );
     expect(meAfterRegister.body.auth_providers).toEqual(['password']);
+    expect(meAfterRegister.body.onboarding_completed_at).toBeUndefined();
 
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
@@ -184,6 +185,33 @@ describe('Auth flow (e2e)', () => {
           comfortFoodTag!.id,
         ]),
       }),
+    );
+
+    const completeOnboarding = await request(app.getHttpServer())
+      .post('/api/v1/me/onboarding/complete')
+      .set('authorization', `Bearer ${refreshResponse.body.access_token}`)
+      .expect(200);
+
+    expect(completeOnboarding.body.onboarding_completed_at).toEqual(
+      expect.any(String),
+    );
+
+    const completeOnboardingAgain = await request(app.getHttpServer())
+      .post('/api/v1/me/onboarding/complete')
+      .set('authorization', `Bearer ${refreshResponse.body.access_token}`)
+      .expect(200);
+
+    expect(completeOnboardingAgain.body.onboarding_completed_at).toBe(
+      completeOnboarding.body.onboarding_completed_at,
+    );
+
+    const meAfterOnboarding = await request(app.getHttpServer())
+      .get('/api/v1/me')
+      .set('authorization', `Bearer ${refreshResponse.body.access_token}`)
+      .expect(200);
+
+    expect(meAfterOnboarding.body.onboarding_completed_at).toBe(
+      completeOnboarding.body.onboarding_completed_at,
     );
 
     await request(app.getHttpServer())

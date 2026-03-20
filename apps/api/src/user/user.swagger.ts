@@ -11,11 +11,13 @@ import {
 } from '@nestjs/swagger';
 import {
   ErrorResponseDto,
+  MeResponseDto,
   UserPreferencesResponseDto,
 } from '../common/http/swagger.dto';
 import {
   badRequestErrorExample,
   forbiddenErrorExample,
+  meProfileExample,
   mePreferencesExample,
   updateMePreferencesRequestExample,
 } from '../common/http/swagger.examples';
@@ -28,7 +30,20 @@ export const ApiGetMe = () =>
   applyDecorators(
     ApiBearerAuth(),
     ApiOperation({ summary: 'Get the current authenticated user profile' }),
-    ApiOkResponse({ description: 'Returns the authenticated user profile.' }),
+    ApiOkResponse({
+      description: 'Returns the authenticated user profile.',
+      type: MeResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            meProfile: {
+              summary: 'Authenticated user profile',
+              value: meProfileExample,
+            },
+          },
+        },
+      },
+    }),
   );
 
 export const ApiUpdateMe = () =>
@@ -36,7 +51,36 @@ export const ApiUpdateMe = () =>
     ApiBearerAuth(),
     ApiOperation({ summary: 'Update the current authenticated user profile' }),
     ApiBody({ type: UpdateMeDto }),
-    ApiOkResponse({ description: 'Returns the updated user profile.' }),
+    ApiOkResponse({
+      description: 'Returns the updated user profile.',
+      type: MeResponseDto,
+    }),
+  );
+
+export const ApiCompleteOnboarding = () =>
+  applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Mark onboarding as completed for the current authenticated user',
+    }),
+    ApiOkResponse({
+      description: 'Returns the updated user profile with onboarding completion.',
+      type: MeResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            completedOnboarding: {
+              summary: 'Onboarding completed',
+              value: meProfileExample,
+            },
+          },
+        },
+      },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
   );
 
 export const ApiGetMePreferences = () =>

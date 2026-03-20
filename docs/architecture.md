@@ -313,6 +313,7 @@ Current status:
 - `/me` is implemented
 - `PATCH /me` is implemented
 - `/me/preferences` is implemented for cuisine and system-tag preferences
+- `/me/onboarding/complete` is implemented
 - the web app now uses bearer-token auth for its dashboard flow
 - backend fallback removal is still pending
 
@@ -330,6 +331,18 @@ Status:
 - explicit `Cuisine` persistence is implemented
 - `/api/v1/cuisines` is implemented
 - recipes now require `cuisine_id` on write and return expanded `cuisine` on read
+
+### 2.5. Onboarding State
+
+Purpose:
+
+- distinguish "preferences are empty" from "the user has not completed onboarding yet"
+
+Status:
+
+- onboarding completion is tracked separately on `User`
+- `/api/v1/me/onboarding/complete` is implemented
+- the web app now routes incomplete users into a required onboarding flow
 
 ### 3. Real Retailer Provider
 

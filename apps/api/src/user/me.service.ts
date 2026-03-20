@@ -57,18 +57,23 @@ export class MeService {
     };
   }
 
-  async getProfile(userId: string) {
-    const user = await this.findUserOrThrow(userId);
-
+  private mapProfile(user: Awaited<ReturnType<MeService['findUserOrThrow']>>) {
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
       auth_providers: user.authIdentities.map((identity) => identity.provider),
+      onboarding_completed_at:
+        user.onboardingCompletedAt?.toISOString() ?? undefined,
       created_at: user.createdAt.toISOString(),
       updated_at: user.updatedAt.toISOString(),
     };
+  }
+
+  async getProfile(userId: string) {
+    const user = await this.findUserOrThrow(userId);
+    return this.mapProfile(user);
   }
 
   async updateProfile(userId: string, input: UpdateMeDto) {
@@ -80,15 +85,25 @@ export class MeService {
       include: { authIdentities: true },
     });
 
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      auth_providers: user.authIdentities.map((identity) => identity.provider),
-      created_at: user.createdAt.toISOString(),
-      updated_at: user.updatedAt.toISOString(),
-    };
+    return this.mapProfile(user);
+  }
+
+  async completeOnboarding(userId: string) {
+    const existingUser = await this.findUserOrThrow(userId);
+
+    if (existingUser.onboardingCompletedAt) {
+      return this.mapProfile(existingUser);
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        onboardingCompletedAt: new Date(),
+      },
+      include: { authIdentities: true },
+    });
+
+    return this.mapProfile(user);
   }
 
   async getPreferences(userId: string): Promise<UserPreferences> {

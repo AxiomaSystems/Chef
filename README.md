@@ -13,6 +13,7 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - user and admin identities in the database
 - real auth endpoints for email/password, Google login, refresh, logout, and `/me`
 - `/api/v1/me/preferences` for auth-backed cuisine and tag preferences
+- `/api/v1/me/onboarding/complete` for explicit onboarding completion
 - a global controlled cuisine catalog exposed at `/api/v1/cuisines`
 - hybrid tags with explicit `/api/v1/tags` endpoints
 - global system recipes and user-owned recipes
@@ -239,6 +240,7 @@ This separation is intentional:
 - `/api/v1/auth/register`, `/login`, `/google`, `/refresh`, `/logout`, `GET /me`, and `PATCH /me` are implemented.
 - `/api/v1/cuisines` now exposes the global cuisine catalog.
 - `/api/v1/me/preferences` now supports read/replace for user cuisine and system-tag preferences.
+- `/api/v1/me/onboarding/complete` now marks onboarding completion independently from preferences.
 - `/api/v1/tags` now supports list/create/update/delete.
 - `POST /api/v1/recipe-forks` replaced the old save-style route.
 - recipes now require `cuisine_id` and return expanded `cuisine` objects.
@@ -252,7 +254,7 @@ This separation is intentional:
 The highest-signal next steps are in backend, not frontend expansion.
 
 1. Remove the remaining `x-user-id` fallback from normal protected backend flows and Swagger guidance.
-2. Build the onboarding UI on top of `/api/v1/me/preferences`, `tags`, and `cuisines`.
+2. Expose Google login UX in the web app on top of the existing backend flow.
 3. Keep retailer integration behind `ShoppingCart` and swap mock matching for a real provider later.
 4. Defer recipe variants and AI-assisted adaptation until auth and taxonomy are settled.
 5. Add captcha to sensitive auth surfaces after the core auth/client migration is stable.
@@ -262,7 +264,7 @@ The highest-signal next steps are in backend, not frontend expansion.
 
 - the web app in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web) is still a thin internal dashboard, not a full product UI
 - the web app now uses email/password login with bearer-token auth, but it still does not expose Google login UX yet
-- there is no onboarding UI yet, even though backend preferences now exist
+- onboarding now exists as a required first-run flow, but there is no broader settings/profile UI yet
 - recipe variants and AI-assisted adaptation are not implemented yet
 - retailer matching is still mock data, not a real retailer integration
 

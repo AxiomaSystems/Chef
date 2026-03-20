@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { GoogleSigninButton } from "@/components/auth/google-signin-button";
 import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
@@ -37,6 +39,20 @@ export default function LoginPage() {
           <div className="mt-8">
             <LoginForm />
           </div>
+
+          <div className="mt-6">
+            <GoogleSigninButton />
+          </div>
+
+          <p className="mt-6 text-sm leading-6 text-[color:var(--ink-soft)]">
+            Need an account first?{" "}
+            <Link
+              href="/signup"
+              className="font-semibold text-[color:var(--forest-strong)] underline decoration-[color:var(--olive)]/45 underline-offset-4"
+            >
+              Create one here
+            </Link>
+          </p>
         </section>
       </div>
     </main>

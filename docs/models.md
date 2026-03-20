@@ -387,6 +387,7 @@ type User = {
   email: string;
   name: string;
   role: UserRole;
+  onboarding_completed_at?: string;
   created_at: string;
   updated_at: string;
 };
@@ -416,6 +417,7 @@ Interpretation:
 - cuisines in preferences must exist in the global catalog
 - tags in preferences are currently limited to shared system tags
 - `PUT /api/v1/me/preferences` replaces the full set
+- empty arrays are valid and do not imply incomplete onboarding
 
 ## 8. Auth Models
 
@@ -550,5 +552,6 @@ Interpretation:
 
 - `RecipeVariant` and adaptation models still need runtime implementation
 - the web app now uses bearer-token auth, but the backend still carries a temporary `x-user-id` fallback
+- onboarding completion is now tracked separately from preference contents
 - retailer types will expand beyond `"walmart"` once real integrations exist
 - cuisine curation will likely expand, but the field is no longer free text

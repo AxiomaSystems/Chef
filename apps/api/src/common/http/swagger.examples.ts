@@ -141,6 +141,17 @@ export const mePreferencesExample = {
   ],
 };
 
+export const meProfileExample = {
+  id: 'user-1',
+  email: 'postigodev@cart-generator.local',
+  name: 'Postigo Dev',
+  role: 'user',
+  auth_providers: ['password'],
+  onboarding_completed_at: '2026-03-20T18:45:00.000Z',
+  created_at: '2026-03-19T03:12:00.000Z',
+  updated_at: '2026-03-20T18:45:00.000Z',
+};
+
 export const updateMePreferencesRequestExample = {
   preferred_cuisine_ids: ['cuisine-peruvian', 'cuisine-mediterranean'],
   preferred_tag_ids: ['tag-system-weeknight', 'tag-system-comfort-food'],

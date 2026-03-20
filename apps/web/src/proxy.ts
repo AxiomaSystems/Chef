@@ -11,6 +11,8 @@ import {
 
 const HOME_PATH = "/";
 const LOGIN_PATH = "/login";
+const SIGNUP_PATH = "/signup";
+const ONBOARDING_PATH = "/onboarding";
 
 async function hasValidSession(accessToken?: string) {
   if (!accessToken) {
@@ -24,7 +26,12 @@ async function hasValidSession(accessToken?: string) {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname !== HOME_PATH && pathname !== LOGIN_PATH) {
+  if (
+    pathname !== HOME_PATH &&
+    pathname !== LOGIN_PATH &&
+    pathname !== SIGNUP_PATH &&
+    pathname !== ONBOARDING_PATH
+  ) {
     return NextResponse.next();
   }
 
@@ -32,7 +39,7 @@ export async function proxy(request: NextRequest) {
   const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
   const sessionIsValid = await hasValidSession(accessToken);
 
-  if (pathname === LOGIN_PATH) {
+  if (pathname === LOGIN_PATH || pathname === SIGNUP_PATH) {
     if (sessionIsValid) {
       return NextResponse.redirect(new URL(HOME_PATH, request.url));
     }
@@ -76,5 +83,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/login"],
+  matcher: ["/", "/login", "/signup", "/onboarding"],
 };

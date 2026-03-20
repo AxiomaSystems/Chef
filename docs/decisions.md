@@ -438,6 +438,7 @@ Status:
 - email/password auth, Google backend login, refresh tokens, and `/me` are implemented
 - `PATCH /me` is implemented
 - `/me/preferences` is implemented using explicit cuisine and tag relations
+- `/me/onboarding/complete` is implemented
 - the first web client migration to bearer-token auth is implemented
 - full ownership hardening and fallback removal are still in progress
 
@@ -464,7 +465,23 @@ Implication:
 
 Status:
 - backend preference persistence and `/me/preferences` are implemented
-- onboarding UI is still pending
+- onboarding completion is tracked separately from preferences
+- onboarding UI is implemented as a required first-run flow with explicit skip support
+
+## 29.5. Onboarding Completion Must Be Separate From Preference Contents
+
+Decision:
+- do not infer onboarding completion from whether preference arrays are empty
+- track onboarding completion explicitly on the user record
+
+Why:
+- empty preferences can mean "completed and skipped"
+- using `[]` as both data and workflow state creates ambiguous semantics
+- explicit completion state keeps `/me/preferences` focused on real preferences only
+
+Implemented direction:
+- `User.onboardingCompletedAt`
+- `POST /api/v1/me/onboarding/complete`
 
 ## 30. Phone Auth Should Not Be In The First Auth Slice
 

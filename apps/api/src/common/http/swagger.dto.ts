@@ -146,6 +146,32 @@ export class UserPreferencesResponseDto {
   preferred_tags!: TagResponseDto[];
 }
 
+export class MeResponseDto {
+  @ApiProperty({ example: 'user-1' })
+  id!: string;
+
+  @ApiProperty({ example: 'postigodev@cart-generator.local' })
+  email!: string;
+
+  @ApiProperty({ example: 'Postigo Dev' })
+  name!: string;
+
+  @ApiProperty({ example: 'user' })
+  role!: 'admin' | 'user';
+
+  @ApiProperty({ example: ['password'] })
+  auth_providers!: Array<'google' | 'password'>;
+
+  @ApiPropertyOptional({ example: '2026-03-20T18:45:00.000Z' })
+  onboarding_completed_at?: string;
+
+  @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
+  created_at!: string;
+
+  @ApiProperty({ example: '2026-03-20T18:45:00.000Z' })
+  updated_at!: string;
+}
+
 export class DishResponseDto {
   @ApiPropertyOptional({ example: 'recipe-1' })
   id?: string;
