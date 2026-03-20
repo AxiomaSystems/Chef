@@ -3,17 +3,24 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { UserPreferences, UserStats } from '@cart/shared';
+import { PasswordHasherService } from '../auth/password-hasher.service';
 import { mapCuisine } from '../cuisines/cuisines.mapper';
 import { PrismaService } from '../prisma/prisma.service';
 import { mapTag } from '../tags/tags.mapper';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateMePreferencesDto } from './dto/update-me-preferences.dto';
 
 @Injectable()
 export class MeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly passwordHasherService: PasswordHasherService,
+  ) {}
 
   private async findUserOrThrow(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -118,6 +125,82 @@ export class MeService {
       preferred_cuisine_count,
       preferred_tag_count,
     };
+  }
+
+  async changePassword(userId: string, input: ChangePasswordDto) {
+    const user = await this.findUserOrThrow(userId);
+    const passwordIdentity = user.authIdentities.find(
+      (identity) => identity.provider === 'password',
+    );
+
+    if (!passwordIdentity?.passwordHash) {
+      throw new ForbiddenException(
+        'This account does not have a password identity yet',
+      );
+    }
+
+    const currentPasswordMatches = await this.passwordHasherService.verify(
+      input.current_password,
+      passwordIdentity.passwordHash,
+    );
+
+    if (!currentPasswordMatches) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const newPasswordMatchesCurrent = await this.passwordHasherService.verify(
+      input.new_password,
+      passwordIdentity.passwordHash,
+    );
+
+    if (newPasswordMatchesCurrent) {
+      throw new BadRequestException(
+        'New password must be different from the current password',
+      );
+    }
+
+    const nextPasswordHash = await this.passwordHasherService.hash(
+      input.new_password,
+    );
+
+    await this.prisma.authIdentity.update({
+      where: { id: passwordIdentity.id },
+      data: {
+        passwordHash: nextPasswordHash,
+      },
+    });
+
+    return { success: true };
+  }
+
+  async setPassword(userId: string, input: SetPasswordDto) {
+    const user = await this.findUserOrThrow(userId);
+    const passwordIdentity = user.authIdentities.find(
+      (identity) => identity.provider === 'password',
+    );
+
+    if (passwordIdentity) {
+      throw new ForbiddenException(
+        'This account already has a password identity',
+      );
+    }
+
+    const passwordHash = await this.passwordHasherService.hash(
+      input.new_password,
+    );
+
+    await this.prisma.authIdentity.create({
+      data: {
+        userId: user.id,
+        provider: 'password',
+        providerSubject: user.email.toLowerCase(),
+        email: user.email.toLowerCase(),
+        emailVerified: true,
+        passwordHash,
+      },
+    });
+
+    return { success: true };
   }
 
   async updateProfile(userId: string, input: UpdateMeDto) {

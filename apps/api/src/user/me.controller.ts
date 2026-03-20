@@ -3,14 +3,18 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import {
+  ApiChangePassword,
   ApiGetMe,
   ApiGetMePreferences,
   ApiGetMeStats,
   ApiMeController,
   ApiCompleteOnboarding,
+  ApiSetPassword,
   ApiUpdateMe,
   ApiUpdateMePreferences,
 } from './user.swagger';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateMePreferencesDto } from './dto/update-me-preferences.dto';
 import { MeService } from './me.service';
@@ -31,6 +35,26 @@ export class MeController {
   @ApiGetMeStats()
   getStats(@CurrentUser() user: AuthenticatedUser) {
     return this.meService.getStats(user.sub);
+  }
+
+  @Post('password/change')
+  @HttpCode(200)
+  @ApiChangePassword()
+  changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() input: ChangePasswordDto,
+  ) {
+    return this.meService.changePassword(user.sub, input);
+  }
+
+  @Post('password/set')
+  @HttpCode(200)
+  @ApiSetPassword()
+  setPassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() input: SetPasswordDto,
+  ) {
+    return this.meService.setPassword(user.sub, input);
   }
 
   @Get('preferences')

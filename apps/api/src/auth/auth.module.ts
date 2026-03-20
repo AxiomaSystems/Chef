@@ -27,6 +27,7 @@ import {
   ],
   exports: [
     AuthTokenService,
+    PasswordHasherService,
     JwtAuthGuard,
     ActorResolverService,
     RequestActorGuard,

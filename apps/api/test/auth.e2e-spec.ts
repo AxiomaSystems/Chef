@@ -4,11 +4,13 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { configureApp } from './../src/app.setup';
+import { AuthTokenService } from './../src/auth/auth-token.service';
 import { PrismaService } from './../src/prisma/prisma.service';
 
 describe('Auth flow (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
+  let authTokenService: AuthTokenService;
   const createdEmails: string[] = [];
 
   beforeAll(async () => {
@@ -21,6 +23,7 @@ describe('Auth flow (e2e)', () => {
     await app.init();
 
     prisma = app.get(PrismaService);
+    authTokenService = app.get(AuthTokenService);
   });
 
   afterAll(async () => {
@@ -269,5 +272,113 @@ describe('Auth flow (e2e)', () => {
         preferred_tag_ids: [userTag.id],
       })
       .expect(403);
+  });
+
+  it('changes password for password-backed accounts', async () => {
+    const email = `auth-change-${Date.now()}@cart-generator.local`;
+    const password = 's3cure-passphrase';
+    const nextPassword = 'even-m0re-s3cure';
+    createdEmails.push(email);
+
+    const registerResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({
+        email,
+        name: 'Password Change User',
+        password,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/me/password/change')
+      .set('authorization', `Bearer ${registerResponse.body.access_token}`)
+      .send({
+        current_password: password,
+        new_password: nextPassword,
+      })
+      .expect(200)
+      .expect({
+        success: true,
+      });
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({
+        email,
+        password,
+      })
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({
+        email,
+        password: nextPassword,
+      })
+      .expect(200);
+  });
+
+  it('sets password for google-only accounts', async () => {
+    const email = `auth-set-${Date.now()}@cart-generator.local`;
+    const googleSubject = `google-subject-${Date.now()}`;
+    const newPassword = 'g00gle-account-pass';
+    createdEmails.push(email);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: 'Google Only User',
+        authIdentities: {
+          create: {
+            provider: 'google',
+            providerSubject: googleSubject,
+            email,
+            emailVerified: true,
+          },
+        },
+      },
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({
+        email,
+        password: newPassword,
+      })
+      .expect(401);
+
+    const accessToken = await authTokenService.signAccessToken({
+      sub: user.id,
+      email,
+      role: 'user',
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/v1/me/password/set')
+      .set('authorization', `Bearer ${accessToken}`)
+      .send({
+        new_password: newPassword,
+      })
+      .expect(200)
+      .expect({
+        success: true,
+      });
+
+    const meAfterSet = await request(app.getHttpServer())
+      .get('/api/v1/me')
+      .set('authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(meAfterSet.body.auth_providers).toEqual(
+      expect.arrayContaining(['google', 'password']),
+    );
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({
+        email,
+        password: newPassword,
+      })
+      .expect(200);
   });
 });

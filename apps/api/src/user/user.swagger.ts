@@ -23,6 +23,8 @@ import {
   meStatsExample,
   updateMePreferencesRequestExample,
 } from '../common/http/swagger.examples';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateMePreferencesDto } from './dto/update-me-preferences.dto';
 
@@ -80,6 +82,101 @@ export const ApiUpdateMe = () =>
     ApiOkResponse({
       description: 'Returns the updated user profile.',
       type: MeResponseDto,
+    }),
+  );
+
+export const ApiChangePassword = () =>
+  applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary:
+        'Change the password for the current authenticated user when a password identity already exists',
+    }),
+    ApiBody({ type: ChangePasswordDto }),
+    ApiOkResponse({
+      description: 'Password changed successfully.',
+      schema: {
+        example: {
+          success: true,
+        },
+      },
+    }),
+    ApiBadRequestResponse({
+      description: 'Invalid payload or the new password matches the current password.',
+      type: ErrorResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            samePassword: {
+              summary: 'New password matches current password',
+              value: {
+                ...badRequestErrorExample,
+                message: 'New password must be different from the current password',
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiForbiddenResponse({
+      description: 'The account does not have a password identity yet.',
+      type: ErrorResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            passwordMissing: {
+              summary: 'Password identity missing',
+              value: {
+                ...forbiddenErrorExample,
+                message: 'This account does not have a password identity yet',
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required or current password incorrect.',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiSetPassword = () =>
+  applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary:
+        'Set a password for the current authenticated user when the account is currently Google-only',
+    }),
+    ApiBody({ type: SetPasswordDto }),
+    ApiOkResponse({
+      description: 'Password set successfully.',
+      schema: {
+        example: {
+          success: true,
+        },
+      },
+    }),
+    ApiForbiddenResponse({
+      description: 'The account already has a password identity.',
+      type: ErrorResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            passwordAlreadyExists: {
+              summary: 'Password identity already exists',
+              value: {
+                ...forbiddenErrorExample,
+                message: 'This account already has a password identity',
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
     }),
   );
 
