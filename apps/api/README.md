@@ -2,18 +2,17 @@
 
 NestJS backend for Cart Generator.
 
-This app is the most complete part of the repository right now. It already supports persisted recipes, global vs user ownership, forked recipe copies, deterministic cart generation, draft/history persistence, mock product matching, Swagger docs, and local Postgres via Prisma.
+This app is the most complete part of the repository right now. It already supports real auth, `/api/v1`, persisted recipes, user ownership, onboarding-aware preferences, carts/shopping carts, Swagger docs, and local Postgres via Prisma.
 
 ## Current Capabilities
 
 - user and admin records in the database
 - global system recipes plus private user-owned recipes
 - recipe CRUD for user-owned recipes
-- `POST /recipes/:id/save` to fork a system recipe into a user-owned editable copy
-- `GET /recipes/:id/origin` to retrieve the source recipe of a fork
-- deterministic `POST /cart/generate`
-- persisted cart drafts
-- persisted generated carts and generated cart history
+- real auth endpoints for email/password, Google login, refresh, logout, and `/me`
+- `/api/v1/me/preferences` and `/api/v1/me/onboarding/complete`
+- `POST /api/v1/recipe-forks` and `GET /api/v1/recipes/:id/origin`
+- persisted cart drafts, carts, and shopping carts
 - mock retailer matching with subtotal estimation
 - request tracing with `x-request-id`
 - Swagger/OpenAPI docs
@@ -40,12 +39,7 @@ OpenAPI JSON:
 http://localhost:3001/docs/openapi.json
 ```
 
-Swagger already includes:
-
-- request examples for mutable endpoints
-- success and error response examples
-- `x-user-id` header examples
-- `401`, `403`, and `404` documentation where relevant
+Swagger already includes request examples plus `401`, `403`, and `404` documentation where relevant.
 
 ## Current Access Rules
 
@@ -56,24 +50,6 @@ Swagger already includes:
 - authenticated users can see global recipes plus their own recipes
 - saving a system recipe creates or reuses a single fork per user
 - generated carts and drafts are user-scoped
-
-## Development Headers
-
-The API currently uses a development-only actor header:
-
-```text
-x-user-id: postigodev@cart-generator.local
-```
-
-`x-user-id` can resolve either:
-
-- a real user id
-- or a seeded user email
-
-If `x-user-id` is omitted:
-
-- recipe reads behave as unauthenticated access
-- mutable endpoints return `401 Authentication required`
 
 Every response also includes:
 
@@ -123,75 +99,67 @@ Use `pnpm test:e2e:ci` when you want the stable in-band e2e run.
 
 ## Main Endpoints
 
-Recipes:
+Auth and profile:
 
-- `POST /recipes`
-- `GET /recipes`
-- `GET /recipes/:id`
-- `GET /recipes/:id/origin`
-- `PATCH /recipes/:id`
-- `POST /recipes/:id/save`
-- `DELETE /recipes/:id`
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/google`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/me`
+- `PATCH /api/v1/me`
+- `GET /api/v1/me/preferences`
+- `PUT /api/v1/me/preferences`
+- `POST /api/v1/me/onboarding/complete`
 
-Cart:
+Core resources:
 
-- `POST /cart/generate`
-- `POST /cart/drafts`
-- `GET /cart/drafts`
-- `GET /cart/drafts/:id`
-- `GET /cart/generated`
-- `GET /cart/generated/history`
-- `GET /cart/generated/:id`
+- `GET /api/v1/cuisines`
+- `GET /api/v1/tags`
+- `POST /api/v1/tags`
+- `PATCH /api/v1/tags/:id`
+- `DELETE /api/v1/tags/:id`
+- `GET /api/v1/recipes`
+- `POST /api/v1/recipes`
+- `GET /api/v1/recipes/:id`
+- `GET /api/v1/recipes/:id/origin`
+- `PATCH /api/v1/recipes/:id`
+- `DELETE /api/v1/recipes/:id`
+- `POST /api/v1/recipe-forks`
+- `GET /api/v1/cart-drafts`
+- `POST /api/v1/cart-drafts`
+- `GET /api/v1/cart-drafts/:id`
+- `PATCH /api/v1/cart-drafts/:id`
+- `DELETE /api/v1/cart-drafts/:id`
+- `GET /api/v1/carts`
+- `POST /api/v1/carts`
+- `GET /api/v1/carts/:id`
+- `PATCH /api/v1/carts/:id`
+- `DELETE /api/v1/carts/:id`
+- `POST /api/v1/carts/:cartId/shopping-carts`
+- `GET /api/v1/shopping-carts`
+- `GET /api/v1/shopping-carts/:id`
+- `GET /api/v1/shopping-carts/history`
 
 ## Example Requests
 
-List visible recipes:
+Register:
 
 ```bash
-curl -H "x-user-id: postigodev@cart-generator.local" http://localhost:3001/recipes
-```
-
-Create a recipe:
-
-```bash
-curl -X POST http://localhost:3001/recipes ^
+curl -X POST http://localhost:3001/api/v1/auth/register ^
   -H "Content-Type: application/json" ^
-  -H "x-user-id: postigodev@cart-generator.local" ^
-  -d "{\"name\":\"Arroz con pollo casero\",\"cuisine\":\"Peruvian\",\"description\":\"Comforting chicken and rice dish.\",\"servings\":4,\"ingredients\":[{\"canonical_ingredient\":\"rice\",\"amount\":2,\"unit\":\"cup\"},{\"canonical_ingredient\":\"chicken thigh\",\"amount\":800,\"unit\":\"g\"}],\"steps\":[{\"step\":1,\"what_to_do\":\"Brown the chicken thighs.\"}],\"tags\":[\"dinner\"]}"
+  -d "{\"email\":\"user@example.com\",\"name\":\"Example User\",\"password\":\"s3cure-passphrase\"}"
 ```
 
-Save a system recipe into the current user's library:
+Read profile with bearer auth:
 
 ```bash
-curl -X POST http://localhost:3001/recipes/RECIPE_ID/save ^
-  -H "x-user-id: postigodev@cart-generator.local"
-```
-
-Get the origin of a saved fork:
-
-```bash
-curl -H "x-user-id: postigodev@cart-generator.local" http://localhost:3001/recipes/RECIPE_ID/origin
-```
-
-Generate a cart:
-
-```bash
-curl -X POST http://localhost:3001/cart/generate ^
-  -H "Content-Type: application/json" ^
-  -H "x-user-id: postigodev@cart-generator.local" ^
-  -H "x-request-id: req-local-123" ^
-  -d "{\"selections\":[{\"recipe_id\":\"recipe-1\",\"recipe_type\":\"base\",\"quantity\":2,\"servings_override\":4}],\"retailer\":\"walmart\"}"
-```
-
-Get generated cart history:
-
-```bash
-curl -H "x-user-id: postigodev@cart-generator.local" http://localhost:3001/cart/generated/history
+curl http://localhost:3001/api/v1/me ^
+  -H "Authorization: Bearer ACCESS_TOKEN"
 ```
 
 ## Known Gaps
 
-- auth is still development header context, not a real login/session flow
-- tags are still `string[]`, not hybrid shared/private tags yet
+- web client migration is still incomplete outside the internal dashboard
 - recipe variants and AI-assisted adaptation are still pending
 - matching is still mock retailer logic, not a production retailer integration

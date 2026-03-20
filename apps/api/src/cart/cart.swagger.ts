@@ -10,7 +10,6 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { ApiDevUserHeader } from '../common/http/api-headers.swagger';
 import {
   CartResponseDto,
   ErrorResponseDto,
@@ -35,7 +34,7 @@ import { UpdateCartDraftDto } from './dto/update-cart-draft.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
 
 export const ApiCartController = (tag: string) =>
-  applyDecorators(ApiTags(tag), ApiDevUserHeader());
+  applyDecorators(ApiTags(tag));
 
 export const ApiCreateCartDraft = () =>
   applyDecorators(

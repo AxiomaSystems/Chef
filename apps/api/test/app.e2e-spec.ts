@@ -10,6 +10,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { configureApp, REQUEST_ID_HEADER } from './../src/app.setup';
+import { AuthTokenService } from './../src/auth/auth-token.service';
 import { CartService } from './../src/cart/cart.service';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { RecipeService } from './../src/recipe/recipe.service';
@@ -18,6 +19,8 @@ describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
   let recipeService: jest.Mocked<RecipeService>;
   let cartService: jest.Mocked<CartService>;
+  let authTokenService: AuthTokenService;
+  let accessToken: string;
 
   const recipeResponse: BaseRecipe = {
     id: 'recipe-1',
@@ -116,6 +119,12 @@ describe('AppController (e2e)', () => {
     app = moduleFixture.createNestApplication();
     configureApp(app);
     await app.init();
+    authTokenService = app.get(AuthTokenService);
+    accessToken = await authTokenService.signAccessToken({
+      sub: 'user-1',
+      email: 'user-1@cart-generator.local',
+      role: 'user',
+    });
   });
 
   afterEach(async () => {
@@ -172,7 +181,7 @@ describe('AppController (e2e)', () => {
 
     await request(app.getHttpServer())
       .patch('/api/v1/recipes/recipe-1')
-      .set('x-user-id', 'user-1')
+      .set('authorization', `Bearer ${accessToken}`)
       .send(payload)
       .expect(200)
       .expect(recipeResponse);
@@ -192,7 +201,7 @@ describe('AppController (e2e)', () => {
 
     await request(app.getHttpServer())
       .post('/api/v1/recipe-forks')
-      .set('x-user-id', 'user-1')
+      .set('authorization', `Bearer ${accessToken}`)
       .send({ source_recipe_id: 'system-recipe-1' })
       .expect(201)
       .expect({
@@ -237,7 +246,7 @@ describe('AppController (e2e)', () => {
 
     await request(app.getHttpServer())
       .delete('/api/v1/recipes/recipe-1')
-      .set('x-user-id', 'user-1')
+      .set('authorization', `Bearer ${accessToken}`)
       .expect(204);
   });
 
@@ -248,7 +257,7 @@ describe('AppController (e2e)', () => {
 
     await request(app.getHttpServer())
       .patch('/api/v1/recipes/system-recipe-1')
-      .set('x-user-id', 'user-1')
+      .set('authorization', `Bearer ${accessToken}`)
       .send({
         name: 'Should fail',
       })
@@ -262,7 +271,7 @@ describe('AppController (e2e)', () => {
 
     await request(app.getHttpServer())
       .delete('/api/v1/recipes/missing-recipe')
-      .set('x-user-id', 'user-1')
+      .set('authorization', `Bearer ${accessToken}`)
       .expect(404);
   });
 
@@ -324,8 +333,33 @@ describe('AppController (e2e)', () => {
 
     await request(app.getHttpServer())
       .get('/api/v1/shopping-carts/history')
-      .set('x-user-id', 'user-1')
+      .set('authorization', `Bearer ${accessToken}`)
       .expect(200)
       .expect(history);
+  });
+
+  it('POST /api/v1/recipes ignores x-user-id fallback and requires bearer auth', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/recipes')
+      .set('x-user-id', 'user-1')
+      .send({
+        name: 'Should still fail',
+        cuisine_id: 'cuisine-peruvian',
+        servings: 4,
+        ingredients: [
+          {
+            canonical_ingredient: 'rice',
+            amount: 1,
+            unit: 'cup',
+          },
+        ],
+        steps: [
+          {
+            step: 1,
+            what_to_do: 'Test',
+          },
+        ],
+      })
+      .expect(401);
   });
 });

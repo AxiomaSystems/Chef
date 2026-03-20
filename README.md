@@ -253,17 +253,16 @@ This separation is intentional:
 
 The highest-signal next steps are in backend, not frontend expansion.
 
-1. Remove the remaining `x-user-id` fallback from normal protected backend flows and Swagger guidance.
-2. Expose Google login UX in the web app on top of the existing backend flow.
-3. Keep retailer integration behind `ShoppingCart` and swap mock matching for a real provider later.
-4. Defer recipe variants and AI-assisted adaptation until auth and taxonomy are settled.
-5. Add captcha to sensitive auth surfaces after the core auth/client migration is stable.
-6. Add richer profile and analytics surfaces such as `/api/v1/me/stats`.
+1. Keep retailer integration behind `ShoppingCart` and swap mock matching for a real provider later.
+2. Defer recipe variants and AI-assisted adaptation until auth and taxonomy are settled.
+3. Add captcha to sensitive auth surfaces after the core auth/client migration is stable.
+4. Add richer profile and analytics surfaces such as `/api/v1/me/stats`.
+5. Harden Google OAuth for production secret management and deploy configuration.
 
 ## Current Gaps
 
 - the web app in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web) is still a thin internal dashboard, not a full product UI
-- the web app now uses email/password login with bearer-token auth, but it still does not expose Google login UX yet
+- the web app now supports email/password plus Google sign-in, but it is still a thin internal dashboard rather than a full product UI
 - onboarding now exists as a required first-run flow, but there is no broader settings/profile UI yet
 - recipe variants and AI-assisted adaptation are not implemented yet
 - retailer matching is still mock data, not a real retailer integration

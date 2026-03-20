@@ -1,6 +1,5 @@
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { DEV_USER_ID_HEADER } from './common/http/api-headers.swagger';
 import { RequestContextMiddleware } from './common/http/request-context.middleware';
 import { RequestContextService } from './common/http/request-context.service';
 import { REQUEST_ID_HEADER } from './common/http/request-context.types';
@@ -38,16 +37,6 @@ export const configureApp = (app: INestApplication): void => {
     .addTag('carts')
     .addTag('shopping-carts')
     .addBearerAuth()
-    .addApiKey(
-      {
-        type: 'apiKey',
-        in: 'header',
-        name: DEV_USER_ID_HEADER,
-        description:
-          'Optional dev-only actor override header. Accepts a user id or email. Example: postigodev@cart-generator.local',
-      },
-      DEV_USER_ID_HEADER,
-    )
     .build();
 
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);

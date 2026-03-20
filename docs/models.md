@@ -551,7 +551,7 @@ Interpretation:
 ## Known Future Changes
 
 - `RecipeVariant` and adaptation models still need runtime implementation
-- the web app now uses bearer-token auth, but the backend still carries a temporary `x-user-id` fallback
+- the web app and backend now both use bearer-token auth as the normal path
 - onboarding completion is now tracked separately from preference contents
 - retailer types will expand beyond `"walmart"` once real integrations exist
 - cuisine curation will likely expand, but the field is no longer free text

@@ -277,25 +277,18 @@ Pragmatic path:
 - keep `forkedFromRecipeId` as the current bridge state
 - revisit a richer enum-based model only when those states become real
 
-## 22. Development Identity Is Header-Based For Now
+## 22. Development Identity Was Header-Based Before Real Auth
 
 Decision:
-- use a development-only actor resolution model based on `x-user-id`
-- allow the header to resolve either a seeded user id or a seeded user email
-- treat missing actor context as unauthenticated access
-
-Current behavior:
-- unauthenticated recipe reads expose only global system recipes
-- mutable recipe endpoints return `401 Authentication required`
-- cart-draft, cart, and shopping-cart endpoints require an authenticated actor
+- the project temporarily used `x-user-id` during the pre-auth phase
+- that header should not survive once real JWT-based auth exists
 
 Why:
-- keeps backend development moving before real auth exists
-- still lets ownership and visibility rules be enforced consistently
+- it let ownership and visibility rules ship before the auth stack was ready
+- but it was always transitional infrastructure, not a valid long-term contract
 
-Trade-off:
-- this is not production authentication
-- it should be treated as transitional infrastructure, not as a stable public auth contract
+Status:
+- removed from normal backend flows and Swagger once the web app migrated to bearer tokens
 
 ## 23. Saved Recipe Forks Must Be Unique Per User And Source Recipe
 
@@ -440,7 +433,7 @@ Status:
 - `/me/preferences` is implemented using explicit cuisine and tag relations
 - `/me/onboarding/complete` is implemented
 - the first web client migration to bearer-token auth is implemented
-- full ownership hardening and fallback removal are still in progress
+- ownership now resolves primarily through JWT and `/me`
 
 ## 29. Preferences Are Higher-Value Than Demographics For Onboarding
 
@@ -554,16 +547,14 @@ Why:
 - those changes are cheaper now that the API surface is stable
 - deeper frontend work would otherwise be built on temporary backend assumptions
 
-## 34. Keep `x-user-id` Only As A Temporary Development Fallback
+## 34. Remove `x-user-id` After Client Migration
 
 Decision:
-- keep `x-user-id` available only as a temporary development fallback while backend cleanup and tooling migration are still in progress
-- treat JWT bearer auth as the primary actor resolution path now
+- once the web app and tooling use bearer tokens, remove `x-user-id` from normal protected flows and Swagger guidance
 
 Why:
-- backend auth and `/me` already exist and should define the long-term path
-- removing the fallback immediately would slow backend iteration before the client is ready
-- keeping the fallback explicitly temporary avoids accidentally preserving it as a public contract
+- keeping two actor-resolution paths after the client migration only preserves avoidable debt
+- tags, preferences, onboarding, and ownership should all rely on the same real auth boundary
 
-Exit criteria:
-- once local developer tooling and remaining fallback paths are cleaned up, remove `x-user-id` from normal protected flows and Swagger guidance
+Status:
+- implemented

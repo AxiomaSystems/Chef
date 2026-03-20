@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Logger, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
-import { DEV_USER_ID_HEADER } from './api-headers.swagger';
 import { RequestContextService } from './request-context.service';
 import { REQUEST_ID_HEADER } from './request-context.types';
 
@@ -16,18 +15,16 @@ export class RequestContextMiddleware implements NestMiddleware {
 
   use(req: RequestWithContext, res: Response, next: NextFunction): void {
     const incomingRequestId = req.header(REQUEST_ID_HEADER);
-    const actorUserId = req.header(DEV_USER_ID_HEADER)?.trim() || undefined;
     const requestId = incomingRequestId?.trim() || randomUUID();
     const startedAt = Date.now();
 
     req.requestId = requestId;
     res.setHeader(REQUEST_ID_HEADER, requestId);
 
-    this.requestContextService.run({ requestId, actorUserId }, () => {
+    this.requestContextService.run({ requestId }, () => {
       res.on('finish', () => {
         const durationMs = Date.now() - startedAt;
-        const resolvedActorUserId =
-          this.requestContextService.getActorUserId() ?? actorUserId;
+        const resolvedActorUserId = this.requestContextService.getActorUserId();
         const actorSuffix = resolvedActorUserId
           ? ` actor=${resolvedActorUserId}`
           : '';

@@ -190,7 +190,7 @@ Current status:
 
 ## Current Access Model
 
-The current API now has real auth plus a temporary development fallback.
+The current API now has real auth without a secondary dev actor path.
 
 Current behavior:
 
@@ -208,13 +208,6 @@ Current transitional auth setup:
 - `User` is the ownership root
 - `AuthIdentity` stores provider-linked identities
 - `RefreshToken` stores hashed refresh tokens
-
-Temporary development fallback:
-
-- `x-user-id`
-- accepts seeded user id or seeded user email
-
-This header is still accepted as a temporary development fallback for local development and backward compatibility, but the web app no longer depends on it.
 
 ## Live API Shape
 
@@ -315,7 +308,7 @@ Current status:
 - `/me/preferences` is implemented for cuisine and system-tag preferences
 - `/me/onboarding/complete` is implemented
 - the web app now uses bearer-token auth for its dashboard flow
-- backend fallback removal is still pending
+- the temporary `x-user-id` fallback has now been removed from normal backend flows and Swagger guidance
 
 ### 2. Hybrid Tags And Controlled Cuisine
 

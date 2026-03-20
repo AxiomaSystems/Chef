@@ -11,7 +11,6 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { ApiDevUserHeader } from '../common/http/api-headers.swagger';
 import {
   BaseRecipeResponseDto,
   ErrorResponseDto,
@@ -29,10 +28,10 @@ import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 
 export const ApiRecipeController = () =>
-  applyDecorators(ApiTags('recipes'), ApiDevUserHeader());
+  applyDecorators(ApiTags('recipes'));
 
 export const ApiRecipeForkController = () =>
-  applyDecorators(ApiTags('recipe-forks'), ApiDevUserHeader());
+  applyDecorators(ApiTags('recipe-forks'));
 
 export const ApiCreateRecipe = () =>
   applyDecorators(
