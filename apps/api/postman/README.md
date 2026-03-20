@@ -20,12 +20,15 @@ Suggested order:
 11. `Carts / Create Shopping Cart From Cart`
 12. `Negative / ...`
 
-The collection uses these variables:
+Static config variables:
 
 - `baseUrl`
 - `requestId`
 - `authEmail`
 - `authPassword`
+
+Runtime collection variables created by the request scripts:
+
 - `accessToken`
 - `refreshToken`
 - `cuisineId`
@@ -33,6 +36,7 @@ The collection uses these variables:
 - `systemTagId`
 - `secondSystemTagId`
 - `userTagId`
+- `userTagName`
 - `systemRecipeId`
 - `recipeId`
 - `cartId`

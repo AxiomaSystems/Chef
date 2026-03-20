@@ -236,7 +236,7 @@ This separation is intentional:
 - auth persistence now includes `AuthIdentity` and `RefreshToken`.
 - cuisine persistence now includes a global `Cuisine` catalog.
 - tags persistence now includes `Tag` and `RecipeTag`.
-- `/api/v1/auth/register`, `/login`, `/google`, `/refresh`, `/logout`, and `/me` are implemented.
+- `/api/v1/auth/register`, `/login`, `/google`, `/refresh`, `/logout`, `GET /me`, and `PATCH /me` are implemented.
 - `/api/v1/cuisines` now exposes the global cuisine catalog.
 - `/api/v1/me/preferences` now supports read/replace for user cuisine and system-tag preferences.
 - `/api/v1/tags` now supports list/create/update/delete.

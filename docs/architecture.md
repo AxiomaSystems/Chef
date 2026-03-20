@@ -291,18 +291,19 @@ Not implemented yet:
 
 ## Next Layers
 
-### 1. Real Authentication
+### 1. Client Migration And Auth Hardening
 
 Purpose:
 
-- replace dev header identity with real user auth
+- finish the client migration onto the already-implemented auth stack
+- remove the remaining temporary development fallback once the client is ready
 
-Planned direction:
+Current implemented direction:
 
-- authenticated user context
+- authenticated user context through JWT bearer tokens
 - `/me` profile surface
-- role-aware admin behavior
-- proper ownership enforcement without relying on manual headers
+- persisted refresh-token rotation
+- linked auth identities per user
 
 Current status:
 
@@ -310,6 +311,7 @@ Current status:
 - Google token login backend is implemented
 - refresh/logout are implemented
 - `/me` is implemented
+- `PATCH /me` is implemented
 - `/me/preferences` is implemented for cuisine and system-tag preferences
 - client migration away from `x-user-id` is still pending
 

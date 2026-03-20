@@ -436,6 +436,7 @@ Recommended model direction:
 Status:
 - partially implemented
 - email/password auth, Google backend login, refresh tokens, and `/me` are implemented
+- `PATCH /me` is implemented
 - `/me/preferences` is implemented using explicit cuisine and tag relations
 - client migration and full ownership hardening are still in progress
 
