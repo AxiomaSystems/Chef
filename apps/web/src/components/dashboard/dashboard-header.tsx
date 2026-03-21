@@ -3,7 +3,6 @@ import Link from "next/link";
 
 export function DashboardHeader(props: {
   user: User;
-  logoutAction: () => Promise<void>;
 }) {
   const initial = (props.user.name ?? props.user.email ?? "M")
     .trim()

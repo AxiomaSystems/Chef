@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 type ActivePlanningState =
@@ -19,6 +21,7 @@ type ActivePlanningState =
 
 export function DashboardActionPanel(props: {
   activePlanningState: ActivePlanningState;
+  onOpenDraft: () => void;
 }) {
   const hasActivePlanning = Boolean(props.activePlanningState);
   const title = hasActivePlanning
@@ -58,19 +61,30 @@ export function DashboardActionPanel(props: {
           ) : null}
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <Link
-              href="#recipe-library"
-              className="inline-flex min-h-12 items-center rounded-full bg-[color:var(--paper)] px-5 text-sm font-semibold text-[color:var(--forest-strong)] shadow-[0_10px_30px_rgba(245,240,228,0.14)] transition hover:bg-white"
-            >
-              {hasActivePlanning ? "Continue planning" : "Create cart"}
-            </Link>
             {hasActivePlanning ? (
               <Link
                 href="#recent-work"
+                className="inline-flex min-h-12 items-center rounded-full bg-[color:var(--paper)] px-5 text-sm font-semibold text-[color:var(--forest-strong)] shadow-[0_10px_30px_rgba(245,240,228,0.14)] transition hover:bg-white"
+              >
+                Continue planning
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={props.onOpenDraft}
+                className="inline-flex min-h-12 items-center rounded-full bg-[color:var(--paper)] px-5 text-sm font-semibold text-[color:var(--forest-strong)] shadow-[0_10px_30px_rgba(245,240,228,0.14)] transition hover:bg-white"
+              >
+                New draft
+              </button>
+            )}
+            {hasActivePlanning ? (
+              <button
+                type="button"
+                onClick={props.onOpenDraft}
                 className="inline-flex min-h-12 items-center rounded-full border border-white/14 bg-white/8 px-5 text-sm font-semibold text-[color:var(--paper)] transition hover:bg-white/14"
               >
-                View cart
-              </Link>
+                New draft
+              </button>
             ) : null}
           </div>
         </div>

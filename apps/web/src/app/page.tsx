@@ -4,16 +4,14 @@ import type {
   User,
 } from "@cart/shared";
 import { redirect } from "next/navigation";
-import { logoutAction } from "./actions";
 import {
   fetchAuthedCollection,
   fetchAuthedResource,
   fetchCollection,
 } from "@/lib/api";
-import { DashboardActionPanel } from "@/components/dashboard/dashboard-action-panel";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { HomeWorkspace } from "@/components/dashboard/home-workspace";
 import type { DashboardCartDraft } from "@/components/dashboard/drafts-and-carts-section";
-import { RecentWorkSection } from "@/components/dashboard/recent-work-section";
 import { buildPlanningItems } from "@/components/dashboard/recent-work.utils";
 
 function formatDate(iso: string) {
@@ -93,27 +91,16 @@ export default async function Home() {
   return (
     <main className="min-h-screen px-5 py-6 sm:px-8 lg:px-12">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <DashboardHeader
-          user={me.data}
-          logoutAction={logoutAction}
-        />
-
-        <DashboardActionPanel
+        <DashboardHeader user={me.data} />
+        <HomeWorkspace
           activePlanningState={latestPlanningItem}
+          planningItems={planningItems}
+          recipes={recipes.data.toSorted(
+            (left, right) =>
+              new Date(right.updated_at).getTime() -
+              new Date(left.updated_at).getTime(),
+          )}
         />
-
-        <section className="grid gap-6">
-          <RecentWorkSection
-            planningItems={planningItems}
-            recipes={recipes.data
-              .toSorted(
-                (left, right) =>
-                  new Date(right.updated_at).getTime() -
-                  new Date(left.updated_at).getTime(),
-              )
-              .slice(0, 4)}
-          />
-        </section>
       </div>
     </main>
   );
