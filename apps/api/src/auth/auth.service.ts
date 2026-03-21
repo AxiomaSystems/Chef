@@ -195,7 +195,9 @@ export class AuthService {
     return { success: true };
   }
 
-  private async issueTokensForUser(user: Pick<User, 'id' | 'email' | 'role'>) {
+  private async issueTokensForUser(
+    user: Pick<User, 'id' | 'email' | 'role' | 'onboardingCompletedAt'>,
+  ) {
     const tokens = await this.authTokenService.buildAuthTokens({
       sub: user.id,
       email: user.email,
@@ -214,6 +216,8 @@ export class AuthService {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
       expires_in: tokens.expires_in,
+      onboarding_completed_at:
+        user.onboardingCompletedAt?.toISOString() ?? undefined,
     };
   }
 }

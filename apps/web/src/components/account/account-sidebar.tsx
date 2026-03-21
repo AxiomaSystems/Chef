@@ -1,14 +1,39 @@
+"use client";
+
 import type { User } from "@cart/shared";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-function formatProviderLabel(provider: NonNullable<User["auth_providers"]>[number]) {
+function formatProviderLabel(
+  provider: NonNullable<User["auth_providers"]>[number],
+) {
   return provider === "password" ? "Email" : "Google";
 }
+
+const ACCOUNT_NAV = [
+  {
+    href: "/account/settings/overview",
+    label: "Overview",
+  },
+  {
+    href: "/account/settings/preferences",
+    label: "Preferences",
+  },
+  {
+    href: "/account/settings/security",
+    label: "Security",
+  },
+] as const;
 
 export function AccountSidebar(props: {
   user: User;
   logoutAction: () => Promise<void>;
+  stats: {
+    owned_recipe_count: number;
+    shopping_cart_count: number;
+  };
 }) {
+  const pathname = usePathname();
   const initials = props.user.name
     .split(" ")
     .filter(Boolean)
@@ -47,6 +72,26 @@ export function AccountSidebar(props: {
           </div>
 
           <div className="grid gap-4 rounded-[1.75rem] border border-white/10 bg-white/6 p-5 backdrop-blur-sm">
+            <nav className="grid gap-2">
+              {ACCOUNT_NAV.map((item) => {
+                const isActive = pathname === item.href;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`inline-flex min-h-12 items-center rounded-[1.1rem] px-4 text-sm font-semibold transition ${
+                      isActive
+                        ? "bg-white/14 text-[color:var(--paper)]"
+                        : "text-[color:var(--paper-strong)]/78 hover:bg-white/10 hover:text-[color:var(--paper)]"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[color:var(--paper-strong)]/68">
                 Connected auth
@@ -68,8 +113,8 @@ export function AccountSidebar(props: {
                 Account state
               </p>
               <div className="mt-3 text-sm leading-6 text-[color:var(--paper-strong)]/78">
-                Onboarding complete. Preferences can now stay empty or evolve
-                independently from setup.
+                {props.stats.owned_recipe_count} owned recipes and{" "}
+                {props.stats.shopping_cart_count} shopping carts tracked so far.
               </div>
             </div>
           </div>

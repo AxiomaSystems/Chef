@@ -15,6 +15,10 @@ const SIGNUP_PATH = "/signup";
 const ONBOARDING_PATH = "/onboarding";
 const ACCOUNT_PATH = "/account";
 
+function isProtectedAccountPath(pathname: string) {
+  return pathname === ACCOUNT_PATH || pathname.startsWith(`${ACCOUNT_PATH}/`);
+}
+
 async function hasValidSession(accessToken?: string) {
   if (!accessToken) {
     return false;
@@ -32,7 +36,7 @@ export async function proxy(request: NextRequest) {
     pathname !== LOGIN_PATH &&
     pathname !== SIGNUP_PATH &&
     pathname !== ONBOARDING_PATH &&
-    pathname !== ACCOUNT_PATH
+    !isProtectedAccountPath(pathname)
   ) {
     return NextResponse.next();
   }
@@ -85,5 +89,12 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/login", "/signup", "/onboarding", "/account"],
+  matcher: [
+    "/",
+    "/login",
+    "/signup",
+    "/onboarding",
+    "/account",
+    "/account/:path*",
+  ],
 };

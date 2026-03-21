@@ -1,14 +1,16 @@
-import type { User } from "@cart/shared";
 import { NextResponse } from "next/server";
 import {
   applyAuthCookies,
   buildApiUrl,
-  fetchSessionProfile,
   type AuthTokens,
 } from "@/lib/auth";
 
 type RouteBody = {
   id_token?: unknown;
+};
+
+type GoogleAuthTokens = AuthTokens & {
+  onboarding_completed_at?: string;
 };
 
 function errorResponse(message: string, status: number) {
@@ -42,18 +44,9 @@ export async function POST(request: Request) {
     return errorResponse("Unable to continue with Google right now.", 401);
   }
 
-  const tokens = (await authResponse.json()) as AuthTokens;
-  const profileResponse = await fetchSessionProfile(tokens.access_token).catch(
-    () => null,
-  );
-
-  if (!profileResponse?.ok) {
-    return errorResponse("Unable to load the signed-in profile.", 502);
-  }
-
-  const me = (await profileResponse.json()) as User;
+  const tokens = (await authResponse.json()) as GoogleAuthTokens;
   const response = NextResponse.json({
-    redirectTo: me.onboarding_completed_at ? "/" : "/onboarding",
+    redirectTo: tokens.onboarding_completed_at ? "/" : "/onboarding",
   });
 
   applyAuthCookies(response.cookies, tokens);

@@ -97,6 +97,7 @@ describe('AuthService', () => {
       access_token: 'access',
       refresh_token: 'refresh',
       expires_in: '15m',
+      onboarding_completed_at: undefined,
     });
 
     expect(prisma.user.create).toHaveBeenCalledWith(
@@ -155,6 +156,7 @@ describe('AuthService', () => {
       access_token: 'access',
       refresh_token: 'refresh',
       expires_in: '15m',
+      onboarding_completed_at: undefined,
     });
   });
 
@@ -175,7 +177,14 @@ describe('AuthService', () => {
       refreshTokenExpiresAt: new Date('2026-04-01T00:00:00.000Z'),
     });
 
-    await service.loginWithGoogle({ id_token: 'google-id-token' });
+    await expect(
+      service.loginWithGoogle({ id_token: 'google-id-token' }),
+    ).resolves.toEqual({
+      access_token: 'access',
+      refresh_token: 'refresh',
+      expires_in: '15m',
+      onboarding_completed_at: undefined,
+    });
 
     expect(prisma.authIdentity.create).toHaveBeenCalledWith({
       data: {
