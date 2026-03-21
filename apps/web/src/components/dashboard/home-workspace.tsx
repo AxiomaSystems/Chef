@@ -154,6 +154,7 @@ export function HomeWorkspace(props: {
         }
         onClose={closeDetail}
         onEdit={openEditorFromDetail}
+        onDeleted={closeDetail}
       />
     </>
   );

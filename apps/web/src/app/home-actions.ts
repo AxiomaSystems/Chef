@@ -14,6 +14,13 @@ export type DraftFlowActionState = {
   resourceId?: string;
 };
 
+export type DeletePlanningResourceActionState = {
+  error?: string;
+  success?: string;
+  resourceType?: "draft" | "cart";
+  resourceId?: string;
+};
+
 async function callAuthedJson(path: string, init?: RequestInit) {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
@@ -112,6 +119,16 @@ export async function submitDraftFlowAction(
 
   const createdResource = (await response.json()) as { id?: string };
 
+  if (
+    resourceType === "draft" &&
+    resourceId &&
+    intent === "generate"
+  ) {
+    await callAuthedJson(`/cart-drafts/${resourceId}`, {
+      method: "DELETE",
+    }).catch(() => null);
+  }
+
   revalidatePath("/");
   revalidatePath("/recipes");
 
@@ -120,5 +137,45 @@ export async function submitDraftFlowAction(
     intent,
     resourceType: nextResourceType,
     resourceId: String(createdResource.id ?? resourceId),
+  };
+}
+
+export async function deletePlanningResourceAction(
+  resourceType: "draft" | "cart",
+  resourceId: string,
+): Promise<DeletePlanningResourceActionState> {
+  const normalizedResourceId = String(resourceId).trim();
+
+  if (!resourceType || !normalizedResourceId) {
+    return {
+      error: "Planning resource not found for deletion.",
+    };
+  }
+
+  const path =
+    resourceType === "draft"
+      ? `/cart-drafts/${normalizedResourceId}`
+      : `/carts/${normalizedResourceId}`;
+
+  const response = await callAuthedJson(path, {
+    method: "DELETE",
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error:
+        resourceType === "draft"
+          ? "Unable to delete this draft right now."
+          : "Unable to delete this cart right now.",
+    };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/recipes");
+
+  return {
+    success: resourceType === "draft" ? "Draft deleted." : "Cart deleted.",
+    resourceType,
+    resourceId: normalizedResourceId,
   };
 }

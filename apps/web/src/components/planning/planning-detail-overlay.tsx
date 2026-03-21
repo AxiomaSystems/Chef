@@ -1,6 +1,9 @@
 "use client";
 
 import type { AggregatedIngredient, BaseRecipe, Cart, Tag } from "@cart/shared";
+import { startTransition, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { deletePlanningResourceAction } from "@/app/home-actions";
 import type { DashboardCartDraft } from "@/components/dashboard/drafts-and-carts-section";
 
 function formatDate(iso: string) {
@@ -100,15 +103,45 @@ export function PlanningDetailOverlay(props: {
     | null;
   onClose: () => void;
   onEdit: (detail: EditableDetail) => void;
+  onDeleted: () => void;
 }) {
-  if (!props.detail) {
+  const { detail, onClose, onDeleted, onEdit } = props;
+  const router = useRouter();
+  const [deleteError, setDeleteError] = useState<string | undefined>();
+  const [isDeleting, startDeleting] = useTransition();
+
+  if (!detail) {
     return null;
   }
 
-  if (props.detail.type === "draft") {
-    const draftDetail = props.detail.draft;
+  function handleDelete(resourceType: "draft" | "cart", resourceId: string) {
+    const confirmed = window.confirm(
+      resourceType === "draft" ? "Delete this draft?" : "Delete this cart?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleteError(undefined);
+    startDeleting(async () => {
+      const result = await deletePlanningResourceAction(resourceType, resourceId);
+      if (result.error) {
+        setDeleteError(result.error);
+        return;
+      }
+
+      onDeleted();
+      startTransition(() => {
+        router.refresh();
+      });
+    });
+  }
+
+  if (detail.type === "draft") {
+    const draftDetail = detail.draft;
     const recipeMap = new Map(
-      props.detail.recipes.map((recipe) => [recipe.id, recipe]),
+      detail.recipes.map((recipe) => [recipe.id, recipe]),
     );
     const selections = draftDetail.selections.map((selection) => ({
       ...selection,
@@ -135,8 +168,16 @@ export function PlanningDetailOverlay(props: {
             <div className="flex items-center gap-3">
               <button
                 type="button"
+                onClick={() => handleDelete("draft", draftDetail.id)}
+                disabled={isDeleting}
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--clay)]/24 bg-[color:var(--clay)]/8 px-4 text-sm font-semibold text-[color:var(--clay)] transition hover:bg-[color:var(--clay)]/14 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Delete draft
+              </button>
+              <button
+                type="button"
                 onClick={() =>
-                  props.onEdit({
+                  onEdit({
                     type: "draft",
                     id: draftDetail.id,
                     name: draftDetail.name,
@@ -150,7 +191,7 @@ export function PlanningDetailOverlay(props: {
               </button>
               <button
                 type="button"
-                onClick={props.onClose}
+                onClick={onClose}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 text-xl text-[color:var(--forest-strong)] transition hover:bg-white"
                 aria-label="Close draft detail"
               >
@@ -160,6 +201,11 @@ export function PlanningDetailOverlay(props: {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+            {deleteError ? (
+              <p className="mb-4 rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
+                {deleteError}
+              </p>
+            ) : null}
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {selections.map((selection, index) => (
                 <article
@@ -219,9 +265,9 @@ export function PlanningDetailOverlay(props: {
     );
   }
 
-  const cartDetail = props.detail.cart;
+  const cartDetail = detail.cart;
   const recipeMap = new Map(
-    props.detail.recipes.map((recipe) => [recipe.id, recipe]),
+    detail.recipes.map((recipe) => [recipe.id, recipe]),
   );
   const cartRecipes = cartDetail.dishes.map((dish, index) => ({
     dish,
@@ -255,8 +301,16 @@ export function PlanningDetailOverlay(props: {
           <div className="flex items-center gap-3">
             <button
               type="button"
+              onClick={() => handleDelete("cart", cartDetail.id ?? "")}
+              disabled={isDeleting}
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--clay)]/24 bg-[color:var(--clay)]/8 px-4 text-sm font-semibold text-[color:var(--clay)] transition hover:bg-[color:var(--clay)]/14 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Delete cart
+            </button>
+            <button
+              type="button"
                 onClick={() =>
-                  props.onEdit({
+                  onEdit({
                     type: "cart",
                     id: cartDetail.id ?? "",
                     name: cartDetail.name,
@@ -270,7 +324,7 @@ export function PlanningDetailOverlay(props: {
             </button>
             <button
               type="button"
-              onClick={props.onClose}
+              onClick={onClose}
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 text-xl text-[color:var(--forest-strong)] transition hover:bg-white"
               aria-label="Close cart detail"
             >
@@ -280,6 +334,11 @@ export function PlanningDetailOverlay(props: {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+          {deleteError ? (
+            <p className="mb-4 rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
+              {deleteError}
+            </p>
+          ) : null}
           <div className="grid gap-6 xl:grid-cols-[1.5fr_0.95fr]">
             <section className="rounded-[1.6rem] border border-[color:var(--line)] bg-white/52 p-5 sm:p-6">
               <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[color:var(--line)] pb-4">

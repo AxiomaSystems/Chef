@@ -318,6 +318,7 @@ export function RecipeLibrary(props: {
         }
         onClose={() => setActiveDetail(null)}
         onEdit={openEditorFromDetail}
+        onDeleted={() => setActiveDetail(null)}
       />
     </>
   );
