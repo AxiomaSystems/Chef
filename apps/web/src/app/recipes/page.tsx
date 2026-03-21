@@ -1,13 +1,20 @@
-import type { BaseRecipe, User } from "@cart/shared";
+import type { BaseRecipe, Cart, User } from "@cart/shared";
 import { redirect } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import type { DashboardCartDraft } from "@/components/dashboard/drafts-and-carts-section";
 import { RecipeLibrary } from "@/components/recipes/recipe-library";
-import { fetchAuthedResource, fetchCollection } from "@/lib/api";
+import {
+  fetchAuthedCollection,
+  fetchAuthedResource,
+  fetchCollection,
+} from "@/lib/api";
 
 export default async function RecipesPage() {
-  const [me, recipes] = await Promise.all([
+  const [me, recipes, drafts, carts] = await Promise.all([
     fetchAuthedResource<User>("/me"),
     fetchCollection<BaseRecipe>("/recipes"),
+    fetchAuthedCollection<DashboardCartDraft>("/cart-drafts"),
+    fetchAuthedCollection<Cart>("/carts"),
   ]);
 
   if (!me.data) {
@@ -28,6 +35,8 @@ export default async function RecipesPage() {
               new Date(right.updated_at).getTime() -
               new Date(left.updated_at).getTime(),
           )}
+          drafts={drafts.data}
+          carts={carts.data}
         />
       </div>
     </main>

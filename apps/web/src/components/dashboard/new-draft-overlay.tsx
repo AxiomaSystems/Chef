@@ -47,18 +47,29 @@ export function NewDraftOverlay(props: {
   recipes: BaseRecipe[];
   onClose: () => void;
   onCreated: (detail: { type: "draft" | "cart"; id: string }) => void;
+  initialRecipeIds?: string[];
+  initialName?: string;
 }) {
-  const { onClose, onCreated, open, recipes } = props;
+  const {
+    initialName = "",
+    initialRecipeIds = [],
+    onClose,
+    onCreated,
+    open,
+    recipes,
+  } = props;
   const router = useRouter();
   const [state, formAction] = useActionState(
     submitDraftFlowAction,
     INITIAL_STATE,
   );
   const [query, setQuery] = useState("");
-  const [draftName, setDraftName] = useState("");
+  const [draftName, setDraftName] = useState(initialName);
   const [showAllTags, setShowAllTags] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>([]);
+  const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>(
+    initialRecipeIds,
+  );
   const deferredQuery = useDeferredValue(query);
   const handledResourceRef = useRef<string | null>(null);
 
@@ -134,20 +145,20 @@ export function NewDraftOverlay(props: {
         <div className="flex items-center justify-between gap-4 border-b border-[color:var(--line)] px-5 py-4 sm:px-6">
           <div>
             <h2 className="font-display text-3xl leading-none text-[color:var(--forest-strong)]">
-              New draft
+              Build cart
             </h2>
             <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
-              Choose recipes, keep the selection visible, then save a draft or
-              generate a cart.
+              Choose recipes, keep the selection visible, and generate a cart.
+              Save stays here only when you want to keep the run incomplete.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 text-xl text-[color:var(--forest-strong)] transition hover:bg-white"
-            aria-label="Close draft builder"
+            aria-label="Close cart builder"
           >
-            ×
+            x
           </button>
         </div>
 
@@ -160,7 +171,7 @@ export function NewDraftOverlay(props: {
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <label className="block w-full max-w-xs">
                   <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--olive)]">
-                    Draft name
+                    Cart name
                   </span>
                   <input
                     type="text"
@@ -355,7 +366,7 @@ export function NewDraftOverlay(props: {
                 </div>
               ) : (
                 <div className="rounded-[1.2rem] border border-dashed border-[color:var(--line)] bg-[color:var(--paper)]/54 px-4 py-5 text-sm leading-6 text-[color:var(--ink-soft)]">
-                  Select recipes on the left to build the draft.
+                  Select recipes on the left to start a cart.
                 </div>
               )}
             </div>
@@ -377,12 +388,16 @@ export function NewDraftOverlay(props: {
             ) : null}
 
             <div className="mt-5 flex flex-wrap gap-3">
-              <SubmitButton intent="save" label="Save" tone="secondary" />
               <SubmitButton intent="generate" label="Generate cart" />
+              <SubmitButton
+                intent="save"
+                label="Save draft"
+                tone="secondary"
+              />
             </div>
             <p className="mt-3 text-xs leading-5 text-[color:var(--ink-soft)]">
-              Save creates a draft. Generate cart creates the cart immediately
-              using the same name when provided.
+              Generate cart is the primary path. Save draft only keeps the
+              selection around when you are not ready yet.
             </p>
           </aside>
         </form>

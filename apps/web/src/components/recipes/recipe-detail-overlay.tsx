@@ -7,14 +7,17 @@ function getDietaryBadges(recipe: BaseRecipe) {
 }
 
 function formatNutritionLabel(label: string) {
-  return label.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+  return label
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export function RecipeDetailOverlay(props: {
   recipe: BaseRecipe | null;
   onClose: () => void;
+  onAddToCart: (recipe: BaseRecipe) => void;
 }) {
-  const { recipe, onClose } = props;
+  const { recipe, onAddToCart, onClose } = props;
 
   if (!recipe) {
     return null;
@@ -37,7 +40,7 @@ export function RecipeDetailOverlay(props: {
               {recipe.name}
             </h2>
             <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
-              {recipe.cuisine.label} · {recipe.servings} servings
+              {recipe.cuisine.label} / {recipe.servings} servings
             </p>
           </div>
           <button
@@ -46,7 +49,7 @@ export function RecipeDetailOverlay(props: {
             className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 text-xl text-[color:var(--forest-strong)] transition hover:bg-white"
             aria-label="Close recipe detail"
           >
-            ×
+            x
           </button>
         </div>
 
@@ -96,9 +99,12 @@ export function RecipeDetailOverlay(props: {
                           </p>
                           {ingredient.preparation || ingredient.optional ? (
                             <p className="mt-1 text-xs text-[color:var(--ink-soft)]">
-                              {[ingredient.preparation, ingredient.optional ? "Optional" : null]
+                              {[
+                                ingredient.preparation,
+                                ingredient.optional ? "Optional" : null,
+                              ]
                                 .filter(Boolean)
-                                .join(" · ")}
+                                .join(" / ")}
                             </p>
                           ) : null}
                         </li>
@@ -192,6 +198,16 @@ export function RecipeDetailOverlay(props: {
                     No nutrition snapshot yet for this recipe.
                   </p>
                 )}
+              </section>
+
+              <section className="rounded-[1.6rem] border border-[color:var(--line)] bg-white/52 p-5">
+                <button
+                  type="button"
+                  onClick={() => onAddToCart(recipe)}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[color:var(--forest)] px-4 text-sm font-semibold text-[color:var(--paper)] transition hover:bg-[color:var(--forest-strong)]"
+                >
+                  Add to cart
+                </button>
               </section>
             </aside>
           </div>

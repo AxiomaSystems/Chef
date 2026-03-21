@@ -1,18 +1,36 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
-import type { BaseRecipe } from "@cart/shared";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import type { BaseRecipe, Cart } from "@cart/shared";
+import { NewDraftOverlay } from "@/components/dashboard/new-draft-overlay";
+import type { DashboardCartDraft } from "@/components/dashboard/drafts-and-carts-section";
+import { PlanningDetailOverlay } from "@/components/planning/planning-detail-overlay";
 import { RecipeDetailOverlay } from "./recipe-detail-overlay";
 
 function getDietaryBadges(recipe: BaseRecipe) {
   return recipe.tags.filter((tag) => tag.kind === "dietary_badge").slice(0, 3);
 }
 
-export function RecipeLibrary(props: { recipes: BaseRecipe[] }) {
+export function RecipeLibrary(props: {
+  recipes: BaseRecipe[];
+  drafts: DashboardCartDraft[];
+  carts: Cart[];
+}) {
   const [query, setQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showAllTags, setShowAllTags] = useState(false);
   const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
+  const [builderSeed, setBuilderSeed] = useState(0);
+  const [builderConfig, setBuilderConfig] = useState<{
+    recipeIds: string[];
+    name?: string;
+  }>({ recipeIds: [] });
+  const [isBuilderOpen, setBuilderOpen] = useState(false);
+  const [activeDetail, setActiveDetail] = useState<
+    | { type: "draft"; id: string }
+    | { type: "cart"; id: string }
+    | null
+  >(null);
   const deferredQuery = useDeferredValue(query);
 
   const recipeMap = useMemo(
@@ -56,6 +74,39 @@ export function RecipeLibrary(props: { recipes: BaseRecipe[] }) {
     [normalizedQuery, props.recipes, selectedTag],
   );
 
+  const openBuilder = useCallback((recipeIds: string[] = [], name = "") => {
+    setBuilderSeed((current) => current + 1);
+    setBuilderConfig({ recipeIds, name });
+    setBuilderOpen(true);
+  }, []);
+
+  const closeBuilder = useCallback(() => {
+    setBuilderOpen(false);
+  }, []);
+
+  const handleAddToCart = useCallback(
+    (recipe: BaseRecipe) => {
+      setActiveRecipeId(null);
+      openBuilder([recipe.id]);
+    },
+    [openBuilder],
+  );
+
+  const activeDetailData =
+    activeDetail?.type === "draft"
+      ? {
+          type: "draft" as const,
+          draft: props.drafts.find((draft) => draft.id === activeDetail.id) ?? null,
+          recipes: props.recipes,
+        }
+      : activeDetail?.type === "cart"
+        ? {
+            type: "cart" as const,
+            cart: props.carts.find((cart) => cart.id === activeDetail.id) ?? null,
+            recipes: props.recipes,
+          }
+        : null;
+
   return (
     <>
       <section className="rounded-[2rem] border border-[color:var(--line)] bg-white/60 p-6 shadow-[var(--shadow)] backdrop-blur-sm">
@@ -66,8 +117,8 @@ export function RecipeLibrary(props: { recipes: BaseRecipe[] }) {
                 Recipe library
               </h1>
               <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
-                Browse the visible shelf, scan dietary badges, and keep favorites
-                ready for the next planning run.
+                Browse the visible shelf, scan dietary badges, and pull dishes
+                into a cart when you are ready to plan.
               </p>
             </div>
 
@@ -201,6 +252,36 @@ export function RecipeLibrary(props: { recipes: BaseRecipe[] }) {
       <RecipeDetailOverlay
         recipe={activeRecipeId ? recipeMap.get(activeRecipeId) ?? null : null}
         onClose={() => setActiveRecipeId(null)}
+        onAddToCart={handleAddToCart}
+      />
+
+      <NewDraftOverlay
+        key={builderSeed}
+        open={isBuilderOpen}
+        recipes={props.recipes}
+        onClose={closeBuilder}
+        onCreated={setActiveDetail}
+        initialRecipeIds={builderConfig.recipeIds}
+        initialName={builderConfig.name}
+      />
+
+      <PlanningDetailOverlay
+        detail={
+          activeDetailData?.type === "draft" && activeDetailData.draft
+            ? {
+                type: "draft",
+                draft: activeDetailData.draft,
+                recipes: activeDetailData.recipes,
+              }
+            : activeDetailData?.type === "cart" && activeDetailData.cart
+              ? {
+                  type: "cart",
+                  cart: activeDetailData.cart,
+                  recipes: activeDetailData.recipes,
+                }
+              : null
+        }
+        onClose={() => setActiveDetail(null)}
       />
     </>
   );
