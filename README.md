@@ -24,6 +24,7 @@ The Next.js web app in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web)
 - `Add to cart` from recipe detail opens the cart builder preloaded with that recipe
 - draft creation, cart creation, draft detail, and cart detail all use large overlays instead of being the primary navigation path
 - draft/cart detail overlays now support edit and delete flows
+- cart detail can now generate a `ShoppingCart` and open its retailer-facing detail overlay in place
 - `/account/settings/*` holds account, preferences, and security
 
 ### API
@@ -286,12 +287,13 @@ This separation is intentional:
 - draft/cart detail overlays now support edit flows by reopening the same composer with hydrated selections, retailer, and name
 - draft/cart detail overlays now support delete flows
 - generating a cart from an existing draft now deletes that draft after successful cart creation
+- cart detail now supports `Generate shopping cart`, which opens a retailer-facing shopping-cart detail overlay on top of the same workspace
 
 ## Upcoming Work
 
 The next high-signal work is now more product-shaped than before.
 
-1. Build the shopping-cart detail surface from `Cart`, so purchase-state has a first-class UI after meal planning.
+1. Expand the shopping-cart overlay from read-only output into a fuller purchase workspace, including history access and clearer repeat-generation behavior.
 2. Add a clearer draft -> cart conversion affordance inside draft detail, beyond the generic composer action.
 3. Expand recipe library actions with `Fork/Edit` and a stronger owner/system distinction in the UI.
 4. Harden Google OAuth for production secret management and deploy configuration.
@@ -299,11 +301,11 @@ The next high-signal work is now more product-shaped than before.
 
 ## Current Gaps
 
-- shopping-cart detail is not a first-class product surface yet
 - recipe variants and AI-assisted adaptation are not implemented yet
 - retailer matching is still mock data, not a real retailer integration
 - delete flows exist, but recovery/versioning does not
 - drafts and carts can now be edited, but there is still no broader history/timeline model for planning runs
+- shopping-cart history exists in API but is not yet wired into the main web flow as a first-class revisit surface
 
 ## Practical Reading Guide
 

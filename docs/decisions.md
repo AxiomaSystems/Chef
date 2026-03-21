@@ -302,6 +302,21 @@ Implications:
 - the composer must support hydrated selections, name, retailer, and resource identity
 - save semantics can vary by mode, but the interface stays shared
 
+## 23.5. ShoppingCart Detail Should Stay In The Same Workspace Flow
+
+Decision:
+- generate `ShoppingCart` from cart detail and open the result as another large overlay, not as a page redirect
+
+Why:
+- planning and purchase review are adjacent jobs in the same user session
+- leaving the workspace context to inspect retailer output makes the flow feel broken apart
+- the provider boundary should change later without forcing another UX rewrite
+
+Implications:
+- cart detail owns the `Generate shopping cart` CTA
+- shopping-cart detail is read-only derived output for now
+- real retailer integration should replace the matching provider behind the same overlay flow
+
 ## 24. Replace Boolean Ownership Semantics With Clearer States Later
 
 Decision:

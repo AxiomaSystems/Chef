@@ -1,9 +1,18 @@
 "use client";
 
-import type { AggregatedIngredient, BaseRecipe, Cart, Tag } from "@cart/shared";
+import type {
+  AggregatedIngredient,
+  BaseRecipe,
+  Cart,
+  ShoppingCart,
+  Tag,
+} from "@cart/shared";
 import { startTransition, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deletePlanningResourceAction } from "@/app/home-actions";
+import {
+  createShoppingCartAction,
+  deletePlanningResourceAction,
+} from "@/app/home-actions";
 import type { DashboardCartDraft } from "@/components/dashboard/drafts-and-carts-section";
 
 function formatDate(iso: string) {
@@ -104,11 +113,15 @@ export function PlanningDetailOverlay(props: {
   onClose: () => void;
   onEdit: (detail: EditableDetail) => void;
   onDeleted: () => void;
+  onOpenShoppingCart: (shoppingCart: ShoppingCart) => void;
 }) {
-  const { detail, onClose, onDeleted, onEdit } = props;
+  const { detail, onClose, onDeleted, onEdit, onOpenShoppingCart } = props;
   const router = useRouter();
   const [deleteError, setDeleteError] = useState<string | undefined>();
+  const [shoppingError, setShoppingError] = useState<string | undefined>();
   const [isDeleting, startDeleting] = useTransition();
+  const [isGeneratingShoppingCart, startGeneratingShoppingCart] =
+    useTransition();
 
   if (!detail) {
     return null;
@@ -132,6 +145,29 @@ export function PlanningDetailOverlay(props: {
       }
 
       onDeleted();
+      startTransition(() => {
+        router.refresh();
+      });
+    });
+  }
+
+  function handleGenerateShoppingCart(cart: Cart) {
+    if (!cart.id) {
+      setShoppingError("Cart not found for shopping-cart generation.");
+      return;
+    }
+
+    setShoppingError(undefined);
+    startGeneratingShoppingCart(async () => {
+      const result = await createShoppingCartAction(cart.id ?? "", cart.retailer);
+      if (result.error || !result.shoppingCart) {
+        setShoppingError(
+          result.error ?? "Unable to generate this shopping cart right now.",
+        );
+        return;
+      }
+
+      onOpenShoppingCart(result.shoppingCart);
       startTransition(() => {
         router.refresh();
       });
@@ -204,6 +240,11 @@ export function PlanningDetailOverlay(props: {
             {deleteError ? (
               <p className="mb-4 rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
                 {deleteError}
+              </p>
+            ) : null}
+            {shoppingError ? (
+              <p className="mb-4 rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
+                {shoppingError}
               </p>
             ) : null}
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -339,6 +380,11 @@ export function PlanningDetailOverlay(props: {
               {deleteError}
             </p>
           ) : null}
+          {shoppingError ? (
+            <p className="mb-4 rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
+              {shoppingError}
+            </p>
+          ) : null}
           <div className="grid gap-6 xl:grid-cols-[1.5fr_0.95fr]">
             <section className="rounded-[1.6rem] border border-[color:var(--line)] bg-white/52 p-5 sm:p-6">
               <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[color:var(--line)] pb-4">
@@ -402,6 +448,16 @@ export function PlanningDetailOverlay(props: {
                 <h3 className="mt-2 font-display text-[2rem] leading-[0.94] text-[color:var(--forest-strong)]">
                   Recipes in this cart
                 </h3>
+                <button
+                  type="button"
+                  onClick={() => handleGenerateShoppingCart(cartDetail)}
+                  disabled={isGeneratingShoppingCart}
+                  className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[color:var(--forest)] px-4 text-sm font-semibold text-[color:var(--paper)] transition hover:bg-[color:var(--forest-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isGeneratingShoppingCart
+                    ? "Generating..."
+                    : "Generate shopping cart"}
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-3 overflow-y-auto p-4">

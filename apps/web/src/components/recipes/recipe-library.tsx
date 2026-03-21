@@ -1,10 +1,16 @@
 "use client";
 
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
-import type { BaseRecipe, Cart, Retailer } from "@cart/shared";
+import type {
+  BaseRecipe,
+  Cart,
+  Retailer,
+  ShoppingCart,
+} from "@cart/shared";
 import { NewDraftOverlay } from "@/components/dashboard/new-draft-overlay";
 import type { DashboardCartDraft } from "@/components/dashboard/drafts-and-carts-section";
 import { PlanningDetailOverlay } from "@/components/planning/planning-detail-overlay";
+import { ShoppingCartDetailOverlay } from "@/components/planning/shopping-cart-detail-overlay";
 import { RecipeDetailOverlay } from "./recipe-detail-overlay";
 
 function getDietaryBadges(recipe: BaseRecipe) {
@@ -34,6 +40,8 @@ export function RecipeLibrary(props: {
     | { type: "cart"; id: string }
     | null
   >(null);
+  const [activeShoppingCart, setActiveShoppingCart] =
+    useState<ShoppingCart | null>(null);
   const deferredQuery = useDeferredValue(query);
 
   const recipeMap = useMemo(
@@ -138,6 +146,11 @@ export function RecipeLibrary(props: {
             recipes: props.recipes,
           }
         : null;
+
+  const openShoppingCart = useCallback((shoppingCart: ShoppingCart) => {
+    setActiveDetail(null);
+    setActiveShoppingCart(shoppingCart);
+  }, []);
 
   return (
     <>
@@ -319,6 +332,12 @@ export function RecipeLibrary(props: {
         onClose={() => setActiveDetail(null)}
         onEdit={openEditorFromDetail}
         onDeleted={() => setActiveDetail(null)}
+        onOpenShoppingCart={openShoppingCart}
+      />
+
+      <ShoppingCartDetailOverlay
+        shoppingCart={activeShoppingCart}
+        onClose={() => setActiveShoppingCart(null)}
       />
     </>
   );

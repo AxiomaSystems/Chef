@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import type { BaseRecipe, Cart, Retailer } from "@cart/shared";
+import type { BaseRecipe, Cart, Retailer, ShoppingCart } from "@cart/shared";
 import { DashboardActionPanel } from "./dashboard-action-panel";
 import { NewDraftOverlay } from "./new-draft-overlay";
 import { RecentWorkSection } from "./recent-work-section";
 import type { PlanningItem } from "./recent-work.utils";
 import type { DashboardCartDraft } from "./drafts-and-carts-section";
 import { PlanningDetailOverlay } from "@/components/planning/planning-detail-overlay";
+import { ShoppingCartDetailOverlay } from "@/components/planning/shopping-cart-detail-overlay";
 
 type ActivePlanningState =
   | {
@@ -50,6 +51,8 @@ export function HomeWorkspace(props: {
     | { type: "cart"; id: string }
     | null
   >(null);
+  const [activeShoppingCart, setActiveShoppingCart] =
+    useState<ShoppingCart | null>(null);
 
   const openDraftOverlay = useCallback(() => {
     setOverlayVersion((current) => current + 1);
@@ -70,6 +73,15 @@ export function HomeWorkspace(props: {
 
   const closeDetail = useCallback(() => {
     setActiveDetail(null);
+  }, []);
+
+  const openShoppingCart = useCallback((shoppingCart: ShoppingCart) => {
+    setActiveDetail(null);
+    setActiveShoppingCart(shoppingCart);
+  }, []);
+
+  const closeShoppingCart = useCallback(() => {
+    setActiveShoppingCart(null);
   }, []);
 
   const openEditorFromDetail = useCallback(
@@ -155,6 +167,12 @@ export function HomeWorkspace(props: {
         onClose={closeDetail}
         onEdit={openEditorFromDetail}
         onDeleted={closeDetail}
+        onOpenShoppingCart={openShoppingCart}
+      />
+
+      <ShoppingCartDetailOverlay
+        shoppingCart={activeShoppingCart}
+        onClose={closeShoppingCart}
       />
     </>
   );

@@ -418,6 +418,11 @@ Current runtime note:
 - this concept is now represented explicitly as `ShoppingCart`
 - matching still runs against a mock provider and should later swap to a real retailer adapter
 
+Current UI note:
+
+- `ShoppingCart` now has a first-class detail overlay in web, but it is still treated as derived output from `Cart`
+- the overlay should emphasize matched purchasable products and subtotal, not recipe editing
+
 ## 7. User Models
 
 ### UserRole

@@ -1,6 +1,10 @@
 "use server";
 
-import type { CartSelection, Retailer } from "@cart/shared";
+import type {
+  CartSelection,
+  Retailer,
+  ShoppingCart,
+} from "@cart/shared";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -19,6 +23,12 @@ export type DeletePlanningResourceActionState = {
   success?: string;
   resourceType?: "draft" | "cart";
   resourceId?: string;
+};
+
+export type CreateShoppingCartActionState = {
+  error?: string;
+  success?: string;
+  shoppingCart?: ShoppingCart;
 };
 
 async function callAuthedJson(path: string, init?: RequestInit) {
@@ -177,5 +187,45 @@ export async function deletePlanningResourceAction(
     success: resourceType === "draft" ? "Draft deleted." : "Cart deleted.",
     resourceType,
     resourceId: normalizedResourceId,
+  };
+}
+
+export async function createShoppingCartAction(
+  cartId: string,
+  retailer: Retailer,
+): Promise<CreateShoppingCartActionState> {
+  const normalizedCartId = String(cartId).trim();
+
+  if (!normalizedCartId) {
+    return {
+      error: "Cart not found for shopping-cart generation.",
+    };
+  }
+
+  const response = await callAuthedJson(
+    `/carts/${normalizedCartId}/shopping-carts`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ retailer }),
+    },
+  ).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: "Unable to generate this shopping cart right now.",
+    };
+  }
+
+  const shoppingCart = (await response.json()) as ShoppingCart;
+
+  revalidatePath("/");
+  revalidatePath("/recipes");
+
+  return {
+    success: "Shopping cart generated.",
+    shoppingCart,
   };
 }

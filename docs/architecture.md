@@ -219,6 +219,7 @@ The current web app is intentionally split into separate surfaces:
 - recipe detail lives in an overlay on top of `/recipes`
 - the cart builder lives in a large overlay and can be entered from home or from recipe detail
 - draft detail and cart detail stay in overlays so the user can work without losing workspace context
+- shopping-cart detail now also opens as a large overlay from cart detail, so the retail output stays in the same workspace flow
 
 This keeps recipe exploration from competing with planning state on the same page.
 
@@ -230,6 +231,7 @@ Current interaction model:
 - `Generate cart` is the primary planning action
 - draft/cart detail overlays can reopen the same builder in edit mode
 - draft/cart detail overlays can delete the current resource
+- cart detail can now call `POST /api/v1/carts/:cartId/shopping-carts` and open the returned `ShoppingCart` immediately in an overlay
 
 Current transitional auth setup:
 
@@ -305,7 +307,7 @@ Not implemented yet:
 
 Not first-class in UI yet:
 
-- shopping-cart detail/workflow
+- shopping-cart history and repeat-shopping revisit flows
 - recovery or history after delete
 
 ## Current Infrastructure
