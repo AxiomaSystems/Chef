@@ -14,9 +14,17 @@ const LOGIN_PATH = "/login";
 const SIGNUP_PATH = "/signup";
 const ONBOARDING_PATH = "/onboarding";
 const ACCOUNT_PATH = "/account";
+const DRAFTS_PATH = "/drafts";
+const CARTS_PATH = "/carts";
 
 function isProtectedAccountPath(pathname: string) {
   return pathname === ACCOUNT_PATH || pathname.startsWith(`${ACCOUNT_PATH}/`);
+}
+
+function isProtectedWorkspacePath(pathname: string) {
+  return (
+    pathname.startsWith(`${DRAFTS_PATH}/`) || pathname.startsWith(`${CARTS_PATH}/`)
+  );
 }
 
 async function hasValidSession(accessToken?: string) {
@@ -36,7 +44,8 @@ export async function proxy(request: NextRequest) {
     pathname !== LOGIN_PATH &&
     pathname !== SIGNUP_PATH &&
     pathname !== ONBOARDING_PATH &&
-    !isProtectedAccountPath(pathname)
+    !isProtectedAccountPath(pathname) &&
+    !isProtectedWorkspacePath(pathname)
   ) {
     return NextResponse.next();
   }
@@ -96,5 +105,7 @@ export const config = {
     "/onboarding",
     "/account",
     "/account/:path*",
+    "/drafts/:path*",
+    "/carts/:path*",
   ],
 };

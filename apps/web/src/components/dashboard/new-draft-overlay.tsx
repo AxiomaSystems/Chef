@@ -42,8 +42,9 @@ export function NewDraftOverlay(props: {
   open: boolean;
   recipes: BaseRecipe[];
   onClose: () => void;
+  onCreated: (detail: { type: "draft" | "cart"; id: string }) => void;
 }) {
-  const { onClose, open, recipes } = props;
+  const { onClose, onCreated, open, recipes } = props;
   const router = useRouter();
   const [state, formAction] = useActionState(
     submitDraftFlowAction,
@@ -55,18 +56,25 @@ export function NewDraftOverlay(props: {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>([]);
   const deferredQuery = useDeferredValue(query);
-  const handledSuccessRef = useRef<string | null>(null);
+  const handledResourceRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!state.success || handledSuccessRef.current === state.success) {
+    if (
+      !state.resourceType ||
+      !state.resourceId ||
+      handledResourceRef.current === `${state.resourceType}:${state.resourceId}`
+    ) {
       return;
     }
 
-    handledSuccessRef.current = state.success;
+    handledResourceRef.current = `${state.resourceType}:${state.resourceId}`;
     onClose();
-    router.push("/#recent-work");
+    onCreated({
+      type: state.resourceType,
+      id: state.resourceId,
+    });
     router.refresh();
-  }, [onClose, router, state.success]);
+  }, [onClose, onCreated, router, state.resourceId, state.resourceType]);
 
   const recipeLookup = useMemo(
     () => new Map(recipes.map((recipe) => [recipe.id, recipe])),

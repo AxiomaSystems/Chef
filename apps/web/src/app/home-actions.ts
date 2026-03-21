@@ -10,6 +10,8 @@ export type DraftFlowActionState = {
   error?: string;
   success?: string;
   intent?: "save" | "generate";
+  resourceType?: "draft" | "cart";
+  resourceId?: string;
 };
 
 async function callAuthedJson(path: string, init?: RequestInit) {
@@ -89,11 +91,15 @@ export async function submitDraftFlowAction(
     };
   }
 
+  const createdResource = (await response.json()) as { id?: string };
+
   revalidatePath("/");
 
   return {
     success:
       intent === "save" ? "Draft saved." : "Cart generated.",
     intent,
+    resourceType: intent === "save" ? "draft" : "cart",
+    resourceId: String(createdResource.id),
   };
 }

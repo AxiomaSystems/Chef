@@ -20,6 +20,7 @@ function TypeBadge(props: { kind: PlanningItem["kind"] }) {
 
 export function RecentWorkSection(props: {
   planningItems: PlanningItem[];
+  onOpenDetail: (detail: { type: "draft" | "cart"; id: string }) => void;
 }) {
   const [activeTab, setActiveTab] = useState<"all" | "draft" | "cart">("all");
   const formatDate = (iso: string) =>
@@ -84,8 +85,15 @@ export function RecentWorkSection(props: {
         {visibleItems.length > 0 ? (
           <div className="grid gap-3">
             {visibleItems.map((item) => (
-              <article
+              <button
                 key={`${item.kind}-${item.id}`}
+                type="button"
+                onClick={() =>
+                  props.onOpenDetail({
+                    type: item.kind,
+                    id: item.id,
+                  })
+                }
                 className="rounded-[1.45rem] border border-[color:var(--line)] bg-[color:var(--paper)]/68 px-4 py-4 transition hover:border-[color:var(--olive)]/26 hover:bg-[color:var(--paper)]/82"
               >
                 <div className="flex items-start justify-between gap-4">
@@ -100,9 +108,9 @@ export function RecentWorkSection(props: {
                   </div>
                   <span className="shrink-0 pt-1 text-xs uppercase tracking-[0.16em] text-[color:var(--olive)]">
                     {formatDate(item.updatedAt)}
-                  </span>
-                </div>
-              </article>
+                    </span>
+                  </div>
+                </button>
             ))}
           </div>
         ) : (

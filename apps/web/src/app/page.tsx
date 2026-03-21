@@ -95,6 +95,8 @@ export default async function Home() {
         <HomeWorkspace
           activePlanningState={latestPlanningItem}
           planningItems={planningItems}
+          drafts={drafts.data}
+          carts={carts.data}
           recipes={recipes.data.toSorted(
             (left, right) =>
               new Date(right.updated_at).getTime() -
