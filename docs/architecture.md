@@ -217,6 +217,7 @@ The current web app is intentionally split into separate surfaces:
 
 - `/` is the planning home
 - `/recipes` is the recipe browsing/library surface
+- `/shopping` is the saved shopping-cart library surface
 - recipe detail lives in an overlay on top of `/recipes`
 - the cart builder lives in a large overlay and can be entered from home or from recipe detail
 - draft detail and cart detail stay in overlays so the user can work without losing workspace context

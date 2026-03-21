@@ -20,12 +20,14 @@ The Next.js web app in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web)
 
 - `/` is the authenticated planning home for recent carts and drafts
 - `/recipes` is the dedicated recipe library surface
+- `/shopping` is the dedicated saved shopping-cart library
 - recipe detail opens as a large overlay
 - `Add to cart` from recipe detail opens the cart builder preloaded with that recipe
 - draft creation, cart creation, draft detail, and cart detail all use large overlays instead of being the primary navigation path
 - draft/cart detail overlays now support edit and delete flows
 - cart detail can now generate a `ShoppingCart` and open its retailer-facing detail overlay in place
 - shopping-cart detail now supports manual editing over the same persisted resource: replace matches, add manual items, delete lines, and save
+- saved shopping carts can now be browsed from a dedicated `/shopping` surface
 - `/account/settings/*` holds account, preferences, and security
 
 ### API

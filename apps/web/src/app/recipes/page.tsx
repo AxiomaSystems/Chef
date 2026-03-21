@@ -28,7 +28,7 @@ export default async function RecipesPage() {
   return (
     <main className="min-h-screen px-5 py-6 sm:px-8 lg:px-12">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <DashboardHeader user={me.data} />
+        <DashboardHeader user={me.data} activeSection="recipes" />
         <RecipeLibrary
           recipes={recipes.data.toSorted(
             (left, right) =>

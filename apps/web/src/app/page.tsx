@@ -91,7 +91,7 @@ export default async function Home() {
   return (
     <main className="min-h-screen px-5 py-6 sm:px-8 lg:px-12">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <DashboardHeader user={me.data} />
+        <DashboardHeader user={me.data} activeSection="home" />
         <HomeWorkspace
           activePlanningState={latestPlanningItem}
           planningItems={planningItems}

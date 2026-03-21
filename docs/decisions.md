@@ -270,6 +270,16 @@ Why:
 - mixing both on the same page made the home noisy and semantically confused
 - `New draft` can still open an overlay from home without turning the homepage into the recipe library again
 
+## 21.5. Saved ShoppingCarts Should Also Have Their Own Surface
+
+Decision:
+- keep saved shopping carts in a dedicated `/shopping` surface instead of burying them inside home or account
+
+Why:
+- revisiting retailer outputs is a separate job from planning and separate again from recipe exploration
+- a dedicated surface makes saved purchase baskets searchable and editable without contaminating the planning home
+- this keeps `Home`, `Recipes`, and `Shopping` as three clear workspace modes
+
 ## 22. Drafts Are Secondary, Carts Are Primary
 
 Decision:
