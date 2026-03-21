@@ -1,6 +1,16 @@
 import type { Cuisine } from './cuisine';
 import type { Tag } from './tag';
 
+export type RecipeNutritionData = {
+  calories?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+  fiber_g?: number;
+  sugar_g?: number;
+  sodium_mg?: number;
+};
+
 export type RecipeStep = {
   step: number;
   what_to_do: string;
@@ -36,6 +46,7 @@ export type BaseRecipe = {
   cuisine: Cuisine;
   description?: string;
   cover_image_url?: string;
+  nutrition_data?: RecipeNutritionData;
   servings: number;
   ingredients: DishIngredient[];
   steps: RecipeStep[];

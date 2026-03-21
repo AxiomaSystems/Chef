@@ -95,6 +95,7 @@ Implemented rules:
 - user-created recipes are private by default
 - saving a system recipe creates a user-owned editable fork
 - duplicate forks of the same source recipe are prevented per user
+- recipe reads can now carry optional `nutrition_data` as derived metadata without replacing structured ingredients
 
 ### 2. Selection Layer
 
@@ -122,12 +123,16 @@ Purpose:
 Approved responsibilities:
 
 - hold recipe selections
+- hold retailer context for the planning run
 - hold resolved dishes and servings context
+- expose a derived aggregated ingredient overview from those dishes
 - remain independent from retailer matching details
 
 Current status:
 
 - this concept is now explicit in API, persistence, and shared types
+- `Cart` now persists `retailer` so the planning context survives draft -> cart -> shopping-cart generation
+- cart reads now derive `overview` from persisted dishes instead of storing a second ingredient snapshot on the cart row
 - `Cart` is no longer collapsed into the generated shopping output
 
 ### 4. Aggregation Layer
@@ -248,6 +253,10 @@ Derived but persisted shopping state:
 - matched cart items
 - estimated subtotal
 
+Derived at cart-read time:
+
+- aggregated ingredient overview for `Cart`
+
 Ephemeral state:
 
 - request-scoped actor context
@@ -321,6 +330,7 @@ Status:
 
 - explicit `Tag` and `RecipeTag` persistence is implemented
 - `/api/v1/tags` is implemented
+- dietary badge treatment should reuse curated system tags rather than introducing dedicated booleans per recipe
 - recipes now accept `tag_ids` on write and return expanded `tags` on read
 - explicit `Cuisine` persistence is implemented
 - `/api/v1/cuisines` is implemented
@@ -381,7 +391,7 @@ Status:
 - shared contracts across apps
 - system recipes remain immutable
 - user-owned data is isolated by default
-- retailer resolution belongs to `ShoppingCart`, not to `Cart`
+- retailer matching and purchasable-product resolution belong to `ShoppingCart`, even though `Cart` now keeps retailer context
 
 ## Practical Reading Guide
 

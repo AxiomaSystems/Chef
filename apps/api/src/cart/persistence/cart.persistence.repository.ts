@@ -45,6 +45,7 @@ export class CartPersistenceRepository {
       data: {
         userId: input.userId,
         name: input.name,
+        retailer: input.retailer,
         selections: input.selections,
         dishes: input.dishes,
       },
@@ -56,6 +57,7 @@ export class CartPersistenceRepository {
       where: { id, userId },
       data: {
         name: input.name,
+        retailer: input.retailer,
         selections: input.selections,
         dishes: input.dishes,
       },

@@ -25,7 +25,7 @@ export function buildPlanningItems(
     id: draft.id,
     kind: "draft",
     title: draft.name ?? "Untitled draft",
-    subtitle: `${draft.selections.length} selections · ${draft.retailer}`,
+    subtitle: `${draft.selections.length} selections - ${draft.retailer}`,
     updatedAt: draft.updated_at,
   }));
 
@@ -33,7 +33,7 @@ export function buildPlanningItems(
     id: cart.id ?? `cart-${cart.updated_at ?? cart.created_at ?? "unknown"}`,
     kind: "cart",
     title: cart.name ?? "Unnamed cart",
-    subtitle: `${cart.selections.length} selections · ${cart.dishes.length} dishes`,
+    subtitle: `${cart.selections.length} selections - ${cart.dishes.length} dishes`,
     updatedAt: cart.updated_at ?? cart.created_at ?? new Date().toISOString(),
   }));
 

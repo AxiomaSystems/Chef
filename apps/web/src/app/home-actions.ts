@@ -56,9 +56,8 @@ export async function submitDraftFlowAction(
   }));
 
   const customName = String(formData.get("name") ?? "").trim();
-  const name =
-    customName ||
-    `Planning run · ${recipeIds.length} recipe${recipeIds.length === 1 ? "" : "s"}`;
+  const fallbackName = `Planning run - ${recipeIds.length} recipe${recipeIds.length === 1 ? "" : "s"}`;
+  const name = customName || fallbackName;
 
   const response = await callAuthedJson(
     intent === "save" ? "/cart-drafts" : "/carts",
@@ -67,18 +66,11 @@ export async function submitDraftFlowAction(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(
-        intent === "save"
-          ? {
-              name,
-              retailer: "walmart",
-              selections,
-            }
-          : {
-              name,
-              selections,
-            },
-      ),
+      body: JSON.stringify({
+        name,
+        retailer: "walmart",
+        selections,
+      }),
     },
   ).catch(() => null);
 
@@ -96,8 +88,7 @@ export async function submitDraftFlowAction(
   revalidatePath("/");
 
   return {
-    success:
-      intent === "save" ? "Draft saved." : "Cart generated.",
+    success: intent === "save" ? "Draft saved." : "Cart generated.",
     intent,
     resourceType: intent === "save" ? "draft" : "cart",
     resourceId: String(createdResource.id),

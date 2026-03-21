@@ -59,6 +59,43 @@ export class CreateDishIngredientDto {
   group?: string;
 }
 
+export class RecipeNutritionDataDto {
+  @ApiPropertyOptional({ example: 640 })
+  @IsOptional()
+  @IsNumber()
+  calories?: number;
+
+  @ApiPropertyOptional({ example: 42 })
+  @IsOptional()
+  @IsNumber()
+  protein_g?: number;
+
+  @ApiPropertyOptional({ example: 36 })
+  @IsOptional()
+  @IsNumber()
+  carbs_g?: number;
+
+  @ApiPropertyOptional({ example: 28 })
+  @IsOptional()
+  @IsNumber()
+  fat_g?: number;
+
+  @ApiPropertyOptional({ example: 4 })
+  @IsOptional()
+  @IsNumber()
+  fiber_g?: number;
+
+  @ApiPropertyOptional({ example: 6 })
+  @IsOptional()
+  @IsNumber()
+  sugar_g?: number;
+
+  @ApiPropertyOptional({ example: 780 })
+  @IsOptional()
+  @IsNumber()
+  sodium_mg?: number;
+}
+
 export class CreateRecipeDto {
   @ApiProperty({ example: 'Arroz con pollo casero' })
   @IsString()
@@ -79,6 +116,12 @@ export class CreateRecipeDto {
   @ValidateIf((_object, value) => value !== null && value !== undefined)
   @IsUrl()
   cover_image_url?: string;
+
+  @ApiPropertyOptional({ type: () => RecipeNutritionDataDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RecipeNutritionDataDto)
+  nutrition_data?: RecipeNutritionDataDto;
 
   @ApiProperty({ example: 4 })
   @IsInt()

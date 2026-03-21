@@ -70,6 +70,7 @@ export function HomeWorkspace(props: {
         ? {
             type: "cart" as const,
             cart: props.carts.find((cart) => cart.id === activeDetail.id) ?? null,
+            recipes: props.recipes,
           }
         : null;
 
@@ -107,6 +108,7 @@ export function HomeWorkspace(props: {
               ? {
                   type: "cart",
                   cart: activeDetailData.cart,
+                  recipes: activeDetailData.recipes,
                 }
               : null
         }

@@ -99,6 +99,8 @@ async function upsertRecipe(prisma, recipe, ownership) {
     name: recipe.name,
     cuisineId,
     description: recipe.description,
+    coverImageUrl: recipe.coverImageUrl,
+    nutritionData: recipe.nutritionData,
     servings: recipe.servings,
     ingredients: {
       deleteMany: existing ? {} : undefined,

@@ -92,12 +92,15 @@ export class CartService {
     const recipes = await this.recipeService.findManyByIds(recipeIds, actorUserId);
     const dishes = buildDishesFromSelections(recipes, input);
 
-    return this.cartPersistenceService.createCart({
+    const cart = await this.cartPersistenceService.createCart({
       userId: actor.id,
       name: input.name,
+      retailer: input.retailer,
       selections: input.selections,
       dishes,
     });
+
+    return this.withCartOverview(cart);
   }
 
   async updateCart(id: string, input: UpdateCartDto, actorUserId?: string) {
@@ -110,6 +113,7 @@ export class CartService {
 
     const nextSelections = input.selections ?? cloneCartSelections(existing);
     const nextName = input.name ?? existing.name;
+    const nextRetailer = input.retailer ?? existing.retailer;
     const nextDishes = input.selections
       ? buildDishesFromSelections(
           await this.recipeService.findManyByIds(
@@ -122,6 +126,7 @@ export class CartService {
 
     const updated = await this.cartPersistenceService.updateCart(actor.id, id, {
       name: nextName,
+      retailer: nextRetailer,
       selections: nextSelections,
       dishes: nextDishes,
     });
@@ -144,7 +149,8 @@ export class CartService {
 
   async listCarts(actorUserId?: string) {
     const actor = await this.userContextService.resolveActorUser(actorUserId);
-    return this.cartPersistenceService.findCartsByUser(actor.id);
+    const carts = await this.cartPersistenceService.findCartsByUser(actor.id);
+    return carts.map((cart) => this.withCartOverview(cart));
   }
 
   async findCart(id: string, actorUserId?: string) {
@@ -155,7 +161,7 @@ export class CartService {
       throw new NotFoundException(`Cart ${id} not found`);
     }
 
-    return cart;
+    return this.withCartOverview(cart);
   }
 
   async createShoppingCart(
@@ -210,5 +216,12 @@ export class CartService {
     }
 
     return cart;
+  }
+
+  private withCartOverview(cart: Cart): Cart {
+    return {
+      ...cart,
+      overview: this.aggregationService.compute(cart.dishes).overview,
+    };
   }
 }

@@ -18,9 +18,12 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - hybrid tags with explicit `/api/v1/tags` endpoints
 - global system recipes and user-owned recipes
 - recipe CRUD for user-owned recipes
+- optional `cover_image_url` and `nutrition_data` on recipes
 - an explicit fork flow for copying a system recipe into a user-owned editable recipe
 - persisted `cart-drafts`, `carts`, and `shopping-carts`
 - deterministic conversion from recipe selections into recipe-based carts
+- persisted retailer context on drafts and carts
+- derived aggregated ingredient overviews on cart reads
 - deterministic ingredient aggregation and mock retailer matching behind shopping-cart generation
 - mock product matching with subtotal estimation
 - internal `/api/v1` route families for `recipes`, `recipe-forks`, `cart-drafts`, `carts`, and `shopping-carts`
@@ -192,11 +195,12 @@ Swagger:
 - cuisines are now explicit global resources with `kind`-based curation
 - recipe writes now use `cuisine_id`, and recipe reads return both `cuisine_id` and expanded `cuisine`
 - tags are now explicit resources with `system` and `user` scope
+- dietary badges like `halal`, `vegan`, and `gluten-free` should be represented as curated system tags
 - recipe writes now use `tag_ids`, and recipe reads return both `tag_ids` and expanded `tags`
 - forking a system recipe creates a user-owned editable copy
 - duplicate forks of the same source recipe are prevented per user
 - `CartDraft` is editable user intent
-- `Cart` is the stable recipe-based meal plan snapshot
+- `Cart` is the stable recipe-based meal plan snapshot with retailer context and a derived ingredient overview
 - `ShoppingCart` is the retailer-facing basket derived from a `Cart`
 - aggregation and retailer matching remain deterministic
 
@@ -221,14 +225,14 @@ Recipe -> CartDraft -> Cart -> ShoppingCart
 Interpretation:
 
 - `CartDraft` is editable user intent
-- `Cart` is the stable recipe-based meal plan snapshot
+- `Cart` is the stable recipe-based meal plan snapshot with retailer context and derived ingredient overview
 - `ShoppingCart` is the retailer-facing purchase basket derived from a `Cart`
 
 This separation is intentional:
 
 - `Cart` answers "what do I want to cook?"
 - `ShoppingCart` answers "what do I need to buy?"
-- retailer integration belongs behind `ShoppingCart`
+- retailer matching and purchasable-product state still belong behind `ShoppingCart`
 - real auth and future tags should be built on top of this API shape, not by reshaping it again
 
 ## What Changed Recently
@@ -244,16 +248,18 @@ This separation is intentional:
 - `/api/v1/tags` now supports list/create/update/delete.
 - `POST /api/v1/recipe-forks` replaced the old save-style route.
 - recipes now require `cuisine_id` and return expanded `cuisine` objects.
+- carts now require `retailer` on write and return derived `overview` ingredient data on read.
 - `cart-drafts`, `carts`, and `shopping-carts` are separate resources in API, shared models, and database schema.
 - Prisma migration `20260319113000_split_cart_and_shopping_cart_v1` materializes the new `Cart`/`ShoppingCart` split.
 - Prisma migration `20260319124500_add_cuisine_catalog` materializes the controlled cuisine catalog and recipe relation.
+- Prisma migration `20260321130500_add_cart_retailer` materializes retailer persistence on `Cart`.
 - the web app dashboard in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web) now reads the `/api/v1` endpoints and reflects the new model vocabulary.
 
 ## Upcoming Work
 
 The highest-signal next steps are in backend, not frontend expansion.
 
-1. Keep retailer integration behind `ShoppingCart` and swap mock matching for a real provider later.
+1. Keep retailer matching and purchasable-product state behind `ShoppingCart` and swap mock matching for a real provider later.
 2. Defer recipe variants and AI-assisted adaptation until auth and taxonomy are settled.
 3. Add captcha to sensitive auth surfaces after the core auth/client migration is stable.
 4. Expand account analytics beyond the first lightweight `/api/v1/me/stats` counters.

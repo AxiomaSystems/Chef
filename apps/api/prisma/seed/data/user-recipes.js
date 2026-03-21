@@ -3,8 +3,9 @@ const userRecipes = [
     name: "Arroz con pollo casero",
     cuisine: "Peruvian",
     description: "Home-style chicken rice with peas, cilantro, and bell pepper.",
+    nutritionData: { calories: 680, protein_g: 39, carbs_g: 52, fat_g: 27 },
     servings: 4,
-    tags: ["peruvian", "chicken", "rice"],
+    tags: ["peruvian", "chicken", "rice", "high-protein"],
     ingredients: [
       { canonicalIngredient: "chicken thigh", amount: 800, unit: "g", displayIngredient: "chicken thighs", sortOrder: 0 },
       { canonicalIngredient: "rice", amount: 2, unit: "cup", displayIngredient: "white rice", sortOrder: 1 },

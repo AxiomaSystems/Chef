@@ -36,12 +36,14 @@ export type UpdateCartDraftPersistenceInput = {
 export type CreateCartPersistenceInput = {
   userId: string;
   name?: string;
+  retailer: string;
   selections: CartSelection[];
   dishes: Cart['dishes'];
 };
 
 export type UpdateCartPersistenceInput = {
   name?: string;
+  retailer?: string;
   selections?: CartSelection[];
   dishes?: Cart['dishes'];
 };

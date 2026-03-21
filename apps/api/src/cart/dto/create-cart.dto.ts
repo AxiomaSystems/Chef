@@ -1,5 +1,6 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsIn, IsOptional, IsString } from 'class-validator';
+import type { Retailer } from '@cart/shared';
 import { CartSelectionsDto } from './cart-selection.dto';
 
 export class CreateCartDto extends CartSelectionsDto {
@@ -7,4 +8,8 @@ export class CreateCartDto extends CartSelectionsDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @ApiProperty({ enum: ['walmart'] })
+  @IsIn(['walmart'])
+  retailer!: Retailer;
 }

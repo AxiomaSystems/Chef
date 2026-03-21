@@ -31,8 +31,10 @@ export const mapPersistedCart = (cart: PrismaCart): PersistedCart => ({
   id: cart.id,
   user_id: cart.userId,
   name: cart.name ?? undefined,
+  retailer: cart.retailer as Cart['retailer'],
   selections: cart.selections as CartSelection[],
   dishes: cart.dishes as Cart['dishes'],
+  overview: [],
   created_at: cart.createdAt.toISOString(),
   updated_at: cart.updatedAt.toISOString(),
 });

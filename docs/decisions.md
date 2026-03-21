@@ -255,6 +255,7 @@ Why:
 
 Status:
 - implemented in persistence and via `/api/v1/tags`
+- dietary badges should piggyback on curated system tags instead of new boolean columns
 - recipes now accept `tag_ids` on write and return expanded `tags` on read
 
 ## 21. Replace Boolean Ownership Semantics With Clearer States Later
@@ -276,6 +277,17 @@ Pragmatic path:
 - keep the boolean short-term
 - keep `forkedFromRecipeId` as the current bridge state
 - revisit a richer enum-based model only when those states become real
+
+## 21.5. Recipe Nutrition Should Be Optional Derived Metadata
+
+Decision:
+- add optional `nutrition_data` to recipes as a convenience snapshot
+- keep ingredients as the source of truth
+
+Why:
+- the UI benefits from calories/macros without recomputing on every surface
+- deterministic nutrition calculation can land later without changing recipe identity
+- an optional snapshot is cleaner than forcing LLM-generated nutrition into the primary model
 
 ## 22. Development Identity Was Header-Based Before Real Auth
 
@@ -374,11 +386,13 @@ Decision:
 
 Interpretation:
 - `Cart` answers "what do I want to cook?"
+- `Cart` also keeps the retailer chosen during planning so that context survives the pipeline
+- `Cart` may expose a derived ingredient overview for UX, but that overview is not the retailer-facing purchase state
 - `ShoppingCart` answers "what do I need to buy?"
 
 Why:
 - one cart may produce one or more shopping-cart snapshots
-- retailer integration belongs behind shopping-cart generation
+- retailer matching belongs behind shopping-cart generation even if retailer context is persisted earlier on `Cart`
 - this keeps meal-planning state separate from matching and pricing state
 
 Approved flow:

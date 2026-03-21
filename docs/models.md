@@ -84,6 +84,16 @@ type BaseRecipe = {
   cuisine_id: string;
   cuisine: Cuisine;
   description?: string;
+  cover_image_url?: string;
+  nutrition_data?: {
+    calories?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+    fiber_g?: number;
+    sugar_g?: number;
+    sodium_mg?: number;
+  };
   servings: number;
   ingredients: DishIngredient[];
   steps: RecipeStep[];
@@ -99,6 +109,7 @@ Important current semantics:
 - `is_system_recipe = true` means global immutable catalog content
 - `owner_user_id` is set for user-owned recipes
 - `forked_from_recipe_id` is set when a user saves a system recipe into an editable copy
+- `nutrition_data` is optional derived recipe metadata, not the source of truth for ingredients
 
 ### RecipeTransformationType
 
@@ -214,8 +225,10 @@ type Cart = {
   id: string;
   user_id: string;
   name?: string;
+  retailer: Retailer;
   selections: SelectedRecipe[];
   dishes: Dish[];
+  overview: AggregatedIngredient[];
   created_at: string;
   updated_at: string;
 };
@@ -224,12 +237,16 @@ type Cart = {
 Interpretation:
 
 - `Cart` is the stable meal-plan snapshot derived from recipes
+- it keeps the chosen retailer as planning context
+- it exposes a derived aggregated ingredient overview for cart-detail reads
 - it answers "what am I planning to cook?"
 - it should not own retailer-matching output directly
 
 Current runtime note:
 
 - this concept is now explicit in the API, shared models, and database schema
+- `Cart` persists retailer because planning and purchase context should not disappear between draft and shopping-cart generation
+- `Cart.overview` is derived from `dishes` on read, not stored as a second persisted source of truth
 - `Cart` is the meal-plan snapshot, not the purchase basket
 
 ## 4. Aggregation Models
@@ -501,6 +518,7 @@ Interpretation:
 
 - system tags are shared taxonomy
 - user tags are private to the owner unless sharing is introduced later
+- dietary badges should currently be represented through curated system tags such as `halal`, `vegan`, `vegetarian`, `gluten-free`, `dairy-free`, and `high-protein`
 - recipes now link to tags relationally, not through a persisted string array column
 - recipe writes now reference tags by `tag_ids`
 - recipe reads return expanded `tags` alongside `tag_ids`
@@ -542,6 +560,7 @@ Interpretation:
 - system recipes and user-owned recipes are distinct states
 - a user can only have one saved fork per source system recipe
 - one `Cart` is now the parent of persisted `ShoppingCart` snapshots
+- one `Cart` now carries retailer context before shopping-cart generation
 - auth can attach multiple identities to one user account
 - cuisines are stored relationally as a global catalog
 - tags are stored relationally as `Tag` + `RecipeTag`

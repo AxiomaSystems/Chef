@@ -12,6 +12,10 @@ describe('recipe.persistence.mapper', () => {
         name: 'Arroz con pollo casero',
         cuisine_id: 'cuisine-peruvian',
         description: 'Comforting chicken and rice dish.',
+        nutrition_data: {
+          calories: 640,
+          protein_g: 42,
+        },
         servings: 4,
         ingredients: [
           {
@@ -41,6 +45,10 @@ describe('recipe.persistence.mapper', () => {
       name: 'Arroz con pollo casero',
       cuisineId: 'cuisine-peruvian',
       description: 'Comforting chicken and rice dish.',
+      nutritionData: {
+        calories: 640,
+        protein_g: 42,
+      },
       servings: 4,
       ingredients: {
         create: [
@@ -70,6 +78,10 @@ describe('recipe.persistence.mapper', () => {
   it('builds update recipe data with full replacement arrays when present', () => {
     const result = buildUpdateRecipeData({
       name: 'Arroz con pollo actualizado',
+      nutrition_data: {
+        calories: 690,
+        carbs_g: 40,
+      },
       servings: 6,
       ingredients: [
         {
@@ -91,6 +103,10 @@ describe('recipe.persistence.mapper', () => {
       name: 'Arroz con pollo actualizado',
       cuisineId: undefined,
       description: undefined,
+      nutritionData: {
+        calories: 690,
+        carbs_g: 40,
+      },
       servings: 6,
       ingredients: {
         deleteMany: {},

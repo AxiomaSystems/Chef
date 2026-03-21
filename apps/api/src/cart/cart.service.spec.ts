@@ -72,12 +72,14 @@ describe('CartService', () => {
       deleteDraft: jest.fn(),
       findDraftsByUser: jest.fn(),
       findDraftById: jest.fn(),
-      createCart: jest.fn().mockImplementation(async ({ userId, name, selections, dishes }) => ({
+      createCart: jest.fn().mockImplementation(async ({ userId, name, retailer, selections, dishes }) => ({
         id: 'cart-1',
         user_id: userId,
         name,
+        retailer,
         selections,
         dishes,
+        overview: [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })),
@@ -112,6 +114,7 @@ describe('CartService', () => {
 
     const result = await service.createCart({
       name: 'Weekly dinner plan',
+      retailer: 'walmart',
       selections: [
         {
           recipe_id: 'recipe-1',
@@ -131,6 +134,7 @@ describe('CartService', () => {
       id: 'cart-1',
       user_id: 'user-1',
       name: 'Weekly dinner plan',
+      retailer: 'walmart',
       selections: [
         {
           recipe_id: 'recipe-1',
@@ -149,6 +153,7 @@ describe('CartService', () => {
           tags: recipe.tags.map((tag) => tag.name),
         },
       ],
+      overview: [],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
@@ -191,6 +196,7 @@ describe('CartService', () => {
     recipeService.findManyByIds.mockResolvedValue([recipe]);
 
     const result = await service.createCart({
+      retailer: 'walmart',
       selections: [
         {
           recipe_id: 'recipe-1',
@@ -218,6 +224,7 @@ describe('CartService', () => {
 
     await expect(
       service.createCart({
+        retailer: 'walmart',
         selections: [
           {
             recipe_id: 'missing-recipe',

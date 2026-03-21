@@ -26,6 +26,7 @@ export type CartSelection = {
 
 export type CreateCartRequest = {
   name?: string;
+  retailer: Retailer;
   selections: CartSelection[];
 };
 
@@ -33,8 +34,10 @@ export type Cart = {
   id?: string;
   user_id?: string;
   name?: string;
+  retailer: Retailer;
   selections: CartSelection[];
   dishes: Dish[];
+  overview: AggregatedIngredient[];
   created_at?: string;
   updated_at?: string;
 };

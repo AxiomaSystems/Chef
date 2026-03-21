@@ -3,8 +3,9 @@ const systemRecipes = [
     name: "Aji de gallina",
     cuisine: "Peruvian",
     description: "Shredded chicken in a creamy aji amarillo and bread sauce.",
+    nutritionData: { calories: 620, protein_g: 38, carbs_g: 24, fat_g: 40 },
     servings: 4,
-    tags: ["peruvian", "main-course", "chicken"],
+    tags: ["peruvian", "main-course", "chicken", "high-protein"],
     ingredients: [
       { canonicalIngredient: "chicken breast", amount: 800, unit: "g", displayIngredient: "chicken breast", sortOrder: 0 },
       { canonicalIngredient: "aji amarillo paste", amount: 3, unit: "tbsp", displayIngredient: "aji amarillo paste", sortOrder: 1 },
@@ -26,8 +27,9 @@ const systemRecipes = [
     name: "Lomo saltado",
     cuisine: "Peruvian",
     description: "Quick wok-style beef stir fry with onions, tomatoes, and fries.",
+    nutritionData: { calories: 710, protein_g: 41, carbs_g: 48, fat_g: 34 },
     servings: 4,
-    tags: ["peruvian", "beef", "stir-fry"],
+    tags: ["peruvian", "beef", "stir-fry", "high-protein"],
     ingredients: [
       { canonicalIngredient: "beef sirloin", amount: 700, unit: "g", displayIngredient: "beef sirloin", sortOrder: 0 },
       { canonicalIngredient: "red onion", amount: 1, unit: "unit", displayIngredient: "red onion", sortOrder: 1 },
@@ -49,8 +51,9 @@ const systemRecipes = [
     name: "Ceviche",
     cuisine: "Peruvian",
     description: "Fresh fish cured in lime juice with onion, chile, and cilantro.",
+    nutritionData: { calories: 290, protein_g: 34, carbs_g: 12, fat_g: 9 },
     servings: 4,
-    tags: ["peruvian", "seafood", "cold-dish"],
+    tags: ["peruvian", "seafood", "cold-dish", "gluten-free", "dairy-free", "high-protein"],
     ingredients: [
       { canonicalIngredient: "white fish fillet", amount: 700, unit: "g", displayIngredient: "firm white fish fillets", sortOrder: 0 },
       { canonicalIngredient: "lime", amount: 10, unit: "unit", displayIngredient: "limes", sortOrder: 1 },

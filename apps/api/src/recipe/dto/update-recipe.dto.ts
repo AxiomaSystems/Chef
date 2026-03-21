@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import {
   CreateDishIngredientDto,
+  RecipeNutritionDataDto,
   CreateRecipeStepDto,
 } from './create-recipe.dto';
 
@@ -40,6 +41,13 @@ export class UpdateRecipeDto {
   @ValidateIf((_object, value) => value !== null && value !== undefined)
   @IsUrl()
   cover_image_url?: string | null;
+
+  @ApiPropertyOptional({ type: () => RecipeNutritionDataDto, nullable: true })
+  @Transform(({ value }) => (value === '' ? null : value))
+  @ValidateIf((_object, value) => value !== null && value !== undefined)
+  @ValidateNested()
+  @Type(() => RecipeNutritionDataDto)
+  nutrition_data?: RecipeNutritionDataDto | null;
 
   @ApiPropertyOptional({ example: 6 })
   @IsOptional()

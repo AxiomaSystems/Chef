@@ -1,0 +1,5 @@
+ALTER TABLE "Cart"
+ADD COLUMN "retailer" TEXT NOT NULL DEFAULT 'walmart';
+
+ALTER TABLE "Cart"
+ALTER COLUMN "retailer" DROP DEFAULT;

@@ -62,6 +62,29 @@ export class CuisineResponseDto {
   updated_at!: string;
 }
 
+export class RecipeNutritionDataResponseDto {
+  @ApiPropertyOptional({ example: 640 })
+  calories?: number;
+
+  @ApiPropertyOptional({ example: 42 })
+  protein_g?: number;
+
+  @ApiPropertyOptional({ example: 36 })
+  carbs_g?: number;
+
+  @ApiPropertyOptional({ example: 28 })
+  fat_g?: number;
+
+  @ApiPropertyOptional({ example: 4 })
+  fiber_g?: number;
+
+  @ApiPropertyOptional({ example: 6 })
+  sugar_g?: number;
+
+  @ApiPropertyOptional({ example: 780 })
+  sodium_mg?: number;
+}
+
 export class BaseRecipeResponseDto {
   @ApiProperty({ example: 'recipe-1' })
   id!: string;
@@ -91,6 +114,9 @@ export class BaseRecipeResponseDto {
     example: 'https://images.example.com/recipes/arroz-con-pollo.jpg',
   })
   cover_image_url?: string;
+
+  @ApiPropertyOptional({ type: () => RecipeNutritionDataResponseDto })
+  nutrition_data?: RecipeNutritionDataResponseDto;
 
   @ApiProperty({ example: 4 })
   servings!: number;
@@ -359,6 +385,9 @@ export class CartResponseDto {
   @ApiPropertyOptional({ example: 'draft-1' })
   name?: string;
 
+  @ApiProperty({ example: 'walmart' })
+  retailer!: string;
+
   @ApiProperty({
     example: [
       {
@@ -372,6 +401,9 @@ export class CartResponseDto {
 
   @ApiProperty({ type: () => [DishResponseDto] })
   dishes!: DishResponseDto[];
+
+  @ApiProperty({ type: () => [AggregatedIngredientResponseDto] })
+  overview!: AggregatedIngredientResponseDto[];
 
   @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
   created_at!: string;

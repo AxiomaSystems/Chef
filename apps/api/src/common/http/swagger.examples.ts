@@ -39,6 +39,12 @@ export const recipeExample = {
   cuisine: peruvianCuisineExample,
   description: 'Comforting chicken and rice dish.',
   cover_image_url: 'https://images.example.com/recipes/arroz-con-pollo.jpg',
+  nutrition_data: {
+    calories: 640,
+    protein_g: 42,
+    carbs_g: 36,
+    fat_g: 28,
+  },
   servings: 4,
   ingredients: [
     {
@@ -172,6 +178,12 @@ export const createRecipeRequestExample = {
   cuisine_id: 'cuisine-peruvian',
   description: 'Comforting chicken and rice dish.',
   cover_image_url: 'https://images.example.com/recipes/arroz-con-pollo.jpg',
+  nutrition_data: {
+    calories: 640,
+    protein_g: 42,
+    carbs_g: 36,
+    fat_g: 28,
+  },
   servings: 4,
   ingredients: [
     {
@@ -208,6 +220,12 @@ export const updateRecipeRequestExample = {
   cuisine_id: 'cuisine-peruvian',
   description: 'Updated family version with clearer steps.',
   cover_image_url: null,
+  nutrition_data: {
+    calories: 690,
+    protein_g: 48,
+    carbs_g: 40,
+    fat_g: 29,
+  },
   servings: 6,
   ingredients: [
     {
@@ -271,6 +289,7 @@ export const createCartDraftRequestExample = {
 
 export const createCartRequestExample = {
   name: 'Weekly dinner plan',
+  retailer: 'walmart',
   selections: [
     {
       recipe_id: 'recipe-1',
@@ -285,6 +304,7 @@ export const cartExample = {
   id: 'cart-1',
   user_id: 'user-1',
   name: 'Weekly dinner plan',
+  retailer: 'walmart',
   selections: createCartRequestExample.selections,
   dishes: [
     {
@@ -311,6 +331,33 @@ export const cartExample = {
           what_to_do: 'Brown the chicken thighs.',
         },
       ],
+    },
+  ],
+  overview: [
+    {
+      canonical_ingredient: 'chicken thigh',
+      total_amount: 800,
+      unit: 'g',
+      source_dishes: [
+        {
+          dish_name: 'Arroz con pollo casero',
+          amount: 800,
+          unit: 'g',
+        },
+      ],
+    },
+    {
+      canonical_ingredient: 'rice',
+      total_amount: 2,
+      unit: 'cup',
+      source_dishes: [
+        {
+          dish_name: 'Arroz con pollo casero',
+          amount: 2,
+          unit: 'cup',
+        },
+      ],
+      purchase_unit_hint: 'cup',
     },
   ],
   created_at: '2026-03-19T03:15:00.000Z',
