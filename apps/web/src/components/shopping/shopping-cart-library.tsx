@@ -78,12 +78,14 @@ export function ShoppingCartLibrary(props: {
             </div>
 
             <label className="block w-full lg:max-w-sm">
-              <span className="sr-only">Search shopping carts</span>
+              <span className="sr-only">
+                Search by retailer, ingredient, or manual item
+              </span>
               <input
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search shopping carts"
+                placeholder="Search retailer, ingredient, or item"
                 className="min-h-11 w-full rounded-full border border-[color:var(--line)] bg-[color:var(--paper)]/78 px-4 text-sm text-[color:var(--forest-strong)] outline-none transition placeholder:text-[color:var(--ink-soft)]/72 focus:border-[color:var(--olive)]"
               />
             </label>
