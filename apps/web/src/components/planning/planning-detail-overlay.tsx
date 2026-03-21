@@ -69,6 +69,22 @@ function RecipeReferenceCard(props: {
   );
 }
 
+type EditableDetail =
+  | {
+      type: "draft";
+      id: string;
+      name?: string;
+      retailer: string;
+      recipeIds: string[];
+    }
+  | {
+      type: "cart";
+      id: string;
+      name?: string;
+      retailer: string;
+      recipeIds: string[];
+    };
+
 export function PlanningDetailOverlay(props: {
   detail:
     | {
@@ -83,16 +99,18 @@ export function PlanningDetailOverlay(props: {
       }
     | null;
   onClose: () => void;
+  onEdit: (detail: EditableDetail) => void;
 }) {
   if (!props.detail) {
     return null;
   }
 
   if (props.detail.type === "draft") {
+    const draftDetail = props.detail.draft;
     const recipeMap = new Map(
       props.detail.recipes.map((recipe) => [recipe.id, recipe]),
     );
-    const selections = props.detail.draft.selections.map((selection) => ({
+    const selections = draftDetail.selections.map((selection) => ({
       ...selection,
       recipe: recipeMap.get(selection.recipe_id),
     }));
@@ -106,22 +124,39 @@ export function PlanningDetailOverlay(props: {
                 Draft
               </p>
               <h2 className="mt-2 font-display text-4xl leading-[0.94] text-[color:var(--forest-strong)]">
-                {props.detail.draft.name ?? "Untitled draft"}
+                {draftDetail.name ?? "Untitled draft"}
               </h2>
               <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
-                Retailer {props.detail.draft.retailer} ·{" "}
-                {props.detail.draft.selections.length} selections · updated{" "}
-                {formatDate(props.detail.draft.updated_at)}
+                Retailer {draftDetail.retailer} /{" "}
+                {draftDetail.selections.length} selections / updated{" "}
+                {formatDate(draftDetail.updated_at)}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={props.onClose}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 text-xl text-[color:var(--forest-strong)] transition hover:bg-white"
-              aria-label="Close draft detail"
-            >
-              ×
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  props.onEdit({
+                    type: "draft",
+                    id: draftDetail.id,
+                    name: draftDetail.name,
+                    retailer: draftDetail.retailer,
+                    recipeIds: draftDetail.selections.map((selection) => selection.recipe_id),
+                  })
+                }
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 px-4 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
+              >
+                Edit draft
+              </button>
+              <button
+                type="button"
+                onClick={props.onClose}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 text-xl text-[color:var(--forest-strong)] transition hover:bg-white"
+                aria-label="Close draft detail"
+              >
+                x
+              </button>
+            </div>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
@@ -184,10 +219,11 @@ export function PlanningDetailOverlay(props: {
     );
   }
 
+  const cartDetail = props.detail.cart;
   const recipeMap = new Map(
     props.detail.recipes.map((recipe) => [recipe.id, recipe]),
   );
-  const cartRecipes = props.detail.cart.dishes.map((dish, index) => ({
+  const cartRecipes = cartDetail.dishes.map((dish, index) => ({
     dish,
     recipe: dish.id ? recipeMap.get(dish.id) : undefined,
     key: `${dish.id ?? dish.name}-${index}`,
@@ -202,28 +238,45 @@ export function PlanningDetailOverlay(props: {
               Cart
             </p>
             <h2 className="mt-2 font-display text-4xl leading-[0.94] text-[color:var(--forest-strong)]">
-              {props.detail.cart.name ?? "Unnamed cart"}
+              {cartDetail.name ?? "Unnamed cart"}
             </h2>
             <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
-              Retailer {props.detail.cart.retailer} ·{" "}
-              {props.detail.cart.dishes.length} dishes ·{" "}
-              {props.detail.cart.overview.length} aggregated ingredients ·
+              Retailer {cartDetail.retailer} /{" "}
+              {cartDetail.dishes.length} dishes /{" "}
+              {cartDetail.overview.length} aggregated ingredients /
               updated{" "}
               {formatDate(
-                props.detail.cart.updated_at ??
-                  props.detail.cart.created_at ??
+                cartDetail.updated_at ??
+                  cartDetail.created_at ??
                   new Date().toISOString(),
               )}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={props.onClose}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 text-xl text-[color:var(--forest-strong)] transition hover:bg-white"
-            aria-label="Close cart detail"
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+                onClick={() =>
+                  props.onEdit({
+                    type: "cart",
+                    id: cartDetail.id ?? "",
+                    name: cartDetail.name,
+                    retailer: cartDetail.retailer,
+                    recipeIds: cartDetail.selections.map((selection) => selection.recipe_id),
+                  })
+                }
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 px-4 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
+            >
+              Edit cart
+            </button>
+            <button
+              type="button"
+              onClick={props.onClose}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 text-xl text-[color:var(--forest-strong)] transition hover:bg-white"
+              aria-label="Close cart detail"
+            >
+              x
+            </button>
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
@@ -239,12 +292,12 @@ export function PlanningDetailOverlay(props: {
                   </h3>
                 </div>
                 <p className="text-sm text-[color:var(--ink-soft)]">
-                  {props.detail.cart.overview.length} lines
+                  {cartDetail.overview.length} lines
                 </p>
               </div>
 
               <ul className="grid gap-3 pt-5">
-                {props.detail.cart.overview.map((ingredient) => (
+                {cartDetail.overview.map((ingredient) => (
                   <li
                     key={`${ingredient.canonical_ingredient}-${ingredient.unit}`}
                     className="rounded-[1.1rem] border border-[color:var(--line)] bg-[rgba(255,255,255,0.72)] px-4 py-3"

@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import type { BaseRecipe } from "@cart/shared";
+import type { BaseRecipe, Cart, Retailer } from "@cart/shared";
 import { DashboardActionPanel } from "./dashboard-action-panel";
 import { NewDraftOverlay } from "./new-draft-overlay";
 import { RecentWorkSection } from "./recent-work-section";
 import type { PlanningItem } from "./recent-work.utils";
 import type { DashboardCartDraft } from "./drafts-and-carts-section";
-import type { Cart } from "@cart/shared";
 import { PlanningDetailOverlay } from "@/components/planning/planning-detail-overlay";
 
 type ActivePlanningState =
@@ -36,6 +35,16 @@ export function HomeWorkspace(props: {
 }) {
   const [isDraftOverlayOpen, setDraftOverlayOpen] = useState(false);
   const [overlayVersion, setOverlayVersion] = useState(0);
+  const [builderConfig, setBuilderConfig] = useState<{
+    initialName?: string;
+    initialRecipeIds: string[];
+    initialRetailer?: Retailer;
+    mode: "create" | "edit-draft" | "edit-cart";
+    resourceId?: string;
+  }>({
+    initialRecipeIds: [],
+    mode: "create",
+  });
   const [activeDetail, setActiveDetail] = useState<
     | { type: "draft"; id: string }
     | { type: "cart"; id: string }
@@ -44,6 +53,10 @@ export function HomeWorkspace(props: {
 
   const openDraftOverlay = useCallback(() => {
     setOverlayVersion((current) => current + 1);
+    setBuilderConfig({
+      initialRecipeIds: [],
+      mode: "create",
+    });
     setDraftOverlayOpen(true);
   }, []);
 
@@ -58,6 +71,28 @@ export function HomeWorkspace(props: {
   const closeDetail = useCallback(() => {
     setActiveDetail(null);
   }, []);
+
+  const openEditorFromDetail = useCallback(
+    (detail: {
+      type: "draft" | "cart";
+      id: string;
+      name?: string;
+      retailer: string;
+      recipeIds: string[];
+    }) => {
+      closeDetail();
+      setOverlayVersion((current) => current + 1);
+      setBuilderConfig({
+        initialName: detail.name,
+        initialRecipeIds: detail.recipeIds,
+        initialRetailer: detail.retailer as Retailer,
+        mode: detail.type === "draft" ? "edit-draft" : "edit-cart",
+        resourceId: detail.id,
+      });
+      setDraftOverlayOpen(true);
+    },
+    [closeDetail],
+  );
 
   const activeDetailData =
     activeDetail?.type === "draft"
@@ -94,6 +129,11 @@ export function HomeWorkspace(props: {
         recipes={props.recipes}
         onClose={closeDraftOverlay}
         onCreated={openDetail}
+        initialName={builderConfig.initialName}
+        initialRecipeIds={builderConfig.initialRecipeIds}
+        initialRetailer={builderConfig.initialRetailer}
+        mode={builderConfig.mode}
+        resourceId={builderConfig.resourceId}
       />
 
       <PlanningDetailOverlay
@@ -113,6 +153,7 @@ export function HomeWorkspace(props: {
               : null
         }
         onClose={closeDetail}
+        onEdit={openEditorFromDetail}
       />
     </>
   );

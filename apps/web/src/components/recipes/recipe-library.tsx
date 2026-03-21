@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
-import type { BaseRecipe, Cart } from "@cart/shared";
+import type { BaseRecipe, Cart, Retailer } from "@cart/shared";
 import { NewDraftOverlay } from "@/components/dashboard/new-draft-overlay";
 import type { DashboardCartDraft } from "@/components/dashboard/drafts-and-carts-section";
 import { PlanningDetailOverlay } from "@/components/planning/planning-detail-overlay";
@@ -24,7 +24,10 @@ export function RecipeLibrary(props: {
   const [builderConfig, setBuilderConfig] = useState<{
     recipeIds: string[];
     name?: string;
-  }>({ recipeIds: [] });
+    retailer?: Retailer;
+    mode: "create" | "edit-draft" | "edit-cart";
+    resourceId?: string;
+  }>({ recipeIds: [], mode: "create" });
   const [isBuilderOpen, setBuilderOpen] = useState(false);
   const [activeDetail, setActiveDetail] = useState<
     | { type: "draft"; id: string }
@@ -74,11 +77,20 @@ export function RecipeLibrary(props: {
     [normalizedQuery, props.recipes, selectedTag],
   );
 
-  const openBuilder = useCallback((recipeIds: string[] = [], name = "") => {
+  const openBuilder = useCallback(
+    (
+      recipeIds: string[] = [],
+      name = "",
+      retailer?: Retailer,
+      mode: "create" | "edit-draft" | "edit-cart" = "create",
+      resourceId?: string,
+    ) => {
     setBuilderSeed((current) => current + 1);
-    setBuilderConfig({ recipeIds, name });
+    setBuilderConfig({ recipeIds, name, retailer, mode, resourceId });
     setBuilderOpen(true);
-  }, []);
+    },
+    [],
+  );
 
   const closeBuilder = useCallback(() => {
     setBuilderOpen(false);
@@ -88,6 +100,26 @@ export function RecipeLibrary(props: {
     (recipe: BaseRecipe) => {
       setActiveRecipeId(null);
       openBuilder([recipe.id]);
+    },
+    [openBuilder],
+  );
+
+  const openEditorFromDetail = useCallback(
+    (detail: {
+      type: "draft" | "cart";
+      id: string;
+      name?: string;
+      retailer: string;
+      recipeIds: string[];
+    }) => {
+      setActiveDetail(null);
+      openBuilder(
+        detail.recipeIds,
+        detail.name ?? "",
+        detail.retailer as Retailer,
+        detail.type === "draft" ? "edit-draft" : "edit-cart",
+        detail.id,
+      );
     },
     [openBuilder],
   );
@@ -263,6 +295,9 @@ export function RecipeLibrary(props: {
         onCreated={setActiveDetail}
         initialRecipeIds={builderConfig.recipeIds}
         initialName={builderConfig.name}
+        initialRetailer={builderConfig.retailer}
+        mode={builderConfig.mode}
+        resourceId={builderConfig.resourceId}
       />
 
       <PlanningDetailOverlay
@@ -282,6 +317,7 @@ export function RecipeLibrary(props: {
               : null
         }
         onClose={() => setActiveDetail(null)}
+        onEdit={openEditorFromDetail}
       />
     </>
   );

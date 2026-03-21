@@ -1,6 +1,6 @@
 "use server";
 
-import type { CartSelection } from "@cart/shared";
+import type { CartSelection, Retailer } from "@cart/shared";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -12,22 +12,6 @@ export type DraftFlowActionState = {
   intent?: "save" | "generate";
   resourceType?: "draft" | "cart";
   resourceId?: string;
-};
-
-export type CreatedDraftPayload = {
-  id: string;
-  user_id?: string;
-  name?: string;
-  selections: CartSelection[];
-  retailer: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type CreateDraftFromRecipeActionState = {
-  error?: string;
-  success?: string;
-  draft?: CreatedDraftPayload;
 };
 
 async function callAuthedJson(path: string, init?: RequestInit) {
@@ -74,87 +58,67 @@ export async function submitDraftFlowAction(
   const customName = String(formData.get("name") ?? "").trim();
   const fallbackName = `Planning run - ${recipeIds.length} recipe${recipeIds.length === 1 ? "" : "s"}`;
   const name = customName || fallbackName;
+  const retailer = (String(formData.get("retailer") ?? "walmart").trim() ||
+    "walmart") as Retailer;
+  const resourceType = String(formData.get("resource_type") ?? "").trim();
+  const resourceId = String(formData.get("resource_id") ?? "").trim();
 
-  const response = await callAuthedJson(
-    intent === "save" ? "/cart-drafts" : "/carts",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name,
-        retailer: "walmart",
-        selections,
-      }),
+  let path = intent === "save" ? "/cart-drafts" : "/carts";
+  let method: "POST" | "PATCH" = "POST";
+  let success =
+    intent === "save" ? "Draft saved." : "Cart generated.";
+  let nextResourceType: "draft" | "cart" =
+    intent === "save" ? "draft" : "cart";
+
+  if (resourceType === "draft" && resourceId) {
+    if (intent === "save") {
+      path = `/cart-drafts/${resourceId}`;
+      method = "PATCH";
+      success = "Draft updated.";
+      nextResourceType = "draft";
+    } else {
+      path = "/carts";
+      method = "POST";
+      success = "Cart generated.";
+      nextResourceType = "cart";
+    }
+  } else if (resourceType === "cart" && resourceId) {
+    path = `/carts/${resourceId}`;
+    method = "PATCH";
+    success = "Cart updated.";
+    nextResourceType = "cart";
+  }
+
+  const response = await callAuthedJson(path, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
     },
-  ).catch(() => null);
+    body: JSON.stringify({
+      name,
+      retailer,
+      selections,
+    }),
+  }).catch(() => null);
 
   if (!response?.ok) {
     return {
       error:
-        intent === "save"
+        nextResourceType === "draft"
           ? "Unable to save this draft right now."
-          : "Unable to generate a cart right now.",
+          : "Unable to save this cart right now.",
     };
   }
 
   const createdResource = (await response.json()) as { id?: string };
 
   revalidatePath("/");
-
-  return {
-    success: intent === "save" ? "Draft saved." : "Cart generated.",
-    intent,
-    resourceType: intent === "save" ? "draft" : "cart",
-    resourceId: String(createdResource.id),
-  };
-}
-
-export async function createDraftFromRecipeAction(
-  _previousState: CreateDraftFromRecipeActionState,
-  formData: FormData,
-): Promise<CreateDraftFromRecipeActionState> {
-  const recipeId = String(formData.get("recipe_id") ?? "").trim();
-
-  if (!recipeId) {
-    return {
-      error: "Recipe not found for draft creation.",
-    };
-  }
-
-  const recipeName = String(formData.get("recipe_name") ?? "").trim();
-  const response = await callAuthedJson("/cart-drafts", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      name: recipeName ? `${recipeName} draft` : undefined,
-      retailer: "walmart",
-      selections: [
-        {
-          recipe_id: recipeId,
-          recipe_type: "base",
-          quantity: 1,
-        },
-      ] satisfies CartSelection[],
-    }),
-  }).catch(() => null);
-
-  if (!response?.ok) {
-    return {
-      error: "Unable to create a draft from this recipe right now.",
-    };
-  }
-
-  const draft = (await response.json()) as CreatedDraftPayload;
-
-  revalidatePath("/");
   revalidatePath("/recipes");
 
   return {
-    success: "Draft created.",
-    draft,
+    success,
+    intent,
+    resourceType: nextResourceType,
+    resourceId: String(createdResource.id ?? resourceId),
   };
 }

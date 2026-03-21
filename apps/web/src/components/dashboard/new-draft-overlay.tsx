@@ -1,6 +1,6 @@
 "use client";
 
-import type { BaseRecipe } from "@cart/shared";
+import type { BaseRecipe, Retailer } from "@cart/shared";
 import {
   useActionState,
   useDeferredValue,
@@ -49,14 +49,20 @@ export function NewDraftOverlay(props: {
   onCreated: (detail: { type: "draft" | "cart"; id: string }) => void;
   initialRecipeIds?: string[];
   initialName?: string;
+  initialRetailer?: Retailer;
+  mode?: "create" | "edit-draft" | "edit-cart";
+  resourceId?: string;
 }) {
   const {
     initialName = "",
     initialRecipeIds = [],
+    initialRetailer = "walmart",
+    mode = "create",
     onClose,
     onCreated,
     open,
     recipes,
+    resourceId,
   } = props;
   const router = useRouter();
   const [state, formAction] = useActionState(
@@ -65,6 +71,7 @@ export function NewDraftOverlay(props: {
   );
   const [query, setQuery] = useState("");
   const [draftName, setDraftName] = useState(initialName);
+  const [retailer, setRetailer] = useState<Retailer>(initialRetailer);
   const [showAllTags, setShowAllTags] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>(
@@ -139,17 +146,30 @@ export function NewDraftOverlay(props: {
     return null;
   }
 
+  const title =
+    mode === "edit-cart"
+      ? "Edit cart"
+      : mode === "edit-draft"
+        ? "Edit draft"
+        : "Build cart";
+  const helperText =
+    mode === "edit-cart"
+      ? "Adjust the name, retailer, and recipes, then save the cart."
+      : mode === "edit-draft"
+        ? "Adjust the draft or generate a cart once the selection is ready."
+        : "Choose recipes, keep the selection visible, and generate a cart. Save stays here only when you want to keep the run incomplete.";
+  const nameLabel = mode === "edit-draft" ? "Draft name" : "Cart name";
+
   return (
     <div className="fixed inset-0 z-50 bg-[rgba(24,35,29,0.6)] p-4 backdrop-blur-sm sm:p-6">
       <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-[color:var(--paper)] shadow-[0_28px_90px_rgba(10,18,13,0.28)]">
         <div className="flex items-center justify-between gap-4 border-b border-[color:var(--line)] px-5 py-4 sm:px-6">
           <div>
             <h2 className="font-display text-3xl leading-none text-[color:var(--forest-strong)]">
-              Build cart
+              {title}
             </h2>
             <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
-              Choose recipes, keep the selection visible, and generate a cart.
-              Save stays here only when you want to keep the run incomplete.
+              {helperText}
             </p>
           </div>
           <button
@@ -171,7 +191,7 @@ export function NewDraftOverlay(props: {
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <label className="block w-full max-w-xs">
                   <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--olive)]">
-                    Cart name
+                    {nameLabel}
                   </span>
                   <input
                     type="text"
@@ -181,6 +201,20 @@ export function NewDraftOverlay(props: {
                     placeholder="Weeknight dinner plan"
                     className="min-h-11 w-full rounded-2xl border border-[color:var(--line)] bg-white px-4 text-sm text-[color:var(--forest-strong)] outline-none transition placeholder:text-[color:var(--ink-soft)]/72 focus:border-[color:var(--olive)]"
                   />
+                </label>
+
+                <label className="block w-full max-w-[10rem]">
+                  <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--olive)]">
+                    Retailer
+                  </span>
+                  <select
+                    name="retailer"
+                    value={retailer}
+                    onChange={(event) => setRetailer(event.target.value as Retailer)}
+                    className="min-h-11 w-full rounded-2xl border border-[color:var(--line)] bg-white px-4 text-sm text-[color:var(--forest-strong)] outline-none transition focus:border-[color:var(--olive)]"
+                  >
+                    <option value="walmart">Walmart</option>
+                  </select>
                 </label>
 
                 <label className="block w-full max-w-xl flex-1">
@@ -374,6 +408,16 @@ export function NewDraftOverlay(props: {
             {selectedRecipeIds.map((id) => (
               <input key={id} type="hidden" name="recipe_ids" value={id} />
             ))}
+            {mode !== "create" ? (
+              <>
+                <input
+                  type="hidden"
+                  name="resource_type"
+                  value={mode === "edit-cart" ? "cart" : "draft"}
+                />
+                <input type="hidden" name="resource_id" value={resourceId ?? ""} />
+              </>
+            ) : null}
 
             {state.error ? (
               <p className="mt-4 rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
@@ -388,16 +432,23 @@ export function NewDraftOverlay(props: {
             ) : null}
 
             <div className="mt-5 flex flex-wrap gap-3">
-              <SubmitButton intent="generate" label="Generate cart" />
-              <SubmitButton
-                intent="save"
-                label="Save draft"
-                tone="secondary"
-              />
+              {mode === "edit-cart" ? (
+                <SubmitButton intent="save" label="Save cart" />
+              ) : (
+                <>
+                  <SubmitButton intent="generate" label="Generate cart" />
+                  <SubmitButton
+                    intent="save"
+                    label={mode === "edit-draft" ? "Save draft" : "Save draft"}
+                    tone="secondary"
+                  />
+                </>
+              )}
             </div>
             <p className="mt-3 text-xs leading-5 text-[color:var(--ink-soft)]">
-              Generate cart is the primary path. Save draft only keeps the
-              selection around when you are not ready yet.
+              {mode === "edit-cart"
+                ? "Saving updates the current cart in place."
+                : "Generate cart is the primary path. Save draft only keeps the selection around when you are not ready yet."}
             </p>
           </aside>
         </form>
