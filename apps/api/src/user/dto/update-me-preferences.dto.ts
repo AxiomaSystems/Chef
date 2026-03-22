@@ -28,6 +28,11 @@ class UpdateShoppingLocationDto {
   @IsOptional()
   @IsNumber()
   longitude?: number;
+
+  @ApiPropertyOptional({ example: '01600479' })
+  @IsOptional()
+  @IsString()
+  kroger_location_id?: string;
 }
 
 export class UpdateMePreferencesDto {

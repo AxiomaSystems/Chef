@@ -55,6 +55,7 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
   ): Promise<ProductCandidate[]> {
     const normalizedQuery = query.trim();
     const zipCode = context?.zipCode?.trim();
+    const preferredLocationId = context?.locationId?.trim();
 
     if (!normalizedQuery || !zipCode || !this.isEnabled()) {
       this.logger.log(
@@ -71,7 +72,8 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
 
     try {
       const token = await this.getAccessToken();
-      const locationId = await this.resolveLocationId(zipCode, token);
+      const locationId =
+        preferredLocationId || (await this.resolveLocationId(zipCode, token));
 
       this.logger.log(
         `Kroger search start query="${normalizedQuery}" zip="${zipCode}" locationId="${locationId ?? ''}"`,
@@ -153,6 +155,7 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
         Authorization: `Basic ${credentials}`,
         Accept: 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Cussien/0.1 (+https://cussien.com)',
       },
       body: new URLSearchParams({
         grant_type: 'client_credentials',
@@ -195,6 +198,9 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
+        'User-Agent': 'Cussien/0.1 (+https://cussien.com)',
+        Origin: 'https://cussien.com',
+        Referer: 'https://cussien.com/',
       },
     });
 
@@ -214,7 +220,7 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
     );
 
     this.locationCache.set(zipCode, {
-      expiresAt: Date.now() + 30 * 60 * 1000,
+      expiresAt: Date.now() + 24 * 60 * 60 * 1000,
       locationId,
     });
 

@@ -61,6 +61,11 @@ export function PreferencesForm(props: {
   return (
     <div className="grid gap-8">
       <form action={formAction} className="grid gap-8">
+        <input
+          type="hidden"
+          name="shopping_location_kroger_location_id"
+          defaultValue={props.preferences.shopping_location?.kroger_location_id ?? ""}
+        />
         <section className="grid gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[color:var(--olive)]">

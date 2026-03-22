@@ -2,6 +2,7 @@ import type { ProductCandidate, Retailer } from '@cart/shared';
 
 export type RetailerSearchContext = {
   zipCode?: string;
+  locationId?: string;
 };
 
 export interface RetailerProductProvider {

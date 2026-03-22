@@ -73,6 +73,7 @@ describe('CartService', () => {
         preferredLocationLabel: 'Chicago, IL',
         preferredLatitude: null,
         preferredLongitude: null,
+        preferredKrogerLocationId: null,
       }),
     } as unknown as jest.Mocked<UserContextService>;
 
@@ -188,6 +189,7 @@ describe('CartService', () => {
       preferredLocationLabel: null,
       preferredLatitude: null,
       preferredLongitude: null,
+      preferredKrogerLocationId: null,
     });
 
     cartPersistenceService.findCartById.mockResolvedValue({

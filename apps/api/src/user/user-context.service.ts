@@ -47,6 +47,7 @@ export class UserContextService {
     preferredLocationLabel: string | null;
     preferredLatitude: number | null;
     preferredLongitude: number | null;
+    preferredKrogerLocationId: string | null;
   }> {
     const resolvedActorUserId =
       actorUserId ?? this.requestContextService.getActorUserId();
@@ -90,6 +91,7 @@ export class UserContextService {
         preferredLocationLabel: true,
         preferredLatitude: true,
         preferredLongitude: true,
+        preferredKrogerLocationId: true,
       },
     });
   }

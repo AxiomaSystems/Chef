@@ -47,6 +47,7 @@ export class MeService {
       preferredLocationLabel: string | null;
       preferredLatitude: number | null;
       preferredLongitude: number | null;
+      preferredKrogerLocationId: string | null;
     };
     preferredCuisines: Array<{
       cuisine: Parameters<typeof mapCuisine>[0];
@@ -71,12 +72,15 @@ export class MeService {
         input.user.preferredZipCode ||
         input.user.preferredLocationLabel ||
         input.user.preferredLatitude !== null ||
-        input.user.preferredLongitude !== null
+        input.user.preferredLongitude !== null ||
+        input.user.preferredKrogerLocationId
           ? {
               zip_code: input.user.preferredZipCode ?? undefined,
               label: input.user.preferredLocationLabel ?? undefined,
               latitude: input.user.preferredLatitude ?? undefined,
               longitude: input.user.preferredLongitude ?? undefined,
+              kroger_location_id:
+                input.user.preferredKrogerLocationId ?? undefined,
             }
           : undefined,
     };
@@ -262,6 +266,7 @@ export class MeService {
           preferredLocationLabel: true,
           preferredLatitude: true,
           preferredLongitude: true,
+          preferredKrogerLocationId: true,
         },
       }),
       this.prisma.userPreferredCuisine.findMany({
@@ -320,6 +325,8 @@ export class MeService {
     const normalizedLabel = shoppingLocation?.label?.trim() || null;
     const normalizedLatitude = shoppingLocation?.latitude ?? null;
     const normalizedLongitude = shoppingLocation?.longitude ?? null;
+    const normalizedKrogerLocationId =
+      shoppingLocation?.kroger_location_id?.trim() || null;
 
     await this.prisma.$transaction([
       this.prisma.user.update({
@@ -329,6 +336,7 @@ export class MeService {
           preferredLocationLabel: normalizedLabel,
           preferredLatitude: normalizedLatitude,
           preferredLongitude: normalizedLongitude,
+          preferredKrogerLocationId: normalizedKrogerLocationId,
         },
       }),
       this.prisma.userPreferredCuisine.deleteMany({

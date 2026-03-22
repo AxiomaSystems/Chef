@@ -189,6 +189,7 @@ export class CartService {
     const searchContext = this.buildRetailerSearchContext(
       input.retailer,
       actor.preferredZipCode,
+      actor.preferredKrogerLocationId,
     );
     const computation = this.aggregationService.compute(cart.dishes);
     const matchedItems = await this.matchingService.matchIngredients(
@@ -286,6 +287,7 @@ export class CartService {
     const searchContext = this.buildRetailerSearchContext(
       retailer,
       actor.preferredZipCode,
+      actor.preferredKrogerLocationId,
     );
 
     return {
@@ -309,6 +311,7 @@ export class CartService {
   private buildRetailerSearchContext(
     retailer: Retailer,
     preferredZipCode: string | null,
+    preferredKrogerLocationId: string | null,
   ) {
     if (retailer === 'kroger') {
       const normalizedZipCode = preferredZipCode?.trim();
@@ -322,7 +325,12 @@ export class CartService {
         );
       }
 
-      return { zipCode: normalizedZipCode };
+      const normalizedLocationId = preferredKrogerLocationId?.trim();
+
+      return {
+        zipCode: normalizedZipCode,
+        locationId: normalizedLocationId || undefined,
+      };
     }
 
     return {};

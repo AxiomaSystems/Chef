@@ -42,6 +42,9 @@ export async function savePreferencesAndCompleteAction(
   const shoppingLocationLabel = String(
     formData.get("shopping_location_label") ?? "",
   ).trim();
+  const shoppingLocationKrogerLocationId = String(
+    formData.get("shopping_location_kroger_location_id") ?? "",
+  ).trim();
 
   const preferencesResponse = await callAuthedJson("/me/preferences", {
     method: "PUT",
@@ -54,6 +57,7 @@ export async function savePreferencesAndCompleteAction(
       shopping_location: {
         zip_code: shoppingLocationZipCode,
         label: shoppingLocationLabel,
+        kroger_location_id: shoppingLocationKrogerLocationId,
       },
     }),
   }).catch(() => null);

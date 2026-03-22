@@ -37,6 +37,7 @@ export type UserPreferences = {
     label?: string;
     latitude?: number;
     longitude?: number;
+    kroger_location_id?: string;
   };
 };
 

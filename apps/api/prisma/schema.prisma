@@ -46,6 +46,7 @@ model User {
   preferredLocationLabel String?
   preferredLatitude Float?
   preferredLongitude Float?
+  preferredKrogerLocationId String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   authIdentities AuthIdentity[]
