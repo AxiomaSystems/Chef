@@ -7,6 +7,7 @@ import type {
 import { KrogerRetailerProductProvider } from './kroger-retailer-product.provider';
 import { MockRetailerProductProvider } from './mock-retailer-product.provider';
 import { pickCandidate } from './candidate-selection';
+import { buildIngredientQueryPlan } from './ingredient-query-planning';
 import {
   mapMatchedIngredientProduct,
   mapMissingIngredientMatch,
@@ -69,10 +70,19 @@ export class MatchingService {
     retailer: Retailer,
     context?: RetailerSearchContext,
   ): Promise<MatchedIngredientProduct> {
-    const candidates = await this.getProvider(retailer).findCandidatesForIngredient(
-      ingredient.canonical_ingredient,
-      context,
+    const provider = this.getProvider(retailer);
+    const queryPlan = buildIngredientQueryPlan(ingredient);
+
+    if (queryPlan.skip) {
+      return mapMissingIngredientMatch(ingredient);
+    }
+
+    const candidateGroups = await Promise.all(
+      queryPlan.queries.map((query) =>
+        provider.findCandidatesForIngredient(query, context),
+      ),
     );
+    const candidates = candidateGroups.flat();
     const selectedMatch = pickCandidate(ingredient, candidates);
 
     if (!selectedMatch) {

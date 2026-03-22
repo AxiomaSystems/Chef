@@ -1,5 +1,6 @@
 import type { AggregatedIngredient, ProductCandidate } from '@cart/shared';
 import type { CandidateMatch } from './matching.types';
+import { resolveIngredientMatchingRule } from './ingredient-matching-rules';
 import { convertUnit } from './unit-conversion';
 
 const STOPWORDS = new Set([
@@ -72,6 +73,7 @@ const buildSemanticScore = (
   const brand = candidate.brand?.toLowerCase() ?? '';
   const quantityText = candidate.quantity_text?.toLowerCase() ?? '';
   const haystack = `${title} ${brand} ${quantityText}`.trim();
+  const rule = resolveIngredientMatchingRule(ingredient);
 
   let score = 0;
 
@@ -108,9 +110,40 @@ const buildSemanticScore = (
     }
   }
 
+  if (rule) {
+    const positiveMatches =
+      rule.positiveKeywords?.filter((keyword) => haystack.includes(keyword)) ?? [];
+    const negativeMatches =
+      rule.negativeKeywords?.filter((keyword) => haystack.includes(keyword)) ?? [];
+    const hardRejectMatches =
+      rule.hardRejectKeywords?.filter((keyword) => haystack.includes(keyword)) ?? [];
+
+    score += positiveMatches.length * 3;
+    score -= negativeMatches.length * 6;
+
+    if (
+      rule.preferredUnits?.length &&
+      candidate.size_unit &&
+      rule.preferredUnits.includes(candidate.size_unit.toLowerCase())
+    ) {
+      score += 3;
+    }
+
+    if (hardRejectMatches.length > 0) {
+      score -= 100;
+    }
+
+    return {
+      score,
+      matchedTokenCount: matchedIngredientTokens.length,
+      minScore: rule.minSemanticScore ?? 1,
+    };
+  }
+
   return {
     score,
     matchedTokenCount: matchedIngredientTokens.length,
+    minScore: 1,
   };
 };
 
@@ -129,7 +162,11 @@ export const pickCandidate = (
       convertedSizeValue: convertCandidateSize(ingredient, candidate),
       semantic: buildSemanticScore(ingredient, candidate),
     }))
-    .filter((candidate) => candidate.semantic.matchedTokenCount > 0)
+    .filter(
+      (candidate) =>
+        candidate.semantic.matchedTokenCount > 0 &&
+        candidate.semantic.score >= candidate.semantic.minScore,
+    )
     .sort((left, right) => {
       if (right.semantic.score !== left.semantic.score) {
         return right.semantic.score - left.semantic.score;
