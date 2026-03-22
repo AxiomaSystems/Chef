@@ -38,12 +38,12 @@ export function HomeWorkspace(props: {
   const [overlayVersion, setOverlayVersion] = useState(0);
   const [builderConfig, setBuilderConfig] = useState<{
     initialName?: string;
-    initialRecipeIds: string[];
+    initialSelections: Array<{ recipeId: string; quantity: number }>;
     initialRetailer?: Retailer;
     mode: "create" | "edit-draft" | "edit-cart";
     resourceId?: string;
   }>({
-    initialRecipeIds: [],
+    initialSelections: [],
     mode: "create",
   });
   const [activeDetail, setActiveDetail] = useState<
@@ -57,7 +57,7 @@ export function HomeWorkspace(props: {
   const openDraftOverlay = useCallback(() => {
     setOverlayVersion((current) => current + 1);
     setBuilderConfig({
-      initialRecipeIds: [],
+      initialSelections: [],
       mode: "create",
     });
     setDraftOverlayOpen(true);
@@ -90,13 +90,13 @@ export function HomeWorkspace(props: {
       id: string;
       name?: string;
       retailer: string;
-      recipeIds: string[];
+      recipeSelections: Array<{ recipeId: string; quantity: number }>;
     }) => {
       closeDetail();
       setOverlayVersion((current) => current + 1);
       setBuilderConfig({
         initialName: detail.name,
-        initialRecipeIds: detail.recipeIds,
+        initialSelections: detail.recipeSelections,
         initialRetailer: detail.retailer as Retailer,
         mode: detail.type === "draft" ? "edit-draft" : "edit-cart",
         resourceId: detail.id,
@@ -142,7 +142,7 @@ export function HomeWorkspace(props: {
         onClose={closeDraftOverlay}
         onCreated={openDetail}
         initialName={builderConfig.initialName}
-        initialRecipeIds={builderConfig.initialRecipeIds}
+        initialSelections={builderConfig.initialSelections}
         initialRetailer={builderConfig.initialRetailer}
         mode={builderConfig.mode}
         resourceId={builderConfig.resourceId}

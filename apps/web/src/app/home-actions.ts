@@ -92,25 +92,35 @@ export async function submitDraftFlowAction(
 ): Promise<DraftFlowActionState> {
   const intentValue = String(formData.get("intent") ?? "");
   const intent = intentValue === "generate" ? "generate" : "save";
-  const recipeIds = formData
-    .getAll("recipe_ids")
-    .map((value) => String(value))
-    .filter(Boolean);
+  const selectionsJson = String(formData.get("selections_json") ?? "").trim();
+  let selections: CartSelection[] = [];
 
-  if (recipeIds.length === 0) {
+  if (selectionsJson) {
+    try {
+      const parsed = JSON.parse(selectionsJson) as Array<{
+        recipe_id?: string;
+        quantity?: number;
+      }>;
+      selections = parsed
+        .map((selection) => ({
+          recipe_id: String(selection.recipe_id ?? "").trim(),
+          recipe_type: "base" as const,
+          quantity: Math.max(1, Number(selection.quantity ?? 1)),
+        }))
+        .filter((selection) => selection.recipe_id);
+    } catch {
+      selections = [];
+    }
+  }
+
+  if (selections.length === 0) {
     return {
       error: "Select at least one recipe first.",
     };
   }
 
-  const selections: CartSelection[] = recipeIds.map((recipeId) => ({
-    recipe_id: recipeId,
-    recipe_type: "base",
-    quantity: 1,
-  }));
-
   const customName = String(formData.get("name") ?? "").trim();
-  const fallbackName = `Planning run - ${recipeIds.length} recipe${recipeIds.length === 1 ? "" : "s"}`;
+  const fallbackName = `Planning run - ${selections.length} recipe${selections.length === 1 ? "" : "s"}`;
   const name = customName || fallbackName;
   const retailer = (String(formData.get("retailer") ?? "walmart").trim() ||
     "walmart") as Retailer;

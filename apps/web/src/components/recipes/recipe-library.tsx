@@ -28,12 +28,12 @@ export function RecipeLibrary(props: {
   const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
   const [builderSeed, setBuilderSeed] = useState(0);
   const [builderConfig, setBuilderConfig] = useState<{
-    recipeIds: string[];
+    selections: Array<{ recipeId: string; quantity: number }>;
     name?: string;
     retailer?: Retailer;
     mode: "create" | "edit-draft" | "edit-cart";
     resourceId?: string;
-  }>({ recipeIds: [], mode: "create" });
+  }>({ selections: [], mode: "create" });
   const [isBuilderOpen, setBuilderOpen] = useState(false);
   const [activeDetail, setActiveDetail] = useState<
     | { type: "draft"; id: string }
@@ -87,14 +87,14 @@ export function RecipeLibrary(props: {
 
   const openBuilder = useCallback(
     (
-      recipeIds: string[] = [],
+      selections: Array<{ recipeId: string; quantity: number }> = [],
       name = "",
       retailer?: Retailer,
       mode: "create" | "edit-draft" | "edit-cart" = "create",
       resourceId?: string,
     ) => {
     setBuilderSeed((current) => current + 1);
-    setBuilderConfig({ recipeIds, name, retailer, mode, resourceId });
+    setBuilderConfig({ selections, name, retailer, mode, resourceId });
     setBuilderOpen(true);
     },
     [],
@@ -107,7 +107,7 @@ export function RecipeLibrary(props: {
   const handleAddToCart = useCallback(
     (recipe: BaseRecipe) => {
       setActiveRecipeId(null);
-      openBuilder([recipe.id]);
+      openBuilder([{ recipeId: recipe.id, quantity: 1 }]);
     },
     [openBuilder],
   );
@@ -118,11 +118,11 @@ export function RecipeLibrary(props: {
       id: string;
       name?: string;
       retailer: string;
-      recipeIds: string[];
+      recipeSelections: Array<{ recipeId: string; quantity: number }>;
     }) => {
       setActiveDetail(null);
       openBuilder(
-        detail.recipeIds,
+        detail.recipeSelections,
         detail.name ?? "",
         detail.retailer as Retailer,
         detail.type === "draft" ? "edit-draft" : "edit-cart",
@@ -306,7 +306,7 @@ export function RecipeLibrary(props: {
         recipes={props.recipes}
         onClose={closeBuilder}
         onCreated={setActiveDetail}
-        initialRecipeIds={builderConfig.recipeIds}
+        initialSelections={builderConfig.selections}
         initialName={builderConfig.name}
         initialRetailer={builderConfig.retailer}
         mode={builderConfig.mode}

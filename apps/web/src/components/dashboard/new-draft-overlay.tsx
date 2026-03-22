@@ -47,7 +47,7 @@ export function NewDraftOverlay(props: {
   recipes: BaseRecipe[];
   onClose: () => void;
   onCreated: (detail: { type: "draft" | "cart"; id: string }) => void;
-  initialRecipeIds?: string[];
+  initialSelections?: Array<{ recipeId: string; quantity: number }>;
   initialName?: string;
   initialRetailer?: Retailer;
   mode?: "create" | "edit-draft" | "edit-cart";
@@ -55,7 +55,7 @@ export function NewDraftOverlay(props: {
 }) {
   const {
     initialName = "",
-    initialRecipeIds = [],
+    initialSelections = [],
     initialRetailer = "walmart",
     mode = "create",
     onClose,
@@ -74,8 +74,12 @@ export function NewDraftOverlay(props: {
   const [retailer, setRetailer] = useState<Retailer>(initialRetailer);
   const [showAllTags, setShowAllTags] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>(
-    initialRecipeIds,
+  const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>(
+    Object.fromEntries(
+      initialSelections
+        .filter((selection) => selection.recipeId)
+        .map((selection) => [selection.recipeId, Math.max(1, selection.quantity)]),
+    ),
   );
   const deferredQuery = useDeferredValue(query);
   const handledResourceRef = useRef<string | null>(null);
@@ -138,9 +142,20 @@ export function NewDraftOverlay(props: {
     [normalizedQuery, recipes, selectedTag],
   );
 
-  const selectedRecipes = selectedRecipeIds
-    .map((id) => recipeLookup.get(id))
-    .filter((recipe): recipe is BaseRecipe => Boolean(recipe));
+  const selectedRecipes = Object.entries(selectedQuantities)
+    .filter(([, quantity]) => quantity > 0)
+    .map(([id, quantity]) => ({
+      recipe: recipeLookup.get(id),
+      quantity,
+    }))
+    .filter(
+      (
+        entry,
+      ): entry is {
+        recipe: BaseRecipe;
+        quantity: number;
+      } => Boolean(entry.recipe),
+    );
 
   if (!open) {
     return null;
@@ -163,6 +178,38 @@ export function NewDraftOverlay(props: {
     retailer === "kroger"
       ? "Kroger search needs your shopping location in preferences."
       : null;
+  const selectionPayload = JSON.stringify(
+    selectedRecipes.map(({ recipe, quantity }) => ({
+      recipe_id: recipe.id,
+      quantity,
+    })),
+  );
+
+  function toggleRecipe(recipeId: string) {
+    setSelectedQuantities((current) => {
+      const next = { ...current };
+      if (next[recipeId]) {
+        delete next[recipeId];
+      } else {
+        next[recipeId] = 1;
+      }
+      return next;
+    });
+  }
+
+  function updateRecipeQuantity(recipeId: string, delta: number) {
+    setSelectedQuantities((current) => {
+      const currentQuantity = current[recipeId] ?? 0;
+      const nextQuantity = currentQuantity + delta;
+      const next = { ...current };
+      if (nextQuantity <= 0) {
+        delete next[recipeId];
+      } else {
+        next[recipeId] = nextQuantity;
+      }
+      return next;
+    });
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-[rgba(24,35,29,0.6)] p-4 backdrop-blur-sm sm:p-6">
@@ -290,20 +337,15 @@ export function NewDraftOverlay(props: {
 
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {filteredRecipes.map((recipe) => {
-                  const selected = selectedRecipeIds.includes(recipe.id);
+                  const selectedQuantity = selectedQuantities[recipe.id] ?? 0;
+                  const selected = selectedQuantity > 0;
                   const badges = getDietaryBadges(recipe);
 
                   return (
                     <button
                       key={recipe.id}
                       type="button"
-                      onClick={() =>
-                        setSelectedRecipeIds((current) =>
-                          current.includes(recipe.id)
-                            ? current.filter((id) => id !== recipe.id)
-                            : [...current, recipe.id],
-                        )
-                      }
+                      onClick={() => toggleRecipe(recipe.id)}
                       className={`flex min-h-[13rem] flex-col overflow-hidden rounded-[1.3rem] border text-left transition ${
                         selected
                           ? "border-[color:var(--forest)] bg-[color:var(--forest)]/5 shadow-[0_10px_28px_rgba(23,50,36,0.12)]"
@@ -324,8 +366,15 @@ export function NewDraftOverlay(props: {
                       )}
 
                       <div className="flex flex-1 flex-col p-3">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
-                          {recipe.cuisine.label}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
+                            {recipe.cuisine.label}
+                          </div>
+                          {selected ? (
+                            <span className="rounded-full border border-[color:var(--forest)] bg-[color:var(--forest)]/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--forest)]">
+                              x{selectedQuantity}
+                            </span>
+                          ) : null}
                         </div>
                         <div className="mt-2 font-display text-[1.25rem] leading-[0.96] text-[color:var(--forest-strong)]">
                           {recipe.name}
@@ -359,14 +408,14 @@ export function NewDraftOverlay(props: {
                 Selected recipes
               </div>
               <div className="mt-2 font-display text-3xl leading-none text-[color:var(--forest-strong)]">
-                {selectedRecipes.length}
+                {selectedRecipes.reduce((sum, entry) => sum + entry.quantity, 0)}
               </div>
             </div>
 
             <div className="mt-5 min-h-0 flex-1 overflow-y-auto">
               {selectedRecipes.length > 0 ? (
                 <div className="grid gap-3">
-                  {selectedRecipes.map((recipe) => (
+                  {selectedRecipes.map(({ recipe, quantity }) => (
                     <div
                       key={recipe.id}
                       className="rounded-[1.2rem] border border-[color:var(--line)] bg-[color:var(--paper)]/76 px-4 py-3"
@@ -380,7 +429,7 @@ export function NewDraftOverlay(props: {
                             {recipe.name}
                           </div>
                           <div className="mt-1 text-xs text-[color:var(--ink-soft)]">
-                            Servings: {recipe.servings}
+                            Servings: {recipe.servings} / Quantity: {quantity}
                           </div>
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {getDietaryBadges(recipe).map((tag) => (
@@ -393,18 +442,27 @@ export function NewDraftOverlay(props: {
                             ))}
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSelectedRecipeIds((current) =>
-                              current.filter((id) => id !== recipe.id),
-                            )
-                          }
-                          className="text-sm text-[color:var(--ink-soft)] transition hover:text-[color:var(--forest-strong)]"
-                          aria-label={`Remove ${recipe.name}`}
-                        >
-                          Remove
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateRecipeQuantity(recipe.id, -1)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/80 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
+                            aria-label={`Decrease ${recipe.name} quantity`}
+                          >
+                            -
+                          </button>
+                          <span className="min-w-5 text-center text-sm font-semibold text-[color:var(--forest-strong)]">
+                            {quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateRecipeQuantity(recipe.id, 1)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/80 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
+                            aria-label={`Increase ${recipe.name} quantity`}
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -416,9 +474,7 @@ export function NewDraftOverlay(props: {
               )}
             </div>
 
-            {selectedRecipeIds.map((id) => (
-              <input key={id} type="hidden" name="recipe_ids" value={id} />
-            ))}
+            <input type="hidden" name="selections_json" value={selectionPayload} />
             {mode !== "create" ? (
               <>
                 <input

@@ -87,14 +87,14 @@ type EditableDetail =
       id: string;
       name?: string;
       retailer: string;
-      recipeIds: string[];
+      recipeSelections: Array<{ recipeId: string; quantity: number }>;
     }
   | {
       type: "cart";
       id: string;
       name?: string;
       retailer: string;
-      recipeIds: string[];
+      recipeSelections: Array<{ recipeId: string; quantity: number }>;
     };
 
 export function PlanningDetailOverlay(props: {
@@ -218,7 +218,10 @@ export function PlanningDetailOverlay(props: {
                     id: draftDetail.id,
                     name: draftDetail.name,
                     retailer: draftDetail.retailer,
-                    recipeIds: draftDetail.selections.map((selection) => selection.recipe_id),
+                    recipeSelections: draftDetail.selections.map((selection) => ({
+                      recipeId: selection.recipe_id,
+                      quantity: selection.quantity,
+                    })),
                   })
                 }
                 className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 px-4 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
@@ -356,7 +359,10 @@ export function PlanningDetailOverlay(props: {
                     id: cartDetail.id ?? "",
                     name: cartDetail.name,
                     retailer: cartDetail.retailer,
-                    recipeIds: cartDetail.selections.map((selection) => selection.recipe_id),
+                    recipeSelections: cartDetail.selections.map((selection) => ({
+                      recipeId: selection.recipe_id,
+                      quantity: selection.quantity,
+                    })),
                   })
                 }
               className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 px-4 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"

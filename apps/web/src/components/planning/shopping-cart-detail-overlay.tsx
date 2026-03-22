@@ -159,7 +159,7 @@ export function ShoppingCartDetailOverlay(props: {
     setSearchError(undefined);
   }
 
-  function handleDeleteLine(index: number) {
+function handleDeleteLine(index: number) {
     if (!currentShoppingCart) {
       return;
     }
@@ -167,6 +167,33 @@ export function ShoppingCartDetailOverlay(props: {
     const nextItems = currentShoppingCart.matched_items.filter(
       (_item, itemIndex) => itemIndex !== index,
     );
+
+    setCurrentShoppingCart({
+      ...currentShoppingCart,
+      matched_items: nextItems,
+      estimated_subtotal: calculateSubtotal(nextItems),
+    });
+  }
+
+  function handleAdjustLineQuantity(index: number, delta: number) {
+    if (!currentShoppingCart) {
+      return;
+    }
+
+    const nextItems = currentShoppingCart.matched_items.map((item, itemIndex) => {
+      if (itemIndex !== index || !item.selected_product) {
+        return item;
+      }
+
+      const nextQuantity = Math.max(1, (item.selected_quantity ?? 1) + delta);
+      return {
+        ...item,
+        selected_quantity: nextQuantity,
+        estimated_line_total: Number(
+          (item.selected_product.price * nextQuantity).toFixed(2),
+        ),
+      };
+    });
 
     setCurrentShoppingCart({
       ...currentShoppingCart,
@@ -467,6 +494,30 @@ export function ShoppingCartDetailOverlay(props: {
                                 </span>
                               ) : null}
                             </div>
+
+                            {isEditing ? (
+                              <div className="mt-3 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdjustLineQuantity(index, -1)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/80 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
+                                  aria-label={`Decrease ${lineTitle} quantity`}
+                                >
+                                  -
+                                </button>
+                                <span className="min-w-6 text-center text-sm font-semibold text-[color:var(--forest-strong)]">
+                                  {item.selected_quantity ?? 1}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdjustLineQuantity(index, 1)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/80 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
+                                  aria-label={`Increase ${lineTitle} quantity`}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            ) : null}
 
                             {item.notes ? (
                               <p className="mt-3 text-sm leading-6 text-[color:var(--ink-soft)]">
