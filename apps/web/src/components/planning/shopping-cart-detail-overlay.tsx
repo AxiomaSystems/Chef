@@ -107,6 +107,7 @@ export function ShoppingCartDetailOverlay(props: {
   const [saveError, setSaveError] = useState<string | undefined>();
   const [isSearching, startSearching] = useTransition();
   const [isSaving, startSaving] = useTransition();
+  const [showOverview, setShowOverview] = useState(false);
 
   const subtotal = useMemo(
     () =>
@@ -477,7 +478,7 @@ export function ShoppingCartDetailOverlay(props: {
               </ul>
             </section>
 
-            <aside className="grid gap-4">
+            <aside className="grid auto-rows-min content-start gap-4 self-start">
               <section className="rounded-[1.6rem] border border-[color:var(--line)] bg-white/52 p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -502,7 +503,7 @@ export function ShoppingCartDetailOverlay(props: {
                   ) : null}
                 </div>
 
-                <div className="mt-4 grid gap-4">
+                <div className="mt-4 grid auto-rows-min gap-4 content-start">
                   <div>
                     <p className="text-[11px] uppercase tracking-[0.14em] text-[color:var(--ink-soft)]">
                       Retailer
@@ -519,7 +520,7 @@ export function ShoppingCartDetailOverlay(props: {
                       {formatMoney(subtotal)}
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="relative grid grid-cols-2 gap-3">
                     <div className="rounded-[1rem] border border-[color:var(--line)] bg-[rgba(255,255,255,0.72)] px-4 py-3">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-[color:var(--ink-soft)]">
                         Cart lines
@@ -528,19 +529,52 @@ export function ShoppingCartDetailOverlay(props: {
                         {lineCount}
                       </p>
                     </div>
-                    <div className="rounded-[1rem] border border-[color:var(--line)] bg-[rgba(255,255,255,0.72)] px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowOverview((current) => !current)}
+                      className="rounded-[1rem] border border-[color:var(--line)] bg-[rgba(255,255,255,0.72)] px-4 py-3 text-left transition hover:bg-white"
+                    >
                       <p className="text-[11px] uppercase tracking-[0.14em] text-[color:var(--ink-soft)]">
                         Ingredient source
                       </p>
                       <p className="mt-1 text-lg font-semibold text-[color:var(--forest-strong)]">
                         {currentShoppingCart.overview.length}
                       </p>
-                    </div>
+                    </button>
+
+                    {showOverview ? (
+                      <div className="absolute right-0 top-[calc(100%+0.65rem)] z-10 w-[calc(50%-0.35rem)] min-w-[14rem] rounded-[1.1rem] border border-[color:var(--line)] bg-[color:var(--paper)] p-3 shadow-[0_20px_50px_rgba(10,18,13,0.18)]">
+                        <div className="mb-3 flex items-center justify-between gap-3 border-b border-[color:var(--line)] pb-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--olive)]">
+                            Ingredient source
+                          </p>
+                          <span className="rounded-full border border-[color:var(--line)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--ink-soft)]">
+                            {currentShoppingCart.overview.length} items
+                          </span>
+                        </div>
+
+                        <ul className="grid max-h-72 gap-2 overflow-y-auto pr-1">
+                          {currentShoppingCart.overview.map((ingredient) => (
+                            <li
+                              key={`${ingredient.canonical_ingredient}-${ingredient.unit}`}
+                              className="rounded-[0.95rem] border border-[color:var(--line)] bg-[rgba(255,255,255,0.72)] px-3 py-2"
+                            >
+                              <p className="text-sm font-semibold text-[color:var(--forest-strong)]">
+                                {ingredient.canonical_ingredient}
+                              </p>
+                              <p className="mt-1 text-xs leading-5 text-[color:var(--ink-soft)]">
+                                {ingredient.total_amount} {ingredient.unit}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </section>
 
-              <section className="rounded-[1.6rem] border border-[color:var(--line)] bg-white/52 p-5">
+              <section className="self-start rounded-[1.6rem] border border-[color:var(--line)] bg-white/52 p-5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
                   Product search
                 </p>
@@ -654,7 +688,7 @@ export function ShoppingCartDetailOverlay(props: {
                 )}
               </section>
 
-              <section className="rounded-[1.6rem] border border-[color:var(--line)] bg-white/52 p-5">
+              <section className="self-start rounded-[1.6rem] border border-[color:var(--line)] bg-white/52 p-5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
                   Cart lines
                 </p>
@@ -684,6 +718,7 @@ export function ShoppingCartDetailOverlay(props: {
                   )}
                 </ul>
               </section>
+
             </aside>
           </div>
         </div>
