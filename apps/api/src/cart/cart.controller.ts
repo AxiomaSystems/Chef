@@ -207,7 +207,7 @@ export class CartController {
   @UseGuards(RequestActorGuard)
   @ApiCartController('retailer-products')
   @ApiSearchRetailerProducts()
-  searchRetailerProducts(
+  async searchRetailerProducts(
     @Param('retailer') retailer: 'walmart',
     @Query('query') query: string,
   ) {

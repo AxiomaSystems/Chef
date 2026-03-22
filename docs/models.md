@@ -385,7 +385,9 @@ type MatchedIngredientProduct = {
 
 Status:
 
-- runtime matching is implemented against a mock catalog
+- runtime matching is implemented behind a retailer-provider boundary
+- the default provider is still the mock catalog
+- a Walmart provider exists for live search/matching once credentials are configured
 - retailer support is still only `"walmart"`
 
 ## 6. Shopping Cart Models
@@ -416,7 +418,9 @@ Interpretation:
 Current runtime note:
 
 - this concept is now represented explicitly as `ShoppingCart`
-- matching still runs against a mock provider and should later swap to a real retailer adapter
+- matching now runs behind a provider boundary
+- `ShoppingCart` can still be created and edited with the mock provider in local/dev
+- the same contract is intended to work with the real Walmart provider once enabled
 
 Current UI note:
 

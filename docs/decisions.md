@@ -153,6 +153,10 @@ Why:
 - avoids early third-party API complexity
 - lets matching logic be developed in isolation
 
+Current status:
+- the mock-first decision is still the default runtime path
+- the codebase now also has a real Walmart provider boundary behind config, so switching providers no longer requires reshaping `ShoppingCart`
+
 ## 15. Avoid Premature Complexity
 
 Decision:
@@ -342,6 +346,23 @@ Implications:
 - manual additions should not be forced to map back to a recipe ingredient
 - backend should support retailer product search and `PATCH /api/v1/shopping-carts/:id`
 - real Walmart integration should later slot behind the same searchable/editable boundary
+
+## 23.7. Real Retailer Integration Should Land Behind The Existing Provider Boundary
+
+Decision:
+- implement a retailer-product provider boundary before turning on Walmart live search/matching
+- keep the mock provider as the default fallback until credentials are available
+
+Why:
+- the UI and `ShoppingCart` contract are already good enough to validate with a real provider
+- swapping providers should not require another redesign of carts or shopping carts
+- keeping the mock provider preserves local development and test stability
+
+Implications:
+- `MatchingService` should depend on a provider boundary instead of reading the mock catalog directly
+- Walmart OAuth token handling and product search stay encapsulated in the Walmart provider
+- `WALMART_USE_REAL_PROVIDER`, `WALMART_CLIENT_ID`, `WALMART_CLIENT_SECRET`, and `WALMART_ENV` control activation
+- quantity and subtotal remain our responsibility even when the product catalog comes from Walmart
 
 ## 24. Replace Boolean Ownership Semantics With Clearer States Later
 

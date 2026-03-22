@@ -1,7 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 import type { BaseRecipe } from '@cart/shared';
 import { AggregationService } from '../aggregation/aggregation.service';
+import { MockRetailerProductProvider } from '../matching/mock-retailer-product.provider';
 import { MatchingService } from '../matching/matching.service';
+import { WalmartRetailerProductProvider } from '../matching/walmart-retailer-product.provider';
 import { RecipeService } from '../recipe/recipe.service';
 import { UserContextService } from '../user/user-context.service';
 import { CartPersistenceService } from './cart.persistence';
@@ -103,7 +105,10 @@ describe('CartService', () => {
     service = new CartService(
       recipeService,
       new AggregationService(),
-      new MatchingService(),
+      new MatchingService(
+        new MockRetailerProductProvider(),
+        new WalmartRetailerProductProvider(),
+      ),
       cartPersistenceService,
       userContextService,
     );

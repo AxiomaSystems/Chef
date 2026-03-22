@@ -49,8 +49,9 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - deterministic conversion from recipe selections into recipe-based carts
 - persisted retailer context on drafts and carts
 - derived aggregated ingredient overviews on cart reads
-- deterministic ingredient aggregation and mock retailer matching behind shopping-cart generation
-- mock product matching with subtotal estimation
+- deterministic ingredient aggregation and provider-backed retailer matching behind shopping-cart generation
+- a mock retailer provider for local/dev fallback
+- a Walmart provider boundary that can be enabled later with real credentials
 - retailer product search and shopping-cart editing APIs behind the same shopping-cart boundary
 - internal `/api/v1` route families for `recipes`, `recipe-forks`, `cart-drafts`, `carts`, and `shopping-carts`
 - internal `/api/v1/tags` for visible system tags and user-owned tags
@@ -295,22 +296,28 @@ This separation is intentional:
 - cart detail now supports `Generate shopping cart`, which opens a retailer-facing shopping-cart detail overlay on top of the same workspace
 - shopping-cart detail now supports manual correction on the same persisted resource
 - `/api/v1/retailers/:retailer/products/search` now exposes provider-backed product search behind the shopping-cart editor
+- the matching module now supports `MockRetailerProductProvider` and `WalmartRetailerProductProvider`, with Walmart disabled by default until credentials are present
+- new API envs:
+  - `WALMART_USE_REAL_PROVIDER=true|false`
+  - `WALMART_CLIENT_ID`
+  - `WALMART_CLIENT_SECRET`
+  - `WALMART_ENV=sandbox|production`
 - `PATCH /api/v1/shopping-carts/:id` now persists manual shopping-cart edits
 
 ## Upcoming Work
 
 The next high-signal work is now more product-shaped than before.
 
-1. Expand the shopping-cart workspace further with quantity editing, repeat-generation strategy, and first-class history/revisit flows.
-2. Add a clearer draft -> cart conversion affordance inside draft detail, beyond the generic composer action.
-3. Expand recipe library actions with `Fork/Edit` and a stronger owner/system distinction in the UI.
-4. Harden Google OAuth for production secret management and deploy configuration.
-5. Replace mock retailer matching with a real provider later, but keep that complexity behind `ShoppingCart`.
+1. Turn on the real Walmart provider with credentials and validate the live search/matching behavior against sandbox first.
+2. Expand the shopping-cart workspace further with quantity editing, repeat-generation strategy, and first-class history/revisit flows.
+3. Add a clearer draft -> cart conversion affordance inside draft detail, beyond the generic composer action.
+4. Expand recipe library actions with `Fork/Edit` and a stronger owner/system distinction in the UI.
+5. Harden Google OAuth for production secret management and deploy configuration.
 
 ## Current Gaps
 
 - recipe variants and AI-assisted adaptation are not implemented yet
-- retailer matching is still mock data, not a real retailer integration
+- the real Walmart provider is implemented but still disabled until credentials are configured
 - delete flows exist, but recovery/versioning does not
 - drafts and carts can now be edited, but there is still no broader history/timeline model for planning runs
 - shopping-cart history exists in API but is not yet wired into the main web flow as a first-class revisit surface

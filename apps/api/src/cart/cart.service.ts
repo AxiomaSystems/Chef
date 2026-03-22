@@ -181,7 +181,9 @@ export class CartService {
     }
 
     const computation = this.aggregationService.compute(cart.dishes);
-    const matchedItems = this.matchingService.matchIngredients(computation.overview);
+    const matchedItems = await this.matchingService.matchIngredients(
+      computation.overview,
+    );
     const estimatedSubtotal =
       this.matchingService.estimateSubtotal(matchedItems);
 
@@ -262,14 +264,14 @@ export class CartService {
     return this.findShoppingCart(id, actorUserId);
   }
 
-  searchRetailerProducts(
+  async searchRetailerProducts(
     retailer: Retailer,
     query: string,
-  ): RetailerProductSearchResponse {
+  ): Promise<RetailerProductSearchResponse> {
     return {
       retailer,
       query,
-      candidates: this.matchingService.searchProducts(retailer, query),
+      candidates: await this.matchingService.searchProducts(retailer, query),
     };
   }
 

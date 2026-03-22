@@ -165,7 +165,7 @@ Purpose:
 Implemented behavior:
 
 1. generate a search query from canonical ingredient data
-2. score candidates from a mock catalog
+2. ask the active retailer provider for candidates
 3. account for unit compatibility and basic conversion
 4. pick a product and quantity
 5. compute line totals and subtotal
@@ -177,7 +177,9 @@ Implemented entities:
 
 Current limitation:
 
-- matching is still mock-catalog based, not a real retailer integration
+- matching now sits behind a provider boundary
+- the current default provider is still the mock catalog
+- a real Walmart provider is implemented but disabled until credentials are supplied
 - manual shopping-cart edits exist, but quantity editing and richer provider behavior are not implemented yet
 
 ### 6. Shopping Cart Layer
@@ -196,7 +198,9 @@ Implemented responsibilities:
 Current status:
 
 - this is now represented explicitly as `ShoppingCart`
-- retailer matching still uses a mock provider boundary
+- retailer matching now uses a provider boundary
+- the fallback/default provider is mock
+- the Walmart provider can be enabled later without changing the shopping-cart contract
 
 ## Current Access Model
 
@@ -307,7 +311,7 @@ Not implemented yet:
 - recipe variants
 - raw LLM outputs
 - async matching jobs
-- real retailer provider integration
+- turning on the real Walmart provider in sandbox/production config
 
 Not first-class in UI yet:
 
@@ -401,7 +405,9 @@ Purpose:
 Status:
 
 - the resource boundary is already in place
-- the current provider is still mock-based
+- the provider boundary is now implemented
+- the mock provider remains the default fallback
+- the Walmart provider is ready to be enabled by config
 
 ### 4. Adaptation Layer
 

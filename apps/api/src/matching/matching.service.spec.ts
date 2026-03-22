@@ -1,14 +1,19 @@
 import { MatchingService } from './matching.service';
+import { MockRetailerProductProvider } from './mock-retailer-product.provider';
+import { WalmartRetailerProductProvider } from './walmart-retailer-product.provider';
 
 describe('MatchingService', () => {
   let service: MatchingService;
 
   beforeEach(() => {
-    service = new MatchingService();
+    service = new MatchingService(
+      new MockRetailerProductProvider(),
+      new WalmartRetailerProductProvider(),
+    );
   });
 
-  it('matches a mock catalog product and computes line totals', () => {
-    const [match] = service.matchIngredients([
+  it('matches a mock catalog product and computes line totals', async () => {
+    const [match] = await service.matchIngredients([
       {
         canonical_ingredient: 'rice',
         total_amount: 7,
@@ -23,8 +28,8 @@ describe('MatchingService', () => {
     expect(match.estimated_line_total).toBe(7.96);
   });
 
-  it('returns a fallback when no mock product exists', () => {
-    const [match] = service.matchIngredients([
+  it('returns a fallback when no mock product exists', async () => {
+    const [match] = await service.matchIngredients([
       {
         canonical_ingredient: 'unknown ingredient',
         total_amount: 1,
@@ -38,8 +43,8 @@ describe('MatchingService', () => {
     expect(match.estimated_line_total).toBe(0);
   });
 
-  it('converts compatible units before computing quantity', () => {
-    const [match] = service.matchIngredients([
+  it('converts compatible units before computing quantity', async () => {
+    const [match] = await service.matchIngredients([
       {
         canonical_ingredient: 'aji amarillo paste',
         total_amount: 6,
