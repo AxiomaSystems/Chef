@@ -61,4 +61,41 @@ describe('MatchingService', () => {
     expect(match.selected_quantity).toBe(1);
     expect(match.fallback_used).toBe(true);
   });
+
+  it('rejects absurd matches when the candidate does not share ingredient tokens', async () => {
+    const serviceWithCustomProvider = new MatchingService(
+      {
+        retailer: 'walmart' as const,
+        isEnabled: () => true,
+        findCandidatesForIngredient: async () => [
+          {
+            product_id: 'bad-match-1',
+            title: 'Chicken Dipping Sauce',
+            price: 2.99,
+            quantity_text: '12 oz',
+            size_value: 12,
+            size_unit: 'oz',
+          },
+        ],
+        searchProducts: async () => [],
+      } as unknown as MockRetailerProductProvider,
+      new KrogerRetailerProductProvider(),
+      new WalmartRetailerProductProvider(),
+    );
+
+    const [match] = await serviceWithCustomProvider.matchIngredients(
+      [
+        {
+          canonical_ingredient: 'aji amarillo paste',
+          total_amount: 3,
+          unit: 'tbsp',
+          source_dishes: [],
+        },
+      ],
+      'walmart',
+    );
+
+    expect(match.selected_product).toBeNull();
+    expect(match.estimated_line_total).toBe(0);
+  });
 });

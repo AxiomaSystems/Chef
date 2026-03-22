@@ -2,6 +2,46 @@ import type { AggregatedIngredient, ProductCandidate } from '@cart/shared';
 import type { CandidateMatch } from './matching.types';
 import { convertUnit } from './unit-conversion';
 
+const STOPWORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'by',
+  'for',
+  'fresh',
+  'from',
+  'in',
+  'of',
+  'on',
+  'or',
+  'the',
+  'to',
+  'with',
+]);
+
+const NEGATIVE_KEYWORDS = [
+  'chips',
+  'cleaner',
+  'cookie',
+  'cookies',
+  'cracker',
+  'crackers',
+  'dipping',
+  'dip',
+  'dressing',
+  'juice',
+  'marinade',
+  'mix',
+  'perfume',
+  'sauce',
+  'seasoning',
+  'snack',
+  'soap',
+  'soup',
+  'syrup',
+  'toy',
+];
+
 const convertCandidateSize = (
   ingredient: AggregatedIngredient,
   candidate: ProductCandidate,
@@ -11,6 +51,67 @@ const convertCandidateSize = (
   }
 
   return convertUnit(candidate.size_value, candidate.size_unit, ingredient.unit);
+};
+
+const tokenize = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/[\s-]+/)
+    .map((token) => token.trim())
+    .filter((token) => token && !STOPWORDS.has(token))
+    .map((token) => (token.endsWith('s') ? token.slice(0, -1) : token));
+
+const buildSemanticScore = (
+  ingredient: AggregatedIngredient,
+  candidate: ProductCandidate,
+) => {
+  const ingredientName = ingredient.canonical_ingredient.toLowerCase();
+  const ingredientTokens = tokenize(ingredient.canonical_ingredient);
+  const title = candidate.title.toLowerCase();
+  const brand = candidate.brand?.toLowerCase() ?? '';
+  const quantityText = candidate.quantity_text?.toLowerCase() ?? '';
+  const haystack = `${title} ${brand} ${quantityText}`.trim();
+
+  let score = 0;
+
+  if (title.includes(ingredientName)) {
+    score += 12;
+  } else if (haystack.includes(ingredientName)) {
+    score += 8;
+  }
+
+  const titleTokens = new Set(tokenize(candidate.title));
+  const haystackTokens = new Set(tokenize(haystack));
+  const matchedIngredientTokens = ingredientTokens.filter((token) =>
+    haystackTokens.has(token),
+  );
+
+  score += matchedIngredientTokens.length * 4;
+
+  if (
+    ingredientTokens.length > 0 &&
+    ingredientTokens.every((token) => titleTokens.has(token))
+  ) {
+    score += 6;
+  }
+
+  for (const keyword of NEGATIVE_KEYWORDS) {
+    if (ingredientTokens.includes(keyword)) {
+      continue;
+    }
+
+    if (title.includes(keyword)) {
+      score -= 5;
+    } else if (haystack.includes(keyword)) {
+      score -= 3;
+    }
+  }
+
+  return {
+    score,
+    matchedTokenCount: matchedIngredientTokens.length,
+  };
 };
 
 export const pickCandidate = (
@@ -26,8 +127,14 @@ export const pickCandidate = (
     .map((candidate) => ({
       product: candidate,
       convertedSizeValue: convertCandidateSize(ingredient, candidate),
+      semantic: buildSemanticScore(ingredient, candidate),
     }))
+    .filter((candidate) => candidate.semantic.matchedTokenCount > 0)
     .sort((left, right) => {
+      if (right.semantic.score !== left.semantic.score) {
+        return right.semantic.score - left.semantic.score;
+      }
+
       const leftConvertible = left.convertedSizeValue !== null ? 0 : 1;
       const rightConvertible = right.convertedSizeValue !== null ? 0 : 1;
 
@@ -43,5 +150,5 @@ export const pickCandidate = (
       }
 
       return left.product.price - right.product.price;
-    })[0];
+    })[0] ?? null;
 };

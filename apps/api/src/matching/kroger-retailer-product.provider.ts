@@ -7,6 +7,7 @@ import {
   KROGER_TOKEN_URL,
   KROGER_USE_REAL_PROVIDER,
 } from './matching.constants';
+import { parseProductSize } from './product-size';
 import type {
   RetailerProductProvider,
   RetailerSearchContext,
@@ -122,6 +123,10 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
       });
       return candidates;
     } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
       const message =
         error instanceof Error ? error.message : 'Unknown Kroger search error';
       this.logger.warn(`Kroger search failed: ${message}`);
@@ -271,17 +276,27 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
       return null;
     }
 
+    const parsedSize = parseProductSize(
+      this.readString(this.readNested(firstItem, ['size'])),
+      this.readString(item.size),
+      title,
+    );
+
     return {
       product_id: productId || `kroger-${index}`,
       title,
       brand: this.readString(item.brand, firstItem?.brand),
       price,
-      quantity_text: this.readString(
-        this.readNested(firstItem, ['size']),
-        this.readNested(firstItem, ['soldBy']),
-        item.size,
-      ),
-      url: this.readString(item.productPageURL, item.url),
+      size_value: parsedSize.sizeValue,
+      size_unit: parsedSize.sizeUnit,
+      quantity_text:
+        parsedSize.quantityText ??
+        this.readString(
+          this.readNested(firstItem, ['size']),
+          this.readNested(firstItem, ['soldBy']),
+          item.size,
+        ),
+      url: this.readString(item.productPageURI, item.productPageURL, item.url),
       image_url: this.readImageUrl(item.images),
     } satisfies ProductCandidate;
   }
