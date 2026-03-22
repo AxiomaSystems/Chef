@@ -124,6 +124,7 @@ export function ShoppingCartDetailOverlay(props: {
     currentShoppingCart.updated_at ??
     currentShoppingCart.created_at ??
     new Date().toISOString();
+  const lineCount = currentShoppingCart.matched_items.length;
 
   function handleReplace(index: number) {
     if (!currentShoppingCart) {
@@ -251,8 +252,7 @@ export function ShoppingCartDetailOverlay(props: {
               Retailer output
             </h2>
             <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
-              {currentShoppingCart.retailer} /{" "}
-              {currentShoppingCart.matched_items.length} lines / updated{" "}
+              {currentShoppingCart.retailer} / {lineCount} lines / updated{" "}
               {formatDate(updatedAt)}
             </p>
           </div>
@@ -522,18 +522,18 @@ export function ShoppingCartDetailOverlay(props: {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-[1rem] border border-[color:var(--line)] bg-[rgba(255,255,255,0.72)] px-4 py-3">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-[color:var(--ink-soft)]">
-                        Overview
+                        Cart lines
                       </p>
                       <p className="mt-1 text-lg font-semibold text-[color:var(--forest-strong)]">
-                        {currentShoppingCart.overview.length}
+                        {lineCount}
                       </p>
                     </div>
                     <div className="rounded-[1rem] border border-[color:var(--line)] bg-[rgba(255,255,255,0.72)] px-4 py-3">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-[color:var(--ink-soft)]">
-                        Matches
+                        Ingredient source
                       </p>
                       <p className="mt-1 text-lg font-semibold text-[color:var(--forest-strong)]">
-                        {currentShoppingCart.matched_items.length}
+                        {currentShoppingCart.overview.length}
                       </p>
                     </div>
                   </div>
@@ -656,22 +656,32 @@ export function ShoppingCartDetailOverlay(props: {
 
               <section className="rounded-[1.6rem] border border-[color:var(--line)] bg-white/52 p-5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
-                  Ingredient menu
+                  Cart lines
                 </p>
                 <ul className="mt-4 grid gap-3">
-                  {currentShoppingCart.overview.map((ingredient) => (
-                    <li
-                      key={`${ingredient.canonical_ingredient}-${ingredient.unit}`}
-                      className="rounded-[1rem] border border-[color:var(--line)] bg-[rgba(255,255,255,0.72)] px-4 py-3"
-                    >
-                      <p className="text-sm font-semibold text-[color:var(--forest-strong)]">
-                        {ingredient.canonical_ingredient}
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-[color:var(--ink-soft)]">
-                        {ingredient.total_amount} {ingredient.unit}
-                      </p>
+                  {currentShoppingCart.matched_items.length > 0 ? (
+                    currentShoppingCart.matched_items.map((item, index) => (
+                      <li
+                        key={`${item.kind ?? "ingredient_match"}-${item.canonical_ingredient}-${index}`}
+                        className="rounded-[1rem] border border-[color:var(--line)] bg-[rgba(255,255,255,0.72)] px-4 py-3"
+                      >
+                        <p className="text-sm font-semibold text-[color:var(--forest-strong)]">
+                          {item.manual_label ??
+                            item.selected_product?.title ??
+                            item.canonical_ingredient}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-[color:var(--ink-soft)]">
+                          {item.selected_product
+                            ? `Product line${item.selected_quantity && item.selected_quantity > 1 ? ` x${item.selected_quantity}` : ""}`
+                            : "No product assigned yet"}
+                        </p>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="rounded-[1rem] border border-dashed border-[color:var(--line)] bg-[color:var(--paper)]/52 px-4 py-3 text-sm text-[color:var(--ink-soft)]">
+                      No cart lines yet. Search and add products in edit mode.
                     </li>
-                  ))}
+                  )}
                 </ul>
               </section>
             </aside>

@@ -42,11 +42,10 @@ export function ShoppingCartLibrary(props: {
       const haystack = [
         shoppingCart.retailer,
         shoppingCart.cart_id,
-        ...shoppingCart.overview.map((item) => item.canonical_ingredient),
         ...shoppingCart.matched_items.map((item) =>
           item.manual_label ??
-          item.canonical_ingredient ??
           item.selected_product?.title ??
+          item.canonical_ingredient ??
           "",
         ),
       ]
@@ -101,6 +100,14 @@ export function ShoppingCartLibrary(props: {
                 const manualItems = shoppingCart.matched_items.filter(
                   (item) => item.kind === "manual_item",
                 ).length;
+                const productLabels = shoppingCart.matched_items
+                  .map((item) =>
+                    item.manual_label ??
+                    item.selected_product?.title ??
+                    item.canonical_ingredient,
+                  )
+                  .filter(Boolean)
+                  .slice(0, 3);
 
                 return (
                   <button
@@ -145,12 +152,12 @@ export function ShoppingCartLibrary(props: {
                     </div>
 
                     <div className="mt-5 flex flex-wrap gap-2">
-                      {shoppingCart.overview.slice(0, 3).map((item) => (
+                      {productLabels.map((label, index) => (
                         <span
-                          key={`${shoppingCart.id}-${item.canonical_ingredient}`}
+                          key={`${shoppingCart.id}-${label}-${index}`}
                           className="rounded-full border border-[color:var(--line)] bg-[rgba(250,246,236,0.92)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--olive)]"
                         >
-                          {item.canonical_ingredient}
+                          {label}
                         </span>
                       ))}
                     </div>
