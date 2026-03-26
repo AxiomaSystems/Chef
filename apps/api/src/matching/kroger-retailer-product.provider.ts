@@ -27,6 +27,7 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
   private readonly logger = new Logger(KrogerRetailerProductProvider.name);
   private cachedAccessToken?: string;
   private accessTokenExpiresAt?: number;
+  private inflightAccessTokenPromise?: Promise<string>;
   private readonly locationCache = new Map<
     string,
     { expiresAt: number; locationId?: string }
@@ -35,6 +36,9 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
     string,
     { expiresAt: number; candidates: ProductCandidate[] }
   >();
+  private activeRequests = 0;
+  private readonly maxConcurrentRequests = 2;
+  private readonly pendingResolvers: Array<() => void> = [];
 
   isEnabled() {
     return Boolean(
@@ -67,63 +71,74 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
     const cacheKey = `${zipCode}:${normalizedQuery.toLowerCase()}`;
     const cached = this.queryCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
+      this.logger.log(
+        `Kroger query cache hit query="${normalizedQuery}" zip="${zipCode}" candidates=${cached.candidates.length}`,
+      );
       return cached.candidates;
     }
 
     try {
-      const token = await this.getAccessToken();
-      const locationId =
-        preferredLocationId || (await this.resolveLocationId(zipCode, token));
-
-      this.logger.log(
-        `Kroger search start query="${normalizedQuery}" zip="${zipCode}" locationId="${locationId ?? ''}"`,
-      );
-
-      if (!locationId) {
-        this.logger.warn(
-          `Kroger search aborted because no locationId was resolved for zip "${zipCode}"`,
-        );
-        throw new BadRequestException(
-          `No Kroger location found near ${zipCode}. Try another shopping location.`,
-        );
-      }
-
-      const url = new URL('products', KROGER_API_BASE_URL);
-      url.searchParams.set('filter.term', normalizedQuery);
-      url.searchParams.set('filter.locationId', locationId);
-      url.searchParams.set('filter.limit', '12');
-
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        this.logger.warn(
-          `Kroger search failed with ${response.status} for query "${normalizedQuery}"`,
-        );
-        return [];
-      }
-
-      const payload = (await response.json()) as Record<string, unknown>;
-      const candidates = this.mapSearchPayload(payload).slice(0, 12);
-
-      this.logger.log(
-        `Kroger search success query="${normalizedQuery}" locationId="${locationId}" candidates=${candidates.length}`,
-      );
-      if (candidates[0]) {
+      return await this.withRequestSlot(async () => {
+        const throttleDelayMs = 200;
         this.logger.log(
-          `Kroger first candidate query="${normalizedQuery}" productId="${candidates[0].product_id}" title="${candidates[0].title}" price=${candidates[0].price}`,
+          `Kroger throttled delay applied query="${normalizedQuery}" delayMs=${throttleDelayMs}`,
         );
-      }
+        await this.sleep(throttleDelayMs);
 
-      this.queryCache.set(cacheKey, {
-        expiresAt: Date.now() + 5 * 60 * 1000,
-        candidates,
+        const token = await this.getAccessToken();
+        const locationId =
+          preferredLocationId || (await this.resolveLocationId(zipCode, token));
+
+        this.logger.log(
+          `Kroger search start query="${normalizedQuery}" zip="${zipCode}" locationId="${locationId ?? ''}"`,
+        );
+
+        if (!locationId) {
+          this.logger.warn(
+            `Kroger search aborted because no locationId was resolved for zip "${zipCode}"`,
+          );
+          throw new BadRequestException(
+            `No Kroger location found near ${zipCode}. Try another shopping location.`,
+          );
+        }
+
+        const url = new URL('products', KROGER_API_BASE_URL);
+        url.searchParams.set('filter.term', normalizedQuery);
+        url.searchParams.set('filter.locationId', locationId);
+        url.searchParams.set('filter.limit', '12');
+
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          this.logger.warn(
+            `Kroger search failed with ${response.status} for query "${normalizedQuery}"`,
+          );
+          return [];
+        }
+
+        const payload = (await response.json()) as Record<string, unknown>;
+        const candidates = this.mapSearchPayload(payload).slice(0, 12);
+
+        this.logger.log(
+          `Kroger search success query="${normalizedQuery}" locationId="${locationId}" candidates=${candidates.length}`,
+        );
+        if (candidates[0]) {
+          this.logger.log(
+            `Kroger first candidate query="${normalizedQuery}" productId="${candidates[0].product_id}" title="${candidates[0].title}" price=${candidates[0].price}`,
+          );
+        }
+
+        this.queryCache.set(cacheKey, {
+          expiresAt: Date.now() + 5 * 60 * 1000,
+          candidates,
+        });
+        return candidates;
       });
-      return candidates;
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
@@ -142,46 +157,64 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
       this.accessTokenExpiresAt &&
       this.accessTokenExpiresAt > Date.now() + 30_000
     ) {
+      this.logger.log('Kroger token cache hit');
       return this.cachedAccessToken;
+    }
+
+    if (this.inflightAccessTokenPromise) {
+      this.logger.log('Kroger token request reused in-flight promise');
+      return this.inflightAccessTokenPromise;
     }
 
     const credentials = Buffer.from(
       `${KROGER_CLIENT_ID}:${KROGER_CLIENT_SECRET}`,
     ).toString('base64');
 
-    const response = await fetch(KROGER_TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${credentials}`,
-        Accept: 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Cussien/0.1 (+https://cussien.com)',
-      },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        scope: 'product.compact',
-      }),
-    });
+    this.inflightAccessTokenPromise = (async () => {
+      const response = await fetch(KROGER_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${credentials}`,
+          Accept: 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36',
+          Origin: 'https://developer.kroger.com',
+          Referer: 'https://developer.kroger.com/',
+        },
+        body: new URLSearchParams({
+          grant_type: 'client_credentials',
+          scope: 'product.compact',
+        }),
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      this.logger.warn(
-        `Kroger token request failed status=${response.status} body=${errorText.slice(0, 400)}`,
-      );
-      throw new Error(`Token request failed with status ${response.status}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.warn(
+          `Kroger token request failed status=${response.status} body=${errorText.slice(0, 400)}`,
+        );
+        throw new Error(`Token request failed with status ${response.status}`);
+      }
+
+      const payload = (await response.json()) as KrogerTokenResponse;
+      if (!payload.access_token) {
+        throw new Error('Token response did not include access_token');
+      }
+
+      this.logger.log('Kroger token request succeeded');
+
+      const expiresInMs =
+        Math.max((payload.expires_in ?? 1800) - 60, 60) * 1000;
+      this.cachedAccessToken = payload.access_token;
+      this.accessTokenExpiresAt = Date.now() + expiresInMs;
+      return payload.access_token;
+    })();
+
+    try {
+      return await this.inflightAccessTokenPromise;
+    } finally {
+      this.inflightAccessTokenPromise = undefined;
     }
-
-    const payload = (await response.json()) as KrogerTokenResponse;
-    if (!payload.access_token) {
-      throw new Error('Token response did not include access_token');
-    }
-
-    this.logger.log('Kroger token request succeeded');
-
-    const expiresInMs = Math.max((payload.expires_in ?? 1800) - 60, 60) * 1000;
-    this.cachedAccessToken = payload.access_token;
-    this.accessTokenExpiresAt = Date.now() + expiresInMs;
-    return payload.access_token;
   }
 
   private async resolveLocationId(zipCode: string, token: string) {
@@ -192,6 +225,7 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
 
     const url = new URL('locations', KROGER_API_BASE_URL);
     url.searchParams.set('filter.zipCode.near', zipCode);
+    url.searchParams.set('filter.radiusInMiles', '50');
     url.searchParams.set('filter.limit', '1');
 
     const response = await fetch(url, {
@@ -231,6 +265,57 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
     return locationId;
   }
 
+  private async acquireRequestSlot() {
+    if (this.activeRequests < this.maxConcurrentRequests) {
+      this.activeRequests += 1;
+      this.logger.log(
+        `Kroger concurrency slot acquired active=${this.activeRequests}/${this.maxConcurrentRequests}`,
+      );
+      return;
+    }
+
+    this.logger.log(
+      `Kroger concurrency limiter waiting active=${this.activeRequests}/${this.maxConcurrentRequests} queue=${this.pendingResolvers.length + 1}`,
+    );
+
+    await new Promise<void>((resolve) => {
+      this.pendingResolvers.push(resolve);
+    });
+
+    this.activeRequests += 1;
+    this.logger.log(
+      `Kroger concurrency slot acquired active=${this.activeRequests}/${this.maxConcurrentRequests}`,
+    );
+  }
+
+  private releaseRequestSlot() {
+    this.activeRequests = Math.max(0, this.activeRequests - 1);
+    this.logger.log(
+      `Kroger concurrency slot released active=${this.activeRequests}/${this.maxConcurrentRequests}`,
+    );
+
+    const nextResolver = this.pendingResolvers.shift();
+    if (nextResolver) {
+      nextResolver();
+    }
+  }
+
+  private async withRequestSlot<T>(fn: () => Promise<T>): Promise<T> {
+    await this.acquireRequestSlot();
+
+    try {
+      return await fn();
+    } finally {
+      this.releaseRequestSlot();
+    }
+  }
+
+  private sleep(ms: number) {
+    return new Promise<void>((resolve) => {
+      setTimeout(resolve, ms);
+    });
+  }
+
   private extractLocations(payload: Record<string, unknown>) {
     if (Array.isArray(payload.data)) {
       return payload.data.filter(
@@ -242,7 +327,9 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
     return [];
   }
 
-  private mapSearchPayload(payload: Record<string, unknown>): ProductCandidate[] {
+  private mapSearchPayload(
+    payload: Record<string, unknown>,
+  ): ProductCandidate[] {
     const rawItems = this.extractProducts(payload);
 
     return rawItems
@@ -266,7 +353,11 @@ export class KrogerRetailerProductProvider implements RetailerProductProvider {
     index: number,
   ): ProductCandidate | null {
     const firstItem = this.readFirstRecord(item.items);
-    const title = this.readString(item.description, item.name, firstItem?.description);
+    const title = this.readString(
+      item.description,
+      item.name,
+      firstItem?.description,
+    );
     const productId = this.readString(
       firstItem?.itemId,
       item.productId,

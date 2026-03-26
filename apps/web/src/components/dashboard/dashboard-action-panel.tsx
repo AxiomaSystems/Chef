@@ -63,7 +63,7 @@ export function DashboardActionPanel(props: {
             {hasActivePlanning ? (
               <Link
                 href="#recent-work"
-                className="inline-flex min-h-12 items-center rounded-full bg-[color:var(--paper)] px-5 text-sm font-semibold text-[#173224] shadow-[0_10px_30px_rgba(245,240,228,0.14)] transition hover:bg-[#fffaf0]"
+                className="inline-flex min-h-12 items-center rounded-full bg-background[color:var(--paper)] px-5 text-sm font-semibold text-[#173224] shadow-[0_10px_30px_rgba(245,240,228,0.14)] transition hover:bg[#fffaf0]"
               >
                 Continue planning
               </Link>
