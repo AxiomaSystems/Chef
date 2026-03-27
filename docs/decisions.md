@@ -75,6 +75,8 @@ Typical signals:
 - name similarity
 - size compatibility
 - price efficiency
+- ingredient-specific semantic rules
+- explicit no-match when the catalog lacks a reasonable candidate
 
 ## 7. Canonical Ingredient Naming Is Required
 
@@ -155,7 +157,7 @@ Why:
 
 Current status:
 - the mock-first decision is still the default runtime path
-- the codebase now also has a real Walmart provider boundary behind config, so switching providers no longer requires reshaping `ShoppingCart`
+- the codebase now has a general retailer-provider boundary, with Kroger as the first live path and Walmart still available behind config for later
 
 ## 15. Avoid Premature Complexity
 
@@ -350,7 +352,7 @@ Implications:
 ## 23.7. Real Retailer Integration Should Land Behind The Existing Provider Boundary
 
 Decision:
-- implement a retailer-product provider boundary before turning on Walmart live search/matching
+- implement a retailer-product provider boundary before turning on live retailer search/matching
 - keep the mock provider as the default fallback until credentials are available
 
 Why:
@@ -360,9 +362,14 @@ Why:
 
 Implications:
 - `MatchingService` should depend on a provider boundary instead of reading the mock catalog directly
-- Walmart OAuth token handling and product search stay encapsulated in the Walmart provider
+- retailer OAuth/token handling and product search stay encapsulated in each provider
 - `WALMART_USE_REAL_PROVIDER`, `WALMART_CLIENT_ID`, `WALMART_CLIENT_SECRET`, and `WALMART_ENV` control activation
 - quantity and subtotal remain our responsibility even when the product catalog comes from Walmart
+
+Status:
+- implemented
+- Kroger is now the first live provider path under the same boundary
+- Walmart remains a compatible future provider, not the active one
 
 ## 24. Replace Boolean Ownership Semantics With Clearer States Later
 
@@ -613,6 +620,55 @@ Implications:
 - `shopping_location` should include `zip_code`, `label`, and optional `latitude`/`longitude`
 - onboarding and account/preferences can share the same write surface
 - future provider integrations can resolve retailer-specific `locationId` values from this neutral profile block
+- retailer-specific cache fields such as `kroger_location_id` may live alongside the neutral location shape as implementation details
+
+## 32.7. Missing Shopping Location Should Fail Fast For Live Retailers
+
+Decision:
+- if a live retailer requires store context and the user has not configured a shopping location, fail explicitly instead of silently degrading to empty matches
+
+Why:
+- empty shopping carts look like broken matching, not missing prerequisites
+- explicit failure tells the user exactly what to fix
+- this avoids accidental provider traffic with invalid context
+
+Implications:
+- Kroger generation/search should surface messages like `Set your shopping location first`
+- the UI should guide users toward account preferences or onboarding to fill the missing data
+
+## 32.8. Store Resolution Should Be Reused, Not Repeated
+
+Decision:
+- once a retailer-specific store/location id is resolved successfully, the system should bias toward caching and reuse instead of re-hitting location lookup on every search
+
+Why:
+- repeated store-resolution traffic creates avoidable rate limiting and edge blocking risk
+- product search is the useful expensive call; location resolution should be amortized
+- the current live provider work already showed burst traffic can trigger `403 Access Denied` responses
+
+Implications:
+- provider implementations may keep internal location/query caches
+- retailer-specific ids such as `kroger_location_id` can be persisted alongside neutral shopping-location data
+- provider implementations should also avoid concurrent token storms and burst search chains where possible
+
+## 32.9. Specialty Ingredients Should Prefer Honest No-Match Over Fake Substitutions
+
+Decision:
+- if the retailer catalog does not have a semantically reasonable match for a specialty ingredient, prefer `no match yet` over forced substitution
+
+Examples:
+- `aji amarillo paste`
+- `aji limo`
+
+Why:
+- silent substitutions create incorrect purchase baskets
+- users can manually replace or add products when they want a conscious substitute
+- this keeps deterministic matching trustworthy instead of overconfident
+
+Implications:
+- matching should support ingredient query planning and specialty-ingredient detection
+- rule-based scoring should be allowed to reject processed/prepared items even if they are textually close
+- manual shopping-cart editing remains the escape hatch for rare or international ingredients
 
 ## 33. Phone Auth Should Not Be In The First Auth Slice
 

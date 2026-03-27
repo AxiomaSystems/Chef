@@ -11,6 +11,7 @@ The backend is already well past the scaffold stage, and the web app is no longe
 - a dedicated recipe library
 - draft/cart creation and editing through large overlays
 - persisted `CartDraft`, `Cart`, and `ShoppingCart` resources behind the internal `/api/v1` contract
+- quantity controls for recipe selections in the planning composer and for line quantities in shopping carts
 
 ## What Exists Today
 
@@ -39,6 +40,7 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - real auth endpoints for email/password, Google login, refresh, logout, and `/me`
 - `/api/v1/me/preferences` for auth-backed cuisine and tag preferences
 - `/api/v1/me/preferences` also carries a neutral `shopping_location` profile block
+- `shopping_location` now also supports `kroger_location_id` so future store reuse can skip repeated location resolution
 - `/api/v1/me/onboarding/complete` for explicit onboarding completion
 - a global controlled cuisine catalog exposed at `/api/v1/cuisines`
 - hybrid tags with explicit `/api/v1/tags` endpoints
@@ -53,8 +55,10 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - derived aggregated ingredient overviews on cart reads
 - deterministic ingredient aggregation and provider-backed retailer matching behind shopping-cart generation
 - a mock retailer provider for local/dev fallback
-- a Walmart provider boundary that can be enabled later with real credentials
+- a real Kroger provider for live location lookup and product search
+- a Walmart provider boundary that remains available but inactive by default
 - retailer product search and shopping-cart editing APIs behind the same shopping-cart boundary
+- rule-based grocery matching refinement for produce/plain pantry items and honest no-match handling for specialty ingredients
 - internal `/api/v1` route families for `recipes`, `recipe-forks`, `cart-drafts`, `carts`, and `shopping-carts`
 - internal `/api/v1/tags` for visible system tags and user-owned tags
 - Swagger UI at `/docs`
@@ -277,7 +281,7 @@ This separation is intentional:
 - `/api/v1/auth/register`, `/login`, `/google`, `/refresh`, `/logout`, `GET /me`, and `PATCH /me` are implemented.
 - `/api/v1/cuisines` now exposes the global cuisine catalog.
 - `/api/v1/me/preferences` now supports read/replace for user cuisine and system-tag preferences.
-- `/api/v1/me/preferences` now also supports `shopping_location` (`zip_code`, `label`, `latitude`, `longitude`) for future retailer store resolution.
+- `/api/v1/me/preferences` now also supports `shopping_location` (`zip_code`, `label`, `latitude`, `longitude`, `kroger_location_id`) for future store resolution and location reuse.
 - `/api/v1/me/onboarding/complete` now marks onboarding completion independently from preferences.
 - `/api/v1/tags` now supports list/create/update/delete.
 - `/api/v1/tags` now returns `kind` so clients can distinguish general taxonomy tags from dietary badge tags.
@@ -299,32 +303,41 @@ This separation is intentional:
 - cart detail now supports `Generate shopping cart`, which opens a retailer-facing shopping-cart detail overlay on top of the same workspace
 - shopping-cart detail now supports manual correction on the same persisted resource
 - `/api/v1/retailers/:retailer/products/search` now exposes provider-backed product search behind the shopping-cart editor
-- the matching module now supports `MockRetailerProductProvider` and `WalmartRetailerProductProvider`, with Walmart disabled by default until credentials are present
+- the matching module now supports `MockRetailerProductProvider`, `KrogerRetailerProductProvider`, and `WalmartRetailerProductProvider`
+- Kroger is now the first live retailer path, using the user's shopping location to resolve a nearby store before product search
+- the Kroger provider now deduplicates concurrent token fetches, throttles uncached search bursts, and caches locations/query results to reduce burst traffic
 - new API envs:
   - `WALMART_USE_REAL_PROVIDER=true|false`
   - `WALMART_CLIENT_ID`
   - `WALMART_CLIENT_SECRET`
   - `WALMART_ENV=sandbox|production`
+- additional API envs:
+  - `KROGER_USE_REAL_PROVIDER=true|false`
+  - `KROGER_CLIENT_ID`
+  - `KROGER_CLIENT_SECRET`
 - `PATCH /api/v1/shopping-carts/:id` now persists manual shopping-cart edits
+- shopping-cart editing now supports manual line items, replacing matches, deleting lines, and changing `selected_quantity`
+- draft/cart editing now supports per-recipe quantities, so the same dish can appear multiple times in one planning run
 
 ## Upcoming Work
 
 The next high-signal work is now more product-shaped than before.
 
-1. Add GPS-assisted shopping-location setup on top of the new manual `shopping_location` profile block.
-2. Decide the first real store resolver/provider path after Walmart friction, most likely Kroger or another easier self-serve retailer API.
-3. Expand the shopping-cart workspace further with quantity editing, repeat-generation strategy, and first-class history/revisit flows.
+1. Add GPS-assisted shopping-location setup on top of the current manual `shopping_location` profile block.
+2. Persist and reuse resolved Kroger store ids more explicitly in UX so the app stops re-resolving locations whenever possible.
+3. Keep improving grocery matching quality with more ingredient query planning, synonym maps, and stronger produce/pantry heuristics.
 4. Add a clearer draft -> cart conversion affordance inside draft detail, beyond the generic composer action.
 5. Expand recipe library actions with `Fork/Edit` and a stronger owner/system distinction in the UI.
-6. Harden Google OAuth for production secret management and deploy configuration.
+6. Harden Google OAuth and retailer credential handling for production deployment.
 
 ## Current Gaps
 
 - recipe variants and AI-assisted adaptation are not implemented yet
-- the real Walmart provider is implemented but still disabled until credentials are configured
+- the Walmart provider boundary exists, but the first live retailer path is now Kroger
 - delete flows exist, but recovery/versioning does not
 - drafts and carts can now be edited, but there is still no broader history/timeline model for planning runs
-- shopping-cart history exists in API but is not yet wired into the main web flow as a first-class revisit surface
+- shopping-cart history exists in API and `/shopping`, but revisit/history tools are still fairly light
+- store resolution is still manual-first; GPS capture and explicit saved-store management are not in UX yet
 
 ## Practical Reading Guide
 

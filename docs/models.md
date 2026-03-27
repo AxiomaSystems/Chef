@@ -333,7 +333,7 @@ Status:
 ### Retailer
 
 ```ts
-type Retailer = "walmart";
+type Retailer = "walmart" | "kroger";
 ```
 
 ### ProductCandidate
@@ -368,7 +368,9 @@ type RetailerSearchCandidate = {
 
 ```ts
 type MatchedIngredientProduct = {
+  kind?: "ingredient_match" | "manual_item";
   canonical_ingredient: string;
+  manual_label?: string;
   needed_amount: number;
   needed_unit: string;
   matched_amount?: number;
@@ -383,12 +385,18 @@ type MatchedIngredientProduct = {
 };
 ```
 
+Current note:
+
+- `walmart_search_query` is still the shared field name for the generated catalog query, even though matching is no longer Walmart-only
+- this is a legacy naming wrinkle in the shared contract, not a sign that the Kroger path is fake
+
 Status:
 
 - runtime matching is implemented behind a retailer-provider boundary
-- the default provider is still the mock catalog
-- a Walmart provider exists for live search/matching once credentials are configured
-- retailer support is still only `"walmart"`
+- the default fallback provider is still the mock catalog
+- Kroger is now the first live provider path
+- a Walmart provider boundary also exists for later activation
+- manual shopping-cart lines use `kind = "manual_item"` and do not need to map back to a canonical ingredient source
 
 ## 6. Shopping Cart Models
 
@@ -420,13 +428,14 @@ Current runtime note:
 - this concept is now represented explicitly as `ShoppingCart`
 - matching now runs behind a provider boundary
 - `ShoppingCart` can still be created and edited with the mock provider in local/dev
-- the same contract is intended to work with the real Walmart provider once enabled
+- the same contract now works with live Kroger search/matching and is still intended to work with Walmart later
 
 Current UI note:
 
 - `ShoppingCart` now has a first-class detail overlay in web, but it is still treated as derived output from `Cart`
 - the overlay should emphasize matched purchasable products and subtotal, not recipe editing
-- the same persisted `ShoppingCart` can now be manually corrected by replacing matches, adding manual items, and deleting lines
+- the same persisted `ShoppingCart` can now be manually corrected by replacing matches, adding manual items, deleting lines, and changing `selected_quantity`
+- `overview` remains the ingredient-source snapshot, but the main UI emphasis should stay on `matched_items`
 
 ## 7. User Models
 
@@ -470,6 +479,7 @@ type UserPreferences = {
     label?: string;
     latitude?: number;
     longitude?: number;
+    kroger_location_id?: string;
   };
 };
 ```
@@ -482,6 +492,7 @@ Interpretation:
 - `PUT /api/v1/me/preferences` replaces the full set
 - `shopping_location` is intentionally retailer-neutral and manual-first
 - `latitude` and `longitude` are optional now so the same shape can absorb GPS later without another contract rewrite
+- `kroger_location_id` is optional retailer-specific cache data, not a replacement for the neutral location fields
 - empty arrays are valid and do not imply incomplete onboarding
 
 ## 8. Auth Models
@@ -557,6 +568,7 @@ type Tag = {
   name: string;
   slug: string;
   scope: TagScope;
+  kind: "general" | "dietary_badge";
   created_at: string;
   updated_at: string;
 };
@@ -614,11 +626,12 @@ Interpretation:
 - tags are stored relationally as `Tag` + `RecipeTag`
 - user preferences are stored relationally through join tables, not JSON blobs
 - recipe HTTP payloads now use explicit tag references instead of `tags: string[]`
+- specialty ingredients should prefer honest no-match over forced substitution when the active retailer catalog has no reasonable candidate
 
 ## Known Future Changes
 
 - `RecipeVariant` and adaptation models still need runtime implementation
 - the web app and backend now both use bearer-token auth as the normal path
 - onboarding completion is now tracked separately from preference contents
-- retailer types will expand beyond `"walmart"` once real integrations exist
+- retailer support now includes `"kroger"` and will likely expand further
 - cuisine curation will likely expand, but the field is no longer free text

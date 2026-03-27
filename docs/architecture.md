@@ -29,7 +29,7 @@ Visible recipes
   -> Cart persistence
   -> Dish expansion
   -> Ingredient aggregation
-  -> Product matching (mock catalog)
+  -> Product matching (provider boundary, now live on Kroger)
   -> Cost estimation
   -> Persisted shopping cart
 ```
@@ -178,9 +178,10 @@ Implemented entities:
 Current limitation:
 
 - matching now sits behind a provider boundary
-- the current default provider is still the mock catalog
-- a real Walmart provider is implemented but disabled until credentials are supplied
-- manual shopping-cart edits exist, but quantity editing and richer provider behavior are not implemented yet
+- the default fallback provider is still the mock catalog
+- Kroger is now the first live retailer path
+- Walmart remains an optional provider boundary for later activation
+- manual shopping-cart edits and per-line quantity editing now exist, but store-persistence UX and richer query rewriting still need work
 
 ### 6. Shopping Cart Layer
 
@@ -200,7 +201,8 @@ Current status:
 - this is now represented explicitly as `ShoppingCart`
 - retailer matching now uses a provider boundary
 - the fallback/default provider is mock
-- the Walmart provider can be enabled later without changing the shopping-cart contract
+- Kroger can now resolve location + product search through the same contract
+- Walmart can still be enabled later without changing the shopping-cart contract
 
 ## Current Access Model
 
@@ -227,6 +229,8 @@ The current web app is intentionally split into separate surfaces:
 - draft detail and cart detail stay in overlays so the user can work without losing workspace context
 - shopping-cart detail now also opens as a large overlay from cart detail, so the retail output stays in the same workspace flow
 - the shopping-cart overlay can now edit the same persisted resource by replacing matched products, adding manual items, and deleting lines
+- the shopping-cart overlay can now also adjust `selected_quantity` per line with subtotal recalculation
+- the planning composer can now adjust quantity per selected recipe, so the same dish can be planned multiple times
 
 This keeps recipe exploration from competing with planning state on the same page.
 
@@ -240,6 +244,7 @@ Current interaction model:
 - draft/cart detail overlays can delete the current resource
 - cart detail can now call `POST /api/v1/carts/:cartId/shopping-carts` and open the returned `ShoppingCart` immediately in an overlay
 - shopping-cart detail can now search retailer products and persist manual edits through `PATCH /api/v1/shopping-carts/:id`
+- if the chosen retailer is Kroger and no shopping location is set, shopping-cart generation now fails explicitly instead of silently returning an empty cart
 
 Current transitional auth setup:
 
@@ -311,7 +316,7 @@ Not implemented yet:
 - recipe variants
 - raw LLM outputs
 - async matching jobs
-- turning on the real Walmart provider in sandbox/production config
+- richer store-resolution UX and persisted saved-store management for Kroger
 
 Not first-class in UI yet:
 
@@ -336,8 +341,12 @@ Not implemented yet:
 
 - Redis
 - background jobs
-- real external retailer integration
 - OpenAI integration
+
+Implemented but still hardening:
+
+- real external retailer integration through Kroger
+- provider-side throttling, token deduping, and location/query caching to reduce burst traffic
 
 ## Next Layers
 
@@ -363,7 +372,7 @@ Current status:
 - `/me` is implemented
 - `PATCH /me` is implemented
 - `/me/preferences` is implemented for cuisine and system-tag preferences
-- `/me/preferences` now also stores a neutral `shopping_location` block for future store resolution
+- `/me/preferences` now also stores a neutral `shopping_location` block, including optional `kroger_location_id` for future store reuse
 - `/me/onboarding/complete` is implemented
 - the web app now uses bearer-token auth for its dashboard flow
 - the temporary `x-user-id` fallback has now been removed from normal backend flows and Swagger guidance
@@ -398,7 +407,7 @@ Status:
 - the web app now routes incomplete users into a required onboarding flow
 - onboarding and account/preferences both expose manual shopping-location capture using the same preference surface
 
-### 3. Real Retailer Provider
+### 3. Real Retailer Providers
 
 Purpose:
 
@@ -409,7 +418,9 @@ Status:
 - the resource boundary is already in place
 - the provider boundary is now implemented
 - the mock provider remains the default fallback
-- the Walmart provider is ready to be enabled by config
+- Kroger is now the first live provider path
+- Walmart remains prepared behind the same boundary for later enablement
+- Kroger currently depends on manual shopping location and benefits from cached `locationId` reuse to avoid repeated `/locations` calls
 
 ### 4. Adaptation Layer
 
