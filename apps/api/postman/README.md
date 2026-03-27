@@ -3,22 +3,35 @@
 Import these files into Postman:
 
 - [cart-generator-api.postman_collection.json](/C:/Users/akuma/repos/cart-generator/apps/api/postman/cart-generator-api.postman_collection.json)
+- [cart-generator-api-negative.postman_collection.json](/C:/Users/akuma/repos/cart-generator/apps/api/postman/cart-generator-api-negative.postman_collection.json)
 - [cart-generator-local.postman_environment.json](/C:/Users/akuma/repos/cart-generator/apps/api/postman/cart-generator-local.postman_environment.json)
 
 Suggested order:
 
 1. `Auth / Login`
 2. `Auth / Refresh`
-3. `Catalog / List Cuisines`
-4. `Catalog / List Tags (public)`
-5. `Me / Get Me`
-6. `Me / Put Me Preferences`
-7. `Recipes / List Recipes (public)`
-8. `Recipes / Create Recipe`
-9. `Tags / Create User Tag`
-10. `Carts / Create Cart`
-11. `Carts / Create Shopping Cart From Cart`
-12. `Negative / ...`
+3. `Taxonomies / List Cuisines`
+4. `Taxonomies / List Tags`
+5. `Taxonomies / Create User Tag`
+6. `Me / Get Me`
+7. `Me / Update Me`
+8. `Me / Update Me Preferences`
+9. `Me / Complete Onboarding`
+10. `Recipes / List Recipes (Public)`
+11. `Recipes / Create Recipe`
+12. `Recipes / Update Recipe`
+13. `Cart / Create Cart Draft`
+14. `Cart / Create Cart`
+15. `Cart / Create Shopping Cart`
+16. `Cart / Search Retailer Products`
+17. `Auth / Logout`
+
+Negative collection:
+
+1. `Setup / Auth / Login`
+2. `Setup / Recipes / List Recipes (authenticated)`
+3. `Setup / Tags / Create User Tag`
+4. `Negative / ...`
 
 Static config variables:
 
@@ -32,13 +45,11 @@ Runtime collection variables created by the request scripts:
 - `accessToken`
 - `refreshToken`
 - `cuisineId`
-- `secondCuisineId`
 - `systemTagId`
-- `secondSystemTagId`
 - `userTagId`
-- `userTagName`
 - `systemRecipeId`
 - `recipeId`
+- `cartDraftId`
 - `cartId`
 - `shoppingCartId`
 
@@ -48,11 +59,11 @@ Notes:
 
 - the collection targets the current `/api/v1` contract
 - authenticated requests use `Authorization: Bearer {{accessToken}}`
-- the Newman smoke flow uses the seeded local dev user by default:
+- the happy-path collection uses the seeded local dev user by default:
   - `authEmail = postigodev@cart-generator.local`
   - `authPassword = postigodev123`
-- `Auth / Register` is kept as an optional manual check, not as part of the deterministic smoke path
-- `Negative / Put Preferences With User Tag -> 403` assumes `Tags / Create User Tag` has already run
+- the negative collection also assumes the seeded local dev user exists
+- `Negative / Me / Put Preferences With User Tag -> 403` assumes `Setup / Tags / Create User Tag` has already run
 
 CLI / Newman:
 
