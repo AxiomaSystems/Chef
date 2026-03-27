@@ -1,9 +1,9 @@
 {
   "info": {
-    "_postman_id": "bd885389-6c7f-4201-9bca-4c3b1b9e0a11",
+    "_postman_id": "4cd9e4c8-31d8-4b55-a1de-b856ea6af802",
     "name": "Cart Generator API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Compact local QA collection for the live /api/v1 API."
+    "description": "Compact happy-path collection for the current /api/v1 backend."
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3001" },
@@ -13,353 +13,249 @@
     { "key": "accessToken", "value": "" },
     { "key": "refreshToken", "value": "" },
     { "key": "cuisineId", "value": "" },
-    { "key": "secondCuisineId", "value": "" },
     { "key": "systemTagId", "value": "" },
-    { "key": "secondSystemTagId", "value": "" },
     { "key": "userTagId", "value": "" },
-    { "key": "systemRecipeId", "value": "" },
     { "key": "recipeId", "value": "" },
     { "key": "cartId", "value": "" },
-    { "key": "shoppingCartId", "value": "" },
-    { "key": "userTagName", "value": "" }
+    { "key": "shoppingCartId", "value": "" }
   ],
   "item": [
     {
-      "name": "Auth",
-      "item": [
+      "name": "Auth / Login",
+      "event": [
         {
-          "name": "Register",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
-                  "if (pm.response.code === 201) {",
-                  "  var data = pm.response.json();",
-                  "  pm.collectionVariables.set('accessToken', data.access_token);",
-                  "  pm.collectionVariables.set('refreshToken', data.refresh_token);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "x-request-id", "value": "{{requestId}}-register" }
-            ],
-            "description": "Optional manual request. The Newman smoke flow uses the seeded dev user through Login; this request is kept only to verify registration behavior manually.",
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"postman-manual@example.com\",\n  \"name\": \"Postman User\",\n  \"password\": \"postman12345\"\n}" },
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "register"] }
-          }
-        },
-        {
-          "name": "Login",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": ["pm.response.to.have.status(200);", "var data = pm.response.json();", "pm.collectionVariables.set('accessToken', data.access_token);", "pm.collectionVariables.set('refreshToken', data.refresh_token);"] }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "x-request-id", "value": "{{requestId}}-login" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{authEmail}}\",\n  \"password\": \"{{authPassword}}\"\n}" },
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
-          }
-        },
-        {
-          "name": "Refresh",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": ["pm.response.to.have.status(200);", "var data = pm.response.json();", "pm.collectionVariables.set('accessToken', data.access_token);", "pm.collectionVariables.set('refreshToken', data.refresh_token);"] }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "x-request-id", "value": "{{requestId}}-refresh" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}" },
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "refresh"] }
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('accessToken', data.access_token);",
+              "pm.collectionVariables.set('refreshToken', data.refresh_token);"
+            ]
           }
         }
-      ]
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-request-id", "value": "{{requestId}}-auth-login" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{authEmail}}\",\n  \"password\": \"{{authPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      }
     },
     {
-      "name": "Catalog",
-      "item": [
+      "name": "Taxonomies / List Cuisines",
+      "event": [
         {
-          "name": "List Cuisines",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": ["pm.response.to.have.status(200);", "var data = pm.response.json();", "const peruvian = data.find((item) => item.slug === 'peruvian');", "const mediterranean = data.find((item) => item.slug === 'mediterranean');", "if (peruvian) pm.collectionVariables.set('cuisineId', peruvian.id);", "if (mediterranean) pm.collectionVariables.set('secondCuisineId', mediterranean.id);"] }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "x-request-id", "value": "{{requestId}}-cuisines" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/cuisines", "host": ["{{baseUrl}}"], "path": ["api", "v1", "cuisines"] }
-          }
-        },
-        {
-          "name": "List Tags (public)",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": ["pm.response.to.have.status(200);", "var data = pm.response.json();", "if (data[0]) pm.collectionVariables.set('systemTagId', data[0].id);", "if (data[1]) pm.collectionVariables.set('secondSystemTagId', data[1].id);"] }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "x-request-id", "value": "{{requestId}}-tags-public" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/tags", "host": ["{{baseUrl}}"], "path": ["api", "v1", "tags"] }
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "const data = pm.response.json();",
+              "if (Array.isArray(data) && data.length > 0) { pm.collectionVariables.set('cuisineId', data[0].id); }"
+            ]
           }
         }
-      ]
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-request-id", "value": "{{requestId}}-cuisines" }
+        ],
+        "url": "{{baseUrl}}/api/v1/cuisines"
+      }
     },
     {
-      "name": "Me",
-      "item": [
+      "name": "Taxonomies / List Tags",
+      "event": [
         {
-          "name": "Get Me",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "x-request-id", "value": "{{requestId}}-me" }
-            ],
-            "url": { "raw": "{{baseUrl}}/api/v1/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "me"] }
-          }
-        },
-        {
-          "name": "Put Me Preferences",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "x-request-id", "value": "{{requestId}}-preferences-put" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"preferred_cuisine_ids\": [\"{{cuisineId}}\", \"{{secondCuisineId}}\"],\n  \"preferred_tag_ids\": [\"{{systemTagId}}\", \"{{secondSystemTagId}}\"]\n}" },
-            "url": { "raw": "{{baseUrl}}/api/v1/me/preferences", "host": ["{{baseUrl}}"], "path": ["api", "v1", "me", "preferences"] }
-          }
-        },
-        {
-          "name": "Get Me Preferences",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "x-request-id", "value": "{{requestId}}-preferences-get" }
-            ],
-            "url": { "raw": "{{baseUrl}}/api/v1/me/preferences", "host": ["{{baseUrl}}"], "path": ["api", "v1", "me", "preferences"] }
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+              "const data = pm.response.json();",
+              "if (Array.isArray(data)) { const systemTag = data.find((tag) => tag.scope === 'system'); if (systemTag) { pm.collectionVariables.set('systemTagId', systemTag.id); } }"
+            ]
           }
         }
-      ]
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "x-request-id", "value": "{{requestId}}-tags-list" }
+        ],
+        "url": "{{baseUrl}}/api/v1/tags"
+      }
     },
     {
-      "name": "Recipes",
-      "item": [
+      "name": "Tags / Create User Tag",
+      "event": [
         {
-          "name": "List Recipes (public)",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": ["pm.response.to.have.status(200);", "var data = pm.response.json();", "const systemRecipe = Array.isArray(data) ? data.find((item) => item.is_system_recipe) : null;", "if (systemRecipe) pm.collectionVariables.set('systemRecipeId', systemRecipe.id);"] }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "x-request-id", "value": "{{requestId}}-recipes-public" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/recipes", "host": ["{{baseUrl}}"], "path": ["api", "v1", "recipes"] }
-          }
-        },
-        {
-          "name": "Create Recipe",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": ["pm.response.to.have.status(201);", "var data = pm.response.json();", "pm.collectionVariables.set('recipeId', data.id);"] }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "x-request-id", "value": "{{requestId}}-recipes-create" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Tallarines verdes postman\",\n  \"cuisine_id\": \"{{cuisineId}}\",\n  \"description\": \"Manual QA recipe.\",\n  \"servings\": 4,\n  \"ingredients\": [\n    {\n      \"canonical_ingredient\": \"pasta\",\n      \"amount\": 500,\n      \"unit\": \"g\"\n    }\n  ],\n  \"steps\": [\n    {\n      \"step\": 1,\n      \"what_to_do\": \"Boil the pasta.\"\n    }\n  ],\n  \"tag_ids\": [\"{{systemTagId}}\"]\n}" },
-            "url": { "raw": "{{baseUrl}}/api/v1/recipes", "host": ["{{baseUrl}}"], "path": ["api", "v1", "recipes"] }
-          }
-        },
-        {
-          "name": "Fork System Recipe",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": ["pm.expect(pm.response.code).to.be.oneOf([200, 201]);", "var data = pm.response.json();", "if (data.id) pm.collectionVariables.set('recipeId', data.id);"] }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "x-request-id", "value": "{{requestId}}-recipes-fork" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"source_recipe_id\": \"{{systemRecipeId}}\"\n}" },
-            "url": { "raw": "{{baseUrl}}/api/v1/recipe-forks", "host": ["{{baseUrl}}"], "path": ["api", "v1", "recipe-forks"] }
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 201 or 200', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('userTagId', data.id);"
+            ]
           }
         }
-      ]
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "x-request-id", "value": "{{requestId}}-tags-create" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"QA Favorites\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/tags"
+      }
     },
     {
-      "name": "Tags",
-      "item": [
-        {
-          "name": "Create User Tag",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.collectionVariables.set('userTagName', 'Postman Favorites ' + Date.now());"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": ["pm.response.to.have.status(201);", "var data = pm.response.json();", "pm.collectionVariables.set('userTagId', data.id);"] }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "x-request-id", "value": "{{requestId}}-tags-create" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"{{userTagName}}\"\n}" },
-            "url": { "raw": "{{baseUrl}}/api/v1/tags", "host": ["{{baseUrl}}"], "path": ["api", "v1", "tags"] }
-          }
-        }
-      ]
+      "name": "Me / Get Me",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "x-request-id", "value": "{{requestId}}-me-get" }
+        ],
+        "url": "{{baseUrl}}/api/v1/me"
+      }
     },
     {
-      "name": "Carts",
-      "item": [
-        {
-          "name": "Create Cart",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": ["pm.response.to.have.status(201);", "var data = pm.response.json();", "pm.collectionVariables.set('cartId', data.id);"] }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "x-request-id", "value": "{{requestId}}-carts-create" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Cart from Postman\",\n  \"selections\": [\n    {\n      \"recipe_id\": \"{{systemRecipeId}}\",\n      \"recipe_type\": \"base\",\n      \"quantity\": 1,\n      \"servings_override\": 4\n    }\n  ]\n}" },
-            "url": { "raw": "{{baseUrl}}/api/v1/carts", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carts"] }
-          }
+      "name": "Me / Put Preferences",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "x-request-id", "value": "{{requestId}}-me-preferences" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"preferred_cuisine_ids\": [\"{{cuisineId}}\"],\n  \"preferred_tag_ids\": [\"{{systemTagId}}\"],\n  \"shopping_location\": {\n    \"zip_code\": \"60611\",\n    \"label\": \"Chicago, IL\"\n  }\n}"
         },
-        {
-          "name": "Create Shopping Cart From Cart",
-          "event": [
-            {
-              "listen": "test",
-              "script": { "type": "text/javascript", "exec": ["pm.response.to.have.status(201);", "var data = pm.response.json();", "pm.collectionVariables.set('shoppingCartId', data.id);"] }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "x-request-id", "value": "{{requestId}}-shopping-create" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"retailer\": \"walmart\"\n}" },
-            "url": { "raw": "{{baseUrl}}/api/v1/carts/{{cartId}}/shopping-carts", "host": ["{{baseUrl}}"], "path": ["api", "v1", "carts", "{{cartId}}", "shopping-carts"] }
-          }
-        },
-        {
-          "name": "Get Shopping Cart History",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "x-request-id", "value": "{{requestId}}-shopping-history" }
-            ],
-            "url": { "raw": "{{baseUrl}}/api/v1/shopping-carts/history", "host": ["{{baseUrl}}"], "path": ["api", "v1", "shopping-carts", "history"] }
-          }
-        }
-      ]
+        "url": "{{baseUrl}}/api/v1/me/preferences"
+      }
     },
     {
-      "name": "Negative",
-      "item": [
+      "name": "Recipes / List Recipes (Public)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "x-request-id", "value": "{{requestId}}-recipes-public" }
+        ],
+        "url": "{{baseUrl}}/api/v1/recipes"
+      }
+    },
+    {
+      "name": "Recipes / Create Recipe",
+      "event": [
         {
-          "name": "Get Me Without Auth -> 401",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "x-request-id", "value": "{{requestId}}-negative-me" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "me"] }
-          }
-        },
-        {
-          "name": "Create Recipe With Invalid Cuisine -> 400",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "x-request-id", "value": "{{requestId}}-negative-cuisine" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Invalid cuisine\",\n  \"cuisine_id\": \"cuisine-invalid\",\n  \"servings\": 4,\n  \"ingredients\": [\n    {\n      \"canonical_ingredient\": \"rice\",\n      \"amount\": 1,\n      \"unit\": \"cup\"\n    }\n  ],\n  \"steps\": [\n    {\n      \"step\": 1,\n      \"what_to_do\": \"Fail\"\n    }\n  ],\n  \"tag_ids\": [\"{{systemTagId}}\"]\n}" },
-            "url": { "raw": "{{baseUrl}}/api/v1/recipes", "host": ["{{baseUrl}}"], "path": ["api", "v1", "recipes"] }
-          }
-        },
-        {
-          "name": "Put Preferences With User Tag -> 403",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "x-request-id", "value": "{{requestId}}-negative-preferences" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"preferred_cuisine_ids\": [\"{{cuisineId}}\"],\n  \"preferred_tag_ids\": [\"{{userTagId}}\"]\n}" },
-            "url": { "raw": "{{baseUrl}}/api/v1/me/preferences", "host": ["{{baseUrl}}"], "path": ["api", "v1", "me", "preferences"] }
-          }
-        },
-        {
-          "name": "Get Missing Recipe -> 404",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "x-request-id", "value": "{{requestId}}-negative-recipe-404" }
-            ],
-            "url": { "raw": "{{baseUrl}}/api/v1/recipes/recipe-missing", "host": ["{{baseUrl}}"], "path": ["api", "v1", "recipes", "recipe-missing"] }
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json();",
+              "if (data.id) { pm.collectionVariables.set('recipeId', data.id); }"
+            ]
           }
         }
-      ]
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "x-request-id", "value": "{{requestId}}-recipes-create" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"QA Arroz con pollo\",\n  \"cuisine_id\": \"{{cuisineId}}\",\n  \"description\": \"Recipe created from Postman.\",\n  \"servings\": 4,\n  \"ingredients\": [\n    {\n      \"canonical_ingredient\": \"rice\",\n      \"amount\": 2,\n      \"unit\": \"cup\"\n    },\n    {\n      \"canonical_ingredient\": \"chicken thigh\",\n      \"amount\": 800,\n      \"unit\": \"g\"\n    }\n  ],\n  \"steps\": [\n    {\n      \"step\": 1,\n      \"what_to_do\": \"Brown the chicken thighs.\"\n    },\n    {\n      \"step\": 2,\n      \"what_to_do\": \"Add rice and simmer until cooked.\"\n    }\n  ],\n  \"tag_ids\": [\"{{systemTagId}}\", \"{{userTagId}}\"]\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/recipes"
+      }
+    },
+    {
+      "name": "Cart / Create Cart",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json();",
+              "if (data.id) { pm.collectionVariables.set('cartId', data.id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "x-request-id", "value": "{{requestId}}-cart-create" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"QA Weekly dinner plan\",\n  \"retailer\": \"walmart\",\n  \"selections\": [\n    {\n      \"recipe_id\": \"{{recipeId}}\",\n      \"recipe_type\": \"base\",\n      \"quantity\": 2,\n      \"servings_override\": 4\n    }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/carts"
+      }
+    },
+    {
+      "name": "Cart / Create Shopping Cart",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json();",
+              "if (data.id) { pm.collectionVariables.set('shoppingCartId', data.id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "x-request-id", "value": "{{requestId}}-shopping-cart-create" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"retailer\": \"walmart\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/carts/{{cartId}}/shopping-carts"
+      }
+    },
+    {
+      "name": "Cart / Search Retailer Products",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "x-request-id", "value": "{{requestId}}-retailer-search" }
+        ],
+        "url": "{{baseUrl}}/api/v1/retailers/walmart/products/search?query=rice"
+      }
     }
   ]
 }

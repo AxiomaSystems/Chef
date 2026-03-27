@@ -9,22 +9,16 @@ Import these files into Postman:
 Suggested order:
 
 1. `Auth / Login`
-2. `Auth / Refresh`
-3. `Taxonomies / List Cuisines`
-4. `Taxonomies / List Tags`
-5. `Taxonomies / Create User Tag`
-6. `Me / Get Me`
-7. `Me / Update Me`
-8. `Me / Update Me Preferences`
-9. `Me / Complete Onboarding`
-10. `Recipes / List Recipes (Public)`
-11. `Recipes / Create Recipe`
-12. `Recipes / Update Recipe`
-13. `Cart / Create Cart Draft`
-14. `Cart / Create Cart`
-15. `Cart / Create Shopping Cart`
-16. `Cart / Search Retailer Products`
-17. `Auth / Logout`
+2. `Taxonomies / List Cuisines`
+3. `Taxonomies / List Tags`
+4. `Taxonomies / Create User Tag`
+5. `Me / Get Me`
+6. `Me / Put Preferences`
+7. `Recipes / List Recipes (Public)`
+8. `Recipes / Create Recipe`
+9. `Cart / Create Cart`
+10. `Cart / Create Shopping Cart`
+11. `Cart / Search Retailer Products`
 
 Negative collection:
 
@@ -49,7 +43,6 @@ Runtime collection variables created by the request scripts:
 - `userTagId`
 - `systemRecipeId`
 - `recipeId`
-- `cartDraftId`
 - `cartId`
 - `shoppingCartId`
 
