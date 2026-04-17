@@ -752,3 +752,89 @@ Why:
 
 Status:
 - implemented
+
+## 38. Current Frontend Is A Validation Harness, Not The Final UI
+
+Decision:
+- stop investing heavily in visual polish for the current Next.js frontend
+- keep it functional enough to validate backend, provider, and AI flows
+
+Why:
+- the current frontend already proved the domain loop
+- future UI can be rebuilt more effectively once the backend contracts are stable
+- polishing a prototype UI now has lower leverage than strengthening product infrastructure
+
+Implications:
+- fix frontend bugs only when they block validation
+- avoid large layout/design rewrites in the current UI
+- prioritize clean API contracts and backend behavior for a future frontend rebuild
+- future production UI may be rebuilt with tools such as Lovable, Stitch, v0, or a custom interface
+
+## 39. MCPs And Open-Source Tools Are Adapters, Not Core Architecture
+
+Decision:
+- evaluate MCPs and open-source integrations for retailers, nutrition, cart export, pantry, and recipe generation
+- wrap useful tools behind internal provider interfaces
+
+Why:
+- MCPs can accelerate integrations
+- open-source tools vary in quality, licensing, uptime, and maintenance
+- the product should not break if a tool is replaced
+
+Implications:
+- keep internal interfaces stable:
+  - `RetailerProductProvider`
+  - `NutritionProvider`
+  - `RecipeGenerationProvider`
+  - `RecipeEditingProvider`
+  - `CartExportProvider`
+  - `CookingAssistantToolProvider`
+- do not let an MCP dictate database schema or public API shape
+- MCPs should be swappable implementation details
+
+## 40. AI Should Produce Structured Domain Data
+
+Decision:
+- use GPT/AI for recipe generation, recipe editing, and cooking assistance only through structured contracts
+
+Why:
+- free-text recipes are hard to aggregate, price, shop, and adapt
+- structured output can flow into existing recipes, carts, nutrition, and matching
+- deterministic logic should remain responsible for quantities, pricing, and provider selection
+
+Implications:
+- recipe generation should return recipe-compatible ingredient and step structures
+- recipe editing should produce a fork/variant candidate, not mutate system recipes directly
+- nutrition estimates should remain derived metadata
+- AI should help with interpretation and adaptation, not replace aggregation or pricing
+
+## 41. Cooking Assistant Should Be Contextual, Not Generic Chat
+
+Decision:
+- the future cooking assistant should be grounded in user preferences, current recipe, current step, active cart, and selected products
+
+Why:
+- generic cooking chat is easy to copy and weakly differentiated
+- context-aware guidance is where Cussien can become meaningfully agentic
+- the assistant should help during real cooking, not just answer recipe trivia
+
+Implications:
+- design a `CookingAssistantContext` before building chat UI
+- include recipe state, shopping-cart state, dietary badges, preferences, substitutions, and step progress
+- delay heavy assistant UI work until the underlying context contract is reliable
+
+## 42. Cart Export Is A Product Capability Separate From Retail Matching
+
+Decision:
+- treat cart export/loading/sharing as a separate capability from product matching
+
+Why:
+- matching answers "which products should I buy?"
+- export answers "how do I act on this cart?"
+- some retailers may not expose direct checkout/cart APIs
+- Share-A-Cart-style flows may be useful even when native provider APIs are limited
+
+Implications:
+- add a future `CartExportProvider` boundary
+- support shareable or browser-assisted flows if direct cart APIs are not practical
+- keep `ShoppingCart` as the persisted source of truth before any external transfer

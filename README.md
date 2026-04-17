@@ -88,11 +88,12 @@ The API uses Prisma + PostgreSQL.
 
 The main architecture and design notes live in:
 
+- [docs/goals.md](/C:/Users/akuma/repos/cart-generator/docs/goals.md)
 - [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md)
 - [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md)
 - [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md)
 
-Those docs now describe the implemented `v1` direction, the current web product state, and the next product/backend milestones.
+Those docs now describe the implemented `v1` direction, the current web product state, the agentic product direction, and the next product/backend milestones.
 
 ## Repository Layout
 
@@ -323,11 +324,13 @@ This separation is intentional:
 
 The next high-signal work is now more product-shaped than before.
 
-1. Add GPS-assisted shopping-location setup on top of the current manual `shopping_location` profile block.
-2. Persist and reuse resolved Kroger store ids more explicitly in UX so the app stops re-resolving locations whenever possible.
-3. Keep improving grocery matching quality with more ingredient query planning, synonym maps, and stronger produce/pantry heuristics.
-4. Add a clearer draft -> cart conversion affordance inside draft detail, beyond the generic composer action.
-5. Expand recipe library actions with `Fork/Edit` and a stronger owner/system distinction in the UI.
+The current frontend should be treated as a functional prototype and validation harness. Avoid heavy visual investment there unless it unblocks core flows. A future frontend rebuild can happen once the backend/API contracts are stronger.
+
+1. Keep improving Kroger matching quality with more ingredient query planning, synonym maps, and stronger produce/pantry heuristics.
+2. Add GPS-assisted shopping-location setup on top of the current manual `shopping_location` profile block.
+3. Persist and reuse resolved Kroger store ids more explicitly in UX so the app stops re-resolving locations whenever possible.
+4. Evaluate open-source MCPs/tools for retailer search, nutrition lookup, cart export, pantry, and recipe generation.
+5. Design backend contracts for AI recipe generation and recipe editing with structured output.
 6. Harden Google OAuth and retailer credential handling for production deployment.
 
 ## Current Gaps
@@ -338,12 +341,15 @@ The next high-signal work is now more product-shaped than before.
 - drafts and carts can now be edited, but there is still no broader history/timeline model for planning runs
 - shopping-cart history exists in API and `/shopping`, but revisit/history tools are still fairly light
 - store resolution is still manual-first; GPS capture and explicit saved-store management are not in UX yet
+- the current web app is useful for validation, but it is not the intended final frontend
+- AI recipe generation, AI recipe editing, nutrition providers, cart export, and contextual cooking assistant flows are still design/runtime work
 
 ## Practical Reading Guide
 
 If you want the current truth of the system:
 
-1. Read [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md) for the layered system and the approved `Cart` vs `ShoppingCart` split.
-2. Read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for the policy and API-shape decisions.
-3. Read [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md) for the conceptual model vocabulary.
-4. Read Swagger at `/docs` for the live implemented `/api/v1` contract.
+1. Read [docs/goals.md](/C:/Users/akuma/repos/cart-generator/docs/goals.md) for the product and engineering direction.
+2. Read [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md) for the layered system and the approved `Cart` vs `ShoppingCart` split.
+3. Read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for the policy and API-shape decisions.
+4. Read [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md) for the conceptual model vocabulary.
+5. Read Swagger at `/docs` for the live implemented `/api/v1` contract.

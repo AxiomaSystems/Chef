@@ -17,6 +17,9 @@ This document distinguishes:
 
 - what is implemented today
 - what is implemented but still transitional
+- what should be treated as future platform direction
+
+The current web frontend should be considered a functional validation harness, not the final product interface. The architecture priority from here is to make the backend/API/tool contracts strong enough that a future frontend rebuild can sit on top cleanly.
 
 ## Current Implemented Flow
 
@@ -204,6 +207,35 @@ Current status:
 - Kroger can now resolve location + product search through the same contract
 - Walmart can still be enabled later without changing the shopping-cart contract
 
+### 7. Provider And Tool Layer
+
+Purpose:
+
+- isolate external systems from the core domain
+- make retailer, nutrition, AI, and cart-export integrations replaceable
+- allow MCPs or open-source tools to be evaluated without making them core architecture
+
+Implemented today:
+
+- retailer product provider boundary
+- mock retailer provider
+- Kroger live provider
+- Walmart provider boundary
+
+Planned provider categories:
+
+- `RetailerProductProvider`
+- `NutritionProvider`
+- `RecipeGenerationProvider`
+- `RecipeEditingProvider`
+- `CartExportProvider`
+- `CookingAssistantToolProvider`
+
+Design rule:
+
+- external MCPs/tools can be adapters behind these interfaces
+- they should not define persistence, API shape, or domain vocabulary directly
+
 ## Current Access Model
 
 The current API now has real auth without a secondary dev actor path.
@@ -233,6 +265,12 @@ The current web app is intentionally split into separate surfaces:
 - the planning composer can now adjust quantity per selected recipe, so the same dish can be planned multiple times
 
 This keeps recipe exploration from competing with planning state on the same page.
+
+Strategic note:
+
+- these surfaces are useful for exercising the backend and validating flows
+- they should not receive heavy visual redesign work in this codebase unless a bug blocks validation
+- a future production frontend can be rebuilt once the backend contracts are stable
 
 Current interaction model:
 
@@ -317,6 +355,10 @@ Not implemented yet:
 - raw LLM outputs
 - async matching jobs
 - richer store-resolution UX and persisted saved-store management for Kroger
+- structured AI recipe generation and editing
+- contextual cooking assistant runtime
+- nutrition provider integration
+- cart export or Share-A-Cart-style transfer flow
 
 Not first-class in UI yet:
 
@@ -347,6 +389,12 @@ Implemented but still hardening:
 
 - real external retailer integration through Kroger
 - provider-side throttling, token deduping, and location/query caching to reduce burst traffic
+
+Planned external tool posture:
+
+- evaluate open-source MCPs for retailer, nutrition, recipe generation, pantry, and cart-export workflows
+- wrap any adopted MCP behind internal provider interfaces
+- keep the core app usable if an MCP is unavailable or replaced
 
 ## Next Layers
 
@@ -445,6 +493,26 @@ Status:
 - shared types exist
 - runtime implementation does not exist yet
 
+### 5. Agentic Cooking Layer
+
+Purpose:
+
+- add AI-assisted generation, editing, and real-time cooking guidance on top of the stable recipe/cart/shopping model
+
+Planned responsibilities:
+
+- generate structured recipes from preferences
+- edit existing recipes under constraints
+- use nutrition tools for calories/macros when available
+- guide a user through a recipe with awareness of preferences, current recipe, current step, and selected shopping products
+- suggest substitutions, timing changes, or troubleshooting steps
+
+Status:
+
+- product direction is approved
+- runtime implementation has not started
+- AI must produce or consume structured domain data rather than replacing deterministic aggregation, pricing, or matching
+
 ## Design Rules
 
 - deterministic logic for aggregation, matching, and pricing
@@ -455,12 +523,15 @@ Status:
 - system recipes remain immutable
 - user-owned data is isolated by default
 - retailer matching and purchasable-product resolution belong to `ShoppingCart`, even though `Cart` now keeps retailer context
+- current frontend is a prototype surface; backend/API/tool contracts are the product foundation
+- MCPs and external tools are adapters, not the source of domain truth
 
 ## Practical Reading Guide
 
 If you want the current truth of the system:
 
-1. read this file for implemented architecture and transitional boundaries
-2. read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for policy and API-shape decisions
-3. read [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md) for the conceptual vocabulary
-4. read Swagger at `/docs` for the live implemented `/api/v1` contract
+1. read [docs/goals.md](/C:/Users/akuma/repos/cart-generator/docs/goals.md) for the product and engineering direction
+2. read this file for implemented architecture and transitional boundaries
+3. read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for policy and API-shape decisions
+4. read [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md) for the conceptual vocabulary
+5. read Swagger at `/docs` for the live implemented `/api/v1` contract

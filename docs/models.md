@@ -27,6 +27,7 @@ This file is a readable map of those contracts plus the now-implemented conceptu
 - auth models: how identities and sessions attach to users
 - cuisine models: controlled culinary classification
 - tag models: shared taxonomy plus private organization, including explicit dietary badge tags
+- provider/tool models: planned adapter contracts for retailers, nutrition, recipe AI, and cart export
 
 ## 1. Recipe Models
 
@@ -165,6 +166,7 @@ Status:
 
 - shared contract exists
 - runtime implementation does not exist yet
+- future implementation should use structured AI output instead of free-text recipe blobs
 
 ### RecipeAdaptationRequest
 
@@ -398,6 +400,10 @@ Status:
 - a Walmart provider boundary also exists for later activation
 - manual shopping-cart lines use `kind = "manual_item"` and do not need to map back to a canonical ingredient source
 
+Provider note:
+
+- future retailer integrations, cart-export tools, and MCP-backed product search should map into these product models rather than changing the core cart model
+
 ## 6. Shopping Cart Models
 
 ### ShoppingCart
@@ -549,6 +555,67 @@ Interpretation:
 - refresh tokens are persisted server-side as hashes, not cleartext
 - refresh rotation revokes the previous token and links it to the replacement token
 
+## 8.5. Planned Provider And Agent Models
+
+These are not all implemented contracts yet. They describe the direction for future integrations.
+
+### RetailerProductProvider
+
+Current role:
+
+- search products for a retailer
+- resolve products by query and shopping location
+- return normalized `ProductCandidate` records
+
+Implemented examples:
+
+- mock provider
+- Kroger provider
+- Walmart provider boundary
+
+### NutritionProvider
+
+Planned role:
+
+- resolve calories/macros from structured ingredients
+- prefer deterministic nutrition databases
+- optionally use AI to normalize ambiguous ingredient text
+- update recipe `nutrition_data` as a derived snapshot
+
+### RecipeGenerationProvider
+
+Planned role:
+
+- generate structured `BaseRecipe`-compatible output from user preferences and prompts
+- return ingredients, steps, cuisine, tags, and optional nutrition estimates in typed form
+
+### RecipeEditingProvider
+
+Planned role:
+
+- transform an existing recipe under explicit constraints
+- keep the original recipe intact
+- emit structured recipe data suitable for a fork or variant
+
+### CartExportProvider
+
+Planned role:
+
+- turn a persisted `ShoppingCart` into an actionable external cart/share/export format
+- support Share-A-Cart-style or browser-extension-assisted transfer if direct retailer checkout APIs are unavailable
+
+### CookingAssistantContext
+
+Planned role:
+
+- provide contextual state to a cooking assistant
+- include user preferences, current recipe, current step, active cart, selected products, and substitution context
+
+Important rule:
+
+- these providers should depend on stable Cussien models
+- Cussien models should not directly depend on one MCP, retailer, or AI provider
+
 ## 9. Tag Models
 
 ### TagScope
@@ -631,6 +698,10 @@ Interpretation:
 ## Known Future Changes
 
 - `RecipeVariant` and adaptation models still need runtime implementation
+- AI recipe generation and editing need structured backend contracts
+- nutrition providers need integration before `nutrition_data` can be reliably computed
+- contextual cooking assistant models still need design and runtime implementation
+- cart export/share models still need design
 - the web app and backend now both use bearer-token auth as the normal path
 - onboarding completion is now tracked separately from preference contents
 - retailer support now includes `"kroger"` and will likely expand further
