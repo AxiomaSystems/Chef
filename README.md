@@ -142,6 +142,14 @@ cart-generator/
 `-- pnpm-workspace.yaml
 ```
 
+## License
+
+This repository is public source, not open source.
+
+The code is published for transparency, demonstration, and evaluation only. No permission is granted to copy, modify, distribute, sublicense, sell, host, operate, or otherwise use the software without prior written permission.
+
+See [LICENSE](/C:/Users/akuma/repos/cart-generator/LICENSE) for details.
+
 ## Workspace Commands
 
 Install dependencies:
