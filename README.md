@@ -1,8 +1,38 @@
-# Cart Generator
+# Cussien
 
-Cart Generator is a `pnpm` monorepo for turning saved recipes into recipe-based carts and derived shopping carts.
+Cussien is an AI-powered meal execution platform.
 
-The backend is already well past the scaffold stage, and the web app is no longer just a thin dashboard. The current product already has:
+The product vision is to help people move from food intent to cooked meal:
+
+```text
+food idea -> structured recipe -> constraints -> missing ingredients -> real grocery cart -> cooking guidance
+```
+
+The initial wedge is practical: generate or import a meal, edit it to the user's constraints, remove what they already have, and generate an editable retailer grocery cart.
+
+The repo is still named `cart-generator`, but the product direction is now Cussien.
+
+## Product Direction
+
+Cussien is not meant to be another recipe database, generic grocery list, calorie tracker, or chatbot.
+
+It should become a personal cooking operating system that connects:
+
+- recipe generation
+- recipe import/forking from outside sources
+- AI recipe editing
+- calories and macros
+- grocery cart generation
+- retailer product matching
+- pantry/inventory awareness
+- live cooking assistance
+- future community recipe/cart forking
+
+The current frontend should be treated as a functional validation harness. Avoid major frontend polish unless it unblocks core product validation. The next durable work should happen in backend contracts, provider/tool boundaries, recipe AI, nutrition, and cart execution.
+
+## What Exists Today
+
+The backend is well past scaffold stage, and the current web app validates the core recipe-to-cart loop. The current product already has:
 
 - real auth with email/password and Google login
 - required onboarding
@@ -12,8 +42,7 @@ The backend is already well past the scaffold stage, and the web app is no longe
 - draft/cart creation and editing through large overlays
 - persisted `CartDraft`, `Cart`, and `ShoppingCart` resources behind the internal `/api/v1` contract
 - quantity controls for recipe selections in the planning composer and for line quantities in shopping carts
-
-## What Exists Today
+- a live Kroger retailer path behind a provider boundary
 
 ### Web App
 
@@ -88,12 +117,13 @@ The API uses Prisma + PostgreSQL.
 
 The main architecture and design notes live in:
 
+- [docs/business.md](/C:/Users/akuma/repos/cart-generator/docs/business.md)
 - [docs/goals.md](/C:/Users/akuma/repos/cart-generator/docs/goals.md)
 - [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md)
 - [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md)
 - [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md)
 
-Those docs now describe the implemented `v1` direction, the current web product state, the agentic product direction, and the next product/backend milestones.
+Those docs now describe the startup thesis, the implemented `v1` direction, the current prototype web state, the agentic product direction, and the next product/backend milestones.
 
 ## Repository Layout
 
@@ -326,16 +356,19 @@ The next high-signal work is now more product-shaped than before.
 
 The current frontend should be treated as a functional prototype and validation harness. Avoid heavy visual investment there unless it unblocks core flows. A future frontend rebuild can happen once the backend/API contracts are stronger.
 
-1. Keep improving Kroger matching quality with more ingredient query planning, synonym maps, and stronger produce/pantry heuristics.
-2. Add GPS-assisted shopping-location setup on top of the current manual `shopping_location` profile block.
-3. Persist and reuse resolved Kroger store ids more explicitly in UX so the app stops re-resolving locations whenever possible.
-4. Evaluate open-source MCPs/tools for retailer search, nutrition lookup, cart export, pantry, and recipe generation.
-5. Design backend contracts for AI recipe generation and recipe editing with structured output.
-6. Harden Google OAuth and retailer credential handling for production deployment.
+1. Add meal-idea -> structured recipe generation.
+2. Add pre-cart ingredient editing so users can remove what they already have before grocery matching.
+3. Keep improving Kroger matching quality with more ingredient query planning, synonym maps, and stronger produce/pantry heuristics.
+4. Add GPS-assisted shopping-location setup and better Kroger store reuse.
+5. Evaluate open-source MCPs/tools for retailer search, nutrition lookup, cart export, pantry, and recipe import.
+6. Design backend contracts for AI recipe editing, nutrition/macros, recipe import/forking, and future cooking assistant context.
 
 ## Current Gaps
 
 - recipe variants and AI-assisted adaptation are not implemented yet
+- meal-idea recipe generation is not implemented yet
+- pre-cart ingredient editing/removal is not implemented as a dedicated flow yet
+- external recipe import/forking from URLs, screenshots, menus, or creator content is not implemented yet
 - the Walmart provider boundary exists, but the first live retailer path is now Kroger
 - delete flows exist, but recovery/versioning does not
 - drafts and carts can now be edited, but there is still no broader history/timeline model for planning runs
@@ -348,8 +381,9 @@ The current frontend should be treated as a functional prototype and validation 
 
 If you want the current truth of the system:
 
-1. Read [docs/goals.md](/C:/Users/akuma/repos/cart-generator/docs/goals.md) for the product and engineering direction.
-2. Read [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md) for the layered system and the approved `Cart` vs `ShoppingCart` split.
-3. Read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for the policy and API-shape decisions.
-4. Read [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md) for the conceptual model vocabulary.
-5. Read Swagger at `/docs` for the live implemented `/api/v1` contract.
+1. Read [docs/business.md](/C:/Users/akuma/repos/cart-generator/docs/business.md) for the startup thesis, target, and go-to-market.
+2. Read [docs/goals.md](/C:/Users/akuma/repos/cart-generator/docs/goals.md) for the product and engineering direction.
+3. Read [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md) for the layered system and the approved `Cart` vs `ShoppingCart` split.
+4. Read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for the policy and API-shape decisions.
+5. Read [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md) for the conceptual model vocabulary.
+6. Read Swagger at `/docs` for the live implemented `/api/v1` contract.

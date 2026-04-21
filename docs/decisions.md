@@ -1,4 +1,4 @@
-# Engineering Decisions - Cart Generator
+# Engineering Decisions - Cussien
 
 This document records the main system decisions behind the project.
 
@@ -838,3 +838,128 @@ Implications:
 - add a future `CartExportProvider` boundary
 - support shareable or browser-assisted flows if direct cart APIs are not practical
 - keep `ShoppingCart` as the persisted source of truth before any external transfer
+
+## 43. Cussien Is A Meal Execution Platform, Not Just A Cart Generator
+
+Decision:
+- position the product as a meal execution platform
+- treat grocery cart generation as one capability inside a broader cooking workflow
+
+Why:
+- the valuable user problem is not just "make a cart"
+- users need help going from food intent to recipe, missing ingredients, grocery products, and cooking
+- a pure cart generator is easier to copy and too narrow for the startup vision
+
+Implications:
+- product language should emphasize "food idea -> meal you can cook"
+- recipe generation, recipe import, ingredient review, nutrition, and cooking assistance are all valid roadmap areas
+- the repo may still be named `cart-generator`, but product docs should refer to Cussien
+
+## 44. MVP Should Start With Meal Idea To Grocery Cart
+
+Decision:
+- the first startup MVP should focus on a narrow flow:
+  - input a meal idea or recipe
+  - generate/structure the recipe
+  - show ingredients
+  - let the user remove or adjust what they already have
+  - generate an editable Kroger cart
+
+Why:
+- this directly solves the planning and buying problem
+- it is demoable
+- it does not require full inventory, social, or live cooking chat
+- it proves the core execution value
+
+Implications:
+- add recipe generation before building a full cooking assistant
+- add pre-cart ingredient review before building full pantry automation
+- keep improving Kroger matching because it is the proof that the workflow reaches real groceries
+
+## 45. Inventory Matters, But Exact Inventory Is Not MVP
+
+Decision:
+- inventory awareness is strategically important
+- exact quantity tracking, fridge object detection, and automatic pantry deduction should not block the first version
+
+Why:
+- requiring users to maintain exact inventory creates too much friction
+- rough knowledge of staples and "already have this" decisions is useful enough early
+- camera/object detection and scale-like precision can become complex quickly
+
+Implications:
+- start with ingredient review and manual removal before shopping
+- later add pantry staples or "things I usually have"
+- later infer inventory from generated shopping carts and receipts
+- much later evaluate fridge/pantry photos, object detection, and quantity estimation
+
+## 46. Recipe Import/Forking From Outside Is Core
+
+Decision:
+- support bringing recipes or meal ideas from outside Cussien as a core product direction
+
+Sources:
+- recipe URLs
+- pasted recipe text
+- screenshots/photos
+- restaurant menus
+- creator posts
+- meal service menus
+- public recipes/carts from other users later
+
+Why:
+- users already discover food outside the app
+- Cussien should make those ideas actionable instead of forcing users into an internal catalog
+- import/forking supports creator and community growth later
+
+Implications:
+- add a future `RecipeImportProvider`
+- imported content should become structured recipe previews
+- attribution/source metadata should be preserved where possible
+
+## 47. Community Is Later, But Forking Is Strategically Important
+
+Decision:
+- do not build a social network in the MVP
+- preserve the idea of public recipes/carts and forking as a later growth layer
+
+Why:
+- community without a useful core product is premature
+- recipe/cart forking could become a strong distribution loop after the execution workflow works
+- a Spotify-like profile/library model fits better than a generic Instagram-style feed
+
+Implications:
+- keep recipe ownership and fork origins clean
+- avoid coupling early backend work to social feeds
+- later support creator profiles, public recipes, public carts, and influencer badges
+
+## 48. Live Cooking Chat Is A Flagship Later Feature
+
+Decision:
+- build the live cooking chatbot after structured recipes, user preferences, carts, and cooking context are reliable
+
+Why:
+- a generic cooking chatbot is weakly differentiated
+- a contextual assistant is powerful only if it knows the recipe, step, preferences, selected products, and substitutions
+- building chat too early would hide missing data-model work
+
+Implications:
+- design `CookingAssistantContext` before chat UI
+- recipe-local AI editing should come before live cooking mode
+- voice, mascots, and character experiences are branding/product polish later
+
+## 49. Nutrition And Macros Should Become Product Pillars
+
+Decision:
+- calories and macros should be treated as a first-class product pillar, but with structured/deterministic grounding
+
+Why:
+- macro-conscious users are a strong target segment
+- nutrition is more valuable when connected to recipes, meal plans, and carts
+- AI-only nutrition guesses are not trustworthy enough as the source of truth
+
+Implications:
+- add a `NutritionProvider` boundary
+- prefer nutrition databases for calculation
+- use AI for normalization where needed
+- show nutrition in recipe/detail and tracking surfaces, not every compact card

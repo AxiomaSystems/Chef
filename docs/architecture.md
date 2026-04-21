@@ -1,17 +1,24 @@
-# Architecture - Cart Generator
+# Architecture - Cussien
 
 ## Overview
 
-Cart Generator is a layered system that transforms:
+Cussien is a layered system that should transform food intent into executable meals.
 
 ```text
-visible recipes + user selections + constraints -> meal plan cart -> shopping cart
+food idea or imported recipe
+  -> structured recipe
+  -> constraints and ingredient review
+  -> meal plan cart
+  -> retailer shopping cart
+  -> cooking guidance
 ```
 
 The core design principles remain the same:
 
 - keep the center of the system stateful and deterministic
 - use AI only for constrained transformations, not for core arithmetic, matching, or pricing
+- treat external tools and MCPs as adapters behind internal provider interfaces
+- keep the current frontend as a validation harness while backend/product contracts harden
 
 This document distinguishes:
 
@@ -21,12 +28,35 @@ This document distinguishes:
 
 The current web frontend should be considered a functional validation harness, not the final product interface. The architecture priority from here is to make the backend/API/tool contracts strong enough that a future frontend rebuild can sit on top cleanly.
 
+## Startup Product Shape
+
+The startup direction is broader than the current implemented vertical slice.
+
+Long-term Cussien should connect:
+
+- meal idea generation
+- recipe import/forking from outside content
+- AI recipe editing
+- calorie and macro tracking
+- ingredient and pantry awareness
+- retailer product matching
+- editable grocery carts
+- cart export/transfer
+- live cooking assistance
+- community recipe/cart forking
+
+The near-term architecture should still stay focused on one wedge:
+
+```text
+meal idea or recipe -> structured ingredients -> remove what user has -> Kroger cart
+```
+
 ## Current Implemented Flow
 
 Today the backend can already do this:
 
 ```text
-Visible recipes
+Visible recipes or user-provided meal idea
   -> Cart draft persistence
   -> User selection
   -> Cart persistence
@@ -55,7 +85,7 @@ apps/api/src/
 
 ## Current Conceptual Flow
 
-The implemented model is:
+The implemented model is currently:
 
 ```text
 Recipe
@@ -75,6 +105,16 @@ This split is important because:
 - recipes and meal planning belong to the culinary domain
 - shopping-cart generation belongs to the retail resolution domain
 - one `Cart` should be able to produce one or more `ShoppingCart` snapshots over time
+
+The intended next flow adds recipe generation/import and ingredient review before cart creation:
+
+```text
+FoodIdea | ExternalRecipe | ExistingRecipe
+  -> StructuredRecipe
+  -> IngredientReview
+  -> Cart
+  -> ShoppingCart
+```
 
 ## Current System Layers
 
@@ -101,6 +141,12 @@ Implemented rules:
 - recipe reads can now carry optional `nutrition_data` as derived metadata without replacing structured ingredients
 - recipe reads now also carry expanded tag metadata, so dietary badges can be represented as explicit `Tag.kind = dietary_badge`
 
+Planned rules:
+
+- generated recipes should land as structured recipe drafts/previews before persistence
+- imported recipes should be normalized into the same recipe shape as native recipes
+- AI recipe edits should create variants/forks or preview changes, not mutate source recipes silently
+
 ### 2. Selection Layer
 
 Purpose:
@@ -118,6 +164,11 @@ Current status:
 - selection is currently draft-driven and cart-driven
 - the main composer now lives in a large overlay that can create a draft, create a cart, or edit an existing draft/cart
 - drafts are now treated as incomplete saved work, not the primary planning object
+
+Planned status:
+
+- pre-cart ingredient review should let users remove or adjust ingredients they already have before shopping-cart generation
+- this is a lightweight first step toward inventory without requiring full pantry tracking
 
 ### 3. Cart Layer
 
@@ -226,6 +277,7 @@ Planned provider categories:
 
 - `RetailerProductProvider`
 - `NutritionProvider`
+- `RecipeImportProvider`
 - `RecipeGenerationProvider`
 - `RecipeEditingProvider`
 - `CartExportProvider`
@@ -355,10 +407,14 @@ Not implemented yet:
 - raw LLM outputs
 - async matching jobs
 - richer store-resolution UX and persisted saved-store management for Kroger
+- meal-idea recipe generation
+- external recipe import from URL, text, screenshot, menu, or creator content
+- pre-cart ingredient review/removal
 - structured AI recipe generation and editing
 - contextual cooking assistant runtime
 - nutrition provider integration
 - cart export or Share-A-Cart-style transfer flow
+- pantry/inventory awareness beyond manual cart edits
 
 Not first-class in UI yet:
 
@@ -502,6 +558,7 @@ Purpose:
 Planned responsibilities:
 
 - generate structured recipes from preferences
+- import/fork recipes from external content
 - edit existing recipes under constraints
 - use nutrition tools for calories/macros when available
 - guide a user through a recipe with awareness of preferences, current recipe, current step, and selected shopping products
@@ -530,8 +587,9 @@ Status:
 
 If you want the current truth of the system:
 
-1. read [docs/goals.md](/C:/Users/akuma/repos/cart-generator/docs/goals.md) for the product and engineering direction
-2. read this file for implemented architecture and transitional boundaries
-3. read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for policy and API-shape decisions
-4. read [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md) for the conceptual vocabulary
-5. read Swagger at `/docs` for the live implemented `/api/v1` contract
+1. read [docs/business.md](/C:/Users/akuma/repos/cart-generator/docs/business.md) for the startup thesis, target, and go-to-market
+2. read [docs/goals.md](/C:/Users/akuma/repos/cart-generator/docs/goals.md) for the product and engineering direction
+3. read this file for implemented architecture and transitional boundaries
+4. read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for policy and API-shape decisions
+5. read [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md) for the conceptual vocabulary
+6. read Swagger at `/docs` for the live implemented `/api/v1` contract

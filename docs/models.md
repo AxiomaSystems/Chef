@@ -1,4 +1,4 @@
-# Models - Cart Generator
+# Models - Cussien
 
 This document describes the conceptual domain contracts in [packages/shared](/C:/Users/akuma/repos/cart-generator/packages/shared) and the current vocabulary of the implemented `/api/v1` API.
 
@@ -18,11 +18,15 @@ This file is a readable map of those contracts plus the now-implemented conceptu
 ## Layer Split
 
 - recipe models: what people cook and save
+- recipe import/generation models: how outside food ideas become structured recipes
 - selection models: what they want now
+- ingredient review models: what the user says they already have or want to remove before shopping
 - cart models: the meal plan snapshot
 - aggregation models: what is needed
 - product models: what can be bought
 - shopping-cart models: what will actually be purchased
+- inventory models: what the user probably has, later
+- nutrition and meal tracking models: calories/macros across recipes and meals, later
 - user models: who owns what
 - auth models: how identities and sessions attach to users
 - cuisine models: controlled culinary classification
@@ -73,6 +77,20 @@ type Dish = {
 };
 ```
 
+### RecipeNutritionData
+
+```ts
+type RecipeNutritionData = {
+  calories?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+  fiber_g?: number;
+  sugar_g?: number;
+  sodium_mg?: number;
+};
+```
+
 ### BaseRecipe
 
 ```ts
@@ -86,15 +104,7 @@ type BaseRecipe = {
   cuisine: Cuisine;
   description?: string;
   cover_image_url?: string;
-  nutrition_data?: {
-    calories?: number;
-    protein_g?: number;
-    carbs_g?: number;
-    fat_g?: number;
-    fiber_g?: number;
-    sugar_g?: number;
-    sodium_mg?: number;
-  };
+  nutrition_data?: RecipeNutritionData;
   servings: number;
   ingredients: DishIngredient[];
   steps: RecipeStep[];
@@ -194,6 +204,74 @@ Status:
 
 ## 2. Selection Models
 
+## 1.5. Planned Recipe Import And Generation Models
+
+These models are not fully implemented yet. They describe the next startup-facing product direction.
+
+### FoodIdea
+
+```ts
+type FoodIdea = {
+  prompt: string;
+  cuisine_id?: string;
+  servings?: number;
+  constraints?: {
+    budget?: number;
+    max_calories_per_serving?: number;
+    macro_targets?: MacroTargets;
+    dietary_tag_ids?: string[];
+    available_ingredients?: string[];
+    excluded_ingredients?: string[];
+    max_time_minutes?: number;
+  };
+};
+```
+
+Interpretation:
+
+- this is the entry point for "I want biryani" or "make me a cheap high-protein dinner"
+- output should be a structured recipe preview, not just text
+
+### ExternalRecipeSource
+
+```ts
+type ExternalRecipeSource = {
+  kind: "url" | "text" | "image" | "menu" | "creator_post";
+  source_url?: string;
+  raw_text?: string;
+  image_url?: string;
+  attribution?: string;
+};
+```
+
+Interpretation:
+
+- this supports recipe forking/importing from outside Cussien
+- examples include recipe websites, restaurant menus, screenshots, creator posts, and pasted text
+
+### StructuredRecipePreview
+
+```ts
+type StructuredRecipePreview = {
+  name: string;
+  cuisine_id?: string;
+  description?: string;
+  servings: number;
+  ingredients: DishIngredient[];
+  steps: RecipeStep[];
+  tag_ids?: string[];
+  nutrition_data?: RecipeNutritionData;
+  source?: ExternalRecipeSource;
+};
+```
+
+Interpretation:
+
+- generated/imported recipes should become previews first
+- users can confirm, edit, fork, or discard before persistence
+
+## 2. Selection Models
+
 ### AppliedRecipeConstraints
 
 ```ts
@@ -283,6 +361,46 @@ Current UI note:
 
 ## 4. Aggregation Models
 
+## 3.5. Planned Ingredient Review Models
+
+Ingredient review is the MVP-friendly bridge between "shopping cart from recipe" and full inventory.
+
+Instead of requiring exact pantry tracking, the user should be able to review generated ingredients and remove or adjust things they already have.
+
+### IngredientReviewItem
+
+```ts
+type IngredientReviewItem = {
+  canonical_ingredient: string;
+  total_amount: number;
+  unit: string;
+  display_ingredient?: string;
+  source_dishes: AggregatedIngredientSource[];
+  action: "buy" | "already_have" | "skip" | "adjust";
+  adjusted_amount?: number;
+  adjusted_unit?: string;
+};
+```
+
+### IngredientReview
+
+```ts
+type IngredientReview = {
+  cart_id?: string;
+  items: IngredientReviewItem[];
+  created_at: string;
+  updated_at: string;
+};
+```
+
+Interpretation:
+
+- `IngredientReview` is not the same as inventory
+- it is a per-cart decision surface before retailer matching
+- it lets the MVP solve "I already have this" without requiring full pantry automation
+
+## 4. Aggregation Models
+
 ### AggregatedIngredientSource
 
 ```ts
@@ -352,6 +470,20 @@ type ProductCandidate = {
   estimated_match_score?: number;
   url?: string;
   image_url?: string;
+};
+```
+
+### MacroTargets
+
+```ts
+type MacroTargets = {
+  calories?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+  fiber_g?: number;
+  sugar_g?: number;
+  sodium_mg?: number;
 };
 ```
 
@@ -442,6 +574,56 @@ Current UI note:
 - the overlay should emphasize matched purchasable products and subtotal, not recipe editing
 - the same persisted `ShoppingCart` can now be manually corrected by replacing matches, adding manual items, deleting lines, and changing `selected_quantity`
 - `overview` remains the ingredient-source snapshot, but the main UI emphasis should stay on `matched_items`
+
+## 7. User Models
+
+## 6.5. Planned Inventory And Meal Tracking Models
+
+These are future models. They should not block the MVP.
+
+### PantryItem
+
+```ts
+type PantryItem = {
+  id: string;
+  user_id: string;
+  canonical_ingredient?: string;
+  product_id?: string;
+  label: string;
+  estimated_amount?: number;
+  unit?: string;
+  confidence?: "low" | "medium" | "high";
+  source: "manual" | "cart" | "receipt" | "image" | "inferred";
+  updated_at: string;
+};
+```
+
+Interpretation:
+
+- pantry state starts rough, not exact
+- exact quantity tracking is a later capability
+- "things I usually have" is valuable before object detection is reliable
+
+### MealLog
+
+```ts
+type MealLog = {
+  id: string;
+  user_id: string;
+  recipe_id?: string;
+  cart_id?: string;
+  name: string;
+  servings_consumed?: number;
+  nutrition_data?: RecipeNutritionData;
+  eaten_at: string;
+};
+```
+
+Interpretation:
+
+- meal tracking connects recipes to calories/macros
+- this is later than recipe generation and grocery execution
+- it should reuse structured recipe and nutrition data rather than free-text logs
 
 ## 7. User Models
 

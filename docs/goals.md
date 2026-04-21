@@ -1,96 +1,269 @@
 # Goals - Cussien
 
-This document describes the product and engineering direction for Cussien after the first working recipe-to-cart vertical slice.
+Cussien is being shaped as a startup, not just a recipe-to-cart side project.
 
-## Product Vision
+The long-term product is an agentic food operating system: a workspace that helps people decide what to cook, adapt meals to their constraints, understand what they already have, generate what they need to buy, and eventually guide them while cooking.
 
-Cussien should become an agentic cooking and grocery workspace.
+## Product Thesis
 
-The product should help a user move through the full loop:
+People do not struggle because there are not enough recipes online.
+
+They struggle because the path from wanting food to actually cooking it is fragmented:
 
 ```text
-preferences -> recipes -> meal plan -> grocery cart -> cooking guidance -> iteration
+food idea -> recipe -> constraints -> missing ingredients -> grocery cart -> cooking -> tracking
 ```
 
-The long-term product is not only a recipe app and not only a shopping-list app. It should become a personal cooking system that understands:
+Cussien should own that workflow.
 
-- what the user likes
-- what the user cannot or does not want to eat
-- what recipes they own or are exploring
-- what they are planning to cook
-- what ingredients and products are available near them
-- what they are actively cooking right now
+The first wedge is practical:
 
-## Current Strategic Decision
+```text
+meal idea or recipe -> structured recipe -> editable ingredients -> real grocery cart
+```
 
-The current frontend should be treated as a functional prototype and testing harness.
+The long-term platform is broader:
 
-It is useful for validating:
+```text
+preferences + recipes + inventory + nutrition + retailers + AI agents -> meals people can actually cook
+```
+
+## Product Definition
+
+Cussien is an AI-powered meal execution platform that helps people turn food ideas, saved recipes, restaurant dishes, creator content, or personal cravings into meals they can actually cook.
+
+Users should be able to:
+
+- generate recipes with an LLM
+- fork/import recipes from outside sources
+- edit meals around constraints such as budget, calories, macros, dietary restrictions, allergies, available time, available ingredients, and retailer availability
+- turn recipes into consolidated ingredients
+- remove or adjust ingredients they already have
+- generate real grocery carts from retailers such as Kroger, Instacart, Walmart, Target, or future providers
+- manually correct cart products and quantities
+- track calories and macros across recipes, meals, days, and plans
+- eventually ask a contextual cooking assistant for help while cooking
+
+The product should not be positioned as a generic recipe database, grocery list app, calorie tracker, or chatbot. It should be positioned as the system that connects all of those jobs.
+
+## Core Problem
+
+Home cooking is operationally annoying.
+
+Users often want to cook, eat healthier, save money, or follow macros, but the process takes too much mental energy:
+
+- deciding what to cook
+- adapting recipes to dietary or budget constraints
+- figuring out missing ingredients
+- translating ingredients into real grocery products
+- checking what they already have
+- keeping nutrition/macros aligned
+- cooking without getting stuck mid-recipe
+
+The customer pain is not discovery alone. It is execution.
+
+## Initial Target
+
+The initial target should be busy home cooks who already want to cook but fail at planning.
+
+Strong early users:
+
+- students moving into independent living
+- recent graduates
+- young professionals
+- couples
+- people trying to eat healthier
+- people who save recipes from TikTok, Instagram, YouTube, or blogs but rarely make them
+- people who manually make grocery lists in notes apps
+- macro-conscious users who want meals and groceries tied together
+
+The first user is not the person who hates cooking. It is the person who wants to cook but hates the planning and grocery work around cooking.
+
+## MVP Scope
+
+The MVP should stay narrow:
+
+```text
+input meal idea or recipe -> generate/structure recipe -> show ingredients -> let user adjust/remove ingredients -> generate editable Kroger cart
+```
+
+MVP capabilities:
+
+- onboarding/preferences
+- enter a meal idea such as "Pakistani biryani"
+- generate a structured recipe
+- show structured ingredients and steps
+- let the user delete/edit ingredients before cart generation
+- generate a Kroger shopping cart
+- let the user replace products, add manual items, delete items, and edit quantities
+- save recipes/carts
+
+Nice-to-have if fast:
+
+- paste/import recipe text
+- basic nutrition estimate
+- basic "things I usually have" pantry/staples list
+
+Not MVP:
+
+- exact inventory tracking
+- fridge object detection
+- live cooking chatbot
+- social/community profiles
+- voice assistant
+- cute food mascots
+- direct checkout
+- full macro diary
+
+## Added To The Vision
+
+The latest product discussion added these major directions:
+
+### Inventory Awareness
+
+Cussien should eventually know what the user has in their kitchen.
+
+Possible inputs:
+
+- fridge/pantry photos
+- receipt/cart history
+- manual pantry staples
+- shopping carts generated by Cussien
+- later, scales or object detection
+
+Important constraint:
+
+- inventory does not need to be perfectly precise at first
+- rough awareness is still useful
+- exact quantity tracking is later
+
+### Recipe Import/Forking From Anywhere
+
+Users should be able to bring food ideas from outside Cussien.
+
+Possible sources:
+
+- recipe URLs
+- restaurant menus
+- screenshots/photos
+- creator posts
+- meal service menus
+- plain text
+- other users' public recipes/carts
+
+The system should convert outside content into structured recipes that can be adapted, tracked, and shopped.
+
+### AI Recipe Editing Per Recipe
+
+Each recipe should eventually have an AI editing surface.
+
+Examples:
+
+- "I do not have apple or cinnamon. What can I use?"
+- "Make this halal."
+- "Make this cheaper."
+- "Make it high protein."
+- "Reduce calories but keep the texture."
+
+The output should be a structured recipe variant or fork, not just a chat answer.
+
+### General Food Agent
+
+Longer term, Cussien should have a general agent that knows:
+
+- user preferences
+- saved recipes
+- recent meals
+- inventory
+- nutrition goals
+- shopping history
+- retailer availability
+
+The agent should answer:
+
+- "What should I cook today?"
+- "What can I make with what I have?"
+- "What should I buy this week?"
+- "Give me something high-protein and cheap."
+
+### Live Cooking Assistant
+
+The cooking assistant should be contextual.
+
+It should understand:
+
+- the current recipe
+- the current step
+- user constraints
+- selected grocery products
+- possible substitutions
+
+This is not MVP, but it is one of the strongest long-term differentiators.
+
+### Community And Creator Layer
+
+Cussien may eventually support a lightweight social/community layer.
+
+The right analogy is closer to Spotify profiles/playlists than Instagram.
+
+Possible features:
+
+- public recipes
+- public carts
+- recipe/cart forking
+- creator profiles
+- influencer badges
+- "shop this recipe" links
+
+This is later. The core utility has to work first.
+
+### Branding Personality
+
+Food characters, mascots, and playful assistants may be useful for brand.
+
+This is not MVP. It belongs to brand/product polish later.
+
+## Strategic Constraints
+
+### Frontend
+
+The current frontend is a prototype and validation harness.
+
+Use it to test:
 
 - auth
 - onboarding
-- recipe browsing
-- cart generation
-- Kroger product matching
+- recipes
+- carts
+- Kroger matching
 - shopping-cart editing
-- future AI and provider endpoints
+- future AI endpoints
 
-It should not receive heavy visual investment from here.
+Do not spend major effort polishing it visually. A future frontend can be rebuilt with Lovable, Stitch, v0, or a hand-built production interface once the backend contracts are stronger.
 
-Only fix frontend issues when they block product validation or core flows. A future frontend rebuild can happen with a dedicated design/code-generation tool such as Lovable, Stitch, v0, or a hand-built production interface once the backend and product contracts are stronger.
+### AI
 
-## Engineering Priorities
+AI should produce structured domain data.
 
-### 1. Stabilize The Backend Product Core
+Allowed:
 
-The backend should remain the source of truth for domain behavior.
-
-High-priority work:
-
-- make the `/api/v1` resource model stable
-- keep `Recipe`, `CartDraft`, `Cart`, and `ShoppingCart` distinct
-- keep retailer matching behind provider boundaries
-- improve shopping-location and store-resolution behavior
-- preserve deterministic aggregation and pricing logic
-- make errors clear and recoverable
-
-### 2. Strengthen Retail Provider Architecture
-
-Retailer integrations should sit behind a stable internal provider contract.
-
-Current providers:
-
-- mock provider for local/dev fallback
-- Kroger provider for live product search and pricing
-- Walmart provider boundary for later activation
-
-Future candidates:
-
-- Walmart
-- Target
-- Instacart or cart-export integrations
-- Amazon Fresh or Whole Foods if access is practical
-- Share-A-Cart-style export or browser-extension assisted cart loading
-
-Important rule:
-
-- provider integrations should be adapters
-- they should not shape the core domain model directly
-
-### 3. Evaluate MCPs As Adapters, Not As Core
-
-Open-source MCP servers may help accelerate integrations.
-
-Potential MCP/tool categories:
-
-- retailer product search
-- cart export
-- nutrition and calorie lookup
-- pantry/inventory
 - recipe generation
-- web/browser automation for cart transfer
+- recipe editing
+- substitution reasoning
+- cooking guidance
+- ambiguous ingredient normalization
 
-The core app should not depend directly on a specific MCP implementation. Instead, MCPs should be evaluated and wrapped behind internal interfaces such as:
+Not allowed:
+
+- final pricing
+- final quantity math
+- hidden product matching decisions without deterministic checks
+
+### MCPs And Open-Source Tools
+
+MCPs can accelerate integrations, but should not become the core architecture.
+
+Use them as adapters behind internal interfaces:
 
 - `RetailerProductProvider`
 - `NutritionProvider`
@@ -99,127 +272,41 @@ The core app should not depend directly on a specific MCP implementation. Instea
 - `CartExportProvider`
 - `CookingAssistantToolProvider`
 
-This keeps the product resilient if an MCP is abandoned, has a weak license, returns inconsistent data, or cannot run in production.
+## Roadmap
 
-### 4. Build Nutrition As A Tool Layer
+### Now
 
-Nutrition should become a first-class capability, but not through guesswork.
+1. Keep strengthening Kroger matching.
+2. Add recipe generation from a meal idea.
+3. Add pre-cart ingredient editing.
+4. Add basic nutrition/macro estimation contract.
+5. Evaluate nutrition and recipe-import MCPs/tools.
 
-Preferred path:
+### Next
 
-- structured ingredients remain the source of truth
-- deterministic nutrition databases should be preferred when available
-- AI may help normalize ambiguous ingredients or serving descriptions
-- `nutrition_data` remains a derived recipe snapshot, not the primary recipe model
-
-Product use cases:
-
-- calories/macros per recipe
-- calories/macros per serving
-- compare recipe variants
-- generate higher-protein, lower-carb, lower-calorie, or budget-adjusted versions
-
-### 5. Add AI Recipe Generation And Editing
-
-AI should generate and edit structured recipes, not free-text blobs.
-
-Important use cases:
-
-- generate recipes from preferences
-- adapt recipes to dietary badges
-- adapt recipes to budget or available stores
-- scale recipes
-- replace unavailable ingredients
-- create weekly meal plans
-- explain cooking techniques
-
-Output should map into existing domain structures:
-
-- `BaseRecipe`
-- `DishIngredient`
-- `RecipeStep`
-- `Tag`
-- `Cuisine`
-- `nutrition_data`
-
-### 6. Build A Contextual Cooking Assistant
-
-The cooking assistant should eventually understand:
-
-- the user profile
-- preferences and dietary badges
-- the current recipe
-- the current cart or meal plan
-- the current cooking step
-- available substitutions
-- products already chosen in the shopping cart
-
-Example jobs:
-
-- guide the user through a recipe in real time
-- answer "what can I use instead?"
-- adjust if a step goes wrong
-- explain why a technique matters
-- help cook multiple dishes in parallel
-- adapt timing based on user constraints
-
-This should be implemented after the recipe/cart/shopping contracts are stable enough to provide reliable context.
-
-### 7. Explore Cart Export And Transfer
-
-Share-A-Cart proves there is demand for loading or sharing carts across retailers with less friction.
-
-Cussien should explore similar output paths:
-
-- shareable shopping-cart links
-- browser-extension assisted cart loading
-- retailer-native cart APIs where available
-- export formats for manual checkout
-- collaborative shopping carts later
-
-The first goal is not necessarily checkout automation. The first goal is making the generated retailer basket easy to act on.
-
-## Product Priorities
-
-### Near Term
-
-1. Keep refining Kroger matching quality.
-2. Improve shopping-location and store reuse.
-3. Add GPS-assisted location capture.
-4. Evaluate open-source MCPs/tools for nutrition, retailers, and cart export.
-5. Design backend contracts for AI recipe generation/editing.
-
-### Medium Term
-
-1. Implement recipe generation/editing with structured AI output.
-2. Add nutrition calculation and nutrition-aware recipe variants.
-3. Add saved provider/store management.
-4. Add cart export/share flows.
-5. Prepare a frontend rebuild around the stabilized backend contracts.
+1. Add recipe import/forking from URL/text/screenshot.
+2. Add AI recipe editing per recipe.
+3. Add basic pantry/staples support.
+4. Add better store/location persistence.
+5. Add cart export/share experiments.
 
 ### Later
 
-1. Build the contextual cooking assistant.
-2. Add pantry/inventory awareness.
-3. Add collaborative planning and shared carts.
-4. Add more retailers/providers.
-5. Consider MCP-based external tool hosting once the internal provider interfaces are stable.
-
-## Non-Goals For Now
-
-- do not deeply polish the current frontend
-- do not let AI decide pricing or final shopping quantities
-- do not couple the domain model to one retailer
-- do not make MCPs the core app architecture before validating them
-- do not chase direct checkout until provider access and UX are clearer
+1. Add contextual live cooking assistant.
+2. Add inventory from photos and purchase history.
+3. Add social/community recipe and cart forking.
+4. Add creator workflows.
+5. Add voice/mascot/cooking character experience.
 
 ## Success Criteria
 
-Cussien is moving in the right direction if:
+Cussien is on the right path if:
 
-- a user can build a meal plan from recipes quickly
-- the app generates a real, editable shopping cart
-- provider failures are understandable and recoverable
-- AI output lands as structured domain data
-- the backend is strong enough for a future frontend rebuild
-- adding another retailer or nutrition source does not require rewriting the core product
+- a user can type a food idea and get a grocery-ready cart
+- the cart contains real products near them
+- they can remove what they already have before shopping
+- generated recipes are structured and editable
+- nutrition/macros become useful across meals
+- provider failures are clear and recoverable
+- the backend is stable enough for a frontend rebuild
+- the product feels like execution help, not just recipe inspiration
