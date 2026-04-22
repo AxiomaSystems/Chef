@@ -257,6 +257,8 @@ Current status:
 - the fallback/default provider is mock
 - Kroger can now resolve location + product search through the same contract
 - Walmart can still be enabled later without changing the shopping-cart contract
+- Instacart uses the cart-export boundary instead of the product-matching boundary, because its Developer Platform flow is better suited to hosted shopping-list handoff URLs
+- `ShoppingCart.external_url` can store the generated external handoff URL
 
 ### 7. Provider And Tool Layer
 
@@ -272,6 +274,8 @@ Implemented today:
 - mock retailer provider
 - Kroger live provider
 - Walmart provider boundary
+- Instacart cart-export provider
+- retailer capability reporting through `/api/v1/retailers/capabilities`
 
 Planned provider categories:
 
@@ -355,12 +359,15 @@ Implemented route families:
 - `/api/v1/cart-drafts`
 - `/api/v1/carts`
 - `/api/v1/shopping-carts`
+- `/api/v1/retailers`
 
 Implemented mapping:
 
 - `POST /api/v1/recipe-forks` replaces the older save-style command route
 - `POST /api/v1/carts` creates the meal-plan snapshot
 - `POST /api/v1/carts/:cartId/shopping-carts` derives a purchase basket from a cart
+- Instacart shopping-cart generation can persist an `external_url` for a hosted Instacart shopping-list handoff
+- `GET /api/v1/retailers/capabilities` reports which retailer paths currently support product search, location lookup, cart handoff, native checkout, and demo priority
 
 This keeps retailer integration behind the shopping-cart boundary instead of coupling it directly to recipe selection endpoints.
 
@@ -444,6 +451,7 @@ Not implemented yet:
 Implemented but still hardening:
 
 - real external retailer integration through Kroger
+- external cart handoff through Instacart
 - provider-side throttling, token deduping, and location/query caching to reduce burst traffic
 
 Planned external tool posture:

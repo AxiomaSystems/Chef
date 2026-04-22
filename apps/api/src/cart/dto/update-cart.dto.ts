@@ -9,8 +9,8 @@ export class UpdateCartDto extends PartialCartSelectionsDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ enum: ['walmart', 'kroger'] })
+  @ApiPropertyOptional({ enum: ['walmart', 'kroger', 'instacart'] })
   @IsOptional()
-  @IsIn(['walmart', 'kroger'])
+  @IsIn(['walmart', 'kroger', 'instacart'])
   retailer?: Retailer;
 }

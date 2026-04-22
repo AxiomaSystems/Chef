@@ -134,6 +134,9 @@ export function ShoppingCartDetailOverlay(props: {
     currentShoppingCart.created_at ??
     new Date().toISOString();
   const lineCount = currentShoppingCart.matched_items.length;
+  const externalHandoffUrl = currentShoppingCart.external_url;
+  const hasExternalHandoff = Boolean(externalHandoffUrl);
+  const isProductSearchSupported = currentShoppingCart.retailer !== "instacart";
 
   function handleReplace(index: number) {
     if (!currentShoppingCart) {
@@ -159,7 +162,7 @@ export function ShoppingCartDetailOverlay(props: {
     setSearchError(undefined);
   }
 
-function handleDeleteLine(index: number) {
+  function handleDeleteLine(index: number) {
     if (!currentShoppingCart) {
       return;
     }
@@ -319,13 +322,25 @@ function handleDeleteLine(index: number) {
                 </button>
               </>
             ) : (
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 px-4 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
-              >
-                Edit shopping cart
-              </button>
+              <>
+                {hasExternalHandoff ? (
+                  <a
+                    href={externalHandoffUrl ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 items-center justify-center rounded-full bg-[color:var(--forest)] px-4 text-sm font-semibold text-[color:var(--paper)] transition hover:bg-[color:var(--forest-strong)]"
+                  >
+                    Open in {formatRetailerName(currentShoppingCart.retailer)}
+                  </a>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 px-4 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
+                >
+                  Edit shopping cart
+                </button>
+              </>
             )}
             <button
               type="button"
@@ -413,13 +428,15 @@ function handleDeleteLine(index: number) {
                           ) : null}
                           {isEditing ? (
                             <>
-                              <button
-                                type="button"
-                                onClick={() => handleReplace(index)}
-                                className="rounded-full border border-[color:var(--line)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--olive)] transition hover:bg-white"
-                              >
-                                Replace
-                              </button>
+                              {isProductSearchSupported ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleReplace(index)}
+                                  className="rounded-full border border-[color:var(--line)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--olive)] transition hover:bg-white"
+                                >
+                                  Replace
+                                </button>
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() => handleDeleteLine(index)}
@@ -545,12 +562,16 @@ function handleDeleteLine(index: number) {
                       Snapshot
                     </p>
                     <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-                      {isEditing
-                        ? "Replace ingredient matches or add manual lines, then save the shopping cart."
-                        : "This shopping cart is persisted. Edit only when you want to correct or add retailer products manually."}
+                        {isEditing
+                        ? isProductSearchSupported
+                          ? "Replace ingredient matches or add manual lines, then save the shopping cart."
+                          : "Remove lines you do not want, then save the hosted handoff snapshot."
+                        : hasExternalHandoff
+                          ? "This shopping cart has a retailer handoff URL. Open it to continue shopping on the retailer surface."
+                          : "This shopping cart is persisted. Edit only when you want to correct or add retailer products manually."}
                     </p>
                   </div>
-                  {isEditing ? (
+                  {isEditing && isProductSearchSupported ? (
                     <button
                       type="button"
                       onClick={handleAddItem}
@@ -579,6 +600,16 @@ function handleDeleteLine(index: number) {
                       {formatMoney(subtotal)}
                     </p>
                   </div>
+                  {hasExternalHandoff ? (
+                    <a
+                      href={externalHandoffUrl ?? "#"}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex min-h-11 items-center justify-center rounded-full bg-[color:var(--forest)] px-4 text-sm font-semibold text-[color:var(--paper)] transition hover:bg-[color:var(--forest-strong)]"
+                    >
+                      Open in {formatRetailerName(currentShoppingCart.retailer)}
+                    </a>
+                  ) : null}
                   <div className="relative grid grid-cols-2 gap-3">
                     <div className="rounded-[1rem] border border-[color:var(--line)] bg-[rgba(255,255,255,0.72)] px-4 py-3">
                       <p className="text-[11px] uppercase tracking-[0.14em] text-[color:var(--ink-soft)]">
@@ -638,7 +669,13 @@ function handleDeleteLine(index: number) {
                   Product search
                 </p>
 
-                {searchContext ? (
+                {!isProductSearchSupported ? (
+                  <div className="mt-4 rounded-[1rem] border border-dashed border-[color:var(--line)] bg-[color:var(--paper)]/52 px-4 py-3 text-sm leading-6 text-[color:var(--ink-soft)]">
+                    {hasExternalHandoff
+                      ? `Product search is handled by ${formatRetailerName(currentShoppingCart.retailer)} after opening the handoff link.`
+                      : `${formatRetailerName(currentShoppingCart.retailer)} handoff is configured as a hosted shopping-list flow, not line-by-line product search.`}
+                  </div>
+                ) : searchContext ? (
                   <div className="mt-4 grid gap-4">
                     <div>
                       <p className="text-sm font-semibold text-[color:var(--forest-strong)]">
