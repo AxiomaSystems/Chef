@@ -38,7 +38,7 @@ Long-term Chef should connect:
 - recipe import/forking from outside content
 - AI recipe editing
 - calorie and macro tracking
-- ingredient and pantry awareness
+- ingredient and kitchen inventory awareness
 - retailer product matching
 - editable grocery carts
 - cart export/transfer
@@ -210,6 +210,12 @@ Implemented entity:
 
 - `AggregatedIngredient`
 
+Current integration:
+
+- cart overview reads can enrich aggregated ingredients with `in_kitchen`
+- this enrichment uses the user's `KitchenInventoryItem` rows through the shared `Ingredient` catalog
+- shopping-cart generation skips `in_kitchen` ingredients so retailer matching/export focuses on missing items
+
 ### 5. Product Matching Layer
 
 Purpose:
@@ -259,6 +265,7 @@ Current status:
 - Walmart can still be enabled later without changing the shopping-cart contract
 - Instacart uses the cart-export boundary instead of the product-matching boundary, because its Developer Platform flow is better suited to hosted shopping-list handoff URLs
 - `ShoppingCart.external_url` can store the generated external handoff URL
+- `ShoppingCart.overview` preserves the ingredient-source snapshot, including which ingredients were already in the user's kitchen at generation time
 
 ### 7. Provider And Tool Layer
 
@@ -276,6 +283,7 @@ Implemented today:
 - Walmart provider boundary
 - Instacart cart-export provider
 - retailer capability reporting through `/api/v1/retailers/capabilities`
+- shared ingredient catalog and user kitchen inventory persistence
 
 Planned provider categories:
 
@@ -417,6 +425,8 @@ Not implemented yet:
 - meal-idea recipe generation
 - external recipe import from URL, text, screenshot, menu, or creator content
 - pre-cart ingredient review/removal
+- full pantry quantity deduction
+- computer-vision inventory capture
 - structured AI recipe generation and editing
 - contextual cooking assistant runtime
 - nutrition provider integration

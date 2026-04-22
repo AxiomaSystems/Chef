@@ -104,6 +104,13 @@ Nice-to-have if fast:
 - basic nutrition estimate
 - basic "things I usually have" pantry/staples list
 
+Current status:
+
+- basic pantry/staples support now exists as shared `Ingredient` catalog plus user `KitchenInventoryItem`
+- demo cart overviews can mark ingredients as already in kitchen
+- retailer shopping-cart generation skips those already-owned ingredients
+- exact quantity tracking remains out of scope
+
 Not MVP:
 
 - exact inventory tracking
@@ -286,7 +293,7 @@ Use them as adapters behind internal interfaces:
 
 1. Add recipe import/forking from URL/text/screenshot.
 2. Add AI recipe editing per recipe.
-3. Add basic pantry/staples support.
+3. Add a usable kitchen-inventory editor and per-cart ingredient review override.
 4. Add better store/location persistence.
 5. Add cart export/share experiments.
 

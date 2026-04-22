@@ -289,6 +289,10 @@ export function PlanningDetailOverlay(props: {
     recipe: dish.id ? recipeMap.get(dish.id) : undefined,
     key: `${dish.id ?? dish.name}-${index}`,
   }));
+  const inKitchenCount = cartDetail.overview.filter(
+    (ingredient) => ingredient.in_kitchen,
+  ).length;
+  const toBuyCount = cartDetail.overview.length - inKitchenCount;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6">

@@ -42,6 +42,7 @@ The backend is well past scaffold stage, and the current web app validates the c
 - draft/cart creation and editing through large overlays
 - persisted `CartDraft`, `Cart`, and `ShoppingCart` resources behind the internal `/api/v1` contract
 - quantity controls for recipe selections in the planning composer and for line quantities in shopping carts
+- a shared ingredient catalog and user kitchen inventory for demoing "already have this" behavior
 - a live Kroger retailer path behind a provider boundary
 - an Instacart shopping-list handoff path behind a cart-export boundary
 
@@ -78,6 +79,8 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - recipe CRUD for user-owned recipes
 - optional `cover_image_url` and `nutrition_data` on recipes
 - explicit dietary badge tags through `Tag.kind = dietary_badge`
+- shared `Ingredient` records seeded from recipe ingredients
+- user-scoped kitchen inventory at `/api/v1/me/kitchen-inventory`
 - an explicit fork flow for copying a system recipe into a user-owned editable recipe
 - persisted `cart-drafts`, `carts`, and `shopping-carts`
 - deterministic conversion from recipe selections into recipe-based carts
@@ -277,6 +280,8 @@ Swagger:
 - `CartDraft` is editable incomplete intent, not the main product object
 - `Cart` is the stable recipe-based meal plan snapshot with retailer context and a derived ingredient overview
 - `ShoppingCart` is the retailer-facing basket derived from a `Cart`
+- kitchen inventory is a persistent "user says they have it" layer, not exact pantry automation
+- cart overviews can mark ingredients as `in_kitchen`, and shopping-cart generation skips those lines
 - aggregation and retailer matching remain deterministic
 - `ShoppingCart` can now be manually corrected without regenerating a new planning artifact
 - dietary badges should come from tag metadata, not hardcoded booleans on recipes
@@ -327,6 +332,9 @@ This separation is intentional:
 - `/api/v1/me/onboarding/complete` now marks onboarding completion independently from preferences.
 - `/api/v1/tags` now supports list/create/update/delete.
 - `/api/v1/tags` now returns `kind` so clients can distinguish general taxonomy tags from dietary badge tags.
+- `/api/v1/ingredients` exposes the shared ingredient catalog.
+- `/api/v1/me/kitchen-inventory` supports listing, adding, and deleting the current user's kitchen inventory items.
+- `Cart.overview` and `ShoppingCart.overview` can now mark `in_kitchen` ingredients, and shopping-cart generation only matches/exports missing ingredients.
 - `POST /api/v1/recipe-forks` replaced the old save-style route.
 - recipes now require `cuisine_id` and return expanded `cuisine` objects.
 - carts now require `retailer` on write and return derived `overview` ingredient data on read.
@@ -378,18 +386,20 @@ The next high-signal work is now more product-shaped than before.
 The current frontend should be treated as a functional prototype and validation harness. Avoid heavy visual investment there unless it unblocks core flows. A future frontend rebuild can happen once the backend/API contracts are stronger.
 
 1. Add meal-idea -> structured recipe generation.
-2. Add pre-cart ingredient editing so users can remove what they already have before grocery matching.
-3. Keep improving Kroger matching quality with more ingredient query planning, synonym maps, and stronger produce/pantry heuristics.
-4. Wire Instacart credentials into the demo branch and validate real hosted shopping-list creation.
-5. Add GPS-assisted shopping-location setup and better Kroger store reuse.
-6. Evaluate open-source MCPs/tools for retailer search, nutrition lookup, cart export, pantry, and recipe import.
-7. Design backend contracts for AI recipe editing, nutrition/macros, recipe import/forking, and future cooking assistant context.
+2. Add a UI surface for editing kitchen inventory without relying on seed/API calls.
+3. Add pre-cart ingredient review so users can override inventory per planning run.
+4. Keep improving Kroger matching quality with more ingredient query planning, synonym maps, and stronger produce/pantry heuristics.
+5. Wire Instacart credentials into the demo branch and validate real hosted shopping-list creation.
+6. Add GPS-assisted shopping-location setup and better Kroger store reuse.
+7. Evaluate open-source MCPs/tools for retailer search, nutrition lookup, cart export, pantry, and recipe import.
+8. Design backend contracts for AI recipe editing, nutrition/macros, recipe import/forking, and future cooking assistant context.
 
 ## Current Gaps
 
 - recipe variants and AI-assisted adaptation are not implemented yet
 - meal-idea recipe generation is not implemented yet
-- pre-cart ingredient editing/removal is not implemented as a dedicated flow yet
+- kitchen inventory persistence exists, but the user-facing inventory editor is still minimal/not a final UX
+- pre-cart ingredient editing/removal is not implemented as a dedicated per-cart override flow yet
 - external recipe import/forking from URLs, screenshots, menus, or creator content is not implemented yet
 - the Walmart provider boundary exists, the first live matching path is Kroger, and the first external handoff path is Instacart
 - delete flows exist, but recovery/versioning does not
