@@ -62,6 +62,10 @@ export class MatchingService {
       return this.walmartProvider.isEnabled() || this.mockProvider.isEnabled();
     }
 
+    if (retailer === 'instacart') {
+      return false;
+    }
+
     return false;
   }
 

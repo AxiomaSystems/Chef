@@ -55,6 +55,8 @@ export type ShoppingCart = {
   estimated_subtotal: number;
   estimated_total?: number;
   retailer: Retailer;
+  external_url?: string;
+  external_reference_id?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -65,6 +67,8 @@ export type ShoppingCartHistorySummary = {
   cart_id: string;
   retailer: Retailer;
   estimated_subtotal: number;
+  external_url?: string;
+  external_reference_id?: string;
   overview_count: number;
   matched_item_count: number;
   created_at: string;

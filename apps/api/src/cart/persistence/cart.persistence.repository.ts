@@ -82,6 +82,8 @@ export class CartPersistenceRepository {
         matchedItems: input.shoppingCart.matched_items,
         estimatedSubtotal: input.shoppingCart.estimated_subtotal,
         estimatedTotal: input.shoppingCart.estimated_total,
+        externalUrl: input.shoppingCart.external_url,
+        externalReferenceId: input.shoppingCart.external_reference_id,
       },
     });
   }
@@ -97,6 +99,8 @@ export class CartPersistenceRepository {
         matchedItems: input.matched_items,
         estimatedSubtotal: input.estimated_subtotal,
         estimatedTotal: input.estimated_total,
+        externalUrl: input.external_url,
+        externalReferenceId: input.external_reference_id,
       },
     });
   }

@@ -177,6 +177,8 @@ export function NewDraftOverlay(props: {
   const locationNote =
     retailer === "kroger"
       ? "Kroger search needs your shopping location in preferences."
+      : retailer === "instacart"
+        ? "Instacart creates a hosted shopping-list handoff for the selected ingredients."
       : null;
   const selectionPayload = JSON.stringify(
     selectedRecipes.map(({ recipe, quantity }) => ({
@@ -266,6 +268,7 @@ export function NewDraftOverlay(props: {
                   >
                     <option value="walmart">Walmart</option>
                     <option value="kroger">Kroger</option>
+                    <option value="instacart">Instacart</option>
                   </select>
                 </label>
 
