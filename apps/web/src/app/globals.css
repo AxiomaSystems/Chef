@@ -1,51 +1,157 @@
 @import "tailwindcss";
 
-:root {
-  --paper: #f5f0e4;
-  --paper-strong: #efe5d2;
-  --ink: #18231d;
-  --ink-soft: #516057;
-  --forest: #234433;
-  --forest-strong: #173224;
-  --olive: #738765;
-  --clay: #a14d31;
-  --line: rgba(24, 35, 29, 0.12);
-  --shadow: 0 24px 80px rgba(19, 34, 26, 0.14);
+/* ─── Design Tokens: Warm Minimalism ─────────────────────────────────────── */
+@theme {
+  /* Colors */
+  --color-background:                #faf9f6;
+  --color-surface:                   #faf9f6;
+  --color-surface-bright:            #faf9f6;
+  --color-surface-dim:               #dbdad7;
+  --color-surface-container-lowest:  #ffffff;
+  --color-surface-container-low:     #f4f3f1;
+  --color-surface-container:         #efeeeb;
+  --color-surface-container-high:    #e9e8e5;
+  --color-surface-container-highest: #e3e2e0;
+  --color-surface-variant:           #e3e2e0;
+  --color-surface-tint:              #895032;
+
+  --color-on-background:             #1a1c1a;
+  --color-on-surface:                #1a1c1a;
+  --color-on-surface-variant:        #52443d;
+  --color-inverse-surface:           #2f312f;
+  --color-inverse-on-surface:        #f2f1ee;
+
+  --color-outline:                   #85736c;
+  --color-outline-variant:           #d7c2b9;
+
+  --color-primary:                   #895032;
+  --color-on-primary:                #ffffff;
+  --color-primary-container:         #ffb38e;
+  --color-on-primary-container:      #7a4326;
+  --color-inverse-primary:           #ffb692;
+  --color-primary-fixed:             #ffdbcb;
+  --color-primary-fixed-dim:         #ffb692;
+  --color-on-primary-fixed:          #341100;
+  --color-on-primary-fixed-variant:  #6d391d;
+
+  --color-secondary:                 #675e39;
+  --color-on-secondary:              #ffffff;
+  --color-secondary-container:       #efe3b3;
+  --color-on-secondary-container:    #6d643f;
+  --color-secondary-fixed:           #efe3b3;
+  --color-secondary-fixed-dim:       #d2c799;
+  --color-on-secondary-fixed:        #211b01;
+  --color-on-secondary-fixed-variant:#4e4724;
+
+  --color-tertiary:                  #884d54;
+  --color-on-tertiary:               #ffffff;
+  --color-tertiary-container:        #fcb1b8;
+  --color-on-tertiary-container:     #794147;
+  --color-tertiary-fixed:            #ffdadc;
+  --color-tertiary-fixed-dim:        #feb2b9;
+  --color-on-tertiary-fixed:         #370c14;
+  --color-on-tertiary-fixed-variant: #6d363d;
+
+  --color-error:                     #ba1a1a;
+  --color-on-error:                  #ffffff;
+  --color-error-container:           #ffdad6;
+  --color-on-error-container:        #93000a;
+
+  /* Border radius */
+  --radius-sm:   0.25rem;
+  --radius:      0.5rem;
+  --radius-md:   0.75rem;
+  --radius-lg:   1rem;
+  --radius-xl:   1.5rem;
+  --radius-full: 9999px;
+
+  /* Font */
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--paper);
-  --color-foreground: var(--ink);
-  --font-sans: "Aptos", "Segoe UI", "Trebuchet MS", sans-serif;
-  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+/* ─── Typography Utilities ───────────────────────────────────────────────── */
+@layer utilities {
+  .text-headline-lg {
+    font-size: 40px;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    font-family: var(--font-sans);
+  }
+  .text-headline-md {
+    font-size: 32px;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    font-family: var(--font-sans);
+  }
+  .text-headline-sm {
+    font-size: 24px;
+    line-height: 1.3;
+    font-weight: 600;
+    font-family: var(--font-sans);
+  }
+  .text-body-lg {
+    font-size: 18px;
+    line-height: 1.6;
+    font-weight: 400;
+    font-family: var(--font-sans);
+  }
+  .text-body-md {
+    font-size: 16px;
+    line-height: 1.6;
+    font-weight: 400;
+    font-family: var(--font-sans);
+  }
+  .text-body-sm {
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 400;
+    font-family: var(--font-sans);
+  }
+  .text-label-lg {
+    font-size: 14px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    font-family: var(--font-sans);
+  }
+  .text-label-md {
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 600;
+    font-family: var(--font-sans);
+  }
+  .text-label-sm {
+    font-size: 10px;
+    line-height: 1.1;
+    font-weight: 700;
+    font-family: var(--font-sans);
+  }
+
+  /* Icon fill variant */
+  .icon-filled {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  /* Scrollbar hide */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html {
-  background:
-    radial-gradient(circle at top left, rgba(161, 77, 49, 0.11), transparent 32%),
-    radial-gradient(circle at bottom right, rgba(35, 68, 51, 0.16), transparent 30%),
-    var(--paper);
-}
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
 
 body {
-  min-height: 100vh;
-  color: var(--ink);
-  font-family: "Aptos", "Segoe UI", "Trebuchet MS", sans-serif;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0)),
-    linear-gradient(135deg, rgba(115, 135, 101, 0.1), rgba(0, 0, 0, 0)),
-    var(--paper);
+  font-family: var(--font-sans);
+  background-color: var(--color-background);
+  color: var(--color-on-surface);
+  -webkit-font-smoothing: antialiased;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  line-height: 1;
 }
 
-::selection {
-  background: rgba(35, 68, 51, 0.18);
-}
+a { color: inherit; text-decoration: none; }

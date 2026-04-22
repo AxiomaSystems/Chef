@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { BaseRecipe, Retailer } from "@cart/shared";
 import {
@@ -33,8 +33,8 @@ function SubmitButton(props: {
       value={props.intent}
       className={
         props.tone === "secondary"
-          ? "inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-[color:var(--paper)]/72 px-4 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
-          : "inline-flex min-h-11 items-center justify-center rounded-full bg-[color:var(--forest)] px-4 text-sm font-semibold text-[color:var(--paper)] transition hover:bg-[color:var(--forest-strong)]"
+          ? "inline-flex min-h-11 items-center justify-center rounded-full border border-[#d7c2b9] bg-[#faf9f6]/72 px-4 text-sm font-semibold text-[#1a1c1a] transition hover:bg-white"
+          : "inline-flex min-h-11 items-center justify-center rounded-full bg-[#895032] px-4 text-sm font-semibold text-[#faf9f6] transition hover:bg-[#1a1c1a]"
       }
     >
       {props.label}
@@ -213,20 +213,20 @@ export function NewDraftOverlay(props: {
 
   return (
     <div className="fixed inset-0 z-50 bg-[rgba(24,35,29,0.6)] p-4 backdrop-blur-sm sm:p-6">
-      <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-[color:var(--paper)] shadow-[0_28px_90px_rgba(10,18,13,0.28)]">
-        <div className="flex items-center justify-between gap-4 border-b border-[color:var(--line)] px-5 py-4 sm:px-6">
+      <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-[2rem] border border-[#d7c2b9] bg-[#faf9f6] shadow-[0_28px_90px_rgba(10,18,13,0.28)]">
+        <div className="flex items-center justify-between gap-4 border-b border-[#d7c2b9] px-5 py-4 sm:px-6">
           <div>
-            <h2 className="font-display text-3xl leading-none text-[color:var(--forest-strong)]">
+            <h2 className="font-sans font-bold text-3xl leading-none text-[#1a1c1a]">
               {title}
             </h2>
-            <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
+            <p className="mt-2 text-sm text-[#85736c]">
               {helperText}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 text-xl text-[color:var(--forest-strong)] transition hover:bg-white"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#d7c2b9] bg-white/74 text-xl text-[#1a1c1a] transition hover:bg-white"
             aria-label="Close cart builder"
           >
             x
@@ -237,11 +237,11 @@ export function NewDraftOverlay(props: {
           action={formAction}
           className="grid min-h-0 flex-1 lg:grid-cols-[1.45fr_0.8fr]"
         >
-          <section className="min-h-0 overflow-y-auto border-b border-[color:var(--line)] px-5 py-5 lg:border-b-0 lg:border-r lg:px-6">
+          <section className="min-h-0 overflow-y-auto border-b border-[#d7c2b9] px-5 py-5 lg:border-b-0 lg:border-r lg:px-6">
             <div className="grid gap-4">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <label className="block w-full max-w-xs">
-                  <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--olive)]">
+                  <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#895032]">
                     {nameLabel}
                   </span>
                   <input
@@ -250,19 +250,19 @@ export function NewDraftOverlay(props: {
                     value={draftName}
                     onChange={(event) => setDraftName(event.target.value)}
                     placeholder="Weeknight dinner plan"
-                    className="min-h-11 w-full rounded-2xl border border-[color:var(--line)] bg-white px-4 text-sm text-[color:var(--forest-strong)] outline-none transition placeholder:text-[color:var(--ink-soft)]/72 focus:border-[color:var(--olive)]"
+                    className="min-h-11 w-full rounded-2xl border border-[#d7c2b9] bg-white px-4 text-sm text-[#1a1c1a] outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032]"
                   />
                 </label>
 
                 <label className="block w-full max-w-[10rem]">
-                  <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--olive)]">
+                  <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#895032]">
                     Retailer
                   </span>
                   <select
                     name="retailer"
                     value={retailer}
                     onChange={(event) => setRetailer(event.target.value as Retailer)}
-                    className="min-h-11 w-full rounded-2xl border border-[color:var(--line)] bg-white px-4 text-sm text-[color:var(--forest-strong)] outline-none transition focus:border-[color:var(--olive)]"
+                    className="min-h-11 w-full rounded-2xl border border-[#d7c2b9] bg-white px-4 text-sm text-[#1a1c1a] outline-none transition focus:border-[#895032]"
                   >
                     <option value="walmart">Walmart</option>
                     <option value="kroger">Kroger</option>
@@ -272,7 +272,7 @@ export function NewDraftOverlay(props: {
                 <label className="block w-full max-w-xl flex-1">
                   <span className="sr-only">Search recipes</span>
                   <div className="relative">
-                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--ink-soft)]/72">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#85736c]/72">
                       Search
                     </span>
                     <input
@@ -280,14 +280,14 @@ export function NewDraftOverlay(props: {
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
                       placeholder="Search dishes"
-                      className="min-h-11 w-full rounded-full border border-[color:var(--line)] bg-white pl-20 pr-4 text-sm text-[color:var(--forest-strong)] outline-none transition placeholder:text-[color:var(--ink-soft)]/72 focus:border-[color:var(--olive)]"
+                      className="min-h-11 w-full rounded-full border border-[#d7c2b9] bg-white pl-20 pr-4 text-sm text-[#1a1c1a] outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032]"
                     />
                   </div>
                 </label>
               </div>
 
               {locationNote ? (
-                <p className="text-sm text-[color:var(--ink-soft)]">
+                <p className="text-sm text-[#85736c]">
                   {locationNote}
                 </p>
               ) : null}
@@ -299,8 +299,8 @@ export function NewDraftOverlay(props: {
                     onClick={() => setSelectedTag(null)}
                     className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${
                       selectedTag === null
-                        ? "border-[color:var(--forest)] bg-[color:var(--forest)] text-[color:var(--paper)]"
-                        : "border-[color:var(--line)] bg-[color:var(--paper)]/72 text-[color:var(--ink-soft)] hover:bg-white"
+                        ? "border-[#895032] bg-[#895032] text-[#faf9f6]"
+                        : "border-[#d7c2b9] bg-[#faf9f6]/72 text-[#85736c] hover:bg-white"
                     }`}
                   >
                     All tags
@@ -316,8 +316,8 @@ export function NewDraftOverlay(props: {
                       }
                       className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${
                         selectedTag === tag.id
-                          ? "border-[color:var(--olive)] bg-[color:var(--olive)]/14 text-[color:var(--forest-strong)]"
-                          : "border-[color:var(--line)] bg-[color:var(--paper)]/72 text-[color:var(--ink-soft)] hover:bg-white"
+                          ? "border-[#895032] bg-[#895032]/14 text-[#1a1c1a]"
+                          : "border-[#d7c2b9] bg-[#faf9f6]/72 text-[#85736c] hover:bg-white"
                       }`}
                     >
                       {tag.name}
@@ -327,7 +327,7 @@ export function NewDraftOverlay(props: {
                     <button
                       type="button"
                       onClick={() => setShowAllTags((current) => !current)}
-                      className="rounded-full border border-[color:var(--line)] bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--olive)] transition hover:bg-white"
+                      className="rounded-full border border-[#d7c2b9] bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#895032] transition hover:bg-white"
                     >
                       {showAllTags ? "Show less" : "Show all"}
                     </button>
@@ -348,12 +348,12 @@ export function NewDraftOverlay(props: {
                       onClick={() => toggleRecipe(recipe.id)}
                       className={`flex min-h-[13rem] flex-col overflow-hidden rounded-[1.3rem] border text-left transition ${
                         selected
-                          ? "border-[color:var(--forest)] bg-[color:var(--forest)]/5 shadow-[0_10px_28px_rgba(23,50,36,0.12)]"
-                          : "border-[color:var(--line)] bg-white/56 hover:border-[color:var(--olive)]/28"
+                          ? "border-[#895032] bg-[#895032]/5 shadow-[0_10px_28px_rgba(23,50,36,0.12)]"
+                          : "border-[#d7c2b9] bg-white/56 hover:border-[#895032]/28"
                       }`}
                     >
                       {recipe.cover_image_url ? (
-                        <div className="relative h-24 overflow-hidden border-b border-[color:var(--line)] bg-[color:var(--paper)]">
+                        <div className="relative h-24 overflow-hidden border-b border-[#d7c2b9] bg-[#faf9f6]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={recipe.cover_image_url}
@@ -362,24 +362,24 @@ export function NewDraftOverlay(props: {
                           />
                         </div>
                       ) : (
-                        <div className="relative h-24 overflow-hidden border-b border-[color:var(--line)] bg-[linear-gradient(135deg,rgba(115,135,101,0.12),rgba(245,240,228,0.42)),radial-gradient(circle_at_top_left,rgba(161,77,49,0.12),transparent_34%)]" />
+                        <div className="relative h-24 overflow-hidden border-b border-[#d7c2b9] bg-[linear-gradient(135deg,rgba(115,135,101,0.12),rgba(245,240,228,0.42)),radial-gradient(circle_at_top_left,rgba(161,77,49,0.12),transparent_34%)]" />
                       )}
 
                       <div className="flex flex-1 flex-col p-3">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#895032]">
                             {recipe.cuisine.label}
                           </div>
                           {selected ? (
-                            <span className="rounded-full border border-[color:var(--forest)] bg-[color:var(--forest)]/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--forest)]">
+                            <span className="rounded-full border border-[#895032] bg-[#895032]/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#895032]">
                               x{selectedQuantity}
                             </span>
                           ) : null}
                         </div>
-                        <div className="mt-2 font-display text-[1.25rem] leading-[0.96] text-[color:var(--forest-strong)]">
+                        <div className="mt-2 font-sans font-bold text-[1.25rem] leading-[0.96] text-[#1a1c1a]">
                           {recipe.name}
                         </div>
-                        <p className="mt-2 text-xs text-[color:var(--ink-soft)]">
+                        <p className="mt-2 text-xs text-[#85736c]">
                           Servings: {recipe.servings}
                         </p>
                         <div className="mt-auto pt-3">
@@ -387,7 +387,7 @@ export function NewDraftOverlay(props: {
                             {badges.map((tag) => (
                               <span
                                 key={tag.id}
-                                className="rounded-full border border-[color:var(--line)] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--olive)]"
+                                className="rounded-full border border-[#d7c2b9] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#895032]"
                               >
                                 {tag.name}
                               </span>
@@ -404,10 +404,10 @@ export function NewDraftOverlay(props: {
 
           <aside className="flex min-h-0 flex-col bg-white/42 px-5 py-5 sm:px-6">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[color:var(--olive)]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#895032]">
                 Selected recipes
               </div>
-              <div className="mt-2 font-display text-3xl leading-none text-[color:var(--forest-strong)]">
+              <div className="mt-2 font-sans font-bold text-3xl leading-none text-[#1a1c1a]">
                 {selectedRecipes.reduce((sum, entry) => sum + entry.quantity, 0)}
               </div>
             </div>
@@ -418,24 +418,24 @@ export function NewDraftOverlay(props: {
                   {selectedRecipes.map(({ recipe, quantity }) => (
                     <div
                       key={recipe.id}
-                      className="rounded-[1.2rem] border border-[color:var(--line)] bg-[color:var(--paper)]/76 px-4 py-3"
+                      className="rounded-[1.2rem] border border-[#d7c2b9] bg-[#faf9f6]/76 px-4 py-3"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#895032]">
                             {recipe.cuisine.label}
                           </div>
-                          <div className="mt-1 text-sm font-semibold text-[color:var(--forest-strong)]">
+                          <div className="mt-1 text-sm font-semibold text-[#1a1c1a]">
                             {recipe.name}
                           </div>
-                          <div className="mt-1 text-xs text-[color:var(--ink-soft)]">
+                          <div className="mt-1 text-xs text-[#85736c]">
                             Servings: {recipe.servings} / Quantity: {quantity}
                           </div>
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {getDietaryBadges(recipe).map((tag) => (
                               <span
                                 key={tag.id}
-                                className="rounded-full border border-[color:var(--line)] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--olive)]"
+                                className="rounded-full border border-[#d7c2b9] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#895032]"
                               >
                                 {tag.name}
                               </span>
@@ -446,18 +446,18 @@ export function NewDraftOverlay(props: {
                           <button
                             type="button"
                             onClick={() => updateRecipeQuantity(recipe.id, -1)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/80 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#d7c2b9] bg-white/80 text-sm font-semibold text-[#1a1c1a] transition hover:bg-white"
                             aria-label={`Decrease ${recipe.name} quantity`}
                           >
                             -
                           </button>
-                          <span className="min-w-5 text-center text-sm font-semibold text-[color:var(--forest-strong)]">
+                          <span className="min-w-5 text-center text-sm font-semibold text-[#1a1c1a]">
                             {quantity}
                           </span>
                           <button
                             type="button"
                             onClick={() => updateRecipeQuantity(recipe.id, 1)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/80 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#d7c2b9] bg-white/80 text-sm font-semibold text-[#1a1c1a] transition hover:bg-white"
                             aria-label={`Increase ${recipe.name} quantity`}
                           >
                             +
@@ -468,7 +468,7 @@ export function NewDraftOverlay(props: {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-[1.2rem] border border-dashed border-[color:var(--line)] bg-[color:var(--paper)]/54 px-4 py-5 text-sm leading-6 text-[color:var(--ink-soft)]">
+                <div className="rounded-[1.2rem] border border-dashed border-[#d7c2b9] bg-[#faf9f6]/54 px-4 py-5 text-sm leading-6 text-[#85736c]">
                   Select recipes on the left to start a cart.
                 </div>
               )}
@@ -487,13 +487,13 @@ export function NewDraftOverlay(props: {
             ) : null}
 
             {state.error ? (
-              <p className="mt-4 rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
+              <p className="mt-4 rounded-2xl border border-[#ba1a1a]/20 bg-[#ba1a1a]/10 px-4 py-3 text-sm text-[#ba1a1a]">
                 {state.error}
               </p>
             ) : null}
 
             {state.success ? (
-              <p className="mt-4 rounded-2xl border border-[color:var(--forest)]/14 bg-[color:var(--forest)]/8 px-4 py-3 text-sm text-[color:var(--forest-strong)]">
+              <p className="mt-4 rounded-2xl border border-[#895032]/14 bg-[#895032]/8 px-4 py-3 text-sm text-[#1a1c1a]">
                 {state.success}
               </p>
             ) : null}
@@ -512,7 +512,7 @@ export function NewDraftOverlay(props: {
                 </>
               )}
             </div>
-            <p className="mt-3 text-xs leading-5 text-[color:var(--ink-soft)]">
+            <p className="mt-3 text-xs leading-5 text-[#85736c]">
               {mode === "edit-cart"
                 ? "Saving updates the current cart in place."
                 : "Generate cart is the primary path. Save draft only keeps the selection around when you are not ready yet."}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import type {
@@ -154,14 +154,14 @@ export function RecipeLibrary(props: {
 
   return (
     <>
-      <section className="rounded-[2rem] border border-[color:var(--line)] bg-white/60 p-6 shadow-[var(--shadow)] backdrop-blur-sm">
+      <section className="rounded-[2rem] border border-[#d7c2b9] bg-white/60 p-6 shadow-sm backdrop-blur-sm">
         <div className="grid gap-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="font-display text-4xl leading-none text-[color:var(--forest-strong)]">
+              <h1 className="font-sans font-bold text-4xl leading-none text-[#1a1c1a]">
                 Recipe library
               </h1>
-              <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
+              <p className="mt-2 text-sm text-[#85736c]">
                 Browse the visible shelf, scan dietary badges, and pull dishes
                 into a cart when you are ready to plan.
               </p>
@@ -174,7 +174,7 @@ export function RecipeLibrary(props: {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search dishes"
-                className="min-h-11 w-full rounded-full border border-[color:var(--line)] bg-[color:var(--paper)]/78 px-4 text-sm text-[color:var(--forest-strong)] outline-none transition placeholder:text-[color:var(--ink-soft)]/72 focus:border-[color:var(--olive)]"
+                className="min-h-11 w-full rounded-full border border-[#d7c2b9] bg-[#faf9f6]/78 px-4 text-sm text-[#1a1c1a] outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032]"
               />
             </label>
           </div>
@@ -186,8 +186,8 @@ export function RecipeLibrary(props: {
                 onClick={() => setSelectedTag(null)}
                 className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${
                   selectedTag === null
-                    ? "border-[color:var(--forest)] bg-[color:var(--forest)] text-[color:var(--paper)]"
-                    : "border-[color:var(--line)] bg-[color:var(--paper)]/72 text-[color:var(--ink-soft)] hover:bg-white"
+                    ? "border-[#895032] bg-[#895032] text-[#faf9f6]"
+                    : "border-[#d7c2b9] bg-[#faf9f6]/72 text-[#85736c] hover:bg-white"
                 }`}
               >
                 All tags
@@ -203,8 +203,8 @@ export function RecipeLibrary(props: {
                   }
                   className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${
                     selectedTag === tag.id
-                      ? "border-[color:var(--olive)] bg-[color:var(--olive)]/14 text-[color:var(--forest-strong)]"
-                      : "border-[color:var(--line)] bg-[color:var(--paper)]/72 text-[color:var(--ink-soft)] hover:bg-white"
+                      ? "border-[#895032] bg-[#895032]/14 text-[#1a1c1a]"
+                      : "border-[#d7c2b9] bg-[#faf9f6]/72 text-[#85736c] hover:bg-white"
                   }`}
                 >
                   {tag.name}
@@ -214,7 +214,7 @@ export function RecipeLibrary(props: {
                 <button
                   type="button"
                   onClick={() => setShowAllTags((current) => !current)}
-                  className="rounded-full border border-[color:var(--line)] bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--olive)] transition hover:bg-white"
+                  className="rounded-full border border-[#d7c2b9] bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#895032] transition hover:bg-white"
                 >
                   {showAllTags ? "Show less" : "Show all"}
                 </button>
@@ -232,10 +232,10 @@ export function RecipeLibrary(props: {
                     key={recipe.id}
                     type="button"
                     onClick={() => setActiveRecipeId(recipe.id)}
-                    className="overflow-hidden rounded-[1.35rem] border border-[color:var(--line)] bg-[color:var(--paper)]/72 text-left transition hover:border-[color:var(--olive)]/28 hover:bg-white/82"
+                    className="overflow-hidden rounded-[1.35rem] border border-[#d7c2b9] bg-[#faf9f6]/72 text-left transition hover:border-[#895032]/28 hover:bg-white/82"
                   >
                     {recipe.cover_image_url ? (
-                      <div className="h-28 overflow-hidden border-b border-[color:var(--line)]">
+                      <div className="h-28 overflow-hidden border-b border-[#d7c2b9]">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={recipe.cover_image_url}
@@ -244,25 +244,25 @@ export function RecipeLibrary(props: {
                         />
                       </div>
                     ) : (
-                      <div className="h-28 border-b border-[color:var(--line)] bg-[linear-gradient(135deg,rgba(115,135,101,0.12),rgba(245,240,228,0.44)),radial-gradient(circle_at_top_left,rgba(161,77,49,0.1),transparent_34%)]" />
+                      <div className="h-28 border-b border-[#d7c2b9] bg-[linear-gradient(135deg,rgba(115,135,101,0.12),rgba(245,240,228,0.44)),radial-gradient(circle_at_top_left,rgba(161,77,49,0.1),transparent_34%)]" />
                     )}
 
                     <div className="grid gap-2 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#895032]">
                             {recipe.cuisine.label}
                           </p>
-                          <h2 className="mt-2 font-display text-[1.9rem] leading-[0.94] text-[color:var(--forest-strong)]">
+                          <h2 className="mt-2 font-sans font-bold text-[1.9rem] leading-[0.94] text-[#1a1c1a]">
                             {recipe.name}
                           </h2>
                         </div>
-                        <span className="text-xs text-[color:var(--ink-soft)]">
+                        <span className="text-xs text-[#85736c]">
                           {recipe.servings} servings
                         </span>
                       </div>
 
-                      <p className="line-clamp-2 text-sm leading-6 text-[color:var(--ink-soft)]">
+                      <p className="line-clamp-2 text-sm leading-6 text-[#85736c]">
                         {recipe.description?.trim() || "No description yet."}
                       </p>
 
@@ -270,7 +270,7 @@ export function RecipeLibrary(props: {
                         {badges.map((badge) => (
                           <span
                             key={badge.id}
-                            className="rounded-full border border-[color:var(--line)] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--olive)]"
+                            className="rounded-full border border-[#d7c2b9] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#895032]"
                           >
                             {badge.name}
                           </span>
@@ -282,11 +282,11 @@ export function RecipeLibrary(props: {
               })}
             </div>
           ) : (
-            <div className="rounded-[1.55rem] border border-dashed border-[color:var(--line)] bg-[color:var(--paper)]/52 px-5 py-6">
-              <div className="text-lg font-semibold text-[color:var(--forest-strong)]">
+            <div className="rounded-[1.55rem] border border-dashed border-[#d7c2b9] bg-[#faf9f6]/52 px-5 py-6">
+              <div className="text-lg font-semibold text-[#1a1c1a]">
                 No recipes match this view
               </div>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--ink-soft)]">
+              <p className="mt-2 max-w-xl text-sm leading-6 text-[#85736c]">
                 Try another search term or remove the current tag filter.
               </p>
             </div>

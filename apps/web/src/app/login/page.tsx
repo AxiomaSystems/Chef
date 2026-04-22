@@ -1,59 +1,81 @@
+"use client";
+
 import Link from "next/link";
-import { GoogleSigninButton } from "@/components/auth/google-signin-button";
-import { LoginForm } from "./login-form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center px-5 py-6 sm:px-8">
-      <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="relative overflow-hidden rounded-[2.5rem] border border-[color:var(--line)] bg-[color:var(--forest)] px-6 py-8 text-[color:var(--paper)] shadow-[var(--shadow)] sm:px-8 lg:px-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,240,228,0.18),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(161,77,49,0.28),transparent_30%)]" />
-          <div className="relative">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.36em] text-[color:var(--paper-strong)]/80">
-              Cart Generator
-            </p>
-            <h1 className="mt-3 max-w-xl font-display text-5xl leading-[0.95] sm:text-6xl">
-              Sign in to the internal control room.
-            </h1>
-            <p className="mt-4 max-w-lg text-base leading-7 text-[color:var(--paper-strong)]/82 sm:text-lg">
-              This first frontend auth slice switches the dashboard onto real
-              bearer-token auth. Login is now backed by the live{" "}
-              <code>/api/v1/auth/login</code> flow instead of the temporary dev
-              actor header.
-            </p>
-          </div>
-        </section>
+    <main className="min-h-screen bg-[#faf9f6] flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-white rounded-2xl p-8 shadow-[0_4px_20px_-4px_rgba(137,80,50,0.12)]">
+        {/* Brand */}
+        <p className="text-headline-sm text-[#ffb38e] font-black tracking-tight">Chef</p>
 
-        <section className="rounded-[2.5rem] border border-[color:var(--line)] bg-white/70 p-6 shadow-[var(--shadow)] backdrop-blur-sm sm:p-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[color:var(--olive)]">
-            Email sign-in
-          </p>
-          <h2 className="mt-3 font-display text-4xl leading-none text-[color:var(--forest-strong)]">
-            Welcome back
-          </h2>
-          <p className="mt-3 max-w-md text-sm leading-6 text-[color:var(--ink-soft)]">
-            Use your account credentials to access recipes, carts, and shopping
-            cart history through the authenticated API.
-          </p>
+        {/* Title */}
+        <h1 className="text-headline-sm text-[#1a1c1a] font-bold mt-3">Welcome back</h1>
+        <p className="text-body-md text-[#52443d] mt-1">Sign in to your account</p>
 
-          <div className="mt-8">
-            <LoginForm />
-          </div>
-
-          <div className="mt-6">
-            <GoogleSigninButton />
-          </div>
-
-          <p className="mt-6 text-sm leading-6 text-[color:var(--ink-soft)]">
-            Need an account first?{" "}
-            <Link
-              href="/signup"
-              className="font-semibold text-[color:var(--forest-strong)] underline decoration-[color:var(--olive)]/45 underline-offset-4"
+        {/* Form */}
+        <form action="#" className="mt-8 flex flex-col gap-4">
+          <Input
+            label="Email"
+            type="email"
+            placeholder="you@example.com"
+            icon="mail"
+            autoComplete="email"
+          />
+          <Input
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            icon="lock"
+            autoComplete="current-password"
+          />
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              className="text-label-sm text-[#895032] hover:underline transition-all"
             >
-              Create one here
-            </Link>
-          </p>
-        </section>
+              Forgot password?
+            </button>
+          </div>
+          <Button
+            type="submit"
+            variant="primary"
+            fullWidth
+            className="mt-1"
+          >
+            Sign In
+          </Button>
+        </form>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-[#d7c2b9]/40" />
+          <span className="text-body-sm text-[#85736c]">or</span>
+          <div className="flex-1 h-px bg-[#d7c2b9]/40" />
+        </div>
+
+        {/* Google Sign-in */}
+        <Button
+          variant="outline"
+          fullWidth
+          icon="login"
+          className="active:scale-[0.98] transition-all"
+        >
+          Continue with Google
+        </Button>
+
+        {/* Footer */}
+        <p className="text-body-sm text-[#52443d] text-center mt-6">
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/signup"
+            className="text-[#895032] font-semibold hover:underline transition-all"
+          >
+            Sign up
+          </Link>
+        </p>
       </div>
     </main>
   );

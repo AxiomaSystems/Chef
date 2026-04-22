@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
 import type { ShoppingCart } from "@cart/shared";
@@ -62,14 +62,14 @@ export function ShoppingCartLibrary(props: {
 
   return (
     <>
-      <section className="rounded-[2rem] border border-[color:var(--line)] bg-white/60 p-6 shadow-[var(--shadow)] backdrop-blur-sm">
+      <section className="rounded-[2rem] border border-[#d7c2b9] bg-white/60 p-6 shadow-sm backdrop-blur-sm">
         <div className="grid gap-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="font-display text-4xl leading-none text-[color:var(--forest-strong)]">
+              <h1 className="font-sans font-bold text-4xl leading-none text-[#1a1c1a]">
                 Saved shopping carts
               </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--ink-soft)]">
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#85736c]">
                 Review persisted retailer outputs, revisit saved purchase baskets,
                 and reopen the editor when you need to replace products or add
                 manual items.
@@ -85,7 +85,7 @@ export function ShoppingCartLibrary(props: {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search retailer, ingredient, or item"
-                className="min-h-11 w-full rounded-full border border-[color:var(--line)] bg-[color:var(--paper)]/78 px-4 text-sm text-[color:var(--forest-strong)] outline-none transition placeholder:text-[color:var(--ink-soft)]/72 focus:border-[color:var(--olive)]"
+                className="min-h-11 w-full rounded-full border border-[#d7c2b9] bg-[#faf9f6]/78 px-4 text-sm text-[#1a1c1a] outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032]"
               />
             </label>
           </div>
@@ -114,38 +114,38 @@ export function ShoppingCartLibrary(props: {
                     key={shoppingCart.id}
                     type="button"
                     onClick={() => setActiveShoppingCartId(shoppingCart.id ?? null)}
-                    className="rounded-[1.45rem] border border-[color:var(--line)] bg-[color:var(--paper)]/78 p-5 text-left transition hover:border-[color:var(--olive)]/28 hover:bg-white/82"
+                    className="rounded-[1.45rem] border border-[#d7c2b9] bg-[#faf9f6]/78 p-5 text-left transition hover:border-[#895032]/28 hover:bg-white/82"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#895032]">
                           {shoppingCart.retailer}
                         </p>
-                        <h2 className="mt-2 font-display text-[2rem] leading-[0.94] text-[color:var(--forest-strong)]">
+                        <h2 className="mt-2 font-sans font-bold text-[2rem] leading-[0.94] text-[#1a1c1a]">
                           {formatMoney(shoppingCart.estimated_subtotal)}
                         </h2>
                       </div>
-                      <span className="rounded-full border border-[color:var(--line)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--ink-soft)]">
+                      <span className="rounded-full border border-[#d7c2b9] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#85736c]">
                         {formatDate(updatedAt)}
                       </span>
                     </div>
 
-                    <div className="mt-4 grid gap-3 text-sm text-[color:var(--ink-soft)]">
+                    <div className="mt-4 grid gap-3 text-sm text-[#85736c]">
                       <div className="flex items-center justify-between gap-3">
                         <span>Matched items</span>
-                        <span className="font-semibold text-[color:var(--forest-strong)]">
+                        <span className="font-semibold text-[#1a1c1a]">
                           {shoppingCart.matched_items.length}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <span>Ingredient lines</span>
-                        <span className="font-semibold text-[color:var(--forest-strong)]">
+                        <span className="font-semibold text-[#1a1c1a]">
                           {shoppingCart.overview.length}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <span>Manual items</span>
-                        <span className="font-semibold text-[color:var(--forest-strong)]">
+                        <span className="font-semibold text-[#1a1c1a]">
                           {manualItems}
                         </span>
                       </div>
@@ -155,7 +155,7 @@ export function ShoppingCartLibrary(props: {
                       {productLabels.map((label, index) => (
                         <span
                           key={`${shoppingCart.id}-${label}-${index}`}
-                          className="rounded-full border border-[color:var(--line)] bg-[rgba(250,246,236,0.92)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--olive)]"
+                          className="rounded-full border border-[#d7c2b9] bg-[rgba(250,246,236,0.92)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#895032]"
                         >
                           {label}
                         </span>
@@ -166,11 +166,11 @@ export function ShoppingCartLibrary(props: {
               })}
             </div>
           ) : (
-            <div className="rounded-[1.55rem] border border-dashed border-[color:var(--line)] bg-[color:var(--paper)]/52 px-5 py-6">
-              <div className="text-lg font-semibold text-[color:var(--forest-strong)]">
+            <div className="rounded-[1.55rem] border border-dashed border-[#d7c2b9] bg-[#faf9f6]/52 px-5 py-6">
+              <div className="text-lg font-semibold text-[#1a1c1a]">
                 No shopping carts in this view
               </div>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--ink-soft)]">
+              <p className="mt-2 max-w-xl text-sm leading-6 text-[#85736c]">
                 Generate a shopping cart from a saved cart first, or try another
                 search term.
               </p>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
 import type { PlanningItem } from "./recent-work.utils";
@@ -6,8 +6,8 @@ import type { PlanningItem } from "./recent-work.utils";
 function TypeBadge(props: { kind: PlanningItem["kind"] }) {
   const tone =
     props.kind === "draft"
-      ? "border-[color:var(--olive)]/20 bg-[color:var(--olive)]/10 text-[color:var(--forest-strong)]"
-      : "border-[color:var(--clay)]/18 bg-[color:var(--clay)]/10 text-[color:var(--clay)]";
+      ? "border-[#895032]/20 bg-[#895032]/10 text-[#1a1c1a]"
+      : "border-[#ba1a1a]/18 bg-[#ba1a1a]/10 text-[#ba1a1a]";
 
   return (
     <span
@@ -58,17 +58,17 @@ export function RecentWorkSection(props: {
   );
 
   return (
-    <section className="rounded-[2rem] border border-[color:var(--line)] bg-white/60 p-6 shadow-[var(--shadow)] backdrop-blur-sm">
+    <section className="rounded-[2rem] border border-[#d7c2b9] bg-white/60 p-6 shadow-sm backdrop-blur-sm">
       <div id="recent-work" className="grid gap-5">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="font-display text-3xl leading-none text-[color:var(--forest-strong)]">
+          <h2 className="font-sans font-bold text-3xl leading-none text-[#1a1c1a]">
             Recent work
           </h2>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={props.onOpenDraft}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--forest)] bg-[color:var(--forest)] text-xl font-semibold text-[color:var(--paper)] transition hover:bg-[color:var(--forest-strong)]"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#895032] bg-[#895032] text-xl font-semibold text-[#faf9f6] transition hover:bg-[#1a1c1a]"
               aria-label="Create new draft"
             >
               +
@@ -84,7 +84,7 @@ export function RecentWorkSection(props: {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search drafts and carts"
-              className="min-h-11 w-full rounded-full border border-[color:var(--line)] bg-[color:var(--paper)]/78 px-4 text-sm text-[color:var(--forest-strong)] outline-none transition placeholder:text-[color:var(--ink-soft)]/72 focus:border-[color:var(--olive)]"
+              className="min-h-11 w-full rounded-full border border-[#d7c2b9] bg-[#faf9f6]/78 px-4 text-sm text-[#1a1c1a] outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032]"
             />
           </label>
 
@@ -104,9 +104,9 @@ export function RecentWorkSection(props: {
                   disabled={disabled}
                   className={`inline-flex min-h-9 items-center rounded-full border px-3 text-xs font-semibold uppercase tracking-[0.14em] transition ${
                     active
-                      ? "border-[color:var(--forest)] bg-[color:var(--forest)] text-[color:var(--paper)]"
-                      : "border-[color:var(--line)] bg-[color:var(--paper)]/72 text-[color:var(--ink-soft)] hover:bg-white"
-                  } ${disabled ? "cursor-not-allowed opacity-45 hover:bg-[color:var(--paper)]/72" : ""}`}
+                      ? "border-[#895032] bg-[#895032] text-[#faf9f6]"
+                      : "border-[#d7c2b9] bg-[#faf9f6]/72 text-[#85736c] hover:bg-white"
+                  } ${disabled ? "cursor-not-allowed opacity-45 hover:bg-[#faf9f6]/72" : ""}`}
                 >
                   {label}
                   <span className="ml-2 opacity-75">{counts[value]}</span>
@@ -130,26 +130,26 @@ export function RecentWorkSection(props: {
                 }
                 className={`block w-full rounded-[1.45rem] px-4 py-4 text-left transition ${
                   item.kind === "draft"
-                    ? "border border-dashed border-[color:var(--olive)]/28 bg-[rgba(245,240,228,0.52)] hover:border-[color:var(--olive)]/42 hover:bg-[rgba(245,240,228,0.7)]"
-                    : "border border-[color:var(--line)] bg-[color:var(--paper)]/68 hover:border-[color:var(--olive)]/26 hover:bg-[color:var(--paper)]/82"
+                    ? "border border-dashed border-[#895032]/28 bg-[rgba(245,240,228,0.52)] hover:border-[#895032]/42 hover:bg-[rgba(245,240,228,0.7)]"
+                    : "border border-[#d7c2b9] bg-[#faf9f6]/68 hover:border-[#895032]/26 hover:bg-[#faf9f6]/82"
                 }`}
               >
                 <div className="flex w-full items-start justify-between gap-4">
                   <div className="min-w-0">
                     <TypeBadge kind={item.kind} />
                     {item.kind === "draft" ? (
-                      <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--olive)]/82">
+                      <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#895032]/82">
                         In progress
                       </div>
                     ) : null}
-                    <h3 className="mt-3 truncate text-lg font-semibold text-[color:var(--forest-strong)]">
+                    <h3 className="mt-3 truncate text-lg font-semibold text-[#1a1c1a]">
                       {item.title}
                     </h3>
-                    <p className="mt-1 text-sm text-[color:var(--ink-soft)]">
+                    <p className="mt-1 text-sm text-[#85736c]">
                       {item.subtitle}
                     </p>
                   </div>
-                  <span className="shrink-0 pt-1 text-xs uppercase tracking-[0.16em] text-[color:var(--olive)]">
+                  <span className="shrink-0 pt-1 text-xs uppercase tracking-[0.16em] text-[#895032]">
                     {formatDate(item.updatedAt)}
                   </span>
                 </div>
@@ -157,13 +157,13 @@ export function RecentWorkSection(props: {
             ))}
           </div>
         ) : (
-          <div className="rounded-[1.55rem] border border-dashed border-[color:var(--line)] bg-[color:var(--paper)]/52 px-5 py-6">
-            <div className="text-lg font-semibold text-[color:var(--forest-strong)]">
+          <div className="rounded-[1.55rem] border border-dashed border-[#d7c2b9] bg-[#faf9f6]/52 px-5 py-6">
+            <div className="text-lg font-semibold text-[#1a1c1a]">
               {activeTab === "draft"
                 ? "No drafts yet"
                 : "No carts yet"}
             </div>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--ink-soft)]">
+            <p className="mt-2 max-w-xl text-sm leading-6 text-[#85736c]">
               {normalizedQuery.length > 0
                 ? "Try a different search term."
                 : activeTab === "cart"

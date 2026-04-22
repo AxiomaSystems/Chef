@@ -1,68 +1,83 @@
+"use client";
+
 import Link from "next/link";
-import { GoogleSigninButton } from "@/components/auth/google-signin-button";
-import { SignupForm } from "./signup-form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export default function SignupPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center px-5 py-6 sm:px-8">
-      <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="relative overflow-hidden rounded-[2.5rem] border border-[color:var(--line)] bg-[color:var(--clay)] px-6 py-8 text-[color:var(--paper)] shadow-[var(--shadow)] sm:px-8 lg:px-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,240,228,0.2),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(28,74,61,0.22),transparent_32%)]" />
-          <div className="relative">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.36em] text-[color:var(--paper-strong)]/80">
-              Cart Generator
-            </p>
-            <h1 className="mt-3 max-w-xl font-display text-5xl leading-[0.95] sm:text-6xl">
-              Create your account and step into onboarding.
-            </h1>
-            <p className="mt-4 max-w-lg text-base leading-7 text-[color:var(--paper-strong)]/84 sm:text-lg">
-              Email signup creates the user, stores the same bearer-token
-              session as login, and sends new accounts straight into the
-              preferences onboarding flow.
-            </p>
+    <main className="min-h-screen bg-[#faf9f6] flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-white rounded-2xl p-8 shadow-[0_4px_20px_-4px_rgba(137,80,50,0.12)]">
+        {/* Brand */}
+        <p className="text-headline-sm text-[#ffb38e] font-black tracking-tight">Chef</p>
 
-            <div className="mt-8 rounded-[1.75rem] border border-white/12 bg-white/8 p-5 backdrop-blur-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[color:var(--paper-strong)]/72">
-                Also available
-              </p>
-              <p className="mt-3 text-sm leading-6 text-[color:var(--paper-strong)]/84">
-                Google sign-in on this screen acts as implicit signup when the
-                account does not exist yet.
-              </p>
-            </div>
-          </div>
-        </section>
+        {/* Title */}
+        <h1 className="text-headline-sm text-[#1a1c1a] font-bold mt-3">Create your account</h1>
+        <p className="text-body-md text-[#52443d] mt-1">
+          Start planning meals and generating grocery carts.
+        </p>
 
-        <section className="rounded-[2.5rem] border border-[color:var(--line)] bg-white/70 p-6 shadow-[var(--shadow)] backdrop-blur-sm sm:p-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[color:var(--olive)]">
-            Email signup
-          </p>
-          <h2 className="mt-3 font-display text-4xl leading-none text-[color:var(--forest-strong)]">
-            Start with a local account
-          </h2>
-          <p className="mt-3 max-w-md text-sm leading-6 text-[color:var(--ink-soft)]">
-            This creates an authenticated user immediately and routes straight
-            into cuisine and tag preferences.
-          </p>
+        {/* Form */}
+        <form action="#" className="mt-8 flex flex-col gap-4">
+          <Input
+            label="Full Name"
+            type="text"
+            placeholder="Aisha Malik"
+            icon="person"
+            autoComplete="name"
+          />
+          <Input
+            label="Email"
+            type="email"
+            placeholder="you@example.com"
+            icon="mail"
+            autoComplete="email"
+          />
+          <Input
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            icon="lock"
+            autoComplete="new-password"
+            hint="At least 8 characters"
+          />
+          <Button
+            type="submit"
+            variant="primary"
+            fullWidth
+            className="mt-1"
+          >
+            Create Account
+          </Button>
+        </form>
 
-          <div className="mt-8">
-            <SignupForm />
-          </div>
+        {/* Divider */}
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-[#d7c2b9]/40" />
+          <span className="text-body-sm text-[#85736c]">or</span>
+          <div className="flex-1 h-px bg-[#d7c2b9]/40" />
+        </div>
 
-          <div className="mt-6">
-            <GoogleSigninButton contextLabel="Or use Google" />
-          </div>
+        {/* Google Sign-up */}
+        <Button
+          variant="outline"
+          fullWidth
+          icon="login"
+          className="active:scale-[0.98] transition-all"
+        >
+          Continue with Google
+        </Button>
 
-          <p className="mt-6 text-sm leading-6 text-[color:var(--ink-soft)]">
-            Prefer to use an existing account?{" "}
-            <Link
-              href="/login"
-              className="font-semibold text-[color:var(--forest-strong)] underline decoration-[color:var(--olive)]/45 underline-offset-4"
-            >
-              Go to login
-            </Link>
-          </p>
-        </section>
+        {/* Footer */}
+        <p className="text-body-sm text-[#52443d] text-center mt-6">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="text-[#895032] font-semibold hover:underline transition-all"
+          >
+            Sign in
+          </Link>
+        </p>
       </div>
     </main>
   );

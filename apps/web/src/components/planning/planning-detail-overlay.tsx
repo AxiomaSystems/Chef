@@ -29,10 +29,7 @@ function formatIngredientAmount(ingredient: AggregatedIngredient) {
 }
 
 function getDietaryBadges(tags?: Tag[]) {
-  if (!tags?.length) {
-    return [];
-  }
-
+  if (!tags?.length) return [];
   return tags.filter((tag) => tag.kind === "dietary_badge");
 }
 
@@ -44,9 +41,9 @@ function RecipeReferenceCard(props: {
   const badges = getDietaryBadges(props.recipe?.tags).slice(0, 3);
 
   return (
-    <article className="overflow-hidden rounded-[1.1rem] border border-[color:var(--line)] bg-white/60">
+    <article className="overflow-hidden rounded-2xl border border-[#d7c2b9]/30 bg-white">
       {props.recipe?.cover_image_url ? (
-        <div className="h-24 overflow-hidden border-b border-[color:var(--line)]">
+        <div className="h-20 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={props.recipe.cover_image_url}
@@ -55,27 +52,30 @@ function RecipeReferenceCard(props: {
           />
         </div>
       ) : (
-        <div className="h-24 border-b border-[color:var(--line)] bg-[linear-gradient(135deg,rgba(115,135,101,0.12),rgba(245,240,228,0.44)),radial-gradient(circle_at_top_left,rgba(161,77,49,0.1),transparent_34%)]" />
+        <div className="h-20 bg-[#efeeeb] flex items-center justify-center">
+          <span className="material-symbols-outlined text-[#d7c2b9] text-4xl">restaurant</span>
+        </div>
       )}
 
-      <div className="grid gap-2 p-3">
-        <h3 className="font-display text-[1.35rem] leading-[0.94] text-[color:var(--forest-strong)]">
+      <div className="p-3 space-y-1.5">
+        <h3 className="text-label-lg text-[#1a1c1a] leading-tight">
           {props.recipe?.name ?? props.fallbackTitle}
         </h3>
-        <p className="text-xs text-[color:var(--ink-soft)]">
-          Servings: {props.servings ?? props.recipe?.servings ?? "Default"}
+        <p className="text-body-sm text-[#85736c]">
+          {props.servings ?? props.recipe?.servings ?? "Default"} servings
         </p>
-
-        <div className="flex min-h-6 flex-wrap gap-1.5">
-          {badges.map((badge) => (
-            <span
-              key={badge.id}
-              className="rounded-full border border-[color:var(--line)] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--olive)]"
-            >
-              {badge.name}
-            </span>
-          ))}
-        </div>
+        {badges.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {badges.map((badge) => (
+              <span
+                key={badge.id}
+                className="bg-[#efe3b3] text-[#6d643f] px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide"
+              >
+                {badge.name}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </article>
   );
@@ -120,21 +120,15 @@ export function PlanningDetailOverlay(props: {
   const [deleteError, setDeleteError] = useState<string | undefined>();
   const [shoppingError, setShoppingError] = useState<string | undefined>();
   const [isDeleting, startDeleting] = useTransition();
-  const [isGeneratingShoppingCart, startGeneratingShoppingCart] =
-    useTransition();
+  const [isGeneratingShoppingCart, startGeneratingShoppingCart] = useTransition();
 
-  if (!detail) {
-    return null;
-  }
+  if (!detail) return null;
 
   function handleDelete(resourceType: "draft" | "cart", resourceId: string) {
     const confirmed = window.confirm(
       resourceType === "draft" ? "Delete this draft?" : "Delete this cart?",
     );
-
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     setDeleteError(undefined);
     startDeleting(async () => {
@@ -143,11 +137,8 @@ export function PlanningDetailOverlay(props: {
         setDeleteError(result.error);
         return;
       }
-
       onDeleted();
-      startTransition(() => {
-        router.refresh();
-      });
+      startTransition(() => { router.refresh(); });
     });
   }
 
@@ -156,59 +147,50 @@ export function PlanningDetailOverlay(props: {
       setShoppingError("Cart not found for shopping-cart generation.");
       return;
     }
-
     setShoppingError(undefined);
     startGeneratingShoppingCart(async () => {
       const result = await createShoppingCartAction(cart.id ?? "", cart.retailer);
       if (result.error || !result.shoppingCart) {
-        setShoppingError(
-          result.error ?? "Unable to generate this shopping cart right now.",
-        );
+        setShoppingError(result.error ?? "Unable to generate this shopping cart right now.");
         return;
       }
-
       onOpenShoppingCart(result.shoppingCart);
-      startTransition(() => {
-        router.refresh();
-      });
+      startTransition(() => { router.refresh(); });
     });
   }
 
   if (detail.type === "draft") {
     const draftDetail = detail.draft;
-    const recipeMap = new Map(
-      detail.recipes.map((recipe) => [recipe.id, recipe]),
-    );
+    const recipeMap = new Map(detail.recipes.map((recipe) => [recipe.id, recipe]));
     const selections = draftDetail.selections.map((selection) => ({
       ...selection,
       recipe: recipeMap.get(selection.recipe_id),
     }));
 
     return (
-      <div className="fixed inset-0 z-50 bg-[rgba(24,35,29,0.6)] p-4 backdrop-blur-sm sm:p-6">
-        <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-[color:var(--paper)] shadow-[0_28px_90px_rgba(10,18,13,0.28)]">
-          <div className="flex items-center justify-between gap-4 border-b border-[color:var(--line)] px-5 py-4 sm:px-6">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6">
+        <div className="absolute inset-0 bg-[#1a1c1a]/40 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative w-full sm:max-w-5xl max-h-[95vh] sm:max-h-[90vh] bg-[#faf9f6] rounded-t-2xl sm:rounded-2xl overflow-hidden flex flex-col shadow-2xl">
+
+          {/* Header */}
+          <div className="flex items-center justify-between gap-4 border-b border-[#d7c2b9]/30 px-5 py-4 sm:px-6 flex-shrink-0">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[color:var(--olive)]">
-                Draft
-              </p>
-              <h2 className="mt-2 font-display text-4xl leading-[0.94] text-[color:var(--forest-strong)]">
+              <p className="text-label-sm text-[#895032] uppercase tracking-wide">Draft</p>
+              <h2 className="text-headline-md text-[#1a1c1a] mt-1">
                 {draftDetail.name ?? "Untitled draft"}
               </h2>
-              <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
-                Retailer {draftDetail.retailer} /{" "}
-                {draftDetail.selections.length} selections / updated{" "}
-                {formatDate(draftDetail.updated_at)}
+              <p className="text-body-sm text-[#85736c] mt-1">
+                {draftDetail.retailer} · {draftDetail.selections.length} selections · updated {formatDate(draftDetail.updated_at)}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => handleDelete("draft", draftDetail.id)}
                 disabled={isDeleting}
-                className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--clay)]/24 bg-[color:var(--clay)]/8 px-4 text-sm font-semibold text-[color:var(--clay)] transition hover:bg-[color:var(--clay)]/14 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-full border border-[#ba1a1a]/30 bg-[#ffdad6]/40 px-4 py-2.5 text-label-md text-[#ba1a1a] transition hover:bg-[#ffdad6]/70 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Delete draft
+                Delete
               </button>
               <button
                 type="button"
@@ -218,46 +200,42 @@ export function PlanningDetailOverlay(props: {
                     id: draftDetail.id,
                     name: draftDetail.name,
                     retailer: draftDetail.retailer,
-                    recipeSelections: draftDetail.selections.map((selection) => ({
-                      recipeId: selection.recipe_id,
-                      quantity: selection.quantity,
+                    recipeSelections: draftDetail.selections.map((s) => ({
+                      recipeId: s.recipe_id,
+                      quantity: s.quantity,
                     })),
                   })
                 }
-                className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 px-4 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
+                className="inline-flex items-center justify-center rounded-full border border-[#d7c2b9] bg-white px-4 py-2.5 text-label-md text-[#1a1c1a] transition hover:bg-[#f4f3f1]"
               >
-                Edit draft
+                Edit
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 text-xl text-[color:var(--forest-strong)] transition hover:bg-white"
-                aria-label="Close draft detail"
+                className="w-10 h-10 flex items-center justify-center rounded-full border border-[#d7c2b9] bg-white hover:bg-[#f4f3f1] transition"
+                aria-label="Close"
               >
-                x
+                <span className="material-symbols-outlined text-[#1a1c1a] text-[20px]">close</span>
               </button>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-            {deleteError ? (
-              <p className="mb-4 rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+            {deleteError && (
+              <p className="mb-4 rounded-xl border border-[#ba1a1a]/20 bg-[#ffdad6]/30 px-4 py-3 text-body-sm text-[#ba1a1a]">
                 {deleteError}
               </p>
-            ) : null}
-            {shoppingError ? (
-              <p className="mb-4 rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
-                {shoppingError}
-              </p>
-            ) : null}
+            )}
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {selections.map((selection, index) => (
                 <article
                   key={`${selection.recipe_id}-${index}`}
-                  className="overflow-hidden rounded-[1.45rem] border border-[color:var(--line)] bg-white/52"
+                  className="overflow-hidden rounded-2xl border border-[#d7c2b9]/30 bg-white"
                 >
                   {selection.recipe?.cover_image_url ? (
-                    <div className="h-28 overflow-hidden border-b border-[color:var(--line)]">
+                    <div className="h-28 overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={selection.recipe.cover_image_url}
@@ -266,34 +244,29 @@ export function PlanningDetailOverlay(props: {
                       />
                     </div>
                   ) : (
-                    <div className="h-28 border-b border-[color:var(--line)] bg-[linear-gradient(135deg,rgba(115,135,101,0.12),rgba(245,240,228,0.38)),radial-gradient(circle_at_top_left,rgba(161,77,49,0.12),transparent_34%)]" />
+                    <div className="h-28 bg-[#efeeeb] flex items-center justify-center">
+                      <span className="material-symbols-outlined text-[#d7c2b9] text-5xl">restaurant</span>
+                    </div>
                   )}
 
-                  <div className="grid gap-3 p-4">
+                  <div className="p-4 space-y-2">
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
+                      <p className="text-label-sm text-[#895032] uppercase tracking-wide">
                         {selection.recipe?.cuisine.label ?? "Recipe"}
                       </p>
-                      <h3 className="mt-2 font-display text-[1.8rem] leading-[0.96] text-[color:var(--forest-strong)]">
+                      <h3 className="text-headline-sm text-[#1a1c1a] mt-1">
                         {selection.recipe?.name ?? selection.recipe_id}
                       </h3>
                     </div>
-
-                    <div className="grid gap-1 text-sm text-[color:var(--ink-soft)]">
-                      <div>Quantity: {selection.quantity}</div>
-                      <div>
-                        Servings:{" "}
-                        {selection.servings_override ??
-                          selection.recipe?.servings ??
-                          "Default"}
-                      </div>
+                    <div className="flex gap-4 text-body-sm text-[#85736c]">
+                      <span>Qty: {selection.quantity}</span>
+                      <span>Servings: {selection.servings_override ?? selection.recipe?.servings ?? "Default"}</span>
                     </div>
-
-                    <div className="flex min-h-6 flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1">
                       {getDietaryBadges(selection.recipe?.tags).map((badge) => (
                         <span
                           key={badge.id}
-                          className="rounded-full border border-[color:var(--line)] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--olive)]"
+                          className="bg-[#efe3b3] text-[#6d643f] px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide"
                         >
                           {badge.name}
                         </span>
@@ -310,9 +283,7 @@ export function PlanningDetailOverlay(props: {
   }
 
   const cartDetail = detail.cart;
-  const recipeMap = new Map(
-    detail.recipes.map((recipe) => [recipe.id, recipe]),
-  );
+  const recipeMap = new Map(detail.recipes.map((recipe) => [recipe.id, recipe]));
   const cartRecipes = cartDetail.dishes.map((dish, index) => ({
     dish,
     recipe: dish.id ? recipeMap.get(dish.id) : undefined,
@@ -320,161 +291,147 @@ export function PlanningDetailOverlay(props: {
   }));
 
   return (
-    <div className="fixed inset-0 z-50 bg-[rgba(24,35,29,0.6)] p-4 backdrop-blur-sm sm:p-6">
-      <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-[color:var(--paper)] shadow-[0_28px_90px_rgba(10,18,13,0.28)]">
-        <div className="flex items-center justify-between gap-4 border-b border-[color:var(--line)] px-5 py-4 sm:px-6">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6">
+      <div className="absolute inset-0 bg-[#1a1c1a]/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:max-w-6xl max-h-[95vh] sm:max-h-[90vh] bg-[#faf9f6] rounded-t-2xl sm:rounded-2xl overflow-hidden flex flex-col shadow-2xl">
+
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4 border-b border-[#d7c2b9]/30 px-5 py-4 sm:px-6 flex-shrink-0">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[color:var(--olive)]">
-              Cart
-            </p>
-            <h2 className="mt-2 font-display text-4xl leading-[0.94] text-[color:var(--forest-strong)]">
+            <p className="text-label-sm text-[#895032] uppercase tracking-wide">Cart</p>
+            <h2 className="text-headline-md text-[#1a1c1a] mt-1">
               {cartDetail.name ?? "Unnamed cart"}
             </h2>
-            <p className="mt-2 text-sm text-[color:var(--ink-soft)]">
-              Retailer {cartDetail.retailer} /{" "}
-              {cartDetail.dishes.length} dishes /{" "}
-              {cartDetail.overview.length} aggregated ingredients /
-              updated{" "}
-              {formatDate(
-                cartDetail.updated_at ??
-                  cartDetail.created_at ??
-                  new Date().toISOString(),
-              )}
+            <p className="text-body-sm text-[#85736c] mt-1">
+              {cartDetail.retailer} · {cartDetail.dishes.length} dishes · {cartDetail.overview.length} ingredients · updated{" "}
+              {formatDate(cartDetail.updated_at ?? cartDetail.created_at ?? new Date().toISOString())}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => handleDelete("cart", cartDetail.id ?? "")}
               disabled={isDeleting}
-              className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--clay)]/24 bg-[color:var(--clay)]/8 px-4 text-sm font-semibold text-[color:var(--clay)] transition hover:bg-[color:var(--clay)]/14 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-full border border-[#ba1a1a]/30 bg-[#ffdad6]/40 px-4 py-2.5 text-label-md text-[#ba1a1a] transition hover:bg-[#ffdad6]/70 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Delete cart
+              Delete
             </button>
             <button
               type="button"
-                onClick={() =>
-                  onEdit({
-                    type: "cart",
-                    id: cartDetail.id ?? "",
-                    name: cartDetail.name,
-                    retailer: cartDetail.retailer,
-                    recipeSelections: cartDetail.selections.map((selection) => ({
-                      recipeId: selection.recipe_id,
-                      quantity: selection.quantity,
-                    })),
-                  })
-                }
-              className="inline-flex min-h-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 px-4 text-sm font-semibold text-[color:var(--forest-strong)] transition hover:bg-white"
+              onClick={() =>
+                onEdit({
+                  type: "cart",
+                  id: cartDetail.id ?? "",
+                  name: cartDetail.name,
+                  retailer: cartDetail.retailer,
+                  recipeSelections: cartDetail.selections.map((s) => ({
+                    recipeId: s.recipe_id,
+                    quantity: s.quantity,
+                  })),
+                })
+              }
+              className="inline-flex items-center justify-center rounded-full border border-[#d7c2b9] bg-white px-4 py-2.5 text-label-md text-[#1a1c1a] transition hover:bg-[#f4f3f1]"
             >
-              Edit cart
+              Edit
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--line)] bg-white/74 text-xl text-[color:var(--forest-strong)] transition hover:bg-white"
-              aria-label="Close cart detail"
+              className="w-10 h-10 flex items-center justify-center rounded-full border border-[#d7c2b9] bg-white hover:bg-[#f4f3f1] transition"
+              aria-label="Close"
             >
-              x
+              <span className="material-symbols-outlined text-[#1a1c1a] text-[20px]">close</span>
             </button>
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-          {deleteError ? (
-            <p className="mb-4 rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+          {deleteError && (
+            <p className="mb-4 rounded-xl border border-[#ba1a1a]/20 bg-[#ffdad6]/30 px-4 py-3 text-body-sm text-[#ba1a1a]">
               {deleteError}
             </p>
-          ) : null}
-          {shoppingError ? (
-            <p className="mb-4 rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
+          )}
+          {shoppingError && (
+            <p className="mb-4 rounded-xl border border-[#ba1a1a]/20 bg-[#ffdad6]/30 px-4 py-3 text-body-sm text-[#ba1a1a]">
               {shoppingError}
             </p>
-          ) : null}
-          <div className="grid gap-6 xl:grid-cols-[1.5fr_0.95fr]">
-            <section className="rounded-[1.6rem] border border-[color:var(--line)] bg-white/52 p-5 sm:p-6">
-              <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[color:var(--line)] pb-4">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
-                    Ingredient menu
-                  </p>
-                  <h3 className="mt-2 font-display text-[2.1rem] leading-[0.94] text-[color:var(--forest-strong)]">
-                    Aggregated ingredients
-                  </h3>
-                </div>
-                <p className="text-sm text-[color:var(--ink-soft)]">
-                  {cartDetail.overview.length} lines
-                </p>
-              </div>
+          )}
 
-              <ul className="grid gap-3 pt-5">
+          <div className="flex flex-col xl:flex-row gap-6">
+            {/* Aggregated ingredients */}
+            <section className="flex-1 bg-white rounded-2xl border border-[#d7c2b9]/30 p-5">
+              <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#d7c2b9]/30">
+                <div>
+                  <p className="text-label-sm text-[#895032] uppercase tracking-wide">Ingredient menu</p>
+                  <h3 className="text-headline-sm text-[#1a1c1a] mt-1">Aggregated ingredients</h3>
+                </div>
+                <span className="text-body-sm text-[#85736c]">{cartDetail.overview.length} lines</span>
+              </div>
+              <ul className="space-y-2">
                 {cartDetail.overview.map((ingredient) => (
                   <li
                     key={`${ingredient.canonical_ingredient}-${ingredient.unit}`}
-                    className="rounded-[1.1rem] border border-[color:var(--line)] bg-[rgba(255,255,255,0.72)] px-4 py-3"
+                    className="rounded-xl border border-[#d7c2b9]/30 bg-[#f4f3f1] px-4 py-3"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-base font-semibold text-[color:var(--forest-strong)]">
+                        <p className="text-label-lg text-[#1a1c1a]">
                           {ingredient.canonical_ingredient}
                         </p>
-                        <p className="mt-1 text-sm text-[color:var(--ink-soft)]">
+                        <p className="text-body-sm text-[#85736c] mt-0.5">
                           {formatIngredientAmount(ingredient)}
                         </p>
                       </div>
-                      {ingredient.purchase_unit_hint ? (
-                        <span className="rounded-full border border-[color:var(--line)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--olive)]">
+                      {ingredient.purchase_unit_hint && (
+                        <span className="bg-[#ffb38e]/30 text-[#7a4326] px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide shrink-0">
                           Buy by {ingredient.purchase_unit_hint}
                         </span>
-                      ) : null}
+                      )}
                     </div>
-
-                    {ingredient.source_dishes.length > 0 ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
+                    {ingredient.source_dishes.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
                         {ingredient.source_dishes.map((source, sourceIndex) => (
                           <span
                             key={`${source.dish_name}-${sourceIndex}`}
-                            className="rounded-full border border-[color:var(--line)] bg-[rgba(250,246,236,0.88)] px-3 py-1 text-[11px] font-medium text-[color:var(--ink-soft)]"
+                            className="bg-white border border-[#d7c2b9]/50 text-[#85736c] px-2.5 py-0.5 rounded-full text-[11px]"
                           >
                             {source.dish_name}
                           </span>
                         ))}
                       </div>
-                    ) : null}
+                    )}
                   </li>
                 ))}
               </ul>
             </section>
 
-            <aside className="flex min-h-0 flex-col overflow-hidden rounded-[1.6rem] border border-[color:var(--line)] bg-white/52">
-              <div className="border-b border-[color:var(--line)] p-5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
-                  Reference dishes
-                </p>
-                <h3 className="mt-2 font-display text-[2rem] leading-[0.94] text-[color:var(--forest-strong)]">
-                  Recipes in this cart
-                </h3>
+            {/* Recipes sidebar */}
+            <aside className="xl:w-72 flex flex-col bg-white rounded-2xl border border-[#d7c2b9]/30 overflow-hidden">
+              <div className="p-5 border-b border-[#d7c2b9]/30 flex-shrink-0">
+                <p className="text-label-sm text-[#895032] uppercase tracking-wide">Reference dishes</p>
+                <h3 className="text-headline-sm text-[#1a1c1a] mt-1">Recipes in this cart</h3>
                 <button
                   type="button"
                   onClick={() => handleGenerateShoppingCart(cartDetail)}
                   disabled={isGeneratingShoppingCart}
-                  className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[color:var(--forest)] px-4 text-sm font-semibold text-[color:var(--paper)] transition hover:bg-[color:var(--forest-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-4 w-full bg-[#895032] text-white rounded-full py-3 text-label-lg font-semibold flex items-center justify-center gap-2 hover:bg-[#7a4326] active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isGeneratingShoppingCart
-                    ? "Generating..."
-                    : "Generate shopping cart"}
+                  <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
+                  {isGeneratingShoppingCart ? "Generating..." : "Generate shopping cart"}
                 </button>
               </div>
-
-              <div className="grid grid-cols-2 gap-3 overflow-y-auto p-4">
-                {cartRecipes.map(({ dish, recipe, key }) => (
-                  <RecipeReferenceCard
-                    key={key}
-                    recipe={recipe}
-                    fallbackTitle={dish.name}
-                    servings={dish.servings}
-                  />
-                ))}
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="grid grid-cols-2 xl:grid-cols-1 gap-3">
+                  {cartRecipes.map(({ dish, recipe, key }) => (
+                    <RecipeReferenceCard
+                      key={key}
+                      recipe={recipe}
+                      fallbackTitle={dish.name}
+                      servings={dish.servings}
+                    />
+                  ))}
+                </div>
               </div>
             </aside>
           </div>

@@ -1,4 +1,4 @@
-import type { Cart, CartSelection } from "@cart/shared";
+﻿import type { Cart, CartSelection } from "@cart/shared";
 import type { Loadable } from "@/lib/api";
 import { SectionShell } from "./section-shell";
 import { StatusPill } from "./status-pill";
@@ -35,18 +35,18 @@ export function DraftsAndCartsSection(props: {
         {drafts.data.slice(0, 3).map((draft) => (
           <article
             key={draft.id}
-            className="rounded-[1.35rem] border border-[color:var(--line)] bg-white/50 p-4"
+            className="rounded-[1.35rem] border border-[#d7c2b9] bg-white/50 p-4"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold text-[color:var(--forest-strong)]">
+                <h3 className="text-lg font-semibold text-[#1a1c1a]">
                   {draft.name ?? "Untitled draft"}
                 </h3>
-                <p className="text-sm text-[color:var(--ink-soft)]">
+                <p className="text-sm text-[#85736c]">
                   {draft.selections.length} selections / {draft.retailer}
                 </p>
               </div>
-              <span className="text-xs uppercase tracking-[0.18em] text-[color:var(--olive)]">
+              <span className="text-xs uppercase tracking-[0.18em] text-[#895032]">
                 {formatDate(draft.updated_at)}
               </span>
             </div>
@@ -56,18 +56,18 @@ export function DraftsAndCartsSection(props: {
         {carts.data.slice(0, 3).map((cart) => (
           <article
             key={cart.id}
-            className="rounded-[1.35rem] border border-[color:var(--line)] bg-[color:var(--paper)]/70 p-4"
+            className="rounded-[1.35rem] border border-[#d7c2b9] bg-[#faf9f6]/70 p-4"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold text-[color:var(--forest-strong)]">
+                <h3 className="text-lg font-semibold text-[#1a1c1a]">
                   {cart.name ?? "Unnamed cart"}
                 </h3>
-                <p className="text-sm text-[color:var(--ink-soft)]">
+                <p className="text-sm text-[#85736c]">
                   {cart.selections.length} selections / {cart.dishes.length} dishes
                 </p>
               </div>
-              <span className="text-xs uppercase tracking-[0.18em] text-[color:var(--olive)]">
+              <span className="text-xs uppercase tracking-[0.18em] text-[#895032]">
                 {formatDate(cart.updated_at ?? new Date().toISOString())}
               </span>
             </div>

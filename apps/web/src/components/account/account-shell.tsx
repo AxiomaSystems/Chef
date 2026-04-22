@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   Cuisine,
   Tag,
   User,
@@ -19,7 +19,7 @@ export function AccountShell(props: {
 }) {
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
-      <section className="rounded-[2.75rem] border border-[color:var(--line)] bg-[color:var(--forest-strong)] shadow-[var(--shadow)]">
+      <section className="rounded-[2.75rem] border border-[#d7c2b9] bg-[#1a1c1a] shadow-sm">
         <div className="grid min-h-[calc(100vh-5rem)] gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
           <AccountSidebar
             user={props.user}
@@ -34,15 +34,15 @@ export function AccountShell(props: {
             cuisines={props.cuisines}
             systemTags={props.systemTags}
           >
-            <div className="bg-[color:var(--paper)]/88 px-6 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
+            <div className="bg-[#faf9f6]/88 px-6 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
               <div className="max-w-4xl">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[color:var(--olive)]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#895032]">
                   Account
                 </p>
-                <h1 className="mt-3 font-display text-5xl leading-[0.95] text-[color:var(--forest-strong)] sm:text-6xl">
+                <h1 className="mt-3 font-sans font-bold text-5xl leading-[0.95] text-[#1a1c1a] sm:text-6xl">
                   Tune the kitchen ledger around you.
                 </h1>
-                <p className="mt-4 max-w-3xl text-base leading-7 text-[color:var(--ink-soft)]">
+                <p className="mt-4 max-w-3xl text-base leading-7 text-[#85736c]">
                   Keep your public identity clean, update the name attached to
                   your recipes, refine the cuisines and shared tags that shape
                   the feed, and manage the account security model behind the

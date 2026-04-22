@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { Cuisine, Tag, UserPreferences } from "@cart/shared";
 import { useActionState } from "react";
@@ -24,7 +24,7 @@ function SaveButton() {
   return (
     <button
       type="submit"
-      className="inline-flex min-h-12 items-center justify-center rounded-full bg-[color:var(--forest)] px-6 text-sm font-semibold text-[color:var(--paper)] transition hover:bg-[color:var(--forest-strong)] disabled:cursor-not-allowed disabled:opacity-70"
+      className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#895032] px-6 text-sm font-semibold text-[#faf9f6] transition hover:bg-[#1a1c1a] disabled:cursor-not-allowed disabled:opacity-70"
       disabled={pending}
     >
       {pending ? "Saving..." : "Save preferences"}
@@ -57,15 +57,15 @@ export function PreferencesForm(props: {
   );
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-white/72 shadow-[0_18px_54px_rgba(21,34,27,0.08)]">
-      <div className="border-b border-[color:var(--line)] px-6 py-5 sm:px-7">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[color:var(--olive)]">
+    <section className="overflow-hidden rounded-[2rem] border border-[#d7c2b9] bg-white/72 shadow-[0_18px_54px_rgba(21,34,27,0.08)]">
+      <div className="border-b border-[#d7c2b9] px-6 py-5 sm:px-7">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#895032]">
           Preferences
         </p>
-        <h2 className="mt-2 font-display text-4xl leading-none text-[color:var(--forest-strong)]">
+        <h2 className="mt-2 font-sans font-bold text-4xl leading-none text-[#1a1c1a]">
           Culinary profile
         </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--ink-soft)]">
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-[#85736c]">
           Refine the cuisines and system tags that shape discovery after the
           initial onboarding pass. Empty selections remain valid.
         </p>
@@ -79,10 +79,10 @@ export function PreferencesForm(props: {
         />
         <section className="grid gap-5">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--olive)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#895032]">
               Cuisines
             </p>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
+            <p className="mt-2 text-sm leading-6 text-[#85736c]">
               Keep a few anchors for the feed or clear everything and stay
               neutral.
             </p>
@@ -92,14 +92,14 @@ export function PreferencesForm(props: {
             {Object.entries(groupedCuisines).map(([kind, cuisines]) =>
               cuisines.length > 0 ? (
                 <div key={kind} className="grid gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#895032]">
                     {KIND_LABELS[kind as Cuisine["kind"]]}
                   </p>
                   <div className="flex flex-wrap gap-3">
                     {cuisines.map((cuisine) => (
                       <label
                         key={cuisine.id}
-                        className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--paper)]/68 px-4 py-2 text-sm text-[color:var(--ink)]"
+                        className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#d7c2b9] bg-[#faf9f6]/68 px-4 py-2 text-sm text-[#1a1c1a]"
                       >
                         <input
                           type="checkbox"
@@ -108,7 +108,7 @@ export function PreferencesForm(props: {
                           defaultChecked={props.preferences.preferred_cuisine_ids.includes(
                             cuisine.id,
                           )}
-                          className="size-4 accent-[color:var(--forest)]"
+                          className="size-4 accent-[#895032]"
                         />
                         <span>{cuisine.label}</span>
                       </label>
@@ -120,12 +120,12 @@ export function PreferencesForm(props: {
           </div>
         </section>
 
-        <section className="grid gap-5 border-t border-[color:var(--line)] pt-7">
+        <section className="grid gap-5 border-t border-[#d7c2b9] pt-7">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--olive)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#895032]">
               Shopping location
             </p>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
+            <p className="mt-2 text-sm leading-6 text-[#85736c]">
               Keep a ZIP code or place label on file so future retailer
               providers can resolve nearby stores without asking from scratch.
             </p>
@@ -133,7 +133,7 @@ export function PreferencesForm(props: {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#895032]">
                 ZIP code
               </span>
               <input
@@ -141,12 +141,12 @@ export function PreferencesForm(props: {
                 name="shopping_location_zip_code"
                 defaultValue={props.preferences.shopping_location?.zip_code ?? ""}
                 placeholder="60611"
-                className="min-h-12 rounded-2xl border border-[color:var(--line)] bg-white/80 px-4 text-sm text-[color:var(--forest-strong)] outline-none transition placeholder:text-[color:var(--ink-soft)]/72 focus:border-[color:var(--olive)]"
+                className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-white/80 px-4 text-sm text-[#1a1c1a] outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032]"
               />
             </label>
 
             <label className="grid gap-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--olive)]">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#895032]">
                 Place label
               </span>
               <input
@@ -154,18 +154,18 @@ export function PreferencesForm(props: {
                 name="shopping_location_label"
                 defaultValue={props.preferences.shopping_location?.label ?? ""}
                 placeholder="Chicago, IL"
-                className="min-h-12 rounded-2xl border border-[color:var(--line)] bg-white/80 px-4 text-sm text-[color:var(--forest-strong)] outline-none transition placeholder:text-[color:var(--ink-soft)]/72 focus:border-[color:var(--olive)]"
+                className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-white/80 px-4 text-sm text-[#1a1c1a] outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032]"
               />
             </label>
           </div>
         </section>
 
-        <section className="grid gap-5 border-t border-[color:var(--line)] pt-7">
+        <section className="grid gap-5 border-t border-[#d7c2b9] pt-7">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--olive)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#895032]">
               Shared taste signals
             </p>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
+            <p className="mt-2 text-sm leading-6 text-[#85736c]">
               Preferences stay limited to system tags here so the account
               profile keeps a shared, curated taxonomy.
             </p>
@@ -175,7 +175,7 @@ export function PreferencesForm(props: {
             {props.tags.map((tag) => (
               <label
                 key={tag.id}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--paper)]/68 px-4 py-2 text-sm text-[color:var(--ink)]"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#d7c2b9] bg-[#faf9f6]/68 px-4 py-2 text-sm text-[#1a1c1a]"
               >
                 <input
                   type="checkbox"
@@ -184,7 +184,7 @@ export function PreferencesForm(props: {
                   defaultChecked={props.preferences.preferred_tag_ids.includes(
                     tag.id,
                   )}
-                  className="size-4 accent-[color:var(--forest)]"
+                  className="size-4 accent-[#895032]"
                 />
                 <span>{tag.name}</span>
               </label>
@@ -193,20 +193,20 @@ export function PreferencesForm(props: {
         </section>
 
         {state.error ? (
-          <p className="rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
+          <p className="rounded-2xl border border-[#ba1a1a]/20 bg-[#ba1a1a]/10 px-4 py-3 text-sm text-[#ba1a1a]">
             {state.error}
           </p>
         ) : null}
 
         {state.success ? (
-          <p className="rounded-2xl border border-[color:var(--forest)]/14 bg-[color:var(--forest)]/8 px-4 py-3 text-sm text-[color:var(--forest-strong)]">
+          <p className="rounded-2xl border border-[#895032]/14 bg-[#895032]/8 px-4 py-3 text-sm text-[#1a1c1a]">
             {state.success}
           </p>
         ) : null}
 
         <div className="flex flex-wrap items-center gap-3">
           <SaveButton />
-          <p className="text-sm text-[color:var(--ink-soft)]">
+          <p className="text-sm text-[#85736c]">
             This updates the same `/api/v1/me/preferences` surface used during
             onboarding.
           </p>
