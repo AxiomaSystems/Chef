@@ -47,16 +47,17 @@ Suggested rules:
 Validate whether the core Chef wedge is understandable and compelling:
 
 ```text
-meal planning + ingredient aggregation + real retailer matching + editable shopping cart
+meal planning + ingredient aggregation + real retailer matching + editable shopping/cart handoff
 ```
 
 The demo should answer:
 
 - Does the user understand what Chef is for within 30 seconds?
 - Does the recipe-to-cart flow feel useful enough to continue building?
-- Does the Kroger output feel real, even when product matching is imperfect?
+- Does the retailer output feel real, even when product matching is imperfect?
 - Does manual shopping-cart editing make matching errors acceptable?
 - What should AI own next: recipe generation, recipe editing, ingredient normalization, or pantry awareness?
+- Does Instacart feel smoother than Kroger as the demo-facing retailer path?
 
 ## Features To Show
 
@@ -142,22 +143,23 @@ Feedback wanted:
 - Is the ingredient aggregation understandable?
 - Where should pre-cart ingredient removal live?
 
-### 6. Live Kroger Shopping Cart Generation
+### 6. Retailer Shopping Cart Generation
 
 This is the most important demo moment.
 
 Demo points:
 
 - Chef generates a persisted shopping cart from the meal-plan cart.
-- Kroger is the first live retailer provider.
+- Kroger is the first live retailer provider already working in the app.
+- Instacart should be integrated as the preferred demo-facing retailer path if the API/cart handoff can be made stable in time.
 - Product matching uses real product search.
-- Subtotal comes from selected retailer products, not AI.
+- Subtotal should come from selected retailer products, not AI.
 - Some specialty ingredients may intentionally remain unmatched.
 
 Recommended demo language:
 
 ```text
-This is not pretending every match is perfect. The important part is that we now have a real retailer path, persisted shopping cart state, and manual correction when automation is wrong.
+This is not pretending every match is perfect. The important part is that we now have a real retailer path, persisted shopping cart state, and manual correction or retailer handoff when automation is wrong.
 ```
 
 Feedback wanted:
@@ -165,7 +167,7 @@ Feedback wanted:
 - Are imperfect matches acceptable if the user can correct them quickly?
 - Which matching failures feel fatal?
 - Which failures are acceptable as "needs manual review"?
-- What should the matching engine learn next?
+- Which retailer path feels better for the first user-facing demo: Kroger search/matching or Instacart cart handoff?
 
 ### 7. Shopping Cart Editing
 
@@ -197,7 +199,8 @@ These are important to the startup direction, but should not be presented as com
 - Nutrition and macro tracking.
 - Computer vision pantry/fridge awareness.
 - Live cooking chatbot.
-- Cart export or checkout transfer through Share-A-Cart, Instacart, Walmart, Target, or future providers.
+- Cart export or checkout transfer through Share-A-Cart, Walmart, Target, or future providers.
+- Deep Instacart checkout behavior if the integration is only partially working by demo time.
 - Creator/community layer.
 
 The right framing:
@@ -215,6 +218,7 @@ Keep these because they are strong foundations for the startup version:
 - The split between `Recipe`, `CartDraft`, `Cart`, and `ShoppingCart`.
 - Persisted shopping carts.
 - Kroger as the first live retailer path.
+- Instacart as the preferred smoother demo-facing retailer path if integration is stable.
 - The provider boundary for retailers.
 - The provider-first posture for future MCPs/tools.
 - Deterministic ingredient aggregation.
@@ -232,12 +236,14 @@ Prioritize reliability and clarity over new features.
 Must-fix before demo:
 
 - Make sure the Kroger demo location is set and stable.
+- Decide whether the demo will lead with Instacart or Kroger.
+- If using Instacart, prepare one known-good Instacart path with clear fallback to Kroger.
 - Prepare one known-good demo account.
 - Prepare one known-good demo recipe/cart flow.
 - Seed or preserve recipes that produce a useful but not perfect Kroger result.
-- Make sure missing Kroger credentials or missing location produce clear errors.
+- Make sure missing Kroger/Instacart credentials or missing location produce clear errors.
 - Verify that shopping-cart edits persist after closing and reopening.
-- Verify that `Generate shopping cart` does not flood Kroger.
+- Verify that `Generate shopping cart` does not flood Kroger or Instacart.
 - Verify that specialty ingredients fail honestly instead of matching nonsense products.
 
 Should-fix if time:
@@ -246,6 +252,7 @@ Should-fix if time:
 - Improve copy around unmatched products.
 - Add a clear "needs review" state for shopping-cart lines.
 - Make saved shopping carts easier to identify without relying only on search.
+- Add a provider selector or internal provider flag if needed for demo rehearsal.
 - Reduce any UI elements that imply this is the final frontend.
 
 Do not spend time on:
@@ -269,6 +276,7 @@ Candidates:
 - Any fake stats that do not help the user act.
 - Any dead buttons or nonfunctional CTA.
 - Any retailer option that looks available but is not demo-ready.
+- Any Instacart action that looks like checkout if it only creates a preview or handoff.
 - Any UI surface that suggests AI generation is complete when it is not.
 
 For the demo, it is better to show fewer working paths than many half-working promises.
@@ -280,7 +288,7 @@ Use one clean scenario.
 Suggested scenario:
 
 ```text
-I want to cook two recipes for dinner. I choose them, adjust quantity, generate a cart, then Chef turns the ingredients into Kroger products I can review.
+I want to cook two recipes for dinner. I choose them, adjust quantity, generate a cart, then Chef turns the ingredients into retailer products I can review or hand off.
 ```
 
 Flow:
@@ -295,7 +303,7 @@ Flow:
 8. Generate the cart.
 9. Show aggregated ingredients.
 10. Generate shopping cart.
-11. Show Kroger matched products and subtotal.
+11. Show Instacart if stable; otherwise show Kroger matched products and subtotal.
 12. Replace or delete one imperfect line.
 13. Add one manual item.
 14. Save changes.
@@ -308,7 +316,8 @@ Ask these explicitly.
 - Would you use this flow if the first input was "I want biryani" instead of selecting from existing recipes?
 - Which step felt like real value?
 - Which step felt confusing?
-- Did the Kroger cart feel trustworthy enough if unmatched items are clearly marked?
+- Did the retailer cart feel trustworthy enough if unmatched items are clearly marked?
+- Did Instacart feel smoother or more user-ready than Kroger?
 - Should AI recipe generation or pre-cart ingredient editing be the next sprint priority?
 - What would make this useful enough to test with five real users?
 
@@ -321,9 +330,11 @@ Owner: Piero
 Focus:
 
 - Stabilize Kroger location/product search.
+- Add or spike Instacart integration behind the same retailer/provider boundary.
+- Decide whether Instacart should be a `RetailerProductProvider`, a `CartExportProvider`, or both.
 - Keep throttling/token dedupe healthy.
 - Verify shopping-cart persistence and editing.
-- Improve error messages for missing location, provider failure, and unmatched products.
+- Improve error messages for missing location, provider failure, unsupported retailer behavior, and unmatched products.
 - Prepare demo seed data and test account.
 
 ### Frontend
@@ -347,6 +358,7 @@ Focus:
 - Prepare the next-step architecture proposal for meal idea -> structured recipe.
 - Identify what model/tool input and output should look like.
 - Evaluate whether recipe generation, recipe import, or pantry image understanding should be the first AI integration after the demo.
+- Evaluate whether Instacart's smoother user handoff changes the priority of product matching vs cart export tooling.
 - Do not block the current demo on computer vision.
 
 ## Demo Acceptance Checklist
@@ -359,8 +371,9 @@ The demo branch is ready when:
 - `Add to cart` opens the composer.
 - Composer can create a cart.
 - Cart detail shows aggregated ingredients.
-- Cart can generate a Kroger shopping cart.
-- Kroger results include at least some real matched products with prices.
+- Cart can generate a retailer shopping cart or handoff.
+- If Instacart is used, the Instacart path is stable enough to demo without manual backend intervention.
+- If Kroger is used, Kroger results include at least some real matched products with prices.
 - Unmatched items are clear.
 - Shopping-cart edits persist.
 - Saved shopping carts can be reopened.
@@ -380,13 +393,15 @@ Likely next sprint candidates:
 
 1. Meal idea -> structured recipe generation.
 2. Pre-cart ingredient editing/removal.
-3. Better matching review workflow.
-4. Recipe import/fork from pasted text or URL.
-5. Basic nutrition/macros provider contract.
+3. Instacart integration hardening.
+4. Better matching review workflow.
+5. Recipe import/fork from pasted text or URL.
+6. Basic nutrition/macros provider contract.
 
 Recommendation:
 
 ```text
 If the demo feedback says the Kroger flow is valuable, build pre-cart ingredient editing next.
 If the demo feedback says recipe selection feels too artificial, build meal idea -> structured recipe next.
+If the demo feedback says Instacart feels much smoother, prioritize retailer handoff/export over deep Kroger matching polish.
 ```
