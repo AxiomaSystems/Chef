@@ -318,6 +318,10 @@ export function PlanningDetailOverlay(props: {
     recipe: dish.id ? recipeMap.get(dish.id) : undefined,
     key: `${dish.id ?? dish.name}-${index}`,
   }));
+  const inKitchenCount = cartDetail.overview.filter(
+    (ingredient) => ingredient.in_kitchen,
+  ).length;
+  const toBuyCount = cartDetail.overview.length - inKitchenCount;
 
   return (
     <div className="fixed inset-0 z-50 bg-[rgba(24,35,29,0.6)] p-4 backdrop-blur-sm sm:p-6">
@@ -403,7 +407,7 @@ export function PlanningDetailOverlay(props: {
                   </h3>
                 </div>
                 <p className="text-sm text-[color:var(--ink-soft)]">
-                  {cartDetail.overview.length} lines
+                  {toBuyCount} to buy / {inKitchenCount} in kitchen
                 </p>
               </div>
 
@@ -422,11 +426,18 @@ export function PlanningDetailOverlay(props: {
                           {formatIngredientAmount(ingredient)}
                         </p>
                       </div>
-                      {ingredient.purchase_unit_hint ? (
-                        <span className="rounded-full border border-[color:var(--line)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--olive)]">
-                          Buy by {ingredient.purchase_unit_hint}
-                        </span>
-                      ) : null}
+                      <div className="flex flex-wrap gap-2">
+                        {ingredient.in_kitchen ? (
+                          <span className="rounded-full border border-[color:var(--forest)]/18 bg-[color:var(--forest)]/8 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--forest-strong)]">
+                            Already in kitchen
+                          </span>
+                        ) : null}
+                        {ingredient.purchase_unit_hint ? (
+                          <span className="rounded-full border border-[color:var(--line)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--olive)]">
+                            Buy by {ingredient.purchase_unit_hint}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
 
                     {ingredient.source_dishes.length > 0 ? (

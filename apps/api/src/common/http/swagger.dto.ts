@@ -290,6 +290,12 @@ export class AggregatedIngredientResponseDto {
 
   @ApiPropertyOptional({ example: 'cup' })
   purchase_unit_hint?: string;
+
+  @ApiPropertyOptional({ example: 'ingredient-rice' })
+  ingredient_id?: string;
+
+  @ApiPropertyOptional({ example: true })
+  in_kitchen?: boolean;
 }
 
 export class ProductCandidateResponseDto {

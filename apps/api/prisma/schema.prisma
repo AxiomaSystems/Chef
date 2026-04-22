@@ -36,6 +36,21 @@ enum CuisineKind {
   other
 }
 
+enum KitchenInventorySource {
+  manual
+  cart
+  vision
+  receipt
+  inferred
+  seed
+}
+
+enum KitchenInventoryConfidence {
+  low
+  medium
+  high
+}
+
 model User {
   id             String          @id @default(cuid())
   email          String          @unique
@@ -58,6 +73,7 @@ model User {
   shoppingCarts  ShoppingCart[]
   preferredCuisines UserPreferredCuisine[]
   preferredTags  UserPreferredTag[]
+  kitchenInventoryItems KitchenInventoryItem[]
 }
 
 model AuthIdentity {
@@ -198,6 +214,41 @@ model DishIngredient {
   baseRecipe          BaseRecipe @relation(fields: [baseRecipeId], references: [id], onDelete: Cascade)
 
   @@index([baseRecipeId, sortOrder])
+}
+
+model Ingredient {
+  id            String   @id @default(cuid())
+  canonicalName String
+  slug          String   @unique
+  aliases       Json?
+  category      String?
+  defaultUnit   String?
+  visionLabels  Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  kitchenInventoryItems KitchenInventoryItem[]
+
+  @@index([canonicalName])
+  @@index([category, canonicalName])
+}
+
+model KitchenInventoryItem {
+  id              String                     @id @default(cuid())
+  userId          String
+  ingredientId    String
+  label           String?
+  estimatedAmount Float?
+  unit            String?
+  source          KitchenInventorySource     @default(manual)
+  confidence      KitchenInventoryConfidence @default(medium)
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+  user            User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingredient      Ingredient                 @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ingredientId])
+  @@index([userId, createdAt])
+  @@index([ingredientId])
 }
 
 model RecipeStep {

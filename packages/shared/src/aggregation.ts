@@ -12,6 +12,8 @@ export type AggregatedIngredient = {
   unit: string;
   source_dishes: AggregatedIngredientSource[];
   purchase_unit_hint?: string;
+  ingredient_id?: string;
+  in_kitchen?: boolean;
 };
 
 export type RecipeBundleOverviewItem = {

@@ -134,6 +134,7 @@ Demo points:
 - A cart is not a retailer shopping basket.
 - It answers: "what am I cooking?"
 - It shows aggregated ingredients.
+- It marks ingredients that are already in the user's kitchen inventory.
 - It shows the selected recipes as compact references.
 - It can generate a `ShoppingCart`.
 
@@ -141,7 +142,8 @@ Feedback wanted:
 
 - Does the `Cart` vs `ShoppingCart` split make sense from a product perspective?
 - Is the ingredient aggregation understandable?
-- Where should pre-cart ingredient removal live?
+- Does "already in kitchen" make the buying flow feel smarter?
+- Where should pre-cart ingredient removal/override live?
 
 ### 6. Retailer Shopping Cart Generation
 
@@ -150,6 +152,7 @@ This is the most important demo moment.
 Demo points:
 
 - Chef generates a persisted shopping cart from the meal-plan cart.
+- Chef skips ingredients that are already in the user's kitchen inventory.
 - Kroger is the first live retailer provider already working in the app.
 - Instacart should be integrated as the preferred demo-facing retailer path if the API/cart handoff can be made stable in time.
 - Product matching uses real product search.
@@ -225,6 +228,7 @@ Keep these because they are strong foundations for the startup version:
 - Deterministic subtotal math.
 - Manual shopping-cart editing.
 - Shopping location as user preference.
+- Shared ingredient catalog and user kitchen inventory as the base for pantry/CV later.
 - Dietary badges as tag metadata.
 - `nutrition_data` as optional recipe detail metadata.
 - Current frontend as a validation harness.
@@ -245,10 +249,13 @@ Must-fix before demo:
 - Verify that shopping-cart edits persist after closing and reopening.
 - Verify that `Generate shopping cart` does not flood Kroger or Instacart.
 - Verify that specialty ingredients fail honestly instead of matching nonsense products.
+- Verify that demo kitchen inventory marks a few obvious ingredients as `Already in kitchen`.
+- Verify that generated shopping carts do not include inventory-skipped ingredients.
 
 Should-fix if time:
 
 - Add a lightweight pre-cart ingredient review/removal step.
+- Add a small visible kitchen-inventory editor if the team wants to demo adding/removing pantry items live.
 - Improve copy around unmatched products.
 - Add a clear "needs review" state for shopping-cart lines.
 - Make saved shopping carts easier to identify without relying only on search.

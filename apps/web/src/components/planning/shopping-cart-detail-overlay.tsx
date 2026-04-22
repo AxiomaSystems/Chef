@@ -691,6 +691,7 @@ export function ShoppingCartDetailOverlay(props: {
 
                     <div className="flex gap-2">
                       <input
+                        suppressHydrationWarning
                         type="search"
                         value={searchContext.query}
                         onChange={(event) =>

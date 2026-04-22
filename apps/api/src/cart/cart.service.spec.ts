@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import type { BaseRecipe } from '@cart/shared';
 import { AggregationService } from '../aggregation/aggregation.service';
 import { CartExportService } from '../cart-export/cart-export.service';
+import { IngredientsService } from '../ingredients/ingredients.service';
 import { KrogerRetailerProductProvider } from '../matching/kroger-retailer-product.provider';
 import { MockRetailerProductProvider } from '../matching/mock-retailer-product.provider';
 import { MatchingService } from '../matching/matching.service';
@@ -17,6 +18,7 @@ describe('CartService', () => {
   let userContextService: jest.Mocked<UserContextService>;
   let cartPersistenceService: jest.Mocked<CartPersistenceService>;
   let cartExportService: jest.Mocked<CartExportService>;
+  let ingredientsService: jest.Mocked<IngredientsService>;
 
   const recipe: BaseRecipe = {
     id: 'recipe-1',
@@ -54,6 +56,7 @@ describe('CartService', () => {
         name: 'Test',
         slug: 'test',
         scope: 'system',
+        kind: 'general',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
@@ -118,9 +121,23 @@ describe('CartService', () => {
       createHandoff: jest.fn().mockResolvedValue({}),
     } as unknown as jest.Mocked<CartExportService>;
 
+    ingredientsService = {
+      listInventoryIngredientSlugs: jest.fn().mockResolvedValue(new Set()),
+      normalizeSlug: jest
+        .fn()
+        .mockImplementation((value: string) =>
+          value
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, ''),
+        ),
+    } as unknown as jest.Mocked<IngredientsService>;
+
     service = new CartService(
       recipeService,
       new AggregationService(),
+      ingredientsService,
       new MatchingService(
         new MockRetailerProductProvider(),
         new KrogerRetailerProductProvider(),
