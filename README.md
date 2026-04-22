@@ -1,6 +1,6 @@
-# Cussien
+# Chef
 
-Cussien is an AI-powered meal execution platform.
+Chef is an AI-powered meal execution platform.
 
 The product vision is to help people move from food intent to cooked meal:
 
@@ -10,11 +10,11 @@ food idea -> structured recipe -> constraints -> missing ingredients -> real gro
 
 The initial wedge is practical: generate or import a meal, edit it to the user's constraints, remove what they already have, and generate an editable retailer grocery cart.
 
-The repo is still named `cart-generator`, but the product direction is now Cussien.
+The repo is still named `cart-generator`, but the internal product/team name is now Chef.
 
 ## Product Direction
 
-Cussien is not meant to be another recipe database, generic grocery list, calorie tracker, or chatbot.
+Chef is not meant to be another recipe database, generic grocery list, calorie tracker, or chatbot.
 
 It should become a personal cooking operating system that connects:
 

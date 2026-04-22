@@ -1,4 +1,4 @@
-# Models - Cussien
+# Models - Chef
 
 This document describes the conceptual domain contracts in [packages/shared](/C:/Users/akuma/repos/cart-generator/packages/shared) and the current vocabulary of the implemented `/api/v1` API.
 
@@ -246,7 +246,7 @@ type ExternalRecipeSource = {
 
 Interpretation:
 
-- this supports recipe forking/importing from outside Cussien
+- this supports recipe forking/importing from outside Chef
 - examples include recipe websites, restaurant menus, screenshots, creator posts, and pasted text
 
 ### StructuredRecipePreview
@@ -795,8 +795,8 @@ Planned role:
 
 Important rule:
 
-- these providers should depend on stable Cussien models
-- Cussien models should not directly depend on one MCP, retailer, or AI provider
+- these providers should depend on stable Chef models
+- Chef models should not directly depend on one MCP, retailer, or AI provider
 
 ## 9. Tag Models
 

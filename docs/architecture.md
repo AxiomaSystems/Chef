@@ -1,8 +1,8 @@
-# Architecture - Cussien
+# Architecture - Chef
 
 ## Overview
 
-Cussien is a layered system that should transform food intent into executable meals.
+Chef is a layered system that should transform food intent into executable meals.
 
 ```text
 food idea or imported recipe
@@ -32,7 +32,7 @@ The current web frontend should be considered a functional validation harness, n
 
 The startup direction is broader than the current implemented vertical slice.
 
-Long-term Cussien should connect:
+Long-term Chef should connect:
 
 - meal idea generation
 - recipe import/forking from outside content

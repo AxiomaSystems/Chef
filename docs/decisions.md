@@ -1,4 +1,4 @@
-# Engineering Decisions - Cussien
+# Engineering Decisions - Chef
 
 This document records the main system decisions behind the project.
 
@@ -815,7 +815,7 @@ Decision:
 
 Why:
 - generic cooking chat is easy to copy and weakly differentiated
-- context-aware guidance is where Cussien can become meaningfully agentic
+- context-aware guidance is where Chef can become meaningfully agentic
 - the assistant should help during real cooking, not just answer recipe trivia
 
 Implications:
@@ -839,7 +839,7 @@ Implications:
 - support shareable or browser-assisted flows if direct cart APIs are not practical
 - keep `ShoppingCart` as the persisted source of truth before any external transfer
 
-## 43. Cussien Is A Meal Execution Platform, Not Just A Cart Generator
+## 43. Chef Is A Meal Execution Platform, Not Just A Cart Generator
 
 Decision:
 - position the product as a meal execution platform
@@ -853,7 +853,7 @@ Why:
 Implications:
 - product language should emphasize "food idea -> meal you can cook"
 - recipe generation, recipe import, ingredient review, nutrition, and cooking assistance are all valid roadmap areas
-- the repo may still be named `cart-generator`, but product docs should refer to Cussien
+- the repo may still be named `cart-generator`, but product docs should refer to Chef
 
 ## 44. MVP Should Start With Meal Idea To Grocery Cart
 
@@ -896,7 +896,7 @@ Implications:
 ## 46. Recipe Import/Forking From Outside Is Core
 
 Decision:
-- support bringing recipes or meal ideas from outside Cussien as a core product direction
+- support bringing recipes or meal ideas from outside Chef as a core product direction
 
 Sources:
 - recipe URLs
@@ -909,7 +909,7 @@ Sources:
 
 Why:
 - users already discover food outside the app
-- Cussien should make those ideas actionable instead of forcing users into an internal catalog
+- Chef should make those ideas actionable instead of forcing users into an internal catalog
 - import/forking supports creator and community growth later
 
 Implications:

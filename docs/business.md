@@ -1,14 +1,14 @@
-# Business - Cussien
+# Business - Chef
 
-This document frames Cussien as a startup: the problem, customer, wedge, sales motion, and marketing strategy.
+This document frames Chef as a startup: the problem, customer, wedge, sales motion, and marketing strategy.
 
 ## One-Liner
 
-Cussien turns food ideas into meals you can actually cook.
+Chef turns food ideas into meals you can actually cook.
 
 ## Expanded One-Liner
 
-Cussien is an AI-powered meal execution platform that turns recipes, cravings, creator content, and dietary goals into structured meals, missing ingredients, real grocery carts, nutrition tracking, and eventually live cooking guidance.
+Chef is an AI-powered meal execution platform that turns recipes, cravings, creator content, and dietary goals into structured meals, missing ingredients, real grocery carts, nutrition tracking, and eventually live cooking guidance.
 
 ## Problem
 
@@ -88,15 +88,15 @@ This is concrete, demoable, and different from most recipe apps.
 
 ## MVP Promise
 
-"Tell Cussien what you want to cook. It gives you a recipe, lets you adjust ingredients, and builds the grocery cart."
+"Tell Chef what you want to cook. It gives you a recipe, lets you adjust ingredients, and builds the grocery cart."
 
 MVP flow:
 
 1. User enters a food idea or recipe.
-2. Cussien generates or structures the recipe.
+2. Chef generates or structures the recipe.
 3. User reviews ingredients.
 4. User removes what they already have.
-5. Cussien generates a Kroger shopping cart.
+5. Chef generates a Kroger shopping cart.
 6. User edits products/quantities and saves the cart.
 
 ## Product Pillars
@@ -181,7 +181,7 @@ Possible pricing hypothesis:
 
 ### Demo-Led Content
 
-Cussien should be marketed through visual demos.
+Chef should be marketed through visual demos.
 
 Examples:
 
@@ -228,7 +228,7 @@ Potential communities:
 
 ## What Not To Sell First
 
-Do not sell Cussien as:
+Do not sell Chef as:
 
 - another recipe database
 - a generic AI chatbot
@@ -261,7 +261,7 @@ the fastest way to turn what you want to eat into what you need to buy and cook
 
 ## Current Startup Bet
 
-Cussien wins if users believe:
+Chef wins if users believe:
 
 ```text
 I can tell it what I want to eat, and it will help me actually cook it.
