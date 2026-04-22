@@ -6,15 +6,15 @@ import {
 } from '@nestjs/common';
 import type {
   Cart,
-  CreateCartRequest,
+  AggregatedIngredient,
   MatchedIngredientProduct,
   Retailer,
-  CreateShoppingCartRequest,
   RetailerProductSearchResponse,
   ShoppingCart,
 } from '@cart/shared';
 import { AggregationService } from '../aggregation/aggregation.service';
 import { CartExportService } from '../cart-export/cart-export.service';
+import { IngredientsService } from '../ingredients/ingredients.service';
 import { MatchingService } from '../matching/matching.service';
 import { mapMissingIngredientMatch } from '../matching/matching.mapper';
 import { RecipeService } from '../recipe/recipe.service';
@@ -37,6 +37,7 @@ export class CartService {
   constructor(
     private readonly recipeService: RecipeService,
     private readonly aggregationService: AggregationService,
+    private readonly ingredientsService: IngredientsService,
     private readonly matchingService: MatchingService,
     private readonly cartExportService: CartExportService,
     private readonly cartPersistenceService: CartPersistenceService,
@@ -162,7 +163,7 @@ export class CartService {
   async listCarts(actorUserId?: string) {
     const actor = await this.userContextService.resolveActorUser(actorUserId);
     const carts = await this.cartPersistenceService.findCartsByUser(actor.id);
-    return carts.map((cart) => this.withCartOverview(cart));
+    return Promise.all(carts.map((cart) => this.withCartOverview(cart)));
   }
 
   async findCart(id: string, actorUserId?: string) {
@@ -189,7 +190,11 @@ export class CartService {
       throw new NotFoundException(`Cart ${cartId} not found`);
     }
 
-    const computation = this.aggregationService.compute(cart.dishes);
+    const computation = await this.withKitchenInventory(
+      actor.id,
+      this.aggregationService.compute(cart.dishes).overview,
+    );
+    const ingredientsToBuy = computation.filter((ingredient) => !ingredient.in_kitchen);
     const searchContext = this.buildRetailerSearchContext(
       input.retailer,
       actor.preferredZipCode,
@@ -197,12 +202,12 @@ export class CartService {
     );
     const matchedItems =
       input.retailer === 'instacart'
-        ? computation.overview.map((ingredient) => ({
+        ? ingredientsToBuy.map((ingredient) => ({
             ...mapMissingIngredientMatch(ingredient),
             notes: 'Instacart will resolve this item on the generated shopping list page.',
           }))
         : await this.matchingService.matchIngredients(
-            computation.overview,
+            ingredientsToBuy,
             input.retailer,
             searchContext,
           );
@@ -212,7 +217,7 @@ export class CartService {
       cartId,
       cartName: cart.name,
       retailer: input.retailer,
-      overview: computation.overview,
+      overview: ingredientsToBuy,
       dishes: cart.dishes,
     });
 
@@ -221,7 +226,7 @@ export class CartService {
       cartId,
       shoppingCart: buildShoppingCartResponse({
         cartId,
-        overview: computation.overview,
+        overview: computation,
         matchedItems,
         estimatedSubtotal,
         retailer: input.retailer,
@@ -325,11 +330,33 @@ export class CartService {
     };
   }
 
-  private withCartOverview(cart: Cart): Cart {
+  private async withCartOverview(cart: Cart): Promise<Cart> {
     return {
       ...cart,
-      overview: this.aggregationService.compute(cart.dishes).overview,
+      overview: await this.withKitchenInventory(
+        cart.user_id ?? '',
+        this.aggregationService.compute(cart.dishes).overview,
+      ),
     };
+  }
+
+  private async withKitchenInventory(
+    userId: string,
+    overview: AggregatedIngredient[],
+  ): Promise<AggregatedIngredient[]> {
+    if (!userId) {
+      return overview;
+    }
+
+    const inventorySlugs =
+      await this.ingredientsService.listInventoryIngredientSlugs(userId);
+
+    return overview.map((ingredient) => ({
+      ...ingredient,
+      in_kitchen: inventorySlugs.has(
+        this.ingredientsService.normalizeSlug(ingredient.canonical_ingredient),
+      ),
+    }));
   }
 
   private buildRetailerSearchContext(

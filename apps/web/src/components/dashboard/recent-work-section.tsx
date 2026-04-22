@@ -80,6 +80,7 @@ export function RecentWorkSection(props: {
           <label className="block w-full lg:max-w-sm">
             <span className="sr-only">Search recent work</span>
             <input
+              suppressHydrationWarning
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}

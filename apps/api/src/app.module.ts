@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { CartModule } from './cart/cart.module';
 import { CommonHttpModule } from './common/http/common-http.module';
 import { CuisinesModule } from './cuisines/cuisines.module';
+import { IngredientsModule } from './ingredients/ingredients.module';
 import { MatchingModule } from './matching/matching.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RecipeModule } from './recipe/recipe.module';
@@ -21,6 +22,7 @@ import { UserModule } from './user/user.module';
     UserModule,
     CuisinesModule,
     TagsModule,
+    IngredientsModule,
     RecipeModule,
     AggregationModule,
     MatchingModule,

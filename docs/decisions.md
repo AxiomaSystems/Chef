@@ -990,3 +990,27 @@ Implications:
 - frontend surfaces can eventually choose retailer options from capabilities instead of static selects
 - provider availability can change by environment without changing UI code
 - new retailer integrations should declare capabilities before being used in user-facing flows
+
+## 51. Kitchen Inventory Starts As Presence, Not Exact Quantity
+
+Decision:
+- implement kitchen inventory as "the user says they have this ingredient" before exact amount tracking
+- use a shared `Ingredient` catalog plus user-scoped `KitchenInventoryItem` rows
+
+Why:
+- users get value from avoiding duplicate purchases before they get value from exact pantry math
+- exact amount tracking creates friction and requires stronger UX, receipts, or computer vision
+- a shared ingredient catalog is the right base for future nutrition, retailer query planning, and CV labels
+
+Implemented direction:
+- `Ingredient` is global and deduplicated by slug
+- `KitchenInventoryItem` links one user to one ingredient
+- recipe seed data populates the ingredient catalog
+- demo seed data adds common kitchen items to the dev user
+- cart overviews mark `in_kitchen`
+- shopping-cart generation skips `in_kitchen` ingredients
+
+Implications:
+- inventory is useful for the demo without pretending to know exact pantry quantities
+- per-cart ingredient review is still needed as an override layer
+- future computer vision should map detections into `Ingredient`, not directly into shopping-cart lines

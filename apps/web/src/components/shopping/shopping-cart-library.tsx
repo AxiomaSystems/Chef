@@ -81,6 +81,7 @@ export function ShoppingCartLibrary(props: {
                 Search by retailer, ingredient, or manual item
               </span>
               <input
+                suppressHydrationWarning
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
