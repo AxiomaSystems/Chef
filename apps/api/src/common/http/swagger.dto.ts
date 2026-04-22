@@ -370,13 +370,54 @@ export class MatchedIngredientProductResponseDto {
 
 export class RetailerProductSearchResponseDto {
   @ApiProperty({ example: 'walmart' })
-  retailer!: 'walmart';
+  retailer!: string;
 
   @ApiProperty({ example: 'cilantro' })
   query!: string;
 
   @ApiProperty({ type: () => [ProductCandidateResponseDto] })
   candidates!: ProductCandidateResponseDto[];
+}
+
+export class RetailerCapabilityResponseDto {
+  @ApiProperty({ example: 'instacart' })
+  retailer!: string;
+
+  @ApiProperty({ example: 'Instacart' })
+  label!: string;
+
+  @ApiProperty({ example: false })
+  supports_product_search!: boolean;
+
+  @ApiProperty({ example: false })
+  supports_location_lookup!: boolean;
+
+  @ApiProperty({ example: true })
+  supports_cart_handoff!: boolean;
+
+  @ApiProperty({ example: false })
+  supports_native_checkout!: boolean;
+
+  @ApiProperty({ example: false })
+  requires_location!: boolean;
+
+  @ApiProperty({ example: true })
+  requires_api_key!: boolean;
+
+  @ApiProperty({
+    enum: ['configured', 'disabled', 'partner_required'],
+    example: 'configured',
+  })
+  status!: string;
+
+  @ApiProperty({ example: 1 })
+  demo_priority!: number;
+
+  @ApiPropertyOptional({
+    example:
+      'Preferred demo handoff path. Generates a hosted Instacart shopping-list URL when configured.',
+  })
+  notes?: string;
 }
 
 export class PersistedCartDraftResponseDto {
@@ -463,6 +504,15 @@ export class ShoppingCartHistorySummaryResponseDto {
   @ApiProperty({ example: 19.9 })
   estimated_subtotal!: number;
 
+  @ApiPropertyOptional({
+    example:
+      'https://www.instacart.com/store/products/products_link/example',
+  })
+  external_url?: string;
+
+  @ApiPropertyOptional({ example: 'cart-1' })
+  external_reference_id?: string;
+
   @ApiProperty({ example: 5 })
   overview_count!: number;
 
@@ -500,6 +550,15 @@ export class ShoppingCartResponseDto {
 
   @ApiProperty({ example: 'walmart' })
   retailer!: string;
+
+  @ApiPropertyOptional({
+    example:
+      'https://www.instacart.com/store/products/products_link/example',
+  })
+  external_url?: string;
+
+  @ApiPropertyOptional({ example: 'cart-1' })
+  external_reference_id?: string;
 
   @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
   created_at!: string;

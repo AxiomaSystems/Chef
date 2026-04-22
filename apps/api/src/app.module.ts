@@ -9,6 +9,7 @@ import { CuisinesModule } from './cuisines/cuisines.module';
 import { MatchingModule } from './matching/matching.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RecipeModule } from './recipe/recipe.module';
+import { RetailersModule } from './retailers/retailers.module';
 import { TagsModule } from './tags/tags.module';
 import { UserModule } from './user/user.module';
 
@@ -23,6 +24,7 @@ import { UserModule } from './user/user.module';
     RecipeModule,
     AggregationModule,
     MatchingModule,
+    RetailersModule,
     CartModule,
   ],
   controllers: [AppController],

@@ -1,4 +1,23 @@
-export type Retailer = "walmart" | "kroger";
+export type Retailer = "walmart" | "kroger" | "instacart";
+
+export type RetailerIntegrationStatus =
+  | "configured"
+  | "disabled"
+  | "partner_required";
+
+export type RetailerCapability = {
+  retailer: Retailer;
+  label: string;
+  supports_product_search: boolean;
+  supports_location_lookup: boolean;
+  supports_cart_handoff: boolean;
+  supports_native_checkout: boolean;
+  requires_location: boolean;
+  requires_api_key: boolean;
+  status: RetailerIntegrationStatus;
+  demo_priority: number;
+  notes?: string;
+};
 
 export type ProductCandidate = {
   product_id: string;

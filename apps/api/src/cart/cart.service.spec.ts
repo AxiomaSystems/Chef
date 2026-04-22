@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import type { BaseRecipe } from '@cart/shared';
 import { AggregationService } from '../aggregation/aggregation.service';
+import { CartExportService } from '../cart-export/cart-export.service';
 import { KrogerRetailerProductProvider } from '../matching/kroger-retailer-product.provider';
 import { MockRetailerProductProvider } from '../matching/mock-retailer-product.provider';
 import { MatchingService } from '../matching/matching.service';
@@ -15,6 +16,7 @@ describe('CartService', () => {
   let recipeService: jest.Mocked<RecipeService>;
   let userContextService: jest.Mocked<UserContextService>;
   let cartPersistenceService: jest.Mocked<CartPersistenceService>;
+  let cartExportService: jest.Mocked<CartExportService>;
 
   const recipe: BaseRecipe = {
     id: 'recipe-1',
@@ -111,6 +113,11 @@ describe('CartService', () => {
       findShoppingCartById: jest.fn(),
     } as unknown as jest.Mocked<CartPersistenceService>;
 
+    cartExportService = {
+      isProviderEnabled: jest.fn().mockReturnValue(true),
+      createHandoff: jest.fn().mockResolvedValue({}),
+    } as unknown as jest.Mocked<CartExportService>;
+
     service = new CartService(
       recipeService,
       new AggregationService(),
@@ -119,6 +126,7 @@ describe('CartService', () => {
         new KrogerRetailerProductProvider(),
         new WalmartRetailerProductProvider(),
       ),
+      cartExportService,
       cartPersistenceService,
       userContextService,
     );
@@ -223,6 +231,56 @@ describe('CartService', () => {
     await expect(
       service.createShoppingCart('cart-1', { retailer: 'kroger' }),
     ).rejects.toThrow('Set your shopping location first.');
+  });
+
+  it('creates an Instacart handoff shopping cart without product matching', async () => {
+    cartExportService.createHandoff.mockResolvedValue({
+      externalUrl: 'https://www.instacart.com/store/products/example',
+      externalReferenceId: 'cart-1',
+    });
+    cartPersistenceService.findCartById.mockResolvedValue({
+      id: 'cart-1',
+      user_id: 'user-1',
+      name: 'Weekly dinner plan',
+      retailer: 'instacart',
+      selections: [
+        {
+          recipe_id: 'recipe-1',
+          recipe_type: 'base',
+          quantity: 1,
+        },
+      ],
+      dishes: [
+        {
+          id: 'recipe-1',
+          name: recipe.name,
+          cuisine: recipe.cuisine.label,
+          servings: recipe.servings,
+          ingredients: recipe.ingredients,
+          steps: recipe.steps,
+          tags: recipe.tags.map((tag) => tag.name),
+        },
+      ],
+      overview: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    const result = await service.createShoppingCart('cart-1', {
+      retailer: 'instacart',
+    });
+
+    expect(result.retailer).toBe('instacart');
+    expect(result.external_url).toBe(
+      'https://www.instacart.com/store/products/example',
+    );
+    expect(result.estimated_subtotal).toBe(0);
+    expect(cartExportService.createHandoff).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cartId: 'cart-1',
+        retailer: 'instacart',
+      }),
+    );
   });
 
   it('lists shopping cart history summaries', async () => {

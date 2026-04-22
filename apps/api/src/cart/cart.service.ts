@@ -14,7 +14,9 @@ import type {
   ShoppingCart,
 } from '@cart/shared';
 import { AggregationService } from '../aggregation/aggregation.service';
+import { CartExportService } from '../cart-export/cart-export.service';
 import { MatchingService } from '../matching/matching.service';
+import { mapMissingIngredientMatch } from '../matching/matching.mapper';
 import { RecipeService } from '../recipe/recipe.service';
 import { UserContextService } from '../user/user-context.service';
 import { CartPersistenceService } from './cart.persistence';
@@ -36,6 +38,7 @@ export class CartService {
     private readonly recipeService: RecipeService,
     private readonly aggregationService: AggregationService,
     private readonly matchingService: MatchingService,
+    private readonly cartExportService: CartExportService,
     private readonly cartPersistenceService: CartPersistenceService,
     private readonly userContextService: UserContextService,
   ) {}
@@ -186,19 +189,32 @@ export class CartService {
       throw new NotFoundException(`Cart ${cartId} not found`);
     }
 
+    const computation = this.aggregationService.compute(cart.dishes);
     const searchContext = this.buildRetailerSearchContext(
       input.retailer,
       actor.preferredZipCode,
       actor.preferredKrogerLocationId,
     );
-    const computation = this.aggregationService.compute(cart.dishes);
-    const matchedItems = await this.matchingService.matchIngredients(
-      computation.overview,
-      input.retailer,
-      searchContext,
-    );
+    const matchedItems =
+      input.retailer === 'instacart'
+        ? computation.overview.map((ingredient) => ({
+            ...mapMissingIngredientMatch(ingredient),
+            notes: 'Instacart will resolve this item on the generated shopping list page.',
+          }))
+        : await this.matchingService.matchIngredients(
+            computation.overview,
+            input.retailer,
+            searchContext,
+          );
     const estimatedSubtotal =
       this.matchingService.estimateSubtotal(matchedItems);
+    const handoff = await this.cartExportService.createHandoff({
+      cartId,
+      cartName: cart.name,
+      retailer: input.retailer,
+      overview: computation.overview,
+      dishes: cart.dishes,
+    });
 
     return this.cartPersistenceService.createShoppingCart({
       userId: actor.id,
@@ -209,6 +225,8 @@ export class CartService {
         matchedItems,
         estimatedSubtotal,
         retailer: input.retailer,
+        externalUrl: handoff.externalUrl,
+        externalReferenceId: handoff.externalReferenceId,
       }),
     });
   }
@@ -282,6 +300,12 @@ export class CartService {
     query: string,
     actorUserId?: string,
   ): Promise<RetailerProductSearchResponse> {
+    if (retailer === 'instacart') {
+      throw new BadRequestException(
+        'Instacart product search is not supported yet. Generate an Instacart handoff from a cart instead.',
+      );
+    }
+
     const actor =
       await this.userContextService.resolveActorUserShoppingContext(actorUserId);
     const searchContext = this.buildRetailerSearchContext(
@@ -330,6 +354,18 @@ export class CartService {
       return {
         zipCode: normalizedZipCode,
         locationId: normalizedLocationId || undefined,
+      };
+    }
+
+    if (retailer === 'instacart') {
+      if (!this.cartExportService.isProviderEnabled('instacart')) {
+        throw new ServiceUnavailableException(
+          'Instacart handoff is not configured right now.',
+        );
+      }
+
+      return {
+        zipCode: preferredZipCode?.trim() || undefined,
       };
     }
 

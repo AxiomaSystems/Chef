@@ -188,6 +188,7 @@ export async function submitDraftFlowAction(
 
   revalidatePath("/");
   revalidatePath("/recipes");
+  revalidatePath("/shopping");
 
   return {
     success,
@@ -229,6 +230,7 @@ export async function deletePlanningResourceAction(
 
   revalidatePath("/");
   revalidatePath("/recipes");
+  revalidatePath("/shopping");
 
   return {
     success: resourceType === "draft" ? "Draft deleted." : "Cart deleted.",
@@ -273,6 +275,7 @@ export async function createShoppingCartAction(
 
   revalidatePath("/");
   revalidatePath("/recipes");
+  revalidatePath("/shopping");
 
   return {
     success: "Shopping cart generated.",

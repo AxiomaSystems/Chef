@@ -391,7 +391,7 @@ export const cartExample = {
 };
 
 export const createShoppingCartRequestExample = {
-  retailer: 'walmart',
+  retailer: 'instacart',
 };
 
 export const shoppingCartExample = {
