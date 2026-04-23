@@ -8,6 +8,7 @@ import { CommonHttpModule } from './common/http/common-http.module';
 import { CuisinesModule } from './cuisines/cuisines.module';
 import { IngredientsModule } from './ingredients/ingredients.module';
 import { MatchingModule } from './matching/matching.module';
+import { MealPlanModule } from './meal-plan/meal-plan.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RecipeModule } from './recipe/recipe.module';
 import { RetailersModule } from './retailers/retailers.module';
@@ -24,6 +25,7 @@ import { UserModule } from './user/user.module';
     TagsModule,
     IngredientsModule,
     RecipeModule,
+    MealPlanModule,
     AggregationModule,
     MatchingModule,
     RetailersModule,

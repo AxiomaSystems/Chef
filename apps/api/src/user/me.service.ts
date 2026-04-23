@@ -5,13 +5,20 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { UserPreferences, UserStats } from '@cart/shared';
+import type {
+  CheckoutProfile,
+  PaymentCard,
+  SavedAddress,
+  UserPreferences,
+  UserStats,
+} from '@cart/shared';
 import { PasswordHasherService } from '../auth/password-hasher.service';
 import { mapCuisine } from '../cuisines/cuisines.mapper';
 import { PrismaService } from '../prisma/prisma.service';
 import { mapTag } from '../tags/tags.mapper';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
+import { UpdateCheckoutProfileDto } from './dto/update-checkout-profile.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateMePreferencesDto } from './dto/update-me-preferences.dto';
 
@@ -97,6 +104,66 @@ export class MeService {
         user.onboardingCompletedAt?.toISOString() ?? undefined,
       created_at: user.createdAt.toISOString(),
       updated_at: user.updatedAt.toISOString(),
+    };
+  }
+
+  private normalizeSavedAddresses(addresses: SavedAddress[]): SavedAddress[] {
+    return addresses.map((address) => ({
+      id: String(address.id).trim(),
+      label: String(address.label).trim(),
+      street: String(address.street).trim(),
+      city: String(address.city).trim(),
+      state: String(address.state ?? '').trim().toUpperCase().slice(0, 2),
+      zip: String(address.zip).trim(),
+      isDefault: Boolean(address.isDefault),
+    }));
+  }
+
+  private normalizePaymentCards(cards: PaymentCard[]): PaymentCard[] {
+    return cards.map((card) => ({
+      id: String(card.id).trim(),
+      cardType: card.cardType,
+      lastFour: String(card.lastFour).replace(/\D/g, '').slice(-4),
+      expiry: String(card.expiry).trim(),
+      name: String(card.name).trim(),
+      isDefault: Boolean(card.isDefault),
+    }));
+  }
+
+  private assertSingleDefault<T extends { isDefault: boolean }>(
+    items: T[],
+    label: string,
+  ) {
+    const defaults = items.filter((item) => item.isDefault).length;
+    if (defaults > 1) {
+      throw new BadRequestException(`${label} can only have one default entry`);
+    }
+  }
+
+  private assertUniqueIds(items: Array<{ id: string }>, label: string) {
+    if (new Set(items.map((item) => item.id)).size !== items.length) {
+      throw new BadRequestException(`${label} contains duplicate ids`);
+    }
+  }
+
+  private mapCheckoutProfile(row: {
+    savedAddressesJson: string | null;
+    paymentCardsJson: string | null;
+  }): CheckoutProfile {
+    const savedAddresses = row.savedAddressesJson
+      ? this.normalizeSavedAddresses(
+          JSON.parse(row.savedAddressesJson) as SavedAddress[],
+        )
+      : [];
+    const paymentCards = row.paymentCardsJson
+      ? this.normalizePaymentCards(
+          JSON.parse(row.paymentCardsJson) as PaymentCard[],
+        )
+      : [];
+
+    return {
+      saved_addresses: savedAddresses,
+      payment_cards: paymentCards,
     };
   }
 
@@ -282,6 +349,28 @@ export class MeService {
     return this.mapPreferences({ user, preferredCuisines, preferredTags });
   }
 
+  async getCheckoutProfile(userId: string): Promise<CheckoutProfile> {
+    await this.findUserOrThrow(userId);
+
+    const rows = await this.prisma.$queryRawUnsafe<
+      Array<{ savedAddressesJson: string | null; paymentCardsJson: string | null }>
+    >(
+      `
+        SELECT
+          "savedAddresses"::text AS "savedAddressesJson",
+          "paymentCards"::text AS "paymentCardsJson"
+        FROM "User"
+        WHERE "id" = $1
+        LIMIT 1
+      `,
+      userId,
+    );
+
+    return this.mapCheckoutProfile(
+      rows[0] ?? { savedAddressesJson: null, paymentCardsJson: null },
+    );
+  }
+
   async updatePreferences(
     userId: string,
     input: UpdateMePreferencesDto,
@@ -368,5 +457,36 @@ export class MeService {
     ]);
 
     return this.getPreferences(userId);
+  }
+
+  async updateCheckoutProfile(
+    userId: string,
+    input: UpdateCheckoutProfileDto,
+  ): Promise<CheckoutProfile> {
+    await this.findUserOrThrow(userId);
+
+    const savedAddresses = this.normalizeSavedAddresses(input.saved_addresses);
+    const paymentCards = this.normalizePaymentCards(input.payment_cards);
+
+    this.assertUniqueIds(savedAddresses, 'saved_addresses');
+    this.assertUniqueIds(paymentCards, 'payment_cards');
+    this.assertSingleDefault(savedAddresses, 'saved_addresses');
+    this.assertSingleDefault(paymentCards, 'payment_cards');
+
+    await this.prisma.$executeRawUnsafe(
+      `
+        UPDATE "User"
+        SET
+          "savedAddresses" = $2::jsonb,
+          "paymentCards" = $3::jsonb,
+          "updatedAt" = NOW()
+        WHERE "id" = $1
+      `,
+      userId,
+      JSON.stringify(savedAddresses),
+      JSON.stringify(paymentCards),
+    );
+
+    return this.getCheckoutProfile(userId);
   }
 }

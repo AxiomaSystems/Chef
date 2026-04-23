@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
 import { createRecipeAction, updateRecipeAction } from "@/app/home-actions";
 
@@ -57,6 +57,17 @@ export function RecipeCreateModal({
   const [coverImageUrl, setCoverImageUrl] = useState(
     initialRecipe?.cover_image_url ?? "",
   );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleImageFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setCoverImageUrl(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
     initialRecipe?.tag_ids ?? [],
   );
@@ -327,15 +338,51 @@ export function RecipeCreateModal({
 
             <div className="space-y-1">
               <label className="text-label-sm uppercase tracking-wide text-outline">
-                Cover Image URL
+                Cover Image
               </label>
               <input
-                type="url"
-                value={coverImageUrl}
-                onChange={(event) => setCoverImageUrl(event.target.value)}
-                placeholder="https://..."
-                className="w-full rounded-xl border border-outline-variant/50 bg-white px-4 py-2.5 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageFile}
               />
+              {coverImageUrl ? (
+                <div className="relative overflow-hidden rounded-xl border border-outline-variant/50">
+                  <img
+                    src={coverImageUrl}
+                    alt="Cover preview"
+                    className="h-32 w-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCoverImageUrl("");
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">close</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-black/70"
+                  >
+                    <span className="material-symbols-outlined text-[12px]">edit</span>
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-outline-variant/50 bg-white px-4 py-6 text-body-sm text-outline transition-colors hover:bg-surface-container-low"
+                >
+                  <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
+                  Upload cover image
+                </button>
+              )}
             </div>
           </section>
 

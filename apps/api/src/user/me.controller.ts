@@ -6,15 +6,18 @@ import {
   ApiChangePassword,
   ApiGetMe,
   ApiGetMePreferences,
+  ApiGetCheckoutProfile,
   ApiGetMeStats,
   ApiMeController,
   ApiCompleteOnboarding,
   ApiSetPassword,
   ApiUpdateMe,
+  ApiUpdateCheckoutProfile,
   ApiUpdateMePreferences,
 } from './user.swagger';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
+import { UpdateCheckoutProfileDto } from './dto/update-checkout-profile.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateMePreferencesDto } from './dto/update-me-preferences.dto';
 import { MeService } from './me.service';
@@ -63,6 +66,12 @@ export class MeController {
     return this.meService.getPreferences(user.sub);
   }
 
+  @Get('checkout-profile')
+  @ApiGetCheckoutProfile()
+  getCheckoutProfile(@CurrentUser() user: AuthenticatedUser) {
+    return this.meService.getCheckoutProfile(user.sub);
+  }
+
   @Post('onboarding/complete')
   @HttpCode(200)
   @ApiCompleteOnboarding()
@@ -86,5 +95,14 @@ export class MeController {
     @Body() input: UpdateMePreferencesDto,
   ) {
     return this.meService.updatePreferences(user.sub, input);
+  }
+
+  @Put('checkout-profile')
+  @ApiUpdateCheckoutProfile()
+  updateCheckoutProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() input: UpdateCheckoutProfileDto,
+  ) {
+    return this.meService.updateCheckoutProfile(user.sub, input);
   }
 }

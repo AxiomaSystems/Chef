@@ -15,6 +15,11 @@ export type PreferencesActionState = {
   success?: string;
 };
 
+export type CheckoutProfileActionState = {
+  error?: string;
+  success?: string;
+};
+
 export type SecurityActionState = {
   error?: string;
   success?: string;
@@ -202,5 +207,47 @@ export async function setPasswordAction(
 
   return {
     success: "Password added to this account.",
+  };
+}
+
+export async function updateCheckoutProfileAction(payload: {
+  saved_addresses: Array<{
+    id: string;
+    label: string;
+    street: string;
+    city: string;
+    state: string;
+    zip: string;
+    isDefault: boolean;
+  }>;
+  payment_cards: Array<{
+    id: string;
+    cardType: "Visa" | "Mastercard" | "Amex" | "Discover";
+    lastFour: string;
+    expiry: string;
+    name: string;
+    isDefault: boolean;
+  }>;
+}): Promise<CheckoutProfileActionState> {
+  const response = await callAuthedJson("/me/checkout-profile", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: "Unable to save your checkout details right now.",
+    };
+  }
+
+  revalidatePath("/account");
+  revalidatePath("/account/settings/payment");
+  revalidatePath("/shopping");
+
+  return {
+    success: "Checkout details updated.",
   };
 }

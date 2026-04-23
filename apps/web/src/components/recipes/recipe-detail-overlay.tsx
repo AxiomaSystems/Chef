@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import type { BaseRecipe } from "@cart/shared";
 import { RecipeImage } from "../ui/recipe-image";
+import { deleteRecipeAction } from "@/app/home-actions";
 
 function getDietaryBadges(recipe: BaseRecipe) {
   return recipe.tags.filter((t) => t.kind === "dietary_badge").slice(0, 4);
@@ -12,17 +14,39 @@ export function RecipeDetailOverlay({
   onClose,
   onAddToCart,
   onEdit,
+  onDeleted,
 }: {
   recipe: BaseRecipe | null;
   onClose: () => void;
   onAddToCart: (recipe: BaseRecipe) => void;
   onEdit?: (recipe: BaseRecipe) => void;
+  onDeleted?: (recipeId: string) => void;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | undefined>();
+  const [, startDelete] = useTransition();
+  const [deleting, setDeleting] = useState(false);
+
   if (!recipe) return null;
 
   const badges    = getDietaryBadges(recipe);
   const nutrition = recipe.nutrition_data ?? {};
   const canEdit = !!recipe.owner_user_id && !recipe.is_system_recipe;
+
+  function handleDelete() {
+    setDeleteError(undefined);
+    setDeleting(true);
+    startDelete(async () => {
+      const result = await deleteRecipeAction(recipe!.id);
+      setDeleting(false);
+      if (result.error) {
+        setDeleteError(result.error);
+        setConfirmDelete(false);
+        return;
+      }
+      onDeleted?.(recipe!.id);
+    });
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6">
@@ -184,11 +208,47 @@ export function RecipeDetailOverlay({
 
         {/* ── Footer CTA ───────────────────────────────────────── */}
         <div className="border-t border-outline-variant/30 px-6 py-4 bg-white flex items-center justify-between gap-4 flex-shrink-0">
-          <p className="text-body-sm text-outline">
-            {recipe.ingredients.length} ingredients · {recipe.servings} servings
-            {nutrition.calories ? ` · ${nutrition.calories} kcal` : ""}
-          </p>
           <div className="flex items-center gap-3">
+            <p className="text-body-sm text-outline">
+              {recipe.ingredients.length} ingredients · {recipe.servings} servings
+              {nutrition.calories ? ` · ${nutrition.calories} kcal` : ""}
+            </p>
+            {deleteError && (
+              <p className="text-body-sm text-error">{deleteError}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {canEdit && onDeleted && !confirmDelete && (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-full border border-error/40 text-label-md font-semibold text-error hover:bg-error-container/30 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px]">delete</span>
+                Delete
+              </button>
+            )}
+            {canEdit && onDeleted && confirmDelete && (
+              <div className="flex items-center gap-2">
+                <span className="text-body-sm text-on-surface-variant">Delete this recipe?</span>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleting}
+                  className="px-3 py-1.5 rounded-full border border-outline-variant text-label-sm text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-error text-on-error text-label-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {deleting && (
+                    <span className="material-symbols-outlined animate-spin text-[14px]">refresh</span>
+                  )}
+                  {deleting ? "Deleting…" : "Yes, delete"}
+                </button>
+              </div>
+            )}
             {canEdit && onEdit && (
               <button
                 onClick={() => onEdit(recipe)}

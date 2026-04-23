@@ -38,7 +38,7 @@ export function HeroRecipe({
           <div className="absolute bottom-0 left-0 p-8 w-full">
             <div className="flex items-center gap-2 mb-3 flex-wrap">
               <span className="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                Featured Recipe
+                Try Tonight
               </span>
               <Badge variant="primary">{recipe.cuisine.label}</Badge>
               {recipe.tags.slice(0, 2).map((tag) => (

@@ -236,13 +236,27 @@ export function RecipeLibrary(props: {
                     onClick={() => setActiveRecipeId(recipe.id)}
                     className="overflow-hidden rounded-[1.35rem] border border-[#d7c2b9] bg-[#faf9f6]/72 text-left transition hover:border-[#895032]/28 hover:bg-white/82"
                   >
-                    <RecipeImage
-                      src={recipe.cover_image_url}
-                      alt={recipe.name}
-                      seed={recipe.id}
-                      className="h-28 overflow-hidden border-b border-[#d7c2b9]"
-                      imgClassName="h-full w-full object-cover"
-                    />
+                    <div className="relative h-28 overflow-hidden border-b border-[#d7c2b9]">
+                      <RecipeImage
+                        src={recipe.cover_image_url}
+                        alt={recipe.name}
+                        seed={recipe.id}
+                        className="h-full w-full"
+                        imgClassName="h-full w-full object-cover"
+                      />
+                      {badges.length > 0 && (
+                        <div className="absolute bottom-2 left-2 flex flex-wrap gap-1.5">
+                          {badges.map((badge) => (
+                            <span
+                              key={badge.id}
+                              className="rounded-full border border-[#d7c2b9] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#895032]"
+                            >
+                              {badge.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                     <div className="grid gap-2 p-4">
                       <div className="flex items-start justify-between gap-3">
@@ -262,17 +276,6 @@ export function RecipeLibrary(props: {
                       <p className="line-clamp-2 text-sm leading-6 text-[#85736c]">
                         {recipe.description?.trim() || "No description yet."}
                       </p>
-
-                      <div className="flex min-h-6 flex-wrap gap-1.5">
-                        {badges.map((badge) => (
-                          <span
-                            key={badge.id}
-                            className="rounded-full border border-[#d7c2b9] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#895032]"
-                          >
-                            {badge.name}
-                          </span>
-                        ))}
-                      </div>
                     </div>
                   </button>
                 );

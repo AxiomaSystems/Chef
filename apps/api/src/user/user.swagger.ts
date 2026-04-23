@@ -10,6 +10,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import {
+  CheckoutProfileResponseDto,
   ErrorResponseDto,
   MeResponseDto,
   UserPreferencesResponseDto,
@@ -17,14 +18,17 @@ import {
 } from '../common/http/swagger.dto';
 import {
   badRequestErrorExample,
+  checkoutProfileExample,
   forbiddenErrorExample,
   meProfileExample,
   mePreferencesExample,
   meStatsExample,
+  updateCheckoutProfileRequestExample,
   updateMePreferencesRequestExample,
 } from '../common/http/swagger.examples';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
+import { UpdateCheckoutProfileDto } from './dto/update-checkout-profile.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateMePreferencesDto } from './dto/update-me-preferences.dto';
 
@@ -285,6 +289,78 @@ export const ApiUpdateMePreferences = () =>
                 ...forbiddenErrorExample,
                 message: 'Preferences currently support only shared system tags',
               },
+            },
+          },
+        },
+      },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiGetCheckoutProfile = () =>
+  applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({ summary: 'Get saved checkout addresses and cards for the current authenticated user' }),
+    ApiOkResponse({
+      description: 'Returns saved addresses and payment cards for checkout.',
+      type: CheckoutProfileResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            checkoutProfile: {
+              summary: 'Saved checkout profile',
+              value: checkoutProfileExample,
+            },
+          },
+        },
+      },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiUpdateCheckoutProfile = () =>
+  applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({ summary: 'Replace saved checkout addresses and cards for the current authenticated user' }),
+    ApiBody({
+      type: UpdateCheckoutProfileDto,
+      required: true,
+      examples: {
+        replaceCheckoutProfile: {
+          summary: 'Replace saved addresses and cards',
+          value: updateCheckoutProfileRequestExample,
+        },
+      },
+    }),
+    ApiOkResponse({
+      description: 'Returns the updated checkout profile.',
+      type: CheckoutProfileResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            updatedCheckoutProfile: {
+              summary: 'Updated checkout profile',
+              value: checkoutProfileExample,
+            },
+          },
+        },
+      },
+    }),
+    ApiBadRequestResponse({
+      description: 'Invalid checkout profile payload.',
+      type: ErrorResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            invalidCheckoutProfile: {
+              summary: 'Validation error',
+              value: badRequestErrorExample,
             },
           },
         },

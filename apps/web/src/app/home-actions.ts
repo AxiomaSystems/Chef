@@ -402,6 +402,24 @@ export async function updateRecipeAction(
   return { recipe };
 }
 
+export async function deleteRecipeAction(
+  recipeId: string,
+): Promise<{ error?: string }> {
+  const id = String(recipeId).trim();
+  if (!id) return { error: "Recipe not found." };
+
+  const response = await callAuthedJson(`/recipes/${id}`, {
+    method: "DELETE",
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return { error: await readErrorMessage(response, "Unable to delete recipe right now.") };
+  }
+
+  revalidatePath("/recipes");
+  return {};
+}
+
 export async function deleteShoppingCartAction(
   shoppingCartId: string,
 ): Promise<{ error?: string }> {

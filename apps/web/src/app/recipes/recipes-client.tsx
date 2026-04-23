@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
@@ -48,6 +48,7 @@ export function RecipesClient({
   const [buildError, setBuildError]       = useState<string | undefined>();
   const [isBuilding, startBuilding]       = useTransition();
   const [, startFork]                     = useTransition();
+  const recipeGridRef = useRef<HTMLDivElement>(null);
 
   const dietaryTags = tags.filter((t) => t.kind === "dietary_badge").slice(0, 6);
 
@@ -158,7 +159,10 @@ export function RecipesClient({
 
             {/* Explore templates */}
             <button
-              onClick={() => setTab("all")}
+              onClick={() => {
+                setTab("all");
+                setTimeout(() => recipeGridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+              }}
               className="bg-primary-surface rounded-2xl p-5 flex flex-col gap-3 cursor-pointer hover:brightness-95 transition-all text-left border border-primary-fixed-dim/20"
             >
               <div className="w-12 h-12 bg-primary-fixed-dim/20 rounded-xl flex items-center justify-center">
@@ -256,6 +260,7 @@ export function RecipesClient({
         </div>
 
         {/* ── Recipe grid ─────────────────────────────────────── */}
+        <div ref={recipeGridRef} />
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-20 text-center">
             <span className="material-symbols-outlined text-[48px] text-outline-variant">
@@ -392,6 +397,10 @@ export function RecipesClient({
           onEdit={(recipe) => {
             setSelectedRecipe(null);
             setEditingRecipe(recipe);
+          }}
+          onDeleted={(id) => {
+            setRecipes((prev) => prev.filter((r) => r.id !== id));
+            setSelectedRecipe(null);
           }}
         />
       )}

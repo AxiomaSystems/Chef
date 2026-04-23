@@ -100,16 +100,16 @@ export function CartSidebarCards({
       {/* Quick start card */}
       <div className="bg-primary-fixed-dim p-6 rounded-[2rem] border border-primary-fixed relative overflow-hidden">
         <div className="relative z-10">
-          <h4 className="text-headline-sm font-bold text-on-primary-fixed mb-1">Ready to plan?</h4>
+          <h4 className="text-headline-sm font-bold text-on-primary-fixed mb-1">Ready to cook?</h4>
           <p className="text-body-sm text-on-primary-container mb-4">
-            Pick recipes and generate a grocery cart in seconds.
+            Browse recipes, save favourites, and build your grocery list.
           </p>
           <Link
             href="/recipes"
             className="inline-flex items-center gap-2 bg-primary text-on-primary font-semibold text-label-md px-4 py-2.5 rounded-full hover:bg-on-primary-container transition-colors shadow-md"
           >
             <span className="material-symbols-outlined text-[16px]">add</span>
-            New cart
+            New Recipe
           </Link>
         </div>
         <span className="material-symbols-outlined absolute -right-4 -bottom-4 text-primary/10 text-[96px] rotate-12">

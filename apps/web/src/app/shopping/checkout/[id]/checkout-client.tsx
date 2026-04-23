@@ -3,9 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type {
+  CheckoutProfile,
   MatchedIngredientProduct,
   ShoppingCart,
-  UserPreferences,
 } from "@cart/shared";
 import { Button } from "@/components/ui/button";
 
@@ -84,16 +84,35 @@ function lineSubtitle(item: MatchedIngredientProduct) {
 export function CheckoutClient({
   shoppingCart,
   cartName,
-  preferences,
+  checkoutProfile,
 }: {
   shoppingCart: ShoppingCart;
   cartName: string;
-  preferences: UserPreferences;
+  checkoutProfile: CheckoutProfile;
 }) {
   const [quantities, setQuantities] = useState(() =>
     buildInitialQuantities(shoppingCart.matched_items),
   );
   const [placed, setPlaced] = useState(false);
+
+  const addresses = checkoutProfile.saved_addresses;
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    () =>
+      (addresses.find((address) => address.isDefault) ??
+        addresses[0] ??
+        null)?.id ?? null,
+  );
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
+  const selectedAddress =
+    addresses.find((address) => address.id === selectedAddressId) ?? null;
+
+  const cards = checkoutProfile.payment_cards;
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(
+    () =>
+      (cards.find((card) => card.isDefault) ?? cards[0] ?? null)?.id ?? null,
+  );
+  const [showCardPicker, setShowCardPicker] = useState(false);
+  const selectedCard = cards.find((card) => card.id === selectedCardId) ?? null;
 
   const subtotal = useMemo(
     () => subtotalForItems(shoppingCart.matched_items, quantities),
@@ -103,14 +122,6 @@ export function CheckoutClient({
   const estimatedTax = Number((subtotal * 0.0825).toFixed(2));
   const total = Number((subtotal + deliveryFee + estimatedTax).toFixed(2));
   const itemCount = quantities.reduce((sum, quantity) => sum + quantity, 0);
-  const locationLabel =
-    preferences.shopping_location?.label?.trim() ||
-    (preferences.shopping_location?.zip_code
-      ? `ZIP ${preferences.shopping_location.zip_code}`
-      : "Add a shopping location in preferences");
-  const addressLine = preferences.shopping_location?.zip_code
-    ? `${locationLabel}, ${preferences.shopping_location.zip_code}`
-    : locationLabel;
 
   function adjustQuantity(index: number, delta: number) {
     setQuantities((current) =>
@@ -339,28 +350,107 @@ export function CheckoutClient({
                     <p className="text-label-lg text-on-surface">
                       Delivery Address
                     </p>
-                    <Link
-                      href="/account/settings/preferences"
-                      className="text-label-md text-primary hover:underline"
-                    >
-                      Change
-                    </Link>
+                    {addresses.length > 0 && (
+                      <button
+                        onClick={() => setShowAddressPicker((value) => !value)}
+                        className="text-label-md text-primary hover:underline"
+                      >
+                        {showAddressPicker ? "Cancel" : "Change"}
+                      </button>
+                    )}
                   </div>
-                  <div className="rounded-[20px] bg-white p-4">
-                    <div className="flex items-start gap-3">
-                      <span className="material-symbols-outlined text-primary">
-                        location_on
+
+                  {addresses.length === 0 ? (
+                    <div className="flex items-center gap-3 rounded-[20px] bg-white p-4">
+                      <span className="material-symbols-outlined text-outline-variant">
+                        location_off
                       </span>
-                      <div>
-                        <p className="text-body-md text-on-surface">
-                          {addressLine}
-                        </p>
-                        <p className="mt-1 text-body-sm text-outline">
-                          Delivery window: Today, 5:00 PM - 6:00 PM
+                      <div className="flex-1">
+                        <p className="text-body-sm text-on-surface-variant">
+                          No delivery address saved.
                         </p>
                       </div>
+                      <Link
+                        href="/account/settings/payment"
+                        className="shrink-0 text-label-sm font-semibold text-primary hover:underline"
+                      >
+                        Add address
+                      </Link>
                     </div>
-                  </div>
+                  ) : showAddressPicker ? (
+                    <div className="space-y-2 rounded-[20px] bg-white p-4">
+                      {addresses.map((address) => (
+                        <label
+                          key={address.id}
+                          className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${
+                            selectedAddressId === address.id
+                              ? "border-primary bg-primary/5"
+                              : "border-outline-variant/30 hover:bg-surface-container-low"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="delivery-address"
+                            checked={selectedAddressId === address.id}
+                            onChange={() => {
+                              setSelectedAddressId(address.id);
+                              setShowAddressPicker(false);
+                            }}
+                            className="accent-primary"
+                          />
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-container">
+                            <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
+                              location_on
+                            </span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-body-sm font-semibold text-on-surface">
+                              {address.label}
+                              {address.isDefault && (
+                                <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-primary">
+                                  Default
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-[11px] text-outline">
+                              {address.street}, {address.city}
+                              {address.state ? `, ${address.state}` : ""}{" "}
+                              {address.zip}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                      <Link
+                        href="/account/settings/payment"
+                        className="mt-1 flex items-center gap-1.5 text-label-sm text-primary hover:underline"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">
+                          add
+                        </span>
+                        Manage addresses
+                      </Link>
+                    </div>
+                  ) : selectedAddress ? (
+                    <div className="rounded-[20px] bg-white p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="material-symbols-outlined text-primary">
+                          location_on
+                        </span>
+                        <div>
+                          <p className="text-body-md text-on-surface">
+                            {selectedAddress.label}
+                          </p>
+                          <p className="mt-0.5 text-body-sm text-outline">
+                            {selectedAddress.street}, {selectedAddress.city}
+                            {selectedAddress.state
+                              ? `, ${selectedAddress.state}`
+                              : ""}{" "}
+                            {selectedAddress.zip}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div>
@@ -368,28 +458,106 @@ export function CheckoutClient({
                     <p className="text-label-lg text-on-surface">
                       Payment Method
                     </p>
-                    <span className="text-label-md text-primary">Edit</span>
+                    {cards.length > 0 && (
+                      <button
+                        onClick={() => setShowCardPicker((value) => !value)}
+                        className="text-label-md text-primary hover:underline"
+                      >
+                        {showCardPicker ? "Cancel" : "Change"}
+                      </button>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between rounded-[20px] bg-white p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container">
-                        <span className="material-symbols-outlined text-on-surface-variant">
-                          credit_card
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-body-md text-on-surface">
-                          Visa ending in 8821
-                        </p>
-                        <p className="text-body-sm text-outline">
-                          Default payment method
+
+                  {cards.length === 0 ? (
+                    <div className="flex items-center gap-3 rounded-[20px] bg-white p-4">
+                      <span className="material-symbols-outlined text-outline-variant">
+                        credit_card_off
+                      </span>
+                      <div className="flex-1">
+                        <p className="text-body-sm text-on-surface-variant">
+                          No payment method saved.
                         </p>
                       </div>
+                      <Link
+                        href="/account/settings/payment"
+                        className="shrink-0 text-label-sm font-semibold text-primary hover:underline"
+                      >
+                        Add card
+                      </Link>
                     </div>
-                    <span className="material-symbols-outlined text-outline">
-                      chevron_right
-                    </span>
-                  </div>
+                  ) : showCardPicker ? (
+                    <div className="space-y-2 rounded-[20px] bg-white p-4">
+                      {cards.map((card) => (
+                        <label
+                          key={card.id}
+                          className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${
+                            selectedCardId === card.id
+                              ? "border-primary bg-primary/5"
+                              : "border-outline-variant/30 hover:bg-surface-container-low"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="payment-card"
+                            checked={selectedCardId === card.id}
+                            onChange={() => {
+                              setSelectedCardId(card.id);
+                              setShowCardPicker(false);
+                            }}
+                            className="accent-primary"
+                          />
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-container">
+                            <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
+                              credit_card
+                            </span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-body-sm font-semibold text-on-surface">
+                              {card.cardType} ending in {card.lastFour}
+                              {card.isDefault && (
+                                <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-primary">
+                                  Default
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-[11px] text-outline">
+                              {card.name} | Exp {card.expiry}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                      <Link
+                        href="/account/settings/payment"
+                        className="mt-1 flex items-center gap-1.5 text-label-sm text-primary hover:underline"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">
+                          add
+                        </span>
+                        Manage cards
+                      </Link>
+                    </div>
+                  ) : selectedCard ? (
+                    <div className="flex items-center justify-between rounded-[20px] bg-white p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container">
+                          <span className="material-symbols-outlined text-on-surface-variant">
+                            credit_card
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-body-md text-on-surface">
+                            {selectedCard.cardType} ending in {selectedCard.lastFour}
+                          </p>
+                          <p className="text-body-sm text-outline">
+                            {selectedCard.name} | Exp {selectedCard.expiry}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="material-symbols-outlined text-outline">
+                        chevron_right
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 

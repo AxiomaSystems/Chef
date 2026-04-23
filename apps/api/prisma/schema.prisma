@@ -51,6 +51,12 @@ enum KitchenInventoryConfidence {
   high
 }
 
+enum MealType {
+  breakfast
+  lunch
+  dinner
+}
+
 model User {
   id             String          @id @default(cuid())
   email          String          @unique
@@ -62,6 +68,8 @@ model User {
   preferredLatitude Float?
   preferredLongitude Float?
   preferredKrogerLocationId String?
+  savedAddresses Json?
+  paymentCards Json?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   authIdentities AuthIdentity[]
@@ -74,6 +82,7 @@ model User {
   preferredCuisines UserPreferredCuisine[]
   preferredTags  UserPreferredTag[]
   kitchenInventoryItems KitchenInventoryItem[]
+  mealPlans      MealPlan[]
 }
 
 model AuthIdentity {
@@ -311,4 +320,17 @@ model ShoppingCart {
   @@index([userId, createdAt])
   @@index([cartId])
   @@index([cartDraftId])
+}
+
+model MealPlan {
+  id        String   @id @default(cuid())
+  userId    String
+  weekStart DateTime
+  days      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([userId, weekStart])
 }

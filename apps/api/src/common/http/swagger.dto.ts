@@ -195,6 +195,57 @@ export class UserPreferencesResponseDto {
   preferred_tags!: TagResponseDto[];
 }
 
+export class SavedAddressResponseDto {
+  @ApiProperty({ example: 'address-1' })
+  id!: string;
+
+  @ApiProperty({ example: 'Home' })
+  label!: string;
+
+  @ApiProperty({ example: '2 E South Street' })
+  street!: string;
+
+  @ApiProperty({ example: 'Galesburg' })
+  city!: string;
+
+  @ApiProperty({ example: 'IL' })
+  state!: string;
+
+  @ApiProperty({ example: '61401' })
+  zip!: string;
+
+  @ApiProperty({ example: true })
+  isDefault!: boolean;
+}
+
+export class PaymentCardResponseDto {
+  @ApiProperty({ example: 'card-1' })
+  id!: string;
+
+  @ApiProperty({ example: 'Visa' })
+  cardType!: 'Visa' | 'Mastercard' | 'Amex' | 'Discover';
+
+  @ApiProperty({ example: '2222' })
+  lastFour!: string;
+
+  @ApiProperty({ example: '07/28' })
+  expiry!: string;
+
+  @ApiProperty({ example: 'Tioluwani Enoch Olubunmi' })
+  name!: string;
+
+  @ApiProperty({ example: true })
+  isDefault!: boolean;
+}
+
+export class CheckoutProfileResponseDto {
+  @ApiProperty({ type: () => [SavedAddressResponseDto] })
+  saved_addresses!: SavedAddressResponseDto[];
+
+  @ApiProperty({ type: () => [PaymentCardResponseDto] })
+  payment_cards!: PaymentCardResponseDto[];
+}
+
 export class UserStatsResponseDto {
   @ApiProperty({ example: 12 })
   owned_recipe_count!: number;
@@ -571,4 +622,35 @@ export class ShoppingCartResponseDto {
 
   @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
   updated_at!: string;
+}
+
+export class MealPlanDayResponseDto {
+  @ApiPropertyOptional({ example: 'recipe-1' })
+  breakfast?: string;
+
+  @ApiPropertyOptional({ example: 'recipe-2' })
+  lunch?: string;
+
+  @ApiPropertyOptional({ example: 'recipe-3' })
+  dinner?: string;
+}
+
+export class MealPlanResponseDto {
+  @ApiPropertyOptional({ example: 'meal-plan-1' })
+  id?: string;
+
+  @ApiPropertyOptional({ example: 'user-1' })
+  user_id?: string;
+
+  @ApiProperty({ example: '2026-04-20' })
+  week_start!: string;
+
+  @ApiProperty({ type: () => [MealPlanDayResponseDto] })
+  days!: MealPlanDayResponseDto[];
+
+  @ApiPropertyOptional({ example: '2026-04-22T12:00:00.000Z' })
+  created_at?: string;
+
+  @ApiPropertyOptional({ example: '2026-04-22T12:10:00.000Z' })
+  updated_at?: string;
 }

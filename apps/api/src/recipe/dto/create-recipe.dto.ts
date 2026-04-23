@@ -8,7 +8,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUrl,
   Min,
   ValidateIf,
   ValidateNested,
@@ -113,8 +112,8 @@ export class CreateRecipeDto {
   @ApiPropertyOptional({
     example: 'https://images.example.com/recipes/arroz-con-pollo.jpg',
   })
-  @ValidateIf((_object, value) => value !== null && value !== undefined)
-  @IsUrl()
+  @IsOptional()
+  @IsString()
   cover_image_url?: string;
 
   @ApiPropertyOptional({ type: () => RecipeNutritionDataDto })

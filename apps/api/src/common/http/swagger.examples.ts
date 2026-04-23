@@ -170,6 +170,32 @@ export const mePreferencesExample = {
   ],
 };
 
+export const checkoutProfileExample = {
+  saved_addresses: [
+    {
+      id: 'address-1',
+      label: 'Home',
+      street: '2 E South Street',
+      city: 'Galesburg',
+      state: 'IL',
+      zip: '61401',
+      isDefault: true,
+    },
+  ],
+  payment_cards: [
+    {
+      id: 'card-1',
+      cardType: 'Visa',
+      lastFour: '2222',
+      expiry: '07/28',
+      name: 'Tioluwani Enoch Olubunmi',
+      isDefault: true,
+    },
+  ],
+};
+
+export const updateCheckoutProfileRequestExample = checkoutProfileExample;
+
 export const meStatsExample = {
   owned_recipe_count: 12,
   cart_draft_count: 3,
@@ -534,6 +560,27 @@ export const shoppingCartHistoryExample = [
     updated_at: '2026-03-19T03:15:00.000Z',
   },
 ];
+
+export const mealPlanExample = {
+  id: 'meal-plan-1',
+  user_id: 'user-1',
+  week_start: '2026-04-20',
+  days: [
+    { breakfast: 'recipe-1', dinner: 'recipe-2' },
+    { lunch: 'recipe-3' },
+    {},
+    { dinner: 'recipe-1' },
+    {},
+    {},
+    {},
+  ],
+  created_at: '2026-04-22T12:00:00.000Z',
+  updated_at: '2026-04-22T12:10:00.000Z',
+};
+
+export const updateMealPlanRequestExample = {
+  days: mealPlanExample.days,
+};
 
 export const notFoundErrorExample = {
   statusCode: 404,
