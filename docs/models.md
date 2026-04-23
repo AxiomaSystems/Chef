@@ -11,6 +11,7 @@ The source of truth for implemented types is still the code:
 - [product.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/product.ts)
 - [cart.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/cart.ts)
 - [cuisine.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/cuisine.ts)
+- [vision.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/vision.ts)
 - [user.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/user.ts)
 
 This file is a readable map of those contracts plus the now-implemented conceptual split between `Cart` and `ShoppingCart`.
@@ -25,6 +26,7 @@ This file is a readable map of those contracts plus the now-implemented conceptu
 - aggregation models: what is needed
 - product models: what can be bought
 - shopping-cart models: what will actually be purchased
+- vision scan models: stage-1 kitchen detections before tracking and embeddings
 - inventory models: what the user probably has, later
 - nutrition and meal tracking models: calories/macros across recipes and meals, later
 - user models: who owns what

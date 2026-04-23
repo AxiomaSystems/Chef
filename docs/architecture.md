@@ -28,6 +28,8 @@ This document distinguishes:
 
 The current web frontend should be considered a functional validation harness, not the final product interface. The architecture priority from here is to make the backend/API/tool contracts strong enough that a future frontend rebuild can sit on top cleanly.
 
+There is now also a stage-1 vision prototype in the API. It should be treated as an internal contract and provider boundary for kitchen object detection, not as finished pantry automation.
+
 ## Startup Product Shape
 
 The startup direction is broader than the current implemented vertical slice.
@@ -65,6 +67,14 @@ Visible recipes or user-provided meal idea
   -> Product matching (provider boundary, now live on Kroger)
   -> Cost estimation
   -> Persisted shopping cart
+```
+
+Separately, an internal stage-1 vision path now exists:
+
+```text
+ScanSession
+  -> frame observations
+  -> closed-set object detections
 ```
 
 That flow is implemented in the NestJS API under:

@@ -547,6 +547,189 @@ export const badRequestErrorExample = {
   error: 'Bad Request',
 };
 
+export const visionPipelineExample = {
+  provider: 'mock-stage1-detector',
+  stage: 'detection_only',
+  tracking_enabled: false,
+  embeddings_enabled: false,
+  open_vocabulary_enabled: false,
+  packaged_food_enrichment_enabled: false,
+  segmentation_enabled: false,
+  supported_classes: [
+    {
+      id: 'onion',
+      label: 'onion',
+      category: 'produce',
+      granularity: 'exact',
+      inventory_policy: 'track',
+      stage_1_enabled: true,
+    },
+    {
+      id: 'olive_oil_bottle',
+      label: 'olive oil bottle',
+      category: 'container',
+      granularity: 'exact',
+      inventory_policy: 'track',
+      stage_1_enabled: true,
+    },
+    {
+      id: 'bottle',
+      label: 'bottle',
+      category: 'container',
+      granularity: 'generic',
+      inventory_policy: 'review',
+      stage_1_enabled: true,
+    },
+    {
+      id: 'plate',
+      label: 'plate',
+      category: 'kitchenware',
+      granularity: 'generic',
+      inventory_policy: 'ignore',
+      stage_1_enabled: true,
+    },
+  ],
+  notes: [
+    'Stage 1 is closed-set detection only. Tracking, embeddings, OCR, and DINO-style fallback are intentionally off.',
+    'The current mock detector is a development harness that accepts debug objects or parses frame_ref text so the API contract can stabilize before YOLO is wired in.',
+    'Inventory-facing logic should treat track vs review vs ignore as separate downstream actions instead of using raw class labels alone.',
+  ],
+};
+
+export const analyzeVisionScanRequestExample = {
+  scan_session_id: 'scan_demo_001',
+  frames: [
+    {
+      frame_id: 1,
+      zone_id: 'closet_left_top',
+      frame_ref: 'closet_left_top olive oil bottle spice bottle plate',
+    },
+    {
+      frame_id: 2,
+      zone_id: 'fridge_middle',
+      debug_objects: [
+        {
+          label: 'milk carton',
+          confidence: 0.97,
+          bbox: {
+            x: 0.11,
+            y: 0.08,
+            width: 0.27,
+            height: 0.62,
+          },
+        },
+        {
+          label: 'egg carton',
+          confidence: 0.93,
+          bbox: {
+            x: 0.48,
+            y: 0.5,
+            width: 0.33,
+            height: 0.22,
+          },
+        },
+      ],
+    },
+  ],
+  options: {
+    include_ignored: false,
+    max_detections_per_frame: 8,
+  },
+};
+
+export const visionScanResponseExample = {
+  scan_session_id: 'scan_demo_001',
+  pipeline: visionPipelineExample,
+  frames: [
+    {
+      frame_id: 1,
+      frame_ref: 'closet_left_top olive oil bottle spice bottle plate',
+      zone_id: 'closet_left_top',
+      detections: [
+        {
+          observation_id: 'obs_1_1_ab12cd34',
+          class_id: 'spice_bottle',
+          label: 'spice bottle',
+          category: 'container',
+          granularity: 'exact',
+          inventory_policy: 'track',
+          bbox: {
+            x: 0.08,
+            y: 0.12,
+            width: 0.22,
+            height: 0.48,
+          },
+          confidence: 0.91,
+        },
+        {
+          observation_id: 'obs_1_2_ef56gh78',
+          class_id: 'olive_oil_bottle',
+          label: 'olive oil bottle',
+          category: 'container',
+          granularity: 'exact',
+          inventory_policy: 'track',
+          bbox: {
+            x: 0.36,
+            y: 0.1,
+            width: 0.2,
+            height: 0.5,
+          },
+          confidence: 0.91,
+        },
+      ],
+    },
+    {
+      frame_id: 2,
+      zone_id: 'fridge_middle',
+      detections: [
+        {
+          observation_id: 'obs_2_1_ij90kl12',
+          class_id: 'milk_carton',
+          label: 'milk carton',
+          category: 'packaged_food',
+          granularity: 'exact',
+          inventory_policy: 'track',
+          bbox: {
+            x: 0.11,
+            y: 0.08,
+            width: 0.27,
+            height: 0.62,
+          },
+          confidence: 0.97,
+        },
+        {
+          observation_id: 'obs_2_2_mn34op56',
+          class_id: 'egg_carton',
+          label: 'egg carton',
+          category: 'packaged_food',
+          granularity: 'exact',
+          inventory_policy: 'track',
+          bbox: {
+            x: 0.48,
+            y: 0.5,
+            width: 0.33,
+            height: 0.22,
+          },
+          confidence: 0.93,
+        },
+      ],
+    },
+  ],
+  summary: {
+    frame_count: 2,
+    detection_count: 4,
+    track_candidate_count: 4,
+    review_candidate_count: 0,
+    ignored_detection_count: 0,
+    detected_labels: [
+      'egg carton',
+      'milk carton',
+      'olive oil bottle',
+      'spice bottle',
+    ],
+  },
+};
+
 export const forbiddenErrorExample = {
   statusCode: 403,
   message: 'System recipes cannot be edited',

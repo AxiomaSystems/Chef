@@ -43,6 +43,8 @@ The backend is well past scaffold stage, and the current web app validates the c
 - persisted `CartDraft`, `Cart`, and `ShoppingCart` resources behind the internal `/api/v1` contract
 - quantity controls for recipe selections in the planning composer and for line quantities in shopping carts
 - a live Kroger retailer path behind a provider boundary
+- an internal stage-1 kitchen vision detection prototype under `/api/v1/vision`
+- a separate Python `apps/vision-lab` for image, video, and early live inventory-aware vision testing
 
 ### Web App
 
@@ -88,7 +90,7 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - a Walmart provider boundary that remains available but inactive by default
 - retailer product search and shopping-cart editing APIs behind the same shopping-cart boundary
 - rule-based grocery matching refinement for produce/plain pantry items and honest no-match handling for specialty ingredients
-- internal `/api/v1` route families for `recipes`, `recipe-forks`, `cart-drafts`, `carts`, and `shopping-carts`
+- internal `/api/v1` route families for `recipes`, `recipe-forks`, `cart-drafts`, `carts`, `shopping-carts`, and `vision`
 - internal `/api/v1/tags` for visible system tags and user-owned tags
 - Swagger UI at `/docs`
 - request tracing via `x-request-id`
@@ -103,6 +105,7 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - aggregation
 - matching
 - users
+- vision scan contracts
 
 ### Database and Infra
 
@@ -122,6 +125,8 @@ The main architecture and design notes live in:
 - [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md)
 - [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md)
 - [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md)
+- [docs/vision.md](/C:/Users/akuma/repos/cart-generator/docs/vision.md)
+- [docs/vision-progress.md](/C:/Users/akuma/repos/cart-generator/docs/vision-progress.md)
 
 Those docs now describe the startup thesis, the implemented `v1` direction, the current prototype web state, the agentic product direction, and the next product/backend milestones.
 
@@ -131,6 +136,7 @@ Those docs now describe the startup thesis, the implemented `v1` direction, the 
 cart-generator/
 |-- apps/
 |   |-- api/
+|   |-- vision-lab/
 |   `-- web/
 |-- docs/
 |-- infra/
@@ -170,6 +176,34 @@ Run one app:
 pnpm dev:api
 pnpm dev:web
 ```
+
+Run the isolated computer-vision lab:
+
+```bash
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r apps/vision-lab/requirements.txt
+streamlit run apps/vision-lab/app.py
+```
+
+Or use the helper script:
+
+```bash
+.\apps\vision-lab\run_streamlit.ps1
+```
+
+Optional live webcam extras:
+
+```bash
+pip install -r apps/vision-lab/requirements-live.txt
+```
+
+Current vision-lab surfaces:
+
+- image upload with inventory-aware overlays
+- video upload with sampled-frame scan review
+- live camera with start/stop scan-session buffering when the local runtime supports `av`/WebRTC
+- local runtime inventory persisted in `apps/vision-lab/data/runtime_inventory.json`
 
 Build the workspace:
 

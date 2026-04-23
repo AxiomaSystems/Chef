@@ -19,4 +19,10 @@ yarn-error.log*
 **/package-lock.json
 .env
 .env.*
+.venv
+**/.venv
+__pycache__/
+**/__pycache__/
+*.pyc
+apps/vision-lab/data/runtime_inventory.json
 docs/superpowers/

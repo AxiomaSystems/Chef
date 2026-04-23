@@ -11,6 +11,164 @@ export class ErrorResponseDto {
   error!: string;
 }
 
+export class VisionClassDefinitionResponseDto {
+  @ApiProperty({ example: 'olive_oil_bottle' })
+  id!: string;
+
+  @ApiProperty({ example: 'olive oil bottle' })
+  label!: string;
+
+  @ApiProperty({ example: 'container' })
+  category!:
+    | 'produce'
+    | 'container'
+    | 'packaged_food'
+    | 'prepared_food'
+    | 'kitchenware'
+    | 'unknown';
+
+  @ApiProperty({ example: 'exact' })
+  granularity!: 'exact' | 'generic';
+
+  @ApiProperty({ example: 'track' })
+  inventory_policy!: 'track' | 'review' | 'ignore';
+
+  @ApiProperty({ example: true })
+  stage_1_enabled!: boolean;
+}
+
+export class VisionBoundingBoxResponseDto {
+  @ApiProperty({ example: 0.18 })
+  x!: number;
+
+  @ApiProperty({ example: 0.12 })
+  y!: number;
+
+  @ApiProperty({ example: 0.24 })
+  width!: number;
+
+  @ApiProperty({ example: 0.46 })
+  height!: number;
+}
+
+export class VisionDetectionResponseDto {
+  @ApiProperty({ example: 'obs_1_1_ab12cd34' })
+  observation_id!: string;
+
+  @ApiProperty({ example: 'olive_oil_bottle' })
+  class_id!: string;
+
+  @ApiProperty({ example: 'olive oil bottle' })
+  label!: string;
+
+  @ApiProperty({ example: 'container' })
+  category!:
+    | 'produce'
+    | 'container'
+    | 'packaged_food'
+    | 'prepared_food'
+    | 'kitchenware'
+    | 'unknown';
+
+  @ApiProperty({ example: 'exact' })
+  granularity!: 'exact' | 'generic';
+
+  @ApiProperty({ example: 'track' })
+  inventory_policy!: 'track' | 'review' | 'ignore';
+
+  @ApiProperty({ type: () => VisionBoundingBoxResponseDto })
+  bbox!: VisionBoundingBoxResponseDto;
+
+  @ApiProperty({ example: 0.94 })
+  confidence!: number;
+}
+
+export class VisionFrameResultResponseDto {
+  @ApiProperty({ example: 1 })
+  frame_id!: number;
+
+  @ApiPropertyOptional({
+    example: 'closet_left_top olive oil bottle spice bottle plate',
+  })
+  frame_ref?: string;
+
+  @ApiPropertyOptional({ example: 'closet_left_top' })
+  zone_id?: string;
+
+  @ApiPropertyOptional({ example: 1333 })
+  timestamp_ms?: number;
+
+  @ApiProperty({ type: () => [VisionDetectionResponseDto] })
+  detections!: VisionDetectionResponseDto[];
+}
+
+export class VisionScanSummaryResponseDto {
+  @ApiProperty({ example: 2 })
+  frame_count!: number;
+
+  @ApiProperty({ example: 4 })
+  detection_count!: number;
+
+  @ApiProperty({ example: 3 })
+  track_candidate_count!: number;
+
+  @ApiProperty({ example: 1 })
+  review_candidate_count!: number;
+
+  @ApiProperty({ example: 0 })
+  ignored_detection_count!: number;
+
+  @ApiProperty({ example: ['egg carton', 'milk carton', 'olive oil bottle'] })
+  detected_labels!: string[];
+}
+
+export class VisionPipelineConfigResponseDto {
+  @ApiProperty({ example: 'mock-stage1-detector' })
+  provider!: string;
+
+  @ApiProperty({ example: 'detection_only' })
+  stage!: 'detection_only';
+
+  @ApiProperty({ example: false })
+  tracking_enabled!: boolean;
+
+  @ApiProperty({ example: false })
+  embeddings_enabled!: boolean;
+
+  @ApiProperty({ example: false })
+  open_vocabulary_enabled!: boolean;
+
+  @ApiProperty({ example: false })
+  packaged_food_enrichment_enabled!: boolean;
+
+  @ApiProperty({ example: false })
+  segmentation_enabled!: boolean;
+
+  @ApiProperty({ type: () => [VisionClassDefinitionResponseDto] })
+  supported_classes!: VisionClassDefinitionResponseDto[];
+
+  @ApiProperty({
+    example: [
+      'Stage 1 is closed-set detection only. Tracking, embeddings, OCR, and DINO-style fallback are intentionally off.',
+    ],
+  })
+  notes!: string[];
+}
+
+export class VisionScanResponseDto {
+  @ApiProperty({ example: 'scan_demo_001' })
+  scan_session_id!: string;
+
+  @ApiProperty({ type: () => VisionPipelineConfigResponseDto })
+  pipeline!: VisionPipelineConfigResponseDto;
+
+  @ApiProperty({ type: () => [VisionFrameResultResponseDto] })
+  frames!: VisionFrameResultResponseDto[];
+
+  @ApiProperty({ type: () => VisionScanSummaryResponseDto })
+  summary!: VisionScanSummaryResponseDto;
+}
+
 export class RecipeStepResponseDto {
   @ApiProperty({ example: 1 })
   step!: number;

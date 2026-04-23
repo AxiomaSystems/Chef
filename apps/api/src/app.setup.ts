@@ -23,7 +23,7 @@ export const configureApp = (app: INestApplication): void => {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Cart Generator API')
     .setDescription(
-      'Backend API for auth, profiles, recipes, cart drafts, carts, shopping carts, and matching.',
+      'Backend API for auth, profiles, recipes, cart drafts, carts, shopping carts, matching, and stage-1 vision detection.',
     )
     .setVersion('0.1.0')
     .addTag('system')
@@ -36,6 +36,7 @@ export const configureApp = (app: INestApplication): void => {
     .addTag('cart-drafts')
     .addTag('carts')
     .addTag('shopping-carts')
+    .addTag('vision')
     .addBearerAuth()
     .build();
 
