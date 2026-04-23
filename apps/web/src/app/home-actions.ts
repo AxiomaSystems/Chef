@@ -186,7 +186,7 @@ export async function submitDraftFlowAction(
     }).catch(() => null);
   }
 
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   revalidatePath("/recipes");
   revalidatePath("/shopping");
 
@@ -228,7 +228,7 @@ export async function deletePlanningResourceAction(
     };
   }
 
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   revalidatePath("/recipes");
   revalidatePath("/shopping");
 
@@ -273,7 +273,7 @@ export async function createShoppingCartAction(
 
   const shoppingCart = (await response.json()) as ShoppingCart;
 
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   revalidatePath("/recipes");
   revalidatePath("/shopping");
 
@@ -314,6 +314,111 @@ export async function searchRetailerProductsAction(
   return {
     results: payload.candidates,
   };
+}
+
+export type ForkRecipeActionState = { error?: string; recipe?: BaseRecipe };
+
+export async function forkRecipeAction(
+  sourceRecipeId: string,
+): Promise<ForkRecipeActionState> {
+  const id = String(sourceRecipeId).trim();
+  if (!id) return { error: "Recipe not found." };
+
+  const response = await callAuthedJson("/recipe-forks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source_recipe_id: id }),
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return { error: await readErrorMessage(response, "Unable to save this recipe right now.") };
+  }
+
+  const recipe = (await response.json()) as BaseRecipe;
+  revalidatePath("/recipes");
+  return { recipe };
+}
+
+export type CreateRecipePayload = {
+  name: string;
+  cuisine_id: string;
+  servings: number;
+  description?: string;
+  cover_image_url?: string;
+  tag_ids?: string[];
+  ingredients: { canonical_ingredient: string; amount: number; unit: string; preparation?: string; optional?: boolean }[];
+  steps: { step: number; what_to_do: string }[];
+  nutrition_data?: {
+    calories?: number; protein_g?: number; carbs_g?: number;
+    fat_g?: number; fiber_g?: number; sugar_g?: number; sodium_mg?: number;
+  };
+};
+
+export type CreateRecipeActionState = { error?: string; recipe?: BaseRecipe };
+
+export async function createRecipeAction(
+  payload: CreateRecipePayload,
+): Promise<CreateRecipeActionState> {
+  const response = await callAuthedJson("/recipes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return { error: await readErrorMessage(response, "Unable to create recipe right now.") };
+  }
+
+  const recipe = (await response.json()) as BaseRecipe;
+  revalidatePath("/recipes");
+  return { recipe };
+}
+
+export type UpdateRecipeActionState = { error?: string; recipe?: BaseRecipe };
+
+export async function updateRecipeAction(
+  recipeId: string,
+  payload: CreateRecipePayload,
+): Promise<UpdateRecipeActionState> {
+  const id = String(recipeId).trim();
+  if (!id) {
+    return { error: "Recipe not found." };
+  }
+
+  const response = await callAuthedJson(`/recipes/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: await readErrorMessage(response, "Unable to update recipe right now."),
+    };
+  }
+
+  const recipe = (await response.json()) as BaseRecipe;
+  revalidatePath("/recipes");
+  return { recipe };
+}
+
+export async function deleteShoppingCartAction(
+  shoppingCartId: string,
+): Promise<{ error?: string }> {
+  const id = String(shoppingCartId).trim();
+  if (!id) return { error: "Shopping cart not found." };
+
+  const response = await callAuthedJson(`/shopping-carts/${id}`, {
+    method: "DELETE",
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return { error: "Unable to delete this shopping cart right now." };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/shopping");
+  return {};
 }
 
 export async function updateShoppingCartAction(

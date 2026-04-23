@@ -9,7 +9,7 @@ import {
   refreshSession,
 } from "./lib/auth";
 
-const HOME_PATH = "/";
+const HOME_PATH = "/dashboard";
 const LOGIN_PATH = "/login";
 const SIGNUP_PATH = "/signup";
 const ONBOARDING_PATH = "/onboarding";
@@ -46,6 +46,7 @@ export async function proxy(request: NextRequest) {
 
   if (
     pathname !== HOME_PATH &&
+    !pathname.startsWith(HOME_PATH + "/") &&
     pathname !== LOGIN_PATH &&
     pathname !== SIGNUP_PATH &&
     pathname !== ONBOARDING_PATH &&
@@ -104,7 +105,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/",
+    "/dashboard",
+    "/dashboard/:path*",
     "/login",
     "/signup",
     "/onboarding",

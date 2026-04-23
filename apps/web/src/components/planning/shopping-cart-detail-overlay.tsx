@@ -2,6 +2,7 @@
 
 import type { MatchedIngredientProduct, ProductCandidate, ShoppingCart } from "@cart/shared";
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { searchRetailerProductsAction, updateShoppingCartAction } from "@/app/home-actions";
 
 function fmt$(v: number) {
@@ -30,6 +31,7 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
   const [results, setResults] = useState<ProductCandidate[]>([]);
   const [searchErr, setSearchErr] = useState<string | undefined>();
   const [saveErr, setSaveErr] = useState<string | undefined>();
+  const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
   const [isSearching, startSearch] = useTransition();
   const [isSaving, startSave] = useTransition();
 
@@ -48,6 +50,18 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
   function deleteLine(i: number) {
     const next = cart!.matched_items.filter((_, idx) => idx !== i);
     setCart({ ...cart!, matched_items: next, estimated_subtotal: subtotal(next) });
+    return next;
+  }
+  function deleteAndSave(i: number) {
+    if (!cart?.id) return;
+    setDeletingIndex(i);
+    setSaveErr(undefined);
+    const next = deleteLine(i);
+    startSave(async () => {
+      const res = await updateShoppingCartAction(cart.id ?? "", next);
+      setDeletingIndex(null);
+      if (res.error) setSaveErr(res.error);
+    });
   }
   function adjustQty(i: number, delta: number) {
     const next = cart!.matched_items.map((item, idx) => {
@@ -86,29 +100,29 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6">
-      <div className="absolute inset-0 bg-[#1a1c1a]/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full sm:max-w-5xl max-h-[95vh] sm:max-h-[90vh] bg-[#faf9f6] rounded-t-2xl sm:rounded-2xl overflow-hidden flex flex-col shadow-2xl">
+      <div className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:max-w-5xl max-h-[95vh] sm:max-h-[90vh] bg-background rounded-t-2xl sm:rounded-2xl overflow-hidden flex flex-col shadow-2xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 border-b border-[#d7c2b9]/30 px-5 py-4 sm:px-6 flex-shrink-0">
+        <div className="flex items-center justify-between gap-4 border-b border-outline-variant/30 px-5 py-4 sm:px-6 flex-shrink-0">
           <div>
-            <p className="text-label-sm text-[#895032] uppercase tracking-wide">{cart.retailer}</p>
-            <h2 className="text-headline-sm text-[#1a1c1a] mt-1">Shopping Cart</h2>
-            <p className="text-body-sm text-[#85736c] mt-0.5">{lineCount} items · updated {fmtDate(updatedAt)}</p>
+            <p className="text-label-sm text-primary uppercase tracking-wide">{cart.retailer}</p>
+            <h2 className="text-headline-sm text-on-surface mt-1">Shopping Cart</h2>
+            <p className="text-body-sm text-outline mt-0.5">{lineCount} items · updated {fmtDate(updatedAt)}</p>
           </div>
           <div className="flex items-center gap-2">
             {editing ? (
               <>
                 <button
                   onClick={() => { setEditing(false); setCart(shoppingCart); setCtx(null); setResults([]); }}
-                  className="px-4 py-2 rounded-full border border-[#d7c2b9] text-label-md text-[#52443d] hover:bg-[#f4f3f1] transition-colors"
+                  className="px-4 py-2 rounded-full border border-outline-variant text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={saveChanges}
                   disabled={isSaving}
-                  className="px-4 py-2 rounded-full bg-[#895032] text-white text-label-md hover:bg-[#7a4326] disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 rounded-full bg-primary text-on-primary text-label-md hover:bg-on-primary-container disabled:opacity-50 transition-colors"
                 >
                   {isSaving ? "Saving…" : "Save Changes"}
                 </button>
@@ -116,16 +130,16 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
             ) : (
               <button
                 onClick={() => setEditing(true)}
-                className="px-4 py-2 rounded-full border border-[#d7c2b9] text-label-md text-[#52443d] hover:bg-[#f4f3f1] transition-colors"
+                className="px-4 py-2 rounded-full border border-outline-variant text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors"
               >
                 Edit Cart
               </button>
             )}
             <button
               onClick={onClose}
-              className="w-10 h-10 rounded-full border border-[#d7c2b9] flex items-center justify-center hover:bg-[#f4f3f1] transition-colors"
+              className="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center hover:bg-surface-container-low transition-colors"
             >
-              <span className="material-symbols-outlined text-[#52443d] text-[20px]">close</span>
+              <span className="material-symbols-outlined text-on-surface-variant text-[20px]">close</span>
             </button>
           </div>
         </div>
@@ -137,7 +151,7 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
             {/* Items list */}
             <div className="flex-1 space-y-3">
               {saveErr && (
-                <div className="p-3 rounded-xl bg-[#ffdad6] text-[#93000a] text-body-sm">{saveErr}</div>
+                <div className="p-3 rounded-xl bg-error-container text-on-error-container text-body-sm">{saveErr}</div>
               )}
 
               {cart.matched_items.map((item, i) => {
@@ -145,60 +159,88 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
                 const label = item.kind === "manual_item"
                   ? (item.manual_label ?? item.canonical_ingredient)
                   : item.canonical_ingredient;
+                const isDeleting = deletingIndex === i;
 
                 return (
                   <div
                     key={`${item.canonical_ingredient}-${i}`}
-                    className={`bg-white rounded-xl border p-4 shadow-sm ${item.kind === "manual_item" ? "border-[#fcb1b8]/50" : "border-[#d7c2b9]/30"}`}
+                    className={`bg-white rounded-xl border p-4 shadow-sm transition-opacity ${isDeleting ? "opacity-40" : ""} ${item.kind === "manual_item" ? "border-tertiary-container/50" : "border-outline-variant/30"}`}
                   >
                     <div className="flex items-start gap-4">
-                      <div className="w-16 h-16 rounded-lg bg-[#efeeeb] overflow-hidden flex-shrink-0">
+                      {/* Product image */}
+                      <div className="w-16 h-16 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
                         {prod?.image_url ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img src={prod.image_url} alt={prod.title} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <span className="material-symbols-outlined text-[#d7c2b9]">grocery</span>
+                            <span className="material-symbols-outlined text-outline-variant">grocery</span>
                           </div>
                         )}
                       </div>
 
                       <div className="flex-1 min-w-0">
+                        {/* Name + price row */}
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <p className="text-label-lg text-[#1a1c1a]">{prod?.title ?? label}</p>
+                            <p className="text-label-lg text-on-surface">{prod?.title ?? label}</p>
                             {prod?.brand && (
-                              <p className="text-label-sm text-[#85736c] mt-0.5">{prod.brand}</p>
+                              <p className="text-label-sm text-outline mt-0.5">{prod.brand}</p>
                             )}
                             {!prod && (
-                              <p className="text-label-sm text-[#884d54] mt-1 flex items-center gap-1">
+                              <p className="text-label-sm text-tertiary mt-1 flex items-center gap-1">
                                 <span className="material-symbols-outlined text-[14px]">info</span>
                                 No match yet
                               </p>
                             )}
                           </div>
                           {item.estimated_line_total !== undefined && (
-                            <p className="text-label-lg text-[#895032] shrink-0">{fmt$(item.estimated_line_total)}</p>
+                            <p className="text-label-lg text-primary shrink-0">{fmt$(item.estimated_line_total)}</p>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3 mt-3">
-                          {editing && prod && (
-                            <div className="flex items-center gap-2">
-                              <button onClick={() => adjustQty(i, -1)} className="w-7 h-7 rounded-full border border-[#d7c2b9] flex items-center justify-center hover:bg-[#f4f3f1] text-[#52443d] font-bold transition-colors">−</button>
-                              <span className="text-label-md text-[#1a1c1a] w-5 text-center">{item.selected_quantity ?? 1}</span>
-                              <button onClick={() => adjustQty(i, 1)} className="w-7 h-7 rounded-full border border-[#d7c2b9] flex items-center justify-center hover:bg-[#f4f3f1] text-[#52443d] font-bold transition-colors">+</button>
-                            </div>
-                          )}
-                          {editing && (
-                            <>
-                              <button onClick={() => replaceItem(i)} className="text-label-sm text-[#895032] hover:underline">Replace</button>
-                              <button onClick={() => deleteLine(i)} className="text-label-sm text-[#884d54] hover:underline">Delete</button>
-                            </>
-                          )}
-                          {item.kind === "manual_item" && (
-                            <span className="text-label-sm text-[#884d54] bg-[#fcb1b8]/30 px-2 py-0.5 rounded-full">Manual</span>
-                          )}
+                        {/* Controls row */}
+                        <div className="flex items-center justify-between mt-3">
+                          <div className="flex items-center gap-3">
+                            {/* Quantity stepper — always visible when product matched */}
+                            {prod && (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => adjustQty(i, -1)}
+                                  disabled={!editing}
+                                  className="w-7 h-7 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant font-bold transition-colors enabled:hover:bg-surface-container-low disabled:opacity-40"
+                                >
+                                  −
+                                </button>
+                                <span className="text-label-md text-on-surface w-5 text-center">{item.selected_quantity ?? 1}</span>
+                                <button
+                                  onClick={() => adjustQty(i, 1)}
+                                  disabled={!editing}
+                                  className="w-7 h-7 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant font-bold transition-colors enabled:hover:bg-surface-container-low disabled:opacity-40"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            )}
+                            {editing && (
+                              <button onClick={() => replaceItem(i)} className="text-label-sm text-primary hover:underline">
+                                Replace
+                              </button>
+                            )}
+                            {item.kind === "manual_item" && (
+                              <span className="text-label-sm text-tertiary bg-tertiary-container/30 px-2 py-0.5 rounded-full">Manual</span>
+                            )}
+                          </div>
+
+                          {/* Delete icon — always visible */}
+                          <button
+                            onClick={() => deleteAndSave(i)}
+                            disabled={isDeleting}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-outline hover:text-error hover:bg-error-container/30 transition-colors disabled:opacity-30"
+                            aria-label="Remove item"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -209,7 +251,7 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
               {editing && (
                 <button
                   onClick={() => { setCtx({ mode: "add", query: "" }); setResults([]); }}
-                  className="w-full py-3 rounded-xl border-2 border-dashed border-[#d7c2b9] text-label-lg text-[#85736c] hover:border-[#895032] hover:text-[#895032] flex items-center justify-center gap-2 transition-colors"
+                  className="w-full py-3 rounded-xl border-2 border-dashed border-outline-variant text-label-lg text-outline hover:border-primary hover:text-primary flex items-center justify-center gap-2 transition-colors"
                 >
                   <span className="material-symbols-outlined">add</span>
                   Add item manually
@@ -221,28 +263,37 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
             <div className="lg:w-72 space-y-4 flex-shrink-0">
 
               {/* Order summary */}
-              <div className="bg-white rounded-2xl border border-[#d7c2b9]/30 p-5 shadow-sm">
-                <h3 className="text-label-lg text-[#895032] mb-4">Order Summary</h3>
-                <div className="space-y-2 pb-4 border-b border-[#d7c2b9]/20">
-                  <div className="flex justify-between text-body-sm text-[#52443d]">
+              <div className="bg-white rounded-2xl border border-outline-variant/30 p-5 shadow-sm">
+                <h3 className="text-label-lg text-primary mb-4">Order Summary</h3>
+                <div className="space-y-2 pb-4 border-b border-outline-variant/20">
+                  <div className="flex justify-between text-body-sm text-on-surface-variant">
                     <span>Subtotal ({lineCount} items)</span>
                     <span>{fmt$(total)}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center mt-3">
-                  <span className="text-headline-sm text-[#1a1c1a]">Total</span>
-                  <span className="text-headline-sm text-[#895032]">{fmt$(total)}</span>
+                  <span className="text-headline-sm text-on-surface">Total</span>
+                  <span className="text-headline-sm text-primary">{fmt$(total)}</span>
                 </div>
+                {cart.id && (
+                  <Link
+                    href={`/shopping/checkout/${cart.id}`}
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ffb38e] px-5 py-3 text-label-lg font-semibold text-[#6d391d] transition-colors hover:bg-[#ffcfb6]"
+                  >
+                    Checkout
+                    <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                  </Link>
+                )}
               </div>
 
               {/* Product search panel */}
               {ctx && (
-                <div className="bg-white rounded-2xl border border-[#d7c2b9]/30 p-5 shadow-sm space-y-4">
+                <div className="bg-white rounded-2xl border border-outline-variant/30 p-5 shadow-sm space-y-4">
                   <div>
-                    <h4 className="text-label-lg text-[#1a1c1a]">
+                    <h4 className="text-label-lg text-on-surface">
                       {ctx.mode === "replace" ? "Replace item" : "Add item"}
                     </h4>
-                    <p className="text-body-sm text-[#85736c] mt-0.5">Search {cart.retailer} products</p>
+                    <p className="text-body-sm text-outline mt-0.5">Search {cart.retailer} products</p>
                   </div>
                   <div className="flex gap-2">
                     <input
@@ -251,34 +302,34 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
                       onChange={(e) => setCtx({ ...ctx, query: e.target.value })}
                       onKeyDown={(e) => e.key === "Enter" && search()}
                       placeholder="e.g. basmati rice"
-                      className="flex-1 bg-[#f4f3f1] border border-[#d7c2b9]/50 rounded-xl px-3 py-2 text-body-sm text-[#1a1c1a] focus:outline-none focus:ring-2 focus:ring-[#895032]/30"
+                      className="flex-1 bg-surface-container-low border border-outline-variant/50 rounded-xl px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                     <button
                       onClick={search}
                       disabled={isSearching}
-                      className="px-3 py-2 bg-[#895032] text-white rounded-xl text-label-sm hover:bg-[#7a4326] disabled:opacity-50 transition-colors"
+                      className="px-3 py-2 bg-primary text-on-primary rounded-xl text-label-sm hover:bg-on-primary-container disabled:opacity-50 transition-colors"
                     >
                       {isSearching ? "…" : "Search"}
                     </button>
                   </div>
-                  {searchErr && <p className="text-body-sm text-[#ba1a1a]">{searchErr}</p>}
+                  {searchErr && <p className="text-body-sm text-error">{searchErr}</p>}
                   {results.length > 0 && (
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                       {results.map((c) => (
-                        <div key={c.product_id} className="flex items-center gap-3 p-3 rounded-xl bg-[#f4f3f1] hover:bg-[#efe3b3]/40 transition-colors">
-                          <div className="w-10 h-10 rounded-lg bg-[#efeeeb] overflow-hidden flex-shrink-0">
+                        <div key={c.product_id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low hover:bg-secondary-container/40 transition-colors">
+                          <div className="w-10 h-10 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
                             {c.image_url ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img src={c.image_url} alt={c.title} className="w-full h-full object-cover" />
                             ) : null}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-label-md text-[#1a1c1a] truncate">{c.title}</p>
-                            <p className="text-label-sm text-[#895032]">{fmt$(c.price)}</p>
+                            <p className="text-label-md text-on-surface truncate">{c.title}</p>
+                            <p className="text-label-sm text-primary">{fmt$(c.price)}</p>
                           </div>
                           <button
                             onClick={() => selectCandidate(c)}
-                            className="text-label-sm text-[#895032] border border-[#895032] px-2 py-1 rounded-full hover:bg-[#ffb38e]/20 transition-colors"
+                            className="text-label-sm text-primary border border-primary px-2 py-1 rounded-full hover:bg-primary-fixed-dim/20 transition-colors"
                           >
                             Pick
                           </button>
@@ -288,7 +339,7 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
                   )}
                   <button
                     onClick={() => { setCtx(null); setResults([]); }}
-                    className="text-body-sm text-[#85736c] hover:text-[#52443d]"
+                    className="text-body-sm text-outline hover:text-on-surface-variant"
                   >
                     Cancel
                   </button>
@@ -296,16 +347,16 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
               )}
 
               {/* Ingredient overview */}
-              <details className="bg-white rounded-2xl border border-[#d7c2b9]/30 shadow-sm overflow-hidden">
-                <summary className="p-5 cursor-pointer text-label-lg text-[#52443d] flex items-center justify-between select-none">
+              <details className="bg-white rounded-2xl border border-outline-variant/30 shadow-sm overflow-hidden">
+                <summary className="p-5 cursor-pointer text-label-lg text-on-surface-variant flex items-center justify-between select-none">
                   <span>Ingredient Overview</span>
-                  <span className="text-label-md text-[#895032]">{cart.overview.length} items</span>
+                  <span className="text-label-md text-primary">{cart.overview.length} items</span>
                 </summary>
-                <div className="px-5 pb-5 space-y-2 border-t border-[#d7c2b9]/20 pt-3">
+                <div className="px-5 pb-5 space-y-2 border-t border-outline-variant/20 pt-3">
                   {cart.overview.map((ing) => (
                     <div key={`${ing.canonical_ingredient}-${ing.unit}`} className="flex justify-between text-body-sm">
-                      <span className="text-[#1a1c1a]">{ing.canonical_ingredient}</span>
-                      <span className="text-[#85736c]">{ing.total_amount} {ing.unit}</span>
+                      <span className="text-on-surface">{ing.canonical_ingredient}</span>
+                      <span className="text-outline">{ing.total_amount} {ing.unit}</span>
                     </div>
                   ))}
                 </div>

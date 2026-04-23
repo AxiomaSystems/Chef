@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/", icon: "home", label: "Home" },
+  { href: "/dashboard", icon: "home", label: "Home" },
   { href: "/recipes", icon: "receipt_long", label: "Recipes" },
   { href: "/shopping", icon: "shopping_cart", label: "Shopping" },
 ];
@@ -13,28 +13,30 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-[#FFFAF7] border-r border-[#d7c2b9]/40 z-50 p-4">
+    <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-white border-r border-outline-variant/40 z-50">
       {/* Brand */}
-      <div className="px-4 py-6 mb-2">
-        <h1 className="text-2xl font-black text-[#ffb38e]">Chef</h1>
-        <p className="text-[#85736c] text-xs mt-0.5">Meal Execution Platform</p>
+      <div className="px-6 pt-7 pb-5">
+        <Link href="/" className="text-xl font-black text-primary-fixed-dim">
+          Chef
+        </Link>
+        <p className="text-outline text-xs mt-0.5">Meal Execution Platform</p>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-1">
+      <nav className="flex-1 px-3 space-y-0.5">
         {navItems.map(({ href, icon, label }) => {
-          const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+          const active = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-full text-label-lg transition-all duration-200 ${
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-label-lg transition-all duration-150 ${
                 active
-                  ? "bg-[#FFF5F0] text-[#ffb38e]"
-                  : "text-[#52443d] hover:bg-[#FFF5F0]/60"
+                  ? "bg-primary-surface text-primary font-semibold border-r-4 border-primary-fixed-dim"
+                  : "text-on-surface-variant hover:bg-primary-surface/50"
               }`}
             >
-              <span className={`material-symbols-outlined ${active ? "icon-filled" : ""}`}>
+              <span className={`material-symbols-outlined text-[22px] ${active ? "icon-filled" : ""}`}>
                 {icon}
               </span>
               {label}
@@ -43,19 +45,32 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Account */}
-      <Link
-        href="/account/settings/overview"
-        className="mt-auto px-4 py-4 border-t border-[#d7c2b9]/30 flex items-center gap-3 hover:bg-[#FFF5F0]/60 rounded-xl transition-colors"
-      >
-        <div className="w-9 h-9 rounded-full bg-[#ffb38e] flex items-center justify-center">
-          <span className="material-symbols-outlined text-white text-[20px]">person</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-label-lg text-[#1a1c1a]">Account</span>
-          <span className="text-[10px] text-[#85736c]">Settings & preferences</span>
-        </div>
-      </Link>
+      {/* New Cart CTA */}
+      <div className="px-4 pb-4">
+        <Link
+          href="/recipes"
+          className="flex items-center justify-center gap-2 w-full py-3 bg-primary-fixed-dim text-on-primary-fixed font-bold text-label-lg rounded-full hover:bg-primary-fixed transition-colors shadow-sm"
+        >
+          <span className="material-symbols-outlined text-[18px]">add</span>
+          New Cart
+        </Link>
+      </div>
+
+      {/* User profile */}
+      <div className="px-3 pb-5 border-t border-outline-variant/30 pt-3">
+        <Link
+          href="/account/settings/overview"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-primary-surface/50 transition-colors"
+        >
+          <div className="w-9 h-9 rounded-full bg-primary-fixed-dim flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-white text-[20px]">person</span>
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-label-lg text-on-surface font-semibold truncate">Account</span>
+            <span className="text-[10px] text-outline truncate">Settings & preferences</span>
+          </div>
+        </Link>
+      </div>
     </aside>
   );
 }

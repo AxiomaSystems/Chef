@@ -70,6 +70,10 @@ export class CartPersistenceService {
     return this.cartPersistenceRepository.updateShoppingCart(userId, id, input);
   }
 
+  deleteShoppingCart(userId: string, id: string) {
+    return this.cartPersistenceRepository.deleteShoppingCart(userId, id);
+  }
+
   async findDraftsByUser(userId: string): Promise<PersistedCartDraft[]> {
     const drafts = await this.cartPersistenceRepository.findDraftsByUser(userId);
     return drafts.map(mapPersistedCartDraft);

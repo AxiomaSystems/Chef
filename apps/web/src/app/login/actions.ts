@@ -60,5 +60,5 @@ export async function loginAction(
     };
   }
 
-  redirect("/");
+  redirect("/dashboard");
 }

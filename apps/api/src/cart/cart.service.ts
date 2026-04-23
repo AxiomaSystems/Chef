@@ -300,6 +300,18 @@ export class CartService {
     return this.findShoppingCart(id, actorUserId);
   }
 
+  async removeShoppingCart(id: string, actorUserId?: string) {
+    const actor = await this.userContextService.resolveActorUser(actorUserId);
+    const deleted = await this.cartPersistenceService.deleteShoppingCart(
+      actor.id,
+      id,
+    );
+
+    if (deleted.count === 0) {
+      throw new NotFoundException(`Shopping cart ${id} not found`);
+    }
+  }
+
   async searchRetailerProducts(
     retailer: Retailer,
     query: string,

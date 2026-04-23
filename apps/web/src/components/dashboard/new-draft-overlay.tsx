@@ -14,6 +14,7 @@ import {
   submitDraftFlowAction,
   type DraftFlowActionState,
 } from "@/app/home-actions";
+import { RecipeImage } from "@/components/ui/recipe-image";
 
 const INITIAL_STATE: DraftFlowActionState = {};
 
@@ -356,18 +357,13 @@ export function NewDraftOverlay(props: {
                           : "border-[#d7c2b9] bg-white/56 hover:border-[#895032]/28"
                       }`}
                     >
-                      {recipe.cover_image_url ? (
-                        <div className="relative h-24 overflow-hidden border-b border-[#d7c2b9] bg-[#faf9f6]">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={recipe.cover_image_url}
-                            alt={recipe.name}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="relative h-24 overflow-hidden border-b border-[#d7c2b9] bg-[linear-gradient(135deg,rgba(115,135,101,0.12),rgba(245,240,228,0.42)),radial-gradient(circle_at_top_left,rgba(161,77,49,0.12),transparent_34%)]" />
-                      )}
+                      <RecipeImage
+                        src={recipe.cover_image_url}
+                        alt={recipe.name}
+                        seed={recipe.id}
+                        className="relative h-24 overflow-hidden border-b border-[#d7c2b9] bg-[#faf9f6]"
+                        imgClassName="h-full w-full object-cover"
+                      />
 
                       <div className="flex flex-1 flex-col p-3">
                         <div className="flex items-start justify-between gap-3">

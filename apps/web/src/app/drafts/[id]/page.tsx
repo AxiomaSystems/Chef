@@ -1,5 +1,6 @@
 ﻿import type { BaseRecipe } from "@cart/shared";
 import { notFound } from "next/navigation";
+import { RecipeImage } from "@/components/ui/recipe-image";
 import { PlanningDetailShell } from "@/components/planning/planning-detail-shell";
 import type { DashboardCartDraft } from "@/components/dashboard/drafts-and-carts-section";
 import { fetchAuthedResource, fetchCollection } from "@/lib/api";
@@ -77,18 +78,13 @@ export default async function DraftDetailPage(props: {
               key={`${selection.recipe_id}-${index}`}
               className="overflow-hidden rounded-[1.45rem] border border-[#d7c2b9] bg-[#faf9f6]/70"
             >
-              {selection.recipe?.cover_image_url ? (
-                <div className="h-28 overflow-hidden border-b border-[#d7c2b9]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={selection.recipe.cover_image_url}
-                    alt={selection.recipe.name}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="h-28 border-b border-[#d7c2b9] bg-[linear-gradient(135deg,rgba(115,135,101,0.12),rgba(245,240,228,0.38)),radial-gradient(circle_at_top_left,rgba(161,77,49,0.12),transparent_34%)]" />
-              )}
+              <RecipeImage
+                src={selection.recipe?.cover_image_url}
+                alt={selection.recipe?.name ?? selection.recipe_id}
+                seed={selection.recipe?.id ?? selection.recipe_id}
+                className="h-28 overflow-hidden border-b border-[#d7c2b9]"
+                imgClassName="h-full w-full object-cover"
+              />
 
               <div className="grid gap-3 p-4">
                 <div>

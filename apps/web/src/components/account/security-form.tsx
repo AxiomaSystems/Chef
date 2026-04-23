@@ -1,125 +1,103 @@
-﻿"use client";
+"use client";
 
 import type { User } from "@cart/shared";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import {
-  changePasswordAction,
-  setPasswordAction,
-  type SecurityActionState,
-} from "@/app/account/actions";
+import { changePasswordAction, setPasswordAction, type SecurityActionState } from "@/app/account/actions";
 
 const INITIAL_STATE: SecurityActionState = {};
 
-function SaveButton(props: { label: string; pendingLabel: string }) {
+function SaveButton({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
-
   return (
     <button
       type="submit"
-      className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#895032] px-6 text-sm font-semibold text-[#faf9f6] transition hover:bg-[#1a1c1a] disabled:cursor-not-allowed disabled:opacity-70"
       disabled={pending}
+      className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-primary text-on-primary font-semibold text-label-md hover:bg-on-primary-container disabled:opacity-50 transition-colors"
     >
-      {pending ? props.pendingLabel : props.label}
+      {pending && <span className="material-symbols-outlined text-[16px] animate-spin">refresh</span>}
+      {pending ? pendingLabel : label}
     </button>
   );
 }
 
-export function SecurityForm(props: { user: User }) {
-  const hasPasswordIdentity = props.user.auth_providers?.includes("password");
+export function SecurityForm({ user }: { user: User }) {
+  const hasPassword = user.auth_providers?.includes("password");
   const [state, formAction] = useActionState(
-    hasPasswordIdentity ? changePasswordAction : setPasswordAction,
+    hasPassword ? changePasswordAction : setPasswordAction,
     INITIAL_STATE,
   );
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-[#d7c2b9] bg-white/72 shadow-[0_18px_54px_rgba(21,34,27,0.08)]">
-      <div className="border-b border-[#d7c2b9] px-6 py-5 sm:px-7">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#895032]">
-          Security
-        </p>
-        <h2 className="mt-2 font-sans font-bold text-4xl leading-none text-[#1a1c1a]">
-          {hasPasswordIdentity ? "Change password" : "Add a password"}
+    <section className="bg-white rounded-2xl border border-outline-variant/30 shadow-sm overflow-hidden">
+      <div className="px-6 py-5 border-b border-outline-variant/30">
+        <p className="text-label-sm text-primary uppercase tracking-widest">Security</p>
+        <h2 className="text-headline-sm font-bold text-on-surface mt-1">
+          {hasPassword ? "Change password" : "Add a password"}
         </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-[#85736c]">
-          {hasPasswordIdentity
-            ? "This account already supports password login. Update it here without touching your Google identity."
-            : "This account is currently Google-only. Add a password if you want a second login path."}
+        <p className="text-body-sm text-outline mt-1">
+          {hasPassword
+            ? "Update your password without touching your Google login."
+            : "Add a password to get a second way to sign in alongside Google."}
         </p>
       </div>
 
-      <form action={formAction} className="grid gap-6 px-6 py-6 sm:px-7">
-        <div className="grid gap-3 rounded-[1.5rem] border border-[#d7c2b9] bg-[#faf9f6]/56 p-4">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#895032]">
-            Connected providers
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(props.user.auth_providers ?? []).map((provider) => (
-              <span
-                key={provider}
-                className="inline-flex items-center rounded-full border border-[#d7c2b9] bg-white/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[#1a1c1a]"
-              >
-                {provider === "password" ? "Email" : "Google"}
-              </span>
-            ))}
+      <form action={formAction} className="px-6 py-6 space-y-5">
+        {/* Connected providers */}
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-surface-container-low border border-outline-variant/30">
+          <span className="material-symbols-outlined text-primary text-[20px]">verified_user</span>
+          <div className="flex-1">
+            <p className="text-label-sm text-outline uppercase tracking-wide mb-1.5">Connected providers</p>
+            <div className="flex gap-1.5">
+              {(user.auth_providers ?? []).map((p) => (
+                <span key={p} className="px-2.5 py-1 rounded-full bg-white border border-outline-variant text-label-sm text-on-surface font-semibold">
+                  {p === "password" ? "Email / Password" : "Google"}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
-        {hasPasswordIdentity ? (
-          <label className="grid gap-2">
-            <span className="text-sm font-medium text-[#1a1c1a]">
-              Current password
-            </span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {hasPassword && (
+            <div className="space-y-1.5">
+              <label className="text-label-sm text-outline uppercase tracking-wide">Current password</label>
+              <input
+                type="password"
+                name="current_password"
+                autoComplete="current-password"
+                placeholder="Your current password"
+                minLength={8}
+                required
+                className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/50 bg-surface-container-low text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+              />
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <label className="text-label-sm text-outline uppercase tracking-wide">New password</label>
             <input
-              className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-[#faf9f6]/72 px-4 text-[#1a1c1a] outline-none transition focus:border-[#895032]"
               type="password"
-              name="current_password"
-              autoComplete="current-password"
-              placeholder="Your current password"
+              name="new_password"
+              autoComplete="new-password"
+              placeholder="At least 8 characters"
               minLength={8}
               required
+              className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/50 bg-surface-container-low text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
             />
-          </label>
-        ) : null}
-
-        <label className="grid gap-2">
-          <span className="text-sm font-medium text-[#1a1c1a]">
-            New password
-          </span>
-          <input
-            className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-[#faf9f6]/72 px-4 text-[#1a1c1a] outline-none transition focus:border-[#895032]"
-            type="password"
-            name="new_password"
-            autoComplete={hasPasswordIdentity ? "new-password" : "new-password"}
-            placeholder="At least 8 characters"
-            minLength={8}
-            required
-          />
-        </label>
-
-        {state.error ? (
-          <p className="rounded-2xl border border-[#ba1a1a]/20 bg-[#ba1a1a]/10 px-4 py-3 text-sm text-[#ba1a1a]">
-            {state.error}
-          </p>
-        ) : null}
-
-        {state.success ? (
-          <p className="rounded-2xl border border-[#895032]/14 bg-[#895032]/8 px-4 py-3 text-sm text-[#1a1c1a]">
-            {state.success}
-          </p>
-        ) : null}
-
-        <div className="flex flex-wrap items-center gap-3">
-          <SaveButton
-            label={hasPasswordIdentity ? "Change password" : "Set password"}
-            pendingLabel={hasPasswordIdentity ? "Updating..." : "Setting..."}
-          />
-          <p className="text-sm text-[#85736c]">
-            {hasPasswordIdentity
-              ? "Changing password keeps your linked Google login untouched."
-              : "Adding a password gives this account a second sign-in method."}
-          </p>
+          </div>
         </div>
+
+        {state.error && (
+          <div className="p-3 rounded-xl bg-error-container text-on-error-container text-body-sm">{state.error}</div>
+        )}
+        {state.success && (
+          <div className="p-3 rounded-xl bg-secondary-container text-on-secondary-container text-body-sm">{state.success}</div>
+        )}
+
+        <SaveButton
+          label={hasPassword ? "Change password" : "Set password"}
+          pendingLabel={hasPassword ? "Updating…" : "Setting…"}
+        />
       </form>
     </section>
   );

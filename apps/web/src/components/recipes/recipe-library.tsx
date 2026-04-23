@@ -11,6 +11,7 @@ import { NewDraftOverlay } from "@/components/dashboard/new-draft-overlay";
 import type { DashboardCartDraft } from "@/components/dashboard/drafts-and-carts-section";
 import { PlanningDetailOverlay } from "@/components/planning/planning-detail-overlay";
 import { ShoppingCartDetailOverlay } from "@/components/planning/shopping-cart-detail-overlay";
+import { RecipeImage } from "@/components/ui/recipe-image";
 import { RecipeDetailOverlay } from "./recipe-detail-overlay";
 
 function getDietaryBadges(recipe: BaseRecipe) {
@@ -235,18 +236,13 @@ export function RecipeLibrary(props: {
                     onClick={() => setActiveRecipeId(recipe.id)}
                     className="overflow-hidden rounded-[1.35rem] border border-[#d7c2b9] bg-[#faf9f6]/72 text-left transition hover:border-[#895032]/28 hover:bg-white/82"
                   >
-                    {recipe.cover_image_url ? (
-                      <div className="h-28 overflow-hidden border-b border-[#d7c2b9]">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={recipe.cover_image_url}
-                          alt={recipe.name}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="h-28 border-b border-[#d7c2b9] bg-[linear-gradient(135deg,rgba(115,135,101,0.12),rgba(245,240,228,0.44)),radial-gradient(circle_at_top_left,rgba(161,77,49,0.1),transparent_34%)]" />
-                    )}
+                    <RecipeImage
+                      src={recipe.cover_image_url}
+                      alt={recipe.name}
+                      seed={recipe.id}
+                      className="h-28 overflow-hidden border-b border-[#d7c2b9]"
+                      imgClassName="h-full w-full object-cover"
+                    />
 
                     <div className="grid gap-2 p-4">
                       <div className="flex items-start justify-between gap-3">

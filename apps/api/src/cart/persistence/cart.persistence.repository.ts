@@ -105,6 +105,12 @@ export class CartPersistenceRepository {
     });
   }
 
+  deleteShoppingCart(userId: string, id: string) {
+    return this.prisma.shoppingCart.deleteMany({
+      where: { id, userId },
+    });
+  }
+
   findDraftsByUser(userId: string) {
     return this.prisma.cartDraft.findMany({
       where: { userId },

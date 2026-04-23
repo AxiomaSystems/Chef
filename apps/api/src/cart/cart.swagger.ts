@@ -371,6 +371,20 @@ export const ApiGetShoppingCart = () =>
     }),
   );
 
+export const ApiDeleteShoppingCart = () =>
+  applyDecorators(
+    ApiOperation({ summary: 'Delete a persisted shopping cart' }),
+    ApiNoContentResponse({ description: 'Shopping cart deleted' }),
+    ApiNotFoundResponse({
+      description: 'Shopping cart not found',
+      type: ErrorResponseDto,
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
 export const ApiUpdateShoppingCart = () =>
   applyDecorators(
     ApiOperation({ summary: 'Update a persisted shopping cart' }),

@@ -37,8 +37,7 @@ export default async function AccountSettingsLayout(props: {
     };
 
   return (
-    <main className="min-h-screen px-5 py-6 sm:px-8 lg:px-12">
-      <AccountShell
+    <AccountShell
         user={me.data}
         stats={
           stats.data ?? {
@@ -53,9 +52,8 @@ export default async function AccountSettingsLayout(props: {
         preferences={safePreferences}
         cuisines={cuisines.data}
         systemTags={publicTags.data.filter((tag) => tag.scope === "system")}
-      >
-        {props.children}
-      </AccountShell>
-    </main>
+    >
+      {props.children}
+    </AccountShell>
   );
 }

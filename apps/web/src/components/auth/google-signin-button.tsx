@@ -192,11 +192,11 @@ export function GoogleSigninButton({
         <div className="h-px flex-1 bg-[#d7c2b9]" />
       </div>
 
-      <div className="grid justify-items-start gap-3">
+      <div className="grid justify-center gap-3">
         <div
           id={buttonId}
           ref={buttonContainerRef}
-          className={isLoading ? "pointer-events-none opacity-70" : undefined}
+          className={isLoading ? "pointer-events-none opacity-" : undefined}
         />
 
         {isLoading ? (
@@ -206,7 +206,7 @@ export function GoogleSigninButton({
         ) : null}
 
         {error ? (
-          <p className="rounded-2xl border border-[#ba1a1a]/20 bg-[#ba1a1a]/10 px-4 py-3 text-sm text-[#ba1a1a]">
+          <p className="rounded-2xl border border-error/20 bg-error/10 px-4 py-3 text-sm text-error text-center">
             {error}
           </p>
         ) : null}

@@ -21,6 +21,7 @@ import {
   ApiCreateShoppingCart,
   ApiDeleteCart,
   ApiDeleteCartDraft,
+  ApiDeleteShoppingCart,
   ApiGetCart,
   ApiGetCartDraft,
   ApiGetShoppingCart,
@@ -202,6 +203,18 @@ export class CartController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.cartService.updateShoppingCart(id, input, user.sub);
+  }
+
+  @Delete('shopping-carts/:id')
+  @UseGuards(RequestActorGuard)
+  @HttpCode(204)
+  @ApiCartController('shopping-carts')
+  @ApiDeleteShoppingCart()
+  async removeShoppingCart(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    await this.cartService.removeShoppingCart(id, user.sub);
   }
 
   @Get('retailers/:retailer/products/search')

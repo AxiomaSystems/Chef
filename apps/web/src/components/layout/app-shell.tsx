@@ -11,7 +11,7 @@ interface AppShellProps {
 
 export function AppShell({ children, topBarTitle, topBarActions, showBack }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-[#faf9f6]">
+    <div className="min-h-screen bg-background">
       <Sidebar />
       <div className="lg:ml-64 flex flex-col min-h-screen">
         <TopBar title={topBarTitle} actions={topBarActions} showBack={showBack} />

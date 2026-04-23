@@ -14,6 +14,7 @@ import {
   deletePlanningResourceAction,
 } from "@/app/home-actions";
 import type { DashboardCartDraft } from "@/components/dashboard/drafts-and-carts-section";
+import { RecipeImage } from "@/components/ui/recipe-image";
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -42,20 +43,13 @@ function RecipeReferenceCard(props: {
 
   return (
     <article className="overflow-hidden rounded-2xl border border-[#d7c2b9]/30 bg-white">
-      {props.recipe?.cover_image_url ? (
-        <div className="h-20 overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={props.recipe.cover_image_url}
-            alt={props.recipe.name}
-            className="h-full w-full object-cover"
-          />
-        </div>
-      ) : (
-        <div className="h-20 bg-[#efeeeb] flex items-center justify-center">
-          <span className="material-symbols-outlined text-[#d7c2b9] text-4xl">restaurant</span>
-        </div>
-      )}
+      <RecipeImage
+        src={props.recipe?.cover_image_url}
+        alt={props.recipe?.name ?? props.fallbackTitle}
+        seed={props.recipe?.id ?? props.fallbackTitle}
+        className="h-20 overflow-hidden"
+        imgClassName="h-full w-full object-cover"
+      />
 
       <div className="p-3 space-y-1.5">
         <h3 className="text-label-lg text-[#1a1c1a] leading-tight">
@@ -234,20 +228,13 @@ export function PlanningDetailOverlay(props: {
                   key={`${selection.recipe_id}-${index}`}
                   className="overflow-hidden rounded-2xl border border-[#d7c2b9]/30 bg-white"
                 >
-                  {selection.recipe?.cover_image_url ? (
-                    <div className="h-28 overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={selection.recipe.cover_image_url}
-                        alt={selection.recipe.name}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-28 bg-[#efeeeb] flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[#d7c2b9] text-5xl">restaurant</span>
-                    </div>
-                  )}
+                  <RecipeImage
+                    src={selection.recipe?.cover_image_url}
+                    alt={selection.recipe?.name ?? selection.recipe_id}
+                    seed={selection.recipe?.id ?? selection.recipe_id}
+                    className="h-28 overflow-hidden"
+                    imgClassName="h-full w-full object-cover"
+                  />
 
                   <div className="p-4 space-y-2">
                     <div>

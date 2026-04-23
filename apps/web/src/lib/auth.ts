@@ -106,20 +106,24 @@ export async function fetchSessionProfile(accessToken: string) {
 }
 
 export async function refreshSession(refreshToken: string) {
-  const response = await fetch(buildApiUrl("/auth/refresh"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      refresh_token: refreshToken,
-    }),
-    cache: "no-store",
-  });
+  try {
+    const response = await fetch(buildApiUrl("/auth/refresh"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        refresh_token: refreshToken,
+      }),
+      cache: "no-store",
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as AuthTokens;
+  } catch {
     return null;
   }
-
-  return (await response.json()) as AuthTokens;
 }
