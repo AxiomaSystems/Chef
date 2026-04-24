@@ -46,11 +46,12 @@ export function ShoppingClient({
   const [, startDelete] = useTransition();
 
   function handleDelete(cart: ShoppingCart) {
-    if (!cart.id) return;
-    setDeletingId(cart.id);
+    const cartId = cart.id;
+    if (!cartId) return;
+    setDeletingId(cartId);
     setDeleteErr(undefined);
     startDelete(async () => {
-      const res = await deleteShoppingCartAction(cart.id);
+      const res = await deleteShoppingCartAction(cartId);
       if (res.error) {
         setDeleteErr(res.error);
         setDeletingId(null);

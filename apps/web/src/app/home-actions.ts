@@ -1,6 +1,7 @@
 "use server";
 
 import type {
+  BaseRecipe,
   CartSelection,
   MatchedIngredientProduct,
   ProductCandidate,
