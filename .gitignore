@@ -17,6 +17,8 @@ yarn-error.log*
 **/coverage
 **/generated
 **/package-lock.json
+**/__pycache__/
+*.pyc
 .env
 .env.*
 !/.env.example

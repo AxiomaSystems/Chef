@@ -1,0 +1,32 @@
+[
+  {
+    "label": "banana",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 6,
+    "max_confidence": 0.91,
+    "source": "single_frame_scan",
+    "first_added_at": "2026-04-24T16:01:55.719451+00:00",
+    "last_seen_at": "2026-04-24T18:48:30.118933+00:00"
+  },
+  {
+    "label": "olive oil bottle",
+    "category": "container",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.91,
+    "source": "single_frame_scan",
+    "first_added_at": "2026-04-24T16:01:28.745404+00:00",
+    "last_seen_at": "2026-04-24T16:02:31.058722+00:00"
+  },
+  {
+    "label": "spice bottle",
+    "category": "container",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.91,
+    "source": "single_frame_scan",
+    "first_added_at": "2026-04-24T16:01:28.745404+00:00",
+    "last_seen_at": "2026-04-24T16:02:31.058722+00:00"
+  }
+]
