@@ -1,0 +1,195 @@
+import { Injectable } from '@nestjs/common';
+import type { AiProvider } from '../ai.provider';
+import type {
+  AiChatResult,
+  AiIngredientSwapResult,
+  AiMealGenerationResult,
+  AiRecipePreview,
+} from '../ai.types';
+import type { GenerateMealsDto } from '../dto/generate-meals.dto';
+import type { SwapIngredientDto } from '../dto/swap-ingredient.dto';
+
+@Injectable()
+export class MockAiProvider implements AiProvider {
+  readonly name = 'mock';
+
+  async generateMeals(input: GenerateMealsDto): Promise<AiMealGenerationResult> {
+    const recipeCount = input.meals_needed && input.meals_needed > 2 ? 3 : 1;
+    const recipeName = titleCase(input.meal_prompt || 'Chef test meal');
+    const dietaryText = (input.dietary_preferences ?? []).join(' ').toLowerCase();
+    const protein = dietaryText.includes('vegan') ? 'chickpeas' : 'chicken breast';
+    const vegetable =
+      input.budget_mode === 'minimize_cost'
+        ? 'frozen mixed vegetables'
+        : 'bell pepper';
+
+    const recipes = Array.from({ length: recipeCount }, (_, index) =>
+      buildRecipe({
+        name: recipeCount === 1 ? recipeName : `${recipeName} Variation ${index + 1}`,
+        servings: input.servings_per_meal ?? 4,
+        protein,
+        vegetable,
+        mealStyle: input.meal_style ?? 'standard',
+        budgetMode: input.budget_mode ?? 'balanced',
+      }),
+    );
+
+    return {
+      summary: `Generated ${recipes.length} structured recipe preview(s).`,
+      recipes,
+      inventory_used: (input.inventory ?? []).filter((item) =>
+        ['rice', 'garlic', 'olive oil'].includes(item.toLowerCase()),
+      ),
+      cost_minimization_notes: [
+        'Mock mode favors pantry grains and frozen vegetables for predictable testing.',
+      ],
+      planning_notes: [
+        'Mock AI is active. Set CHEF_LLM_PROVIDER=openai and OPENAI_API_KEY for real model output.',
+      ],
+    };
+  }
+
+  async swapIngredient(input: SwapIngredientDto): Promise<AiIngredientSwapResult> {
+    const original = input.ingredient_to_replace.trim().toLowerCase();
+    const replacement = input.desired_replacement.trim().toLowerCase();
+    const recipe = normalizeRecipe(input.recipe);
+    const updatedIngredients = recipe.ingredients.map((ingredient) =>
+      ingredient.canonical_ingredient.toLowerCase() === original
+        ? {
+            ...ingredient,
+            canonical_ingredient: replacement,
+            display_ingredient: replacement,
+          }
+        : ingredient,
+    );
+
+    return {
+      confirmation_message: `Replace ${original} with ${replacement}?`,
+      original_ingredient: original,
+      replacement_ingredient: replacement,
+      should_apply: true,
+      downsides: ['Flavor, texture, and cook time may change.'],
+      benefits: ['The recipe remains structured and can still flow into cart generation.'],
+      updated_recipe: {
+        ...recipe,
+        name: `${recipe.name} with ${titleCase(replacement)}`,
+        ingredients: updatedIngredients,
+        quality_tradeoffs: [
+          ...recipe.quality_tradeoffs,
+          `Mock swap changed ${original} to ${replacement}.`,
+        ],
+      },
+      ingredient_delta_notes: [`Changed ${original} to ${replacement}.`],
+    };
+  }
+
+  async chat(input: { message: string }): Promise<AiChatResult> {
+    return {
+      message:
+        `Mock Chef answer: for "${input.message}", start by clarifying servings, dietary needs, available ingredients, and budget. Then choose one simple structured recipe and review missing ingredients before shopping.`,
+      follow_up_prompts: [
+        'What can I make with my inventory?',
+        'Make this cheaper.',
+        'Turn this into a weekly meal plan.',
+      ],
+      safety_notes: [
+        'For allergies, medical diets, and food safety, verify details with trusted sources.',
+      ],
+    };
+  }
+}
+
+function buildRecipe(input: {
+  name: string;
+  servings: number;
+  protein: string;
+  vegetable: string;
+  mealStyle: string;
+  budgetMode: string;
+}): AiRecipePreview {
+  return {
+    name: input.name,
+    cuisine: 'Flexible',
+    description: 'A structured mock recipe for end-to-end AI flow testing.',
+    servings: input.servings,
+    ingredients: [
+      {
+        canonical_ingredient: input.protein,
+        amount: 1.25,
+        unit: 'lb',
+        display_ingredient: input.protein,
+        preparation: null,
+        optional: false,
+        group: 'protein',
+      },
+      {
+        canonical_ingredient: 'rice',
+        amount: 1.5,
+        unit: 'cup',
+        display_ingredient: 'rice',
+        preparation: 'rinsed',
+        optional: false,
+        group: 'base',
+      },
+      {
+        canonical_ingredient: input.vegetable,
+        amount: 2,
+        unit: 'cup',
+        display_ingredient: input.vegetable,
+        preparation: null,
+        optional: false,
+        group: 'vegetable',
+      },
+      {
+        canonical_ingredient: 'olive oil',
+        amount: 2,
+        unit: 'tbsp',
+        display_ingredient: 'olive oil',
+        preparation: null,
+        optional: false,
+        group: 'pantry',
+      },
+    ],
+    steps: [
+      { step: 1, what_to_do: 'Prepare ingredients and cook the rice.' },
+      { step: 2, what_to_do: 'Cook the protein with aromatics until done.' },
+      { step: 3, what_to_do: 'Fold in vegetables and serve over rice.' },
+    ],
+    tags: ['mock', input.mealStyle, input.budgetMode],
+    nutrition_estimate: null,
+    estimated_cost_tier: input.budgetMode === 'minimize_cost' ? 'low' : 'medium',
+    cost_notes: ['Mock output is not priced against a retailer catalog.'],
+    quality_tradeoffs: ['Generated without a real LLM.'],
+    assumptions: ['Local mock provider is active.'],
+  };
+}
+
+function normalizeRecipe(recipe: SwapIngredientDto['recipe']): AiRecipePreview {
+  return {
+    ...recipe,
+    tags: recipe.tags ?? [],
+    nutrition_estimate: recipe.nutrition_estimate ?? null,
+    estimated_cost_tier: recipe.estimated_cost_tier ?? 'medium',
+    cost_notes: recipe.cost_notes ?? [],
+    quality_tradeoffs: recipe.quality_tradeoffs ?? [],
+    assumptions: recipe.assumptions ?? [],
+    ingredients: recipe.ingredients.map((ingredient) => ({
+      canonical_ingredient: ingredient.canonical_ingredient,
+      amount: ingredient.amount,
+      unit: ingredient.unit,
+      display_ingredient: ingredient.display_ingredient ?? null,
+      preparation: ingredient.preparation ?? null,
+      optional: ingredient.optional ?? false,
+      group: ingredient.group ?? null,
+    })),
+  };
+}
+
+function titleCase(input: string) {
+  return input
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0]?.toUpperCase() + word.slice(1))
+    .join(' ');
+}
+

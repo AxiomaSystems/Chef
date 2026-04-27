@@ -94,6 +94,7 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - a Walmart provider boundary that remains available but inactive by default
 - retailer product search and shopping-cart editing APIs behind the same shopping-cart boundary
 - rule-based grocery matching refinement for produce/plain pantry items and honest no-match handling for specialty ingredients
+- authenticated AI endpoints under `/api/v1/ai` for Chef chat, structured meal generation, and ingredient swap proposals
 - internal `/api/v1` route families for `recipes`, `recipe-forks`, `cart-drafts`, `carts`, and `shopping-carts`
 - internal `/api/v1/tags` for visible system tags and user-owned tags
 - Swagger UI at `/docs`
@@ -378,6 +379,24 @@ This separation is intentional:
   - Instacart is the preferred cart handoff path when configured
   - Kroger is the live product-search and subtotal path
   - Walmart remains partner/approval-gated for now
+- `/api/v1/ai/chat`, `/api/v1/ai/meals/generate`, and `/api/v1/ai/recipes/swap-ingredient` now provide the first integrated Chef AI layer
+- the web app now mounts a global Chef chat widget across authenticated workspace pages through `AppShell`
+
+### LLM Configuration
+
+Use mock AI locally without model calls:
+
+```bash
+CHEF_LLM_PROVIDER=mock
+```
+
+Use OpenAI for real model calls:
+
+```bash
+CHEF_LLM_PROVIDER=openai
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-5.4-mini
+```
 
 ## Upcoming Work
 
