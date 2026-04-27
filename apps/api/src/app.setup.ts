@@ -36,6 +36,7 @@ export const configureApp = (app: INestApplication): void => {
     .addTag('cart-drafts')
     .addTag('carts')
     .addTag('shopping-carts')
+    .addTag('ai')
     .addBearerAuth()
     .build();
 

@@ -37,3 +37,9 @@ ANTHROPIC_MODEL=claude-sonnet-4-6
 ```
 
 OpenAI is the recommended first real provider for this prototype because the Chef workflow depends on schema-shaped recipe data. Anthropic is included as a secondary adapter so the provider can remain swappable.
+
+## Main App Integration
+
+The Streamlit lab is no longer the only AI surface. The main NestJS API now exposes authenticated AI endpoints under `/api/v1/ai`, and the Next.js app mounts a global Chef chat widget in the authenticated app shell.
+
+Keep using this lab for quick prompt/schema experiments before promoting changes into the main API.

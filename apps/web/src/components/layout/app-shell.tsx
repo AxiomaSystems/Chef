@@ -1,6 +1,7 @@
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { BottomNav } from "./bottom-nav";
+import { ChefChatWidget } from "@/components/ai/chef-chat-widget";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ export function AppShell({ children, topBarTitle, topBarActions, showBack }: App
         <main className="flex-1 pb-20 lg:pb-0">{children}</main>
       </div>
       <BottomNav />
+      <ChefChatWidget />
     </div>
   );
 }
