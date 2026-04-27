@@ -36,8 +36,6 @@ export function CameraModal({
 
     async function start() {
       try {
-        // ideal: "environment" prefers rear camera but gracefully falls back to
-        // front-facing on devices that only have one camera (e.g. laptops)
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: "environment" } },
         });
@@ -57,15 +55,28 @@ export function CameraModal({
 
         if (mode === "scan") {
           const { BrowserMultiFormatReader } = await import("@zxing/browser");
-          const reader = new BrowserMultiFormatReader();
+          const { DecodeHintType, BarcodeFormat } = await import("@zxing/library");
+
+          const hints = new Map();
+          hints.set(DecodeHintType.TRY_HARDER, true);
+          hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+            BarcodeFormat.EAN_13,
+            BarcodeFormat.EAN_8,
+            BarcodeFormat.UPC_A,
+            BarcodeFormat.UPC_E,
+            BarcodeFormat.CODE_128,
+            BarcodeFormat.CODE_39,
+            BarcodeFormat.QR_CODE,
+          ]);
+
+          const reader = new BrowserMultiFormatReader(hints);
 
           const controls = await reader.decodeFromStream(
             stream,
             video ?? undefined,
-            async (result) => {
-              if (!mounted || !result) return;
+            async (result, err) => {
+              if (!mounted || err || !result) return;
 
-              // Stop scanning immediately on first hit
               controls.stop();
               stream.getTracks().forEach((t) => t.stop());
 
@@ -299,6 +310,7 @@ export function CameraModal({
       {mode === "photo" && !error && !captured && (
         <div className="flex justify-center py-8">
           <button
+            aria-label="Capture photo"
             onClick={handleCapture}
             style={{ width: 72, height: 72 }}
             className="rounded-full bg-white border-[5px] border-white/40 shadow-xl active:scale-95 transition-transform"
