@@ -7,6 +7,15 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "20mb",
     },
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "spoonacular.com",
+        pathname: "/cdn/ingredients_**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

@@ -37,6 +37,7 @@ import {
 import { CartService } from './cart.service';
 import { CreateCartDraftDto } from './dto/create-cart-draft.dto';
 import { CreateCartDto } from './dto/create-cart.dto';
+import { CreateRestockCartDto } from './dto/create-restock-cart.dto';
 import { CreateShoppingCartDto } from './dto/create-shopping-cart.dto';
 import { UpdateCartDraftDto } from './dto/update-cart-draft.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
@@ -45,6 +46,16 @@ import { UpdateShoppingCartDto } from './dto/update-shopping-cart.dto';
 @Controller('api/v1')
 export class CartController {
   constructor(private readonly cartService: CartService) {}
+
+  @Post('carts/restock')
+  @UseGuards(RequestActorGuard)
+  @HttpCode(201)
+  createRestockCart(
+    @Body() input: CreateRestockCartDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.cartService.createRestockCart(input.items, input.retailer, user.sub);
+  }
 
   @Post('cart-drafts')
   @UseGuards(RequestActorGuard)

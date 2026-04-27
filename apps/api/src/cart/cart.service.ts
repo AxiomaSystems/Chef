@@ -99,6 +99,34 @@ export class CartService {
     return draft;
   }
 
+  async createRestockCart(
+    items: string[],
+    retailer: Retailer,
+    actorUserId?: string,
+  ): Promise<ShoppingCart> {
+    const actor =
+      await this.userContextService.resolveActorUserShoppingContext(actorUserId);
+
+    const syntheticDish = {
+      name: 'Restock Items',
+      ingredients: items
+        .map((name) => name.trim().toLowerCase())
+        .filter(Boolean)
+        .map((name) => ({ canonical_ingredient: name, amount: 1, unit: 'unit' })),
+      steps: [],
+    };
+
+    const cart = await this.cartPersistenceService.createCart({
+      userId: actor.id,
+      name: 'Restock Cart',
+      retailer,
+      selections: [],
+      dishes: [syntheticDish],
+    });
+
+    return this.createShoppingCart(cart.id!, { retailer }, actorUserId);
+  }
+
   async createCart(input: CreateCartDto, actorUserId?: string): Promise<Cart> {
     const actor = await this.userContextService.resolveActorUser(actorUserId);
     const recipeIds = input.selections.map((selection) => selection.recipe_id);

@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@cart/shared": "workspace:*",
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
     "next": "16.1.7",
     "react": "19.2.3",
     "react-dom": "19.2.3"
