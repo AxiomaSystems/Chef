@@ -56,7 +56,10 @@ export const mealGenerationSchema = {
         nutrition_estimate: {
           anyOf: [{ $ref: '#/$defs/nutritionEstimate' }, { type: 'null' }],
         },
-        estimated_cost_tier: { type: 'string', enum: ['low', 'medium', 'high'] },
+        estimated_cost_tier: {
+          type: 'string',
+          enum: ['low', 'medium', 'high'],
+        },
         cost_notes: { type: 'array', items: { type: 'string' } },
         quality_tradeoffs: { type: 'array', items: { type: 'string' } },
         assumptions: { type: 'array', items: { type: 'string' } },
@@ -153,3 +156,29 @@ export const chatSchema = {
   },
 } as const;
 
+export const recipeImportSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'source_url',
+    'platform',
+    'source_title',
+    'source_creator',
+    'source_description',
+    'imported_recipe',
+    'extraction_notes',
+  ],
+  properties: {
+    source_url: { type: 'string' },
+    platform: {
+      type: 'string',
+      enum: ['youtube', 'instagram', 'tiktok', 'generic'],
+    },
+    source_title: { type: 'string' },
+    source_creator: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+    source_description: { type: 'string' },
+    imported_recipe: { $ref: '#/$defs/recipePreview' },
+    extraction_notes: { type: 'array', items: { type: 'string' } },
+  },
+  $defs: mealGenerationSchema.$defs,
+} as const;

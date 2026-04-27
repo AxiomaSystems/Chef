@@ -7,9 +7,12 @@ import {
   askChefAction,
   fetchUserRecipesAction,
   generateMealsAction,
+  importRecipeFromUrlAction,
+  type AiRecipeImportResult,
   type AiRecipePreview,
   type ChefChatMessage,
 } from "@/app/ai-actions";
+import { ChatMarkdown } from "@/components/ai/chat-markdown";
 
 const STARTER_PROMPTS = [
   "What can I cook with what I have?",
@@ -23,40 +26,15 @@ const HANDS_FREE_PROMPTS = [
   "What can I prep while I wait?",
 ];
 
-const MOCK_LINK_DATA = {
-  tiktok: {
-    title: "Creamy Tuscan Salmon",
-    creator: "@whatsgabycooking",
-    description:
-      "Pan-seared salmon with sun-dried tomatoes, garlic, spinach, and a creamy parmesan sauce.",
-  },
-  instagram: {
-    title: "One-Pan Lemon Herb Chicken",
-    creator: "@minimalistbaker",
-    description:
-      "Juicy chicken thighs with roasted lemon, fresh herbs, and garlic for a fast weeknight dinner.",
-  },
-  youtube: {
-    title: "The Best Homemade Ramen",
-    creator: "Joshua Weissman",
-    description:
-      "Rich ramen with layered broth, chashu pork, eggs, and classic toppings.",
-  },
-  other: {
-    title: "Recipe from link",
-    creator: "Imported source",
-    description: "Chef can help break this down, adapt it, or turn it into a plan.",
-  },
-} as const;
-
 type WidgetContext =
   | { type: "none" }
   | {
-      type: "link";
+      type: "imported";
       name: string;
       detail: string;
       url: string;
-      platform: "tiktok" | "instagram" | "youtube" | "other";
+      platform: "youtube" | "instagram" | "tiktok" | "generic";
+      recipe: AiRecipePreview;
     }
   | {
       type: "recipe";
@@ -71,16 +49,10 @@ type WidgetContext =
       recipe: AiRecipePreview;
     };
 
-function detectPlatform(url: string): "tiktok" | "instagram" | "youtube" | "other" {
-  if (url.includes("tiktok.com")) return "tiktok";
-  if (url.includes("instagram.com")) return "instagram";
-  if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
-  return "other";
-}
-
 export function ChefChatWidget() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState<ChefChatMessage[]>([
     {
@@ -96,6 +68,7 @@ export function ChefChatWidget() {
   const [handsFreeMode, setHandsFreeMode] = useState(false);
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const [linkSupplementalText, setLinkSupplementalText] = useState("");
   const [showPlanner, setShowPlanner] = useState(false);
   const [mealPrompt, setMealPrompt] = useState("");
   const [mealStyle, setMealStyle] = useState<
@@ -108,6 +81,7 @@ export function ChefChatWidget() {
   const [loadingRecipes, setLoadingRecipes] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isGenerating, startGeneration] = useTransition();
+  const [isImporting, startImport] = useTransition();
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   function pushAssistantMessage(content: string) {
@@ -117,7 +91,9 @@ export function ChefChatWidget() {
   function buildChatContext() {
     return {
       page: pathname,
-      surface: "global_chef_chat_widget",
+      surface: isExpanded
+        ? "global_chef_chat_widget_expanded"
+        : "global_chef_chat_widget",
       hands_free_mode: handsFreeMode,
       selected_context_type: context.type,
       selected_context_name: context.type === "none" ? null : context.name,
@@ -133,9 +109,8 @@ export function ChefChatWidget() {
       role: "user",
       content: nextPrompt,
     };
-    const nextMessages = [...messages, userMessage];
 
-    setMessages(nextMessages);
+    setMessages((current) => [...current, userMessage]);
     setPrompt("");
     setError(undefined);
     setSafetyNotes([]);
@@ -172,31 +147,51 @@ export function ChefChatWidget() {
     });
   }
 
-  function importLink() {
-    const url = linkUrl.trim();
-    if (!url) return;
-
-    const platform = detectPlatform(url);
-    const data = MOCK_LINK_DATA[platform];
+  function applyImportedRecipe(imported: AiRecipeImportResult) {
     setContext({
-      type: "link",
-      name: data.title,
-      detail: data.creator,
-      url,
-      platform,
+      type: "imported",
+      name: imported.imported_recipe.name,
+      detail: imported.source_creator ?? imported.platform,
+      url: imported.source_url,
+      platform: imported.platform,
+      recipe: imported.imported_recipe,
     });
     setShowLinkInput(false);
     setLinkUrl("");
+    setLinkSupplementalText("");
     setGeneratedRecipes([]);
     setGeneratedSummary("");
     pushAssistantMessage(
-      `Pinned ${data.title} from ${data.creator}. Ask me to break it down, adapt it, simplify it, or turn it into a shopping plan.`,
+      `Imported ${imported.imported_recipe.name} from ${
+        imported.source_creator ?? imported.platform
+      }. I can summarize it, adapt it, scale it, or turn it into a cooking plan.`,
     );
     setFollowUps([
       "Summarize this recipe.",
-      "Make this easier for a weeknight.",
       "What ingredients will I need?",
+      "Make this easier for a weeknight.",
+      "Turn this into a step-by-step cooking plan.",
     ]);
+  }
+
+  function importLink() {
+    const url = linkUrl.trim();
+    if (!url || isImporting) return;
+
+    setError(undefined);
+    startImport(async () => {
+      const result = await importRecipeFromUrlAction({
+        url,
+        supplementalText: linkSupplementalText,
+      });
+
+      if (result.error || !result.result) {
+        setError(result.error ?? "Chef could not import that link.");
+        return;
+      }
+
+      applyImportedRecipe(result.result);
+    });
   }
 
   function openRecipePicker() {
@@ -298,348 +293,653 @@ export function ChefChatWidget() {
     );
   }
 
+  function focusInputSoon() {
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
   const currentPrompts = handsFreeMode ? HANDS_FREE_PROMPTS : followUps;
   const contextLabel =
     context.type === "none" ? "No recipe pinned" : `${context.name} · ${context.detail}`;
+  const actionButtons = [
+    {
+      label: "Paste a link",
+      onClick: () => {
+        setShowLinkInput((current) => !current);
+        setShowPlanner(false);
+      },
+    },
+    {
+      label: "My recipes",
+      onClick: openRecipePicker,
+    },
+    {
+      label: "Plan meals",
+      onClick: () => {
+        setShowPlanner((current) => !current);
+        setShowLinkInput(false);
+      },
+    },
+  ];
+
+  function renderLinkPanel(isExpandedView: boolean) {
+    return (
+      <div
+        className={`border border-[#efdfd2] bg-white ${
+          isExpandedView ? "rounded-[24px] p-4 shadow-sm" : "mt-3 rounded-2xl p-3"
+        }`}
+      >
+        <p className="text-sm font-semibold text-on-surface">
+          Import from a creator link
+        </p>
+        <p className="mt-1 text-xs leading-5 text-outline">
+          Best on YouTube first. TikTok and Instagram work better when you also
+          paste the caption or transcript.
+        </p>
+        <div className="mt-3 space-y-2">
+          <input
+            type="url"
+            value={linkUrl}
+            onChange={(event) => setLinkUrl(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                importLink();
+              }
+            }}
+            placeholder="https://..."
+            className="w-full rounded-2xl border border-outline-variant/70 bg-white px-3 py-2.5 text-sm text-on-surface outline-none focus:border-primary-fixed-dim"
+          />
+          <textarea
+            value={linkSupplementalText}
+            onChange={(event) => setLinkSupplementalText(event.target.value)}
+            rows={isExpandedView ? 4 : 3}
+            placeholder="Optional: paste the creator caption, transcript, or notes."
+            className="w-full resize-none rounded-2xl border border-outline-variant/70 bg-white px-3 py-2.5 text-sm text-on-surface outline-none focus:border-primary-fixed-dim"
+          />
+          <button
+            type="button"
+            onClick={importLink}
+            disabled={!linkUrl.trim() || isImporting}
+            className={`rounded-2xl bg-primary-fixed-dim px-4 py-2.5 text-sm font-semibold text-on-primary-fixed disabled:opacity-50 ${
+              isExpandedView ? "w-full" : ""
+            }`}
+          >
+            {isImporting ? "Importing..." : "Import recipe"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderPlannerPanel(isExpandedView: boolean) {
+    return (
+      <div
+        className={`border border-[#efdfd2] bg-white ${
+          isExpandedView ? "rounded-[24px] p-4 shadow-sm" : "mt-3 rounded-2xl p-3"
+        }`}
+      >
+        <p className="text-sm font-semibold text-on-surface">Plan meals with Chef</p>
+        <div className="mt-3 space-y-3">
+          <input
+            type="text"
+            value={mealPrompt}
+            onChange={(event) => setMealPrompt(event.target.value)}
+            placeholder="Cheap high-protein dinners for the week"
+            className="w-full rounded-2xl border border-outline-variant/70 bg-white px-3 py-2.5 text-sm text-on-surface outline-none focus:border-primary-fixed-dim"
+          />
+          <div className="flex flex-wrap gap-2">
+            {[
+              ["standard", "Standard"],
+              ["high_protein", "High protein"],
+              ["meal_prep", "Meal prep"],
+              ["quick", "Quick"],
+              ["inventory_first", "Inventory first"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setMealStyle(value as typeof mealStyle)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  mealStyle === value
+                    ? "bg-primary-fixed-dim text-on-primary-fixed"
+                    : "border border-[#ead7c8] bg-white text-on-surface"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={generateMeals}
+            disabled={isGenerating || !mealPrompt.trim()}
+            className="w-full rounded-2xl bg-primary-fixed-dim px-4 py-2.5 text-sm font-semibold text-on-primary-fixed disabled:opacity-50"
+          >
+            {isGenerating ? "Generating..." : "Generate recipe ideas"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderGeneratedIdeas(isExpandedView: boolean) {
+    if (generatedRecipes.length === 0) return null;
+
+    return (
+      <div
+        className={`border border-[#efdfd2] ${
+          isExpandedView
+            ? "rounded-[24px] bg-white p-4 shadow-sm"
+            : "border-b bg-[#fffaf6] px-4 py-3"
+        }`}
+      >
+        <div className={isExpandedView ? "" : "mb-2 flex items-center justify-between gap-2"}>
+          <div>
+            <p className="text-sm font-semibold text-on-surface">Generated ideas</p>
+            <p className="mt-1 text-xs leading-5 text-outline">{generatedSummary}</p>
+          </div>
+        </div>
+
+        <div
+          className={
+            isExpandedView
+              ? "mt-3 space-y-2"
+              : "flex gap-2 overflow-x-auto pb-1"
+          }
+        >
+          {generatedRecipes.map((recipe) => (
+            <button
+              key={recipe.name}
+              type="button"
+              onClick={() => pinGeneratedRecipe(recipe)}
+              className={
+                isExpandedView
+                  ? "w-full rounded-2xl border border-[#ecd9c9] bg-[#fffaf6] p-3 text-left transition hover:border-primary/40"
+                  : "min-w-[190px] shrink-0 rounded-2xl border border-[#ecd9c9] bg-white p-3 text-left shadow-sm transition hover:border-primary/40"
+              }
+            >
+              <p className="line-clamp-2 text-sm font-semibold text-on-surface">
+                {recipe.name}
+              </p>
+              <p className="mt-1 text-xs text-outline">
+                {recipe.servings} servings · {recipe.estimated_cost_tier} cost
+              </p>
+              <p className="mt-2 line-clamp-2 text-xs leading-5 text-on-surface-variant">
+                {recipe.description}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function renderMessages(isExpandedView: boolean) {
+    return (
+      <div
+        className={`flex-1 space-y-3 overflow-y-auto bg-surface-container-low/40 ${
+          isExpandedView ? "px-6 py-6" : "px-4 py-4"
+        }`}
+      >
+        {messages.map((message, index) => (
+          <div
+            key={`${message.role}-${index}`}
+            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`${
+                isExpandedView
+                  ? "max-w-[78%] rounded-[24px] px-4 py-3 text-[15px] leading-7"
+                  : "max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm leading-6"
+              } ${
+                message.role === "user"
+                  ? "bg-primary-fixed-dim text-on-primary-fixed"
+                  : "border border-outline-variant/50 bg-white text-on-surface shadow-sm"
+              }`}
+            >
+              {message.role === "assistant" ? (
+                <ChatMarkdown content={message.content} />
+              ) : (
+                <p className="whitespace-pre-wrap">{message.content}</p>
+              )}
+            </div>
+          </div>
+        ))}
+        {isPending && (
+          <p
+            className={`w-fit border border-outline-variant/50 bg-white text-sm text-outline shadow-sm ${
+              isExpandedView ? "rounded-[24px] px-4 py-3" : "rounded-2xl px-3.5 py-2.5"
+            }`}
+          >
+            Thinking...
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  function renderComposer(isExpandedView: boolean) {
+    return (
+      <div
+        className={`border-t border-outline-variant/40 bg-white ${
+          isExpandedView ? "px-6 py-5" : "p-3"
+        }`}
+      >
+        {error && (
+          <p
+            className={`border border-error/20 bg-error-container/40 text-sm text-error ${
+              isExpandedView ? "mb-3 rounded-2xl px-3 py-2" : "mb-2 rounded-xl px-3 py-2"
+            }`}
+          >
+            {error}
+          </p>
+        )}
+
+        {currentPrompts.length > 0 && (
+          <div
+            className={
+              isExpandedView
+                ? "mb-3 flex flex-wrap gap-2"
+                : "mb-2 flex gap-2 overflow-x-auto pb-1 no-scrollbar"
+            }
+          >
+            {currentPrompts.slice(0, 4).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => submit(item)}
+                disabled={isPending}
+                className="shrink-0 rounded-full border border-outline-variant/70 bg-surface-container-low px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:bg-primary-surface disabled:opacity-60"
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <form
+          className={`flex items-end ${isExpandedView ? "gap-3" : "gap-2"}`}
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
+          }}
+        >
+          <textarea
+            ref={inputRef}
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            placeholder={
+              handsFreeMode
+                ? "Ask for the next step, repeat, or timing..."
+                : "Ask about cooking, ingredients, substitutions, or meal prep..."
+            }
+            rows={isExpandedView ? 3 : 2}
+            className={`flex-1 resize-none border border-outline-variant/70 bg-white text-sm text-on-surface outline-none focus:border-primary-fixed-dim ${
+              isExpandedView
+                ? "min-h-16 rounded-[24px] px-4 py-3"
+                : "max-h-28 min-h-12 rounded-2xl px-3 py-2"
+            }`}
+          />
+          <button
+            type="button"
+            onClick={() => setHandsFreeMode((current) => !current)}
+            className={`shrink-0 items-center justify-center border ${
+              handsFreeMode
+                ? "border-primary-fixed-dim bg-primary-surface text-primary-fixed-dim"
+                : "border-outline-variant/70 bg-white text-outline"
+            } ${isExpandedView ? "flex h-14 w-14 rounded-2xl" : "flex h-12 w-12 rounded-2xl"}`}
+            aria-label="Toggle hands-free mode"
+          >
+            <span className="material-symbols-outlined text-[20px]">mic</span>
+          </button>
+          <button
+            type="submit"
+            disabled={isPending || !prompt.trim()}
+            className={`shrink-0 items-center justify-center bg-primary-fixed-dim text-on-primary-fixed hover:bg-primary-fixed disabled:cursor-not-allowed disabled:opacity-50 ${
+              isExpandedView ? "flex h-14 w-14 rounded-2xl" : "flex h-12 w-12 rounded-2xl"
+            }`}
+            aria-label="Ask Chef"
+          >
+            <span className="material-symbols-outlined text-[20px]">send</span>
+          </button>
+        </form>
+
+        {safetyNotes.length > 0 && (
+          <p className={`text-[11px] leading-4 text-outline ${isExpandedView ? "mt-3" : "mt-2"}`}>
+            {safetyNotes[0]}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="fixed bottom-24 right-4 z-[70] lg:bottom-6 lg:right-6">
       {isOpen && (
-        <section className="relative mb-3 flex h-[min(760px,calc(100vh-5rem))] w-[min(460px,calc(100vw-1rem))] flex-col overflow-hidden rounded-[28px] border border-[#ecd9c9] bg-white shadow-[0_24px_80px_rgba(97,58,29,0.18)]">
-          <header
-            className="border-b border-[#efdfd2] px-4 py-4"
-            style={{ background: "linear-gradient(120deg, #fff7f1, #fffdfb)" }}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-fixed-dim text-on-primary-fixed">
-                  <span className="material-symbols-outlined text-[22px]">restaurant</span>
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
-                    Chef AI
-                  </p>
-                  <h2 className="text-sm font-semibold text-on-surface">
-                    Kitchen sidekick
-                  </h2>
-                  <p className="mt-0.5 text-xs text-outline">{contextLabel}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
-                aria-label="Close Chef chat"
-              >
-                <span className="material-symbols-outlined text-[19px]">close</span>
-              </button>
-            </div>
+        <>
+          {isExpanded && (
+            <div
+              className="fixed inset-0 z-[69] bg-[rgba(40,24,12,0.18)] backdrop-blur-md"
+              onClick={() => setIsExpanded(false)}
+            />
+          )}
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowLinkInput((current) => !current);
-                  setShowPlanner(false);
-                }}
-                className="rounded-full border border-[#ead7c8] bg-white px-3 py-1.5 text-xs font-medium text-on-surface transition hover:border-primary/40"
-              >
-                Paste a link
-              </button>
-              <button
-                type="button"
-                onClick={openRecipePicker}
-                className="rounded-full border border-[#ead7c8] bg-white px-3 py-1.5 text-xs font-medium text-on-surface transition hover:border-primary/40"
-              >
-                My recipes
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowPlanner((current) => !current);
-                  setShowLinkInput(false);
-                }}
-                className="rounded-full border border-[#ead7c8] bg-white px-3 py-1.5 text-xs font-medium text-on-surface transition hover:border-primary/40"
-              >
-                Plan meals
-              </button>
-              <button
-                type="button"
-                onClick={() => setHandsFreeMode((current) => !current)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                  handsFreeMode
-                    ? "bg-primary-fixed-dim text-on-primary-fixed"
-                    : "border border-[#ead7c8] bg-white text-on-surface hover:border-primary/40"
-                }`}
-              >
-                Hands-free
-              </button>
-            </div>
-
-            {showLinkInput && (
-              <div className="mt-3 rounded-2xl border border-[#efdfd2] bg-white p-3">
-                <p className="mb-2 text-xs font-medium text-outline">
-                  Paste a TikTok, Instagram, or YouTube recipe link.
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={linkUrl}
-                    onChange={(event) => setLinkUrl(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        importLink();
-                      }
-                    }}
-                    placeholder="https://..."
-                    className="flex-1 rounded-xl border border-outline-variant/70 bg-white px-3 py-2 text-sm text-on-surface outline-none focus:border-primary-fixed-dim"
-                  />
-                  <button
-                    type="button"
-                    onClick={importLink}
-                    disabled={!linkUrl.trim()}
-                    className="rounded-xl bg-primary-fixed-dim px-4 py-2 text-sm font-semibold text-on-primary-fixed disabled:opacity-50"
+          {isExpanded ? (
+            <section className="fixed left-1/2 top-1/2 z-[70] flex h-[min(860px,calc(100vh-2.5rem))] w-[min(1220px,calc(100vw-2.5rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[36px] border border-[#ecd9c9] bg-white shadow-[0_36px_120px_rgba(52,30,12,0.22)]">
+              <div className="grid h-full min-h-0 w-full grid-cols-[340px_minmax(0,1fr)]">
+                <aside className="flex min-h-0 flex-col border-r border-[#efdfd2] bg-[#fffaf6]">
+                  <div
+                    className="border-b border-[#efdfd2] px-5 py-5"
+                    style={{ background: "linear-gradient(160deg, #fff5ec, #fffdf9)" }}
                   >
-                    Pin
-                  </button>
-                </div>
-              </div>
-            )}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-fixed-dim text-on-primary-fixed shadow-sm">
+                          <span className="material-symbols-outlined text-[22px]">
+                            restaurant
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
+                            Chef AI
+                          </p>
+                          <h2 className="text-base font-semibold text-on-surface">
+                            Kitchen sidekick
+                          </h2>
+                          <p className="mt-1 text-xs leading-5 text-outline">
+                            Stays beside the recipe flow while you plan, import, and cook.
+                          </p>
+                        </div>
+                      </div>
 
-            {showPlanner && (
-              <div className="mt-3 rounded-2xl border border-[#efdfd2] bg-white p-3">
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    value={mealPrompt}
-                    onChange={(event) => setMealPrompt(event.target.value)}
-                    placeholder="Cheap high-protein dinners for the week"
-                    className="w-full rounded-xl border border-outline-variant/70 bg-white px-3 py-2 text-sm text-on-surface outline-none focus:border-primary-fixed-dim"
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      ["standard", "Standard"],
-                      ["high_protein", "High protein"],
-                      ["meal_prep", "Meal prep"],
-                      ["quick", "Quick"],
-                      ["inventory_first", "Inventory first"],
-                    ].map(([value, label]) => (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsExpanded(false)}
+                          className="flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
+                          aria-label="Shrink Chef chat"
+                        >
+                          <span className="material-symbols-outlined text-[19px]">
+                            close_fullscreen
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsOpen(false);
+                            setIsExpanded(false);
+                          }}
+                          className="flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
+                          aria-label="Close Chef chat"
+                        >
+                          <span className="material-symbols-outlined text-[19px]">close</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-[24px] border border-[#efd8c7] bg-white px-4 py-3 shadow-sm">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-outline">
+                        Current context
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-on-surface">
+                        {context.type === "none" ? "No recipe pinned" : context.name}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-outline">
+                        {context.type === "none"
+                          ? "Import a link, pick one of your recipes, or generate ideas to give Chef more context."
+                          : context.detail}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {actionButtons.map((action) => (
+                        <button
+                          key={action.label}
+                          type="button"
+                          onClick={action.onClick}
+                          className="rounded-full border border-[#ead7c8] bg-white px-3 py-1.5 text-xs font-medium text-on-surface transition hover:border-primary/40"
+                        >
+                          {action.label}
+                        </button>
+                      ))}
                       <button
-                        key={value}
                         type="button"
-                        onClick={() => setMealStyle(value as typeof mealStyle)}
+                        onClick={() => setHandsFreeMode((current) => !current)}
                         className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                          mealStyle === value
+                          handsFreeMode
                             ? "bg-primary-fixed-dim text-on-primary-fixed"
-                            : "border border-[#ead7c8] bg-white text-on-surface"
+                            : "border border-[#ead7c8] bg-white text-on-surface hover:border-primary/40"
                         }`}
                       >
-                        {label}
+                        Hands-free
                       </button>
-                    ))}
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={generateMeals}
-                    disabled={isGenerating || !mealPrompt.trim()}
-                    className="w-full rounded-xl bg-primary-fixed-dim px-4 py-2.5 text-sm font-semibold text-on-primary-fixed disabled:opacity-50"
-                  >
-                    {isGenerating ? "Generating..." : "Generate recipe ideas"}
-                  </button>
-                </div>
-              </div>
-            )}
-          </header>
 
-          {generatedRecipes.length > 0 && (
-            <div className="border-b border-[#efdfd2] bg-[#fffaf6] px-4 py-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold text-on-surface">
-                    Generated ideas
-                  </p>
-                  <p className="text-xs text-outline">{generatedSummary}</p>
-                </div>
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {generatedRecipes.map((recipe) => (
-                  <button
-                    key={recipe.name}
-                    type="button"
-                    onClick={() => pinGeneratedRecipe(recipe)}
-                    className="min-w-[190px] shrink-0 rounded-2xl border border-[#ecd9c9] bg-white p-3 text-left shadow-sm transition hover:border-primary/40"
-                  >
-                    <p className="line-clamp-2 text-sm font-semibold text-on-surface">
-                      {recipe.name}
-                    </p>
-                    <p className="mt-1 text-xs text-outline">
-                      {recipe.servings} servings · {recipe.estimated_cost_tier} cost
-                    </p>
-                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-on-surface-variant">
-                      {recipe.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex-1 space-y-3 overflow-y-auto bg-surface-container-low/40 px-4 py-4">
-            {messages.map((message, index) => (
-              <div
-                key={`${message.role}-${index}`}
-                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <p
-                  className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${
-                    message.role === "user"
-                      ? "bg-primary-fixed-dim text-on-primary-fixed"
-                      : "border border-outline-variant/50 bg-white text-on-surface"
-                  }`}
-                >
-                  {message.content}
-                </p>
-              </div>
-            ))}
-            {isPending && (
-              <p className="w-fit rounded-2xl border border-outline-variant/50 bg-white px-3.5 py-2.5 text-sm text-outline">
-                Thinking...
-              </p>
-            )}
-          </div>
-
-          <div className="border-t border-outline-variant/40 bg-white p-3">
-            {error && (
-              <p className="mb-2 rounded-xl border border-error/20 bg-error-container/40 px-3 py-2 text-sm text-error">
-                {error}
-              </p>
-            )}
-
-            {currentPrompts.length > 0 && (
-              <div className="mb-2 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                {currentPrompts.slice(0, 4).map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => submit(item)}
-                    disabled={isPending}
-                    className="shrink-0 rounded-full border border-outline-variant/70 bg-surface-container-low px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:bg-primary-surface disabled:opacity-60"
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <form
-              className="flex items-end gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                submit();
-              }}
-            >
-              <textarea
-                ref={inputRef}
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder={
-                  handsFreeMode
-                    ? "Ask for the next step, repeat, or timing..."
-                    : "Ask about cooking, ingredients, meal prep..."
-                }
-                rows={2}
-                className="max-h-28 min-h-12 flex-1 resize-none rounded-2xl border border-outline-variant/70 bg-white px-3 py-2 text-sm text-on-surface outline-none focus:border-primary-fixed-dim"
-              />
-              <button
-                type="button"
-                onClick={() => setHandsFreeMode((current) => !current)}
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${
-                  handsFreeMode
-                    ? "border-primary-fixed-dim bg-primary-surface text-primary-fixed-dim"
-                    : "border-outline-variant/70 bg-white text-outline"
-                }`}
-                aria-label="Toggle hands-free mode"
-              >
-                <span className="material-symbols-outlined text-[20px]">mic</span>
-              </button>
-              <button
-                type="submit"
-                disabled={isPending || !prompt.trim()}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-fixed-dim text-on-primary-fixed hover:bg-primary-fixed disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Ask Chef"
-              >
-                <span className="material-symbols-outlined text-[20px]">send</span>
-              </button>
-            </form>
-
-            {safetyNotes.length > 0 && (
-              <p className="mt-2 text-[11px] leading-4 text-outline">
-                {safetyNotes[0]}
-              </p>
-            )}
-          </div>
-
-          {recipePickerOpen && (
-            <div className="absolute inset-0 flex items-end bg-black/25">
-              <div className="max-h-[72%] w-full rounded-t-[28px] bg-white p-4 shadow-2xl">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-on-surface">My recipes</p>
-                    <p className="text-xs text-outline">
-                      Pick one to keep pinned while you chat.
-                    </p>
+                  <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+                    {showLinkInput && renderLinkPanel(true)}
+                    {showPlanner && renderPlannerPanel(true)}
+                    {renderGeneratedIdeas(true)}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setRecipePickerOpen(false)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">close</span>
-                  </button>
-                </div>
+                </aside>
 
-                <div className="space-y-2 overflow-y-auto">
-                  {loadingRecipes ? (
-                    <p className="rounded-2xl border border-outline-variant/50 bg-surface-container-low px-3 py-3 text-sm text-outline">
-                      Loading recipes...
-                    </p>
-                  ) : savedRecipes.length === 0 ? (
-                    <p className="rounded-2xl border border-outline-variant/50 bg-surface-container-low px-3 py-3 text-sm text-outline">
-                      No recipes found yet.
-                    </p>
-                  ) : (
-                    savedRecipes.map((recipe) => (
+                <div className="flex min-h-0 flex-col bg-white">
+                  <header className="border-b border-[#efdfd2] px-6 py-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
+                          Live conversation
+                        </p>
+                        <h3 className="mt-1 text-lg font-semibold text-on-surface">
+                          Cook, adapt, and keep moving
+                        </h3>
+                        <p className="mt-1 text-sm text-outline">{contextLabel}</p>
+                      </div>
+
+                      <div className="rounded-full border border-[#ead7c8] bg-[#fff7f1] px-3 py-1.5 text-xs font-medium text-primary-fixed-dim">
+                        {handsFreeMode ? "Hands-free on" : "Hands-free available"}
+                      </div>
+                    </div>
+                  </header>
+
+                  {renderMessages(true)}
+                  {renderComposer(true)}
+                </div>
+              </div>
+
+              {recipePickerOpen && (
+                <div className="absolute inset-0 flex items-end bg-black/25">
+                  <div className="max-h-[72%] w-full rounded-t-[28px] bg-white p-4 shadow-2xl">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-on-surface">My recipes</p>
+                        <p className="text-xs text-outline">
+                          Pick one to keep pinned while you chat.
+                        </p>
+                      </div>
                       <button
-                        key={recipe.id}
                         type="button"
-                        onClick={() => selectRecipe(recipe)}
-                        className="w-full rounded-2xl border border-[#ecd9c9] bg-white px-3 py-3 text-left transition hover:border-primary/40"
+                        onClick={() => setRecipePickerOpen(false)}
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white"
                       >
-                        <p className="text-sm font-semibold text-on-surface">
-                          {recipe.name}
-                        </p>
-                        <p className="mt-1 text-xs text-outline">
-                          {recipe.servings} servings
-                          {recipe.nutrition_data?.calories
-                            ? ` · ${recipe.nutrition_data.calories} kcal`
-                            : ""}
-                        </p>
+                        <span className="material-symbols-outlined text-[18px]">close</span>
                       </button>
-                    ))
-                  )}
+                    </div>
+
+                    <div className="space-y-2 overflow-y-auto">
+                      {loadingRecipes ? (
+                        <p className="rounded-2xl border border-outline-variant/50 bg-surface-container-low px-3 py-3 text-sm text-outline">
+                          Loading recipes...
+                        </p>
+                      ) : savedRecipes.length === 0 ? (
+                        <p className="rounded-2xl border border-outline-variant/50 bg-surface-container-low px-3 py-3 text-sm text-outline">
+                          No recipes found yet.
+                        </p>
+                      ) : (
+                        savedRecipes.map((recipe) => (
+                          <button
+                            key={recipe.id}
+                            type="button"
+                            onClick={() => selectRecipe(recipe)}
+                            className="w-full rounded-2xl border border-[#ecd9c9] bg-white px-3 py-3 text-left transition hover:border-primary/40"
+                          >
+                            <p className="text-sm font-semibold text-on-surface">
+                              {recipe.name}
+                            </p>
+                            <p className="mt-1 text-xs text-outline">
+                              {recipe.servings} servings
+                              {recipe.nutrition_data?.calories
+                                ? ` · ${recipe.nutrition_data.calories} kcal`
+                                : ""}
+                            </p>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              )}
+            </section>
+          ) : (
+            <section className="relative z-[70] mb-3 flex h-[min(760px,calc(100vh-5rem))] w-[min(460px,calc(100vw-1rem))] flex-col overflow-hidden rounded-[28px] border border-[#ecd9c9] bg-white shadow-[0_24px_80px_rgba(97,58,29,0.18)]">
+              <header
+                className="border-b border-[#efdfd2] px-4 py-4"
+                style={{ background: "linear-gradient(120deg, #fff7f1, #fffdfb)" }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-fixed-dim text-on-primary-fixed">
+                      <span className="material-symbols-outlined text-[22px]">restaurant</span>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
+                        Chef AI
+                      </p>
+                      <h2 className="text-sm font-semibold text-on-surface">
+                        Kitchen sidekick
+                      </h2>
+                      <p className="mt-0.5 text-xs text-outline">{contextLabel}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsExpanded(true)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
+                      aria-label="Expand Chef chat"
+                    >
+                      <span className="material-symbols-outlined text-[19px]">open_in_full</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsOpen(false);
+                        setIsExpanded(false);
+                      }}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
+                      aria-label="Close Chef chat"
+                    >
+                      <span className="material-symbols-outlined text-[19px]">close</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {actionButtons.map((action) => (
+                    <button
+                      key={action.label}
+                      type="button"
+                      onClick={action.onClick}
+                      className="rounded-full border border-[#ead7c8] bg-white px-3 py-1.5 text-xs font-medium text-on-surface transition hover:border-primary/40"
+                    >
+                      {action.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setHandsFreeMode((current) => !current)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                      handsFreeMode
+                        ? "bg-primary-fixed-dim text-on-primary-fixed"
+                        : "border border-[#ead7c8] bg-white text-on-surface hover:border-primary/40"
+                    }`}
+                  >
+                    Hands-free
+                  </button>
+                </div>
+
+                {showLinkInput && renderLinkPanel(false)}
+                {showPlanner && renderPlannerPanel(false)}
+              </header>
+
+              {renderGeneratedIdeas(false)}
+              {renderMessages(false)}
+              {renderComposer(false)}
+
+              {recipePickerOpen && (
+                <div className="absolute inset-0 flex items-end bg-black/25">
+                  <div className="max-h-[72%] w-full rounded-t-[28px] bg-white p-4 shadow-2xl">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-on-surface">My recipes</p>
+                        <p className="text-xs text-outline">
+                          Pick one to keep pinned while you chat.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRecipePickerOpen(false)}
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">close</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2 overflow-y-auto">
+                      {loadingRecipes ? (
+                        <p className="rounded-2xl border border-outline-variant/50 bg-surface-container-low px-3 py-3 text-sm text-outline">
+                          Loading recipes...
+                        </p>
+                      ) : savedRecipes.length === 0 ? (
+                        <p className="rounded-2xl border border-outline-variant/50 bg-surface-container-low px-3 py-3 text-sm text-outline">
+                          No recipes found yet.
+                        </p>
+                      ) : (
+                        savedRecipes.map((recipe) => (
+                          <button
+                            key={recipe.id}
+                            type="button"
+                            onClick={() => selectRecipe(recipe)}
+                            className="w-full rounded-2xl border border-[#ecd9c9] bg-white px-3 py-3 text-left transition hover:border-primary/40"
+                          >
+                            <p className="text-sm font-semibold text-on-surface">
+                              {recipe.name}
+                            </p>
+                            <p className="mt-1 text-xs text-outline">
+                              {recipe.servings} servings
+                              {recipe.nutrition_data?.calories
+                                ? ` · ${recipe.nutrition_data.calories} kcal`
+                                : ""}
+                            </p>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
           )}
-        </section>
+        </>
       )}
 
       <button
         type="button"
         onClick={() => {
           setIsOpen((current) => !current);
-          window.setTimeout(() => inputRef.current?.focus(), 0);
+          setIsExpanded(false);
+          focusInputSoon();
         }}
         className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-fixed-dim text-on-primary-fixed shadow-xl ring-1 ring-white/70 transition hover:bg-primary-fixed active:scale-95"
         aria-label="Open Chef chat"

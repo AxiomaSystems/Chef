@@ -62,3 +62,18 @@ export type AiChatMessage = {
   content: string;
 };
 
+export type AiRecipeImportPlatform =
+  | 'youtube'
+  | 'instagram'
+  | 'tiktok'
+  | 'generic';
+
+export type AiRecipeImportResult = {
+  source_url: string;
+  platform: AiRecipeImportPlatform;
+  source_title: string;
+  source_creator: string | null;
+  source_description: string;
+  imported_recipe: AiRecipePreview;
+  extraction_notes: string[];
+};

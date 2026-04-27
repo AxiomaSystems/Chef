@@ -8,9 +8,16 @@ interface AppShellProps {
   topBarTitle?: string;
   topBarActions?: React.ReactNode;
   showBack?: boolean;
+  showChefChatWidget?: boolean;
 }
 
-export function AppShell({ children, topBarTitle, topBarActions, showBack }: AppShellProps) {
+export function AppShell({
+  children,
+  topBarTitle,
+  topBarActions,
+  showBack,
+  showChefChatWidget = true,
+}: AppShellProps) {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
@@ -19,7 +26,7 @@ export function AppShell({ children, topBarTitle, topBarActions, showBack }: App
         <main className="flex-1 pb-20 lg:pb-0">{children}</main>
       </div>
       <BottomNav />
-      <ChefChatWidget />
+      {showChefChatWidget ? <ChefChatWidget /> : null}
     </div>
   );
 }

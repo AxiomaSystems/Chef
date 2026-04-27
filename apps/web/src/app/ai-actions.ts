@@ -60,6 +60,21 @@ export type UserRecipesActionState = {
   recipes?: BaseRecipe[];
 };
 
+export type AiRecipeImportResult = {
+  source_url: string;
+  platform: "youtube" | "instagram" | "tiktok" | "generic";
+  source_title: string;
+  source_creator: string | null;
+  source_description: string;
+  imported_recipe: AiRecipePreview;
+  extraction_notes: string[];
+};
+
+export type ImportRecipeActionState = {
+  error?: string;
+  result?: AiRecipeImportResult;
+};
+
 async function readErrorMessage(response: Response | null, fallback: string) {
   if (!response) return fallback;
 
@@ -214,10 +229,61 @@ export async function fetchUserRecipesAction(): Promise<UserRecipesActionState> 
     };
   }
 
-  const payload = (await response.json()) as { data?: BaseRecipe[] };
+  const payload = (await response.json()) as
+    | BaseRecipe[]
+    | { data?: BaseRecipe[]; recipes?: BaseRecipe[] };
+  const recipes = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload.data)
+      ? payload.data
+      : Array.isArray(payload.recipes)
+        ? payload.recipes
+        : [];
+  const ownedRecipes = recipes.filter((recipe) => !recipe.is_system_recipe);
 
   return {
-    recipes: payload.data ?? [],
+    recipes: ownedRecipes,
+  };
+}
+
+export async function importRecipeFromUrlAction(input: {
+  url: string;
+  supplementalText?: string;
+}): Promise<ImportRecipeActionState> {
+  const url = input.url.trim();
+
+  if (!url) {
+    return { error: "Paste a recipe link first." };
+  }
+
+  const accessToken = await requireAccessToken();
+
+  const response = await fetch(buildApiUrl("/ai/recipe-imports/structure"), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      url,
+      supplemental_text: input.supplementalText?.trim() || undefined,
+    }),
+    cache: "no-store",
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: await readErrorMessage(
+        response,
+        "Chef could not import that link right now.",
+      ),
+    };
+  }
+
+  const payload = (await response.json()) as AiRecipeImportResult;
+
+  return {
+    result: payload,
   };
 }
 
