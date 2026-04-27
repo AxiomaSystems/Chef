@@ -58,6 +58,8 @@ export const buildShoppingCartResponse = (input: {
   matchedItems: ShoppingCart['matched_items'];
   estimatedSubtotal: number;
   retailer: ShoppingCart['retailer'];
+  externalUrl?: ShoppingCart['external_url'];
+  externalReferenceId?: ShoppingCart['external_reference_id'];
 }): Omit<
   ShoppingCart,
   'id' | 'user_id' | 'created_at' | 'updated_at'
@@ -67,6 +69,8 @@ export const buildShoppingCartResponse = (input: {
   matched_items: input.matchedItems,
   estimated_subtotal: input.estimatedSubtotal,
   retailer: input.retailer,
+  external_url: input.externalUrl,
+  external_reference_id: input.externalReferenceId,
 });
 
 export const cloneCartSelections = (cart: Cart): CartSelection[] =>

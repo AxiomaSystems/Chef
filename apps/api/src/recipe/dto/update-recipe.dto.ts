@@ -6,7 +6,6 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUrl,
   Min,
   ValidateIf,
   ValidateNested,
@@ -38,8 +37,8 @@ export class UpdateRecipeDto {
     nullable: true,
   })
   @Transform(({ value }) => (value === '' ? null : value))
-  @ValidateIf((_object, value) => value !== null && value !== undefined)
-  @IsUrl()
+  @IsOptional()
+  @IsString()
   cover_image_url?: string | null;
 
   @ApiPropertyOptional({ type: () => RecipeNutritionDataDto, nullable: true })

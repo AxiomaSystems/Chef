@@ -1,5 +1,29 @@
 export type UserRole = "admin" | "user";
 
+export type SavedAddress = {
+  id: string;
+  label: string;
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  isDefault: boolean;
+};
+
+export type PaymentCard = {
+  id: string;
+  cardType: "Visa" | "Mastercard" | "Amex" | "Discover";
+  lastFour: string;
+  expiry: string;
+  name: string;
+  isDefault: boolean;
+};
+
+export type CheckoutProfile = {
+  saved_addresses: SavedAddress[];
+  payment_cards: PaymentCard[];
+};
+
 export type User = {
   id: string;
   email: string;

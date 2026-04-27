@@ -50,6 +50,8 @@ export const mapPersistedShoppingCart = (
   estimated_subtotal: shoppingCart.estimatedSubtotal,
   estimated_total: shoppingCart.estimatedTotal ?? undefined,
   retailer: shoppingCart.retailer as ShoppingCart['retailer'],
+  external_url: shoppingCart.externalUrl ?? undefined,
+  external_reference_id: shoppingCart.externalReferenceId ?? undefined,
   created_at: shoppingCart.createdAt.toISOString(),
   updated_at: shoppingCart.updatedAt.toISOString(),
 });
@@ -62,6 +64,8 @@ export const mapShoppingCartHistorySummary = (
   cart_id: shoppingCart.cartId,
   retailer: shoppingCart.retailer as ShoppingCart['retailer'],
   estimated_subtotal: shoppingCart.estimatedSubtotal,
+  external_url: shoppingCart.externalUrl ?? undefined,
+  external_reference_id: shoppingCart.externalReferenceId ?? undefined,
   overview_count: (shoppingCart.overview as ShoppingCart['overview']).length,
   matched_item_count: (
     shoppingCart.matchedItems as ShoppingCart['matched_items']

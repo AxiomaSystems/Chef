@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
@@ -12,7 +12,7 @@ function SubmitButton() {
   return (
     <button
       type="submit"
-      className="inline-flex min-h-12 items-center justify-center rounded-full bg-[color:var(--forest)] px-6 text-sm font-semibold text-[color:var(--paper)] transition hover:bg-[color:var(--forest-strong)] disabled:cursor-not-allowed disabled:opacity-70"
+      className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#895032] px-6 text-sm font-semibold text-[#faf9f6] transition hover:bg-[#1a1c1a] disabled:cursor-not-allowed disabled:opacity-70"
       disabled={pending}
     >
       {pending ? "Signing in..." : "Sign in"}
@@ -26,11 +26,11 @@ export function LoginForm() {
   return (
     <form action={formAction} className="grid gap-4">
       <label className="grid gap-2">
-        <span className="text-sm font-medium text-[color:var(--forest-strong)]">
+        <span className="text-sm font-medium text-[#1a1c1a]">
           Email
         </span>
         <input
-          className="min-h-12 rounded-2xl border border-[color:var(--line)] bg-white/80 px-4 text-[color:var(--ink)] outline-none ring-0 transition placeholder:text-[color:var(--ink-soft)] focus:border-[color:var(--olive)]"
+          className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-white/80 px-4 text-[#1a1c1a] outline-none ring-0 transition placeholder:text-[#85736c] focus:border-[#895032]"
           type="email"
           name="email"
           autoComplete="email"
@@ -40,11 +40,11 @@ export function LoginForm() {
       </label>
 
       <label className="grid gap-2">
-        <span className="text-sm font-medium text-[color:var(--forest-strong)]">
+        <span className="text-sm font-medium text-[#1a1c1a]">
           Password
         </span>
         <input
-          className="min-h-12 rounded-2xl border border-[color:var(--line)] bg-white/80 px-4 text-[color:var(--ink)] outline-none ring-0 transition placeholder:text-[color:var(--ink-soft)] focus:border-[color:var(--olive)]"
+          className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-white/80 px-4 text-[#1a1c1a] outline-none ring-0 transition placeholder:text-[#85736c] focus:border-[#895032]"
           type="password"
           name="password"
           autoComplete="current-password"
@@ -54,7 +54,7 @@ export function LoginForm() {
       </label>
 
       {state.error ? (
-        <p className="rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
+        <p className="rounded-2xl border border-[#ba1a1a]/20 bg-[#ba1a1a]/10 px-4 py-3 text-sm text-[#ba1a1a]">
           {state.error}
         </p>
       ) : null}

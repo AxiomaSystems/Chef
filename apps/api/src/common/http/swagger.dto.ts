@@ -353,6 +353,57 @@ export class UserPreferencesResponseDto {
   preferred_tags!: TagResponseDto[];
 }
 
+export class SavedAddressResponseDto {
+  @ApiProperty({ example: 'address-1' })
+  id!: string;
+
+  @ApiProperty({ example: 'Home' })
+  label!: string;
+
+  @ApiProperty({ example: '2 E South Street' })
+  street!: string;
+
+  @ApiProperty({ example: 'Galesburg' })
+  city!: string;
+
+  @ApiProperty({ example: 'IL' })
+  state!: string;
+
+  @ApiProperty({ example: '61401' })
+  zip!: string;
+
+  @ApiProperty({ example: true })
+  isDefault!: boolean;
+}
+
+export class PaymentCardResponseDto {
+  @ApiProperty({ example: 'card-1' })
+  id!: string;
+
+  @ApiProperty({ example: 'Visa' })
+  cardType!: 'Visa' | 'Mastercard' | 'Amex' | 'Discover';
+
+  @ApiProperty({ example: '2222' })
+  lastFour!: string;
+
+  @ApiProperty({ example: '07/28' })
+  expiry!: string;
+
+  @ApiProperty({ example: 'Tioluwani Enoch Olubunmi' })
+  name!: string;
+
+  @ApiProperty({ example: true })
+  isDefault!: boolean;
+}
+
+export class CheckoutProfileResponseDto {
+  @ApiProperty({ type: () => [SavedAddressResponseDto] })
+  saved_addresses!: SavedAddressResponseDto[];
+
+  @ApiProperty({ type: () => [PaymentCardResponseDto] })
+  payment_cards!: PaymentCardResponseDto[];
+}
+
 export class UserStatsResponseDto {
   @ApiProperty({ example: 12 })
   owned_recipe_count!: number;
@@ -448,6 +499,12 @@ export class AggregatedIngredientResponseDto {
 
   @ApiPropertyOptional({ example: 'cup' })
   purchase_unit_hint?: string;
+
+  @ApiPropertyOptional({ example: 'ingredient-rice' })
+  ingredient_id?: string;
+
+  @ApiPropertyOptional({ example: true })
+  in_kitchen?: boolean;
 }
 
 export class ProductCandidateResponseDto {
@@ -528,13 +585,54 @@ export class MatchedIngredientProductResponseDto {
 
 export class RetailerProductSearchResponseDto {
   @ApiProperty({ example: 'walmart' })
-  retailer!: 'walmart';
+  retailer!: string;
 
   @ApiProperty({ example: 'cilantro' })
   query!: string;
 
   @ApiProperty({ type: () => [ProductCandidateResponseDto] })
   candidates!: ProductCandidateResponseDto[];
+}
+
+export class RetailerCapabilityResponseDto {
+  @ApiProperty({ example: 'instacart' })
+  retailer!: string;
+
+  @ApiProperty({ example: 'Instacart' })
+  label!: string;
+
+  @ApiProperty({ example: false })
+  supports_product_search!: boolean;
+
+  @ApiProperty({ example: false })
+  supports_location_lookup!: boolean;
+
+  @ApiProperty({ example: true })
+  supports_cart_handoff!: boolean;
+
+  @ApiProperty({ example: false })
+  supports_native_checkout!: boolean;
+
+  @ApiProperty({ example: false })
+  requires_location!: boolean;
+
+  @ApiProperty({ example: true })
+  requires_api_key!: boolean;
+
+  @ApiProperty({
+    enum: ['configured', 'disabled', 'partner_required'],
+    example: 'configured',
+  })
+  status!: string;
+
+  @ApiProperty({ example: 1 })
+  demo_priority!: number;
+
+  @ApiPropertyOptional({
+    example:
+      'Preferred demo handoff path. Generates a hosted Instacart shopping-list URL when configured.',
+  })
+  notes?: string;
 }
 
 export class PersistedCartDraftResponseDto {
@@ -621,6 +719,15 @@ export class ShoppingCartHistorySummaryResponseDto {
   @ApiProperty({ example: 19.9 })
   estimated_subtotal!: number;
 
+  @ApiPropertyOptional({
+    example:
+      'https://www.instacart.com/store/products/products_link/example',
+  })
+  external_url?: string;
+
+  @ApiPropertyOptional({ example: 'cart-1' })
+  external_reference_id?: string;
+
   @ApiProperty({ example: 5 })
   overview_count!: number;
 
@@ -659,9 +766,49 @@ export class ShoppingCartResponseDto {
   @ApiProperty({ example: 'walmart' })
   retailer!: string;
 
+  @ApiPropertyOptional({
+    example:
+      'https://www.instacart.com/store/products/products_link/example',
+  })
+  external_url?: string;
+
+  @ApiPropertyOptional({ example: 'cart-1' })
+  external_reference_id?: string;
+
   @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
   created_at!: string;
 
   @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
   updated_at!: string;
+}
+
+export class MealPlanDayResponseDto {
+  @ApiPropertyOptional({ example: 'recipe-1' })
+  breakfast?: string;
+
+  @ApiPropertyOptional({ example: 'recipe-2' })
+  lunch?: string;
+
+  @ApiPropertyOptional({ example: 'recipe-3' })
+  dinner?: string;
+}
+
+export class MealPlanResponseDto {
+  @ApiPropertyOptional({ example: 'meal-plan-1' })
+  id?: string;
+
+  @ApiPropertyOptional({ example: 'user-1' })
+  user_id?: string;
+
+  @ApiProperty({ example: '2026-04-20' })
+  week_start!: string;
+
+  @ApiProperty({ type: () => [MealPlanDayResponseDto] })
+  days!: MealPlanDayResponseDto[];
+
+  @ApiPropertyOptional({ example: '2026-04-22T12:00:00.000Z' })
+  created_at?: string;
+
+  @ApiPropertyOptional({ example: '2026-04-22T12:10:00.000Z' })
+  updated_at?: string;
 }

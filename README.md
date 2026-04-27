@@ -42,9 +42,9 @@ The backend is well past scaffold stage, and the current web app validates the c
 - draft/cart creation and editing through large overlays
 - persisted `CartDraft`, `Cart`, and `ShoppingCart` resources behind the internal `/api/v1` contract
 - quantity controls for recipe selections in the planning composer and for line quantities in shopping carts
+- a shared ingredient catalog and user kitchen inventory for demoing "already have this" behavior
 - a live Kroger retailer path behind a provider boundary
-- an internal stage-1 kitchen vision detection prototype under `/api/v1/vision`
-- a separate Python `apps/vision-lab` for image, video, and early live inventory-aware vision testing
+- an Instacart shopping-list handoff path behind a cart-export boundary
 
 ### Web App
 
@@ -79,6 +79,8 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - recipe CRUD for user-owned recipes
 - optional `cover_image_url` and `nutrition_data` on recipes
 - explicit dietary badge tags through `Tag.kind = dietary_badge`
+- shared `Ingredient` records seeded from recipe ingredients
+- user-scoped kitchen inventory at `/api/v1/me/kitchen-inventory`
 - an explicit fork flow for copying a system recipe into a user-owned editable recipe
 - persisted `cart-drafts`, `carts`, and `shopping-carts`
 - deterministic conversion from recipe selections into recipe-based carts
@@ -87,10 +89,13 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - deterministic ingredient aggregation and provider-backed retailer matching behind shopping-cart generation
 - a mock retailer provider for local/dev fallback
 - a real Kroger provider for live location lookup and product search
+- an Instacart cart-export provider that can generate an external shopping-list URL
+- `/api/v1/retailers/capabilities` to expose which retailer paths are configured, handoff-only, or partner-gated
 - a Walmart provider boundary that remains available but inactive by default
 - retailer product search and shopping-cart editing APIs behind the same shopping-cart boundary
 - rule-based grocery matching refinement for produce/plain pantry items and honest no-match handling for specialty ingredients
-- internal `/api/v1` route families for `recipes`, `recipe-forks`, `cart-drafts`, `carts`, `shopping-carts`, and `vision`
+- authenticated AI endpoints under `/api/v1/ai` for Chef chat, structured meal generation, and ingredient swap proposals
+- internal `/api/v1` route families for `recipes`, `recipe-forks`, `cart-drafts`, `carts`, and `shopping-carts`
 - internal `/api/v1/tags` for visible system tags and user-owned tags
 - Swagger UI at `/docs`
 - request tracing via `x-request-id`
@@ -105,7 +110,6 @@ The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) curr
 - aggregation
 - matching
 - users
-- vision scan contracts
 
 ### Database and Infra
 
@@ -125,8 +129,6 @@ The main architecture and design notes live in:
 - [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md)
 - [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md)
 - [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md)
-- [docs/vision.md](/C:/Users/akuma/repos/cart-generator/docs/vision.md)
-- [docs/vision-progress.md](/C:/Users/akuma/repos/cart-generator/docs/vision-progress.md)
 
 Those docs now describe the startup thesis, the implemented `v1` direction, the current prototype web state, the agentic product direction, and the next product/backend milestones.
 
@@ -136,7 +138,6 @@ Those docs now describe the startup thesis, the implemented `v1` direction, the 
 cart-generator/
 |-- apps/
 |   |-- api/
-|   |-- vision-lab/
 |   `-- web/
 |-- docs/
 |-- infra/
@@ -176,34 +177,6 @@ Run one app:
 pnpm dev:api
 pnpm dev:web
 ```
-
-Run the isolated computer-vision lab:
-
-```bash
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r apps/vision-lab/requirements.txt
-streamlit run apps/vision-lab/app.py
-```
-
-Or use the helper script:
-
-```bash
-.\apps\vision-lab\run_streamlit.ps1
-```
-
-Optional live webcam extras:
-
-```bash
-pip install -r apps/vision-lab/requirements-live.txt
-```
-
-Current vision-lab surfaces:
-
-- image upload with inventory-aware overlays
-- video upload with sampled-frame scan review
-- live camera with start/stop scan-session buffering when the local runtime supports `av`/WebRTC
-- local runtime inventory persisted in `apps/vision-lab/data/runtime_inventory.json`
 
 Build the workspace:
 
@@ -308,6 +281,8 @@ Swagger:
 - `CartDraft` is editable incomplete intent, not the main product object
 - `Cart` is the stable recipe-based meal plan snapshot with retailer context and a derived ingredient overview
 - `ShoppingCart` is the retailer-facing basket derived from a `Cart`
+- kitchen inventory is a persistent "user says they have it" layer, not exact pantry automation
+- cart overviews can mark ingredients as `in_kitchen`, and shopping-cart generation skips those lines
 - aggregation and retailer matching remain deterministic
 - `ShoppingCart` can now be manually corrected without regenerating a new planning artifact
 - dietary badges should come from tag metadata, not hardcoded booleans on recipes
@@ -358,6 +333,9 @@ This separation is intentional:
 - `/api/v1/me/onboarding/complete` now marks onboarding completion independently from preferences.
 - `/api/v1/tags` now supports list/create/update/delete.
 - `/api/v1/tags` now returns `kind` so clients can distinguish general taxonomy tags from dietary badge tags.
+- `/api/v1/ingredients` exposes the shared ingredient catalog.
+- `/api/v1/me/kitchen-inventory` supports listing, adding, and deleting the current user's kitchen inventory items.
+- `Cart.overview` and `ShoppingCart.overview` can now mark `in_kitchen` ingredients, and shopping-cart generation only matches/exports missing ingredients.
 - `POST /api/v1/recipe-forks` replaced the old save-style route.
 - recipes now require `cuisine_id` and return expanded `cuisine` objects.
 - carts now require `retailer` on write and return derived `overview` ingredient data on read.
@@ -379,6 +357,7 @@ This separation is intentional:
 - the matching module now supports `MockRetailerProductProvider`, `KrogerRetailerProductProvider`, and `WalmartRetailerProductProvider`
 - Kroger is now the first live retailer path, using the user's shopping location to resolve a nearby store before product search
 - the Kroger provider now deduplicates concurrent token fetches, throttles uncached search bursts, and caches locations/query results to reduce burst traffic
+- Instacart is now supported as a shopping-cart handoff path through `CartExportService`, storing `external_url` on the persisted `ShoppingCart`
 - new API envs:
   - `WALMART_USE_REAL_PROVIDER=true|false`
   - `WALMART_CLIENT_ID`
@@ -388,9 +367,36 @@ This separation is intentional:
   - `KROGER_USE_REAL_PROVIDER=true|false`
   - `KROGER_CLIENT_ID`
   - `KROGER_CLIENT_SECRET`
+- Instacart API envs:
+  - `INSTACART_USE_REAL_PROVIDER=true|false`
+  - `INSTACART_API_KEY`
+  - `INSTACART_ENV=development|production`
+  - `INSTACART_API_BASE_URL` optional override for sandbox/dev endpoints
 - `PATCH /api/v1/shopping-carts/:id` now persists manual shopping-cart edits
 - shopping-cart editing now supports manual line items, replacing matches, deleting lines, and changing `selected_quantity`
 - draft/cart editing now supports per-recipe quantities, so the same dish can appear multiple times in one planning run
+- `/api/v1/retailers/capabilities` now reports demo-ready retailer capabilities:
+  - Instacart is the preferred cart handoff path when configured
+  - Kroger is the live product-search and subtotal path
+  - Walmart remains partner/approval-gated for now
+- `/api/v1/ai/chat`, `/api/v1/ai/meals/generate`, and `/api/v1/ai/recipes/swap-ingredient` now provide the first integrated Chef AI layer
+- the web app now mounts a global Chef chat widget across authenticated workspace pages through `AppShell`
+
+### LLM Configuration
+
+Use mock AI locally without model calls:
+
+```bash
+CHEF_LLM_PROVIDER=mock
+```
+
+Use OpenAI for real model calls:
+
+```bash
+CHEF_LLM_PROVIDER=openai
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-5.4-mini
+```
 
 ## Upcoming Work
 
@@ -399,19 +405,22 @@ The next high-signal work is now more product-shaped than before.
 The current frontend should be treated as a functional prototype and validation harness. Avoid heavy visual investment there unless it unblocks core flows. A future frontend rebuild can happen once the backend/API contracts are stronger.
 
 1. Add meal-idea -> structured recipe generation.
-2. Add pre-cart ingredient editing so users can remove what they already have before grocery matching.
-3. Keep improving Kroger matching quality with more ingredient query planning, synonym maps, and stronger produce/pantry heuristics.
-4. Add GPS-assisted shopping-location setup and better Kroger store reuse.
-5. Evaluate open-source MCPs/tools for retailer search, nutrition lookup, cart export, pantry, and recipe import.
-6. Design backend contracts for AI recipe editing, nutrition/macros, recipe import/forking, and future cooking assistant context.
+2. Add a UI surface for editing kitchen inventory without relying on seed/API calls.
+3. Add pre-cart ingredient review so users can override inventory per planning run.
+4. Keep improving Kroger matching quality with more ingredient query planning, synonym maps, and stronger produce/pantry heuristics.
+5. Wire Instacart credentials into the demo branch and validate real hosted shopping-list creation.
+6. Add GPS-assisted shopping-location setup and better Kroger store reuse.
+7. Evaluate open-source MCPs/tools for retailer search, nutrition lookup, cart export, pantry, and recipe import.
+8. Design backend contracts for AI recipe editing, nutrition/macros, recipe import/forking, and future cooking assistant context.
 
 ## Current Gaps
 
 - recipe variants and AI-assisted adaptation are not implemented yet
 - meal-idea recipe generation is not implemented yet
-- pre-cart ingredient editing/removal is not implemented as a dedicated flow yet
+- kitchen inventory persistence exists, but the user-facing inventory editor is still minimal/not a final UX
+- pre-cart ingredient editing/removal is not implemented as a dedicated per-cart override flow yet
 - external recipe import/forking from URLs, screenshots, menus, or creator content is not implemented yet
-- the Walmart provider boundary exists, but the first live retailer path is now Kroger
+- the Walmart provider boundary exists, the first live matching path is Kroger, and the first external handoff path is Instacart
 - delete flows exist, but recovery/versioning does not
 - drafts and carts can now be edited, but there is still no broader history/timeline model for planning runs
 - shopping-cart history exists in API and `/shopping`, but revisit/history tools are still fairly light

@@ -5,6 +5,7 @@
   "description": "",
   "scripts": {
     "dev": "pnpm -r --parallel --filter web --filter api run dev",
+    "dev:mobile": "pnpm --filter mobile start",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api start:dev",
     "api:setup": "docker compose -f infra/docker/docker-compose.yml up -d && pnpm --filter api prisma:generate && pnpm --dir apps/api exec prisma migrate deploy && pnpm --filter api db:seed",

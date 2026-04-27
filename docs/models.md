@@ -422,6 +422,8 @@ type AggregatedIngredient = {
   unit: string;
   source_dishes: AggregatedIngredientSource[];
   purchase_unit_hint?: string;
+  ingredient_id?: string;
+  in_kitchen?: boolean;
 };
 ```
 
@@ -455,8 +457,32 @@ Status:
 ### Retailer
 
 ```ts
-type Retailer = "walmart" | "kroger";
+type Retailer = "walmart" | "kroger" | "instacart";
 ```
+
+### RetailerCapability
+
+```ts
+type RetailerCapability = {
+  retailer: Retailer;
+  label: string;
+  supports_product_search: boolean;
+  supports_location_lookup: boolean;
+  supports_cart_handoff: boolean;
+  supports_native_checkout: boolean;
+  requires_location: boolean;
+  requires_api_key: boolean;
+  status: "configured" | "disabled" | "partner_required";
+  demo_priority: number;
+  notes?: string;
+};
+```
+
+Current use:
+
+- exposed by `GET /api/v1/retailers/capabilities`
+- lets clients distinguish Kroger-style product search from Instacart-style hosted cart handoff
+- keeps Walmart visible as partner-gated without pretending it is demo-ready
 
 ### ProductCandidate
 
@@ -532,6 +558,7 @@ Status:
 - the default fallback provider is still the mock catalog
 - Kroger is now the first live provider path
 - a Walmart provider boundary also exists for later activation
+- Instacart is modeled as a retailer value, but the first implementation is cart handoff/export rather than line-by-line product matching
 - manual shopping-cart lines use `kind = "manual_item"` and do not need to map back to a canonical ingredient source
 
 Provider note:
@@ -549,6 +576,8 @@ type ShoppingCart = {
   id: string;
   cart_id: string;
   retailer: Retailer;
+  external_url?: string;
+  external_reference_id?: string;
   overview: AggregatedIngredient[];
   matched_items: MatchedIngredientProduct[];
   estimated_subtotal: number;
@@ -579,32 +608,57 @@ Current UI note:
 
 ## 7. User Models
 
-## 6.5. Planned Inventory And Meal Tracking Models
+## 6.5. Inventory And Meal Tracking Models
 
-These are future models. They should not block the MVP.
+Inventory now has a lightweight implemented slice. It is intentionally rough: it records what a user says they have, not exact pantry quantities.
 
-### PantryItem
+### Ingredient
 
 ```ts
-type PantryItem = {
+type Ingredient = {
   id: string;
-  user_id: string;
-  canonical_ingredient?: string;
-  product_id?: string;
-  label: string;
-  estimated_amount?: number;
-  unit?: string;
-  confidence?: "low" | "medium" | "high";
-  source: "manual" | "cart" | "receipt" | "image" | "inferred";
+  canonical_name: string;
+  slug: string;
+  aliases?: string[];
+  category?: string;
+  default_unit?: string;
+  vision_labels?: string[];
+  created_at: string;
   updated_at: string;
 };
 ```
 
 Interpretation:
 
-- pantry state starts rough, not exact
+- `Ingredient` is a shared global catalog
+- it deduplicates ingredient names across users, recipes, future nutrition, future retailer search, and future computer vision
+- `vision_labels` is reserved for future object-detection labels, not used in the current demo
+
+### KitchenInventoryItem
+
+```ts
+type KitchenInventoryItem = {
+  id: string;
+  user_id: string;
+  ingredient_id: string;
+  ingredient: Ingredient;
+  label?: string;
+  estimated_amount?: number;
+  unit?: string;
+  confidence: "low" | "medium" | "high";
+  source: "manual" | "cart" | "vision" | "receipt" | "inferred" | "seed";
+  created_at: string;
+  updated_at: string;
+};
+```
+
+Interpretation:
+
+- kitchen inventory state starts rough, not exact
+- current demo uses presence/absence only
 - exact quantity tracking is a later capability
 - "things I usually have" is valuable before object detection is reliable
+- shopping-cart generation can skip ingredients marked in kitchen
 
 ### MealLog
 
@@ -787,6 +841,13 @@ Planned role:
 
 - turn a persisted `ShoppingCart` into an actionable external cart/share/export format
 - support Share-A-Cart-style or browser-extension-assisted transfer if direct retailer checkout APIs are unavailable
+
+Current status:
+
+- Instacart handoff is implemented as the first cart-export path
+- `ShoppingCart.external_url` stores the hosted Instacart shopping-list URL when available
+- `ShoppingCart.external_reference_id` stores Chef's reference id for the external handoff
+- Kroger remains the stronger line-by-line matching path; Instacart is the smoother demo/user handoff path
 
 ### CookingAssistantContext
 

@@ -1,0 +1,653 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+import { useRef, useState, useTransition } from "react";
+import type { BaseRecipe } from "@cart/shared";
+import {
+  askChefAction,
+  fetchUserRecipesAction,
+  generateMealsAction,
+  type AiRecipePreview,
+  type ChefChatMessage,
+} from "@/app/ai-actions";
+
+const STARTER_PROMPTS = [
+  "What can I cook with what I have?",
+  "Make this meal cheaper.",
+  "Plan high-protein dinners for the week.",
+];
+
+const HANDS_FREE_PROMPTS = [
+  "Guide me one step at a time.",
+  "Repeat the last step.",
+  "What can I prep while I wait?",
+];
+
+const MOCK_LINK_DATA = {
+  tiktok: {
+    title: "Creamy Tuscan Salmon",
+    creator: "@whatsgabycooking",
+    description:
+      "Pan-seared salmon with sun-dried tomatoes, garlic, spinach, and a creamy parmesan sauce.",
+  },
+  instagram: {
+    title: "One-Pan Lemon Herb Chicken",
+    creator: "@minimalistbaker",
+    description:
+      "Juicy chicken thighs with roasted lemon, fresh herbs, and garlic for a fast weeknight dinner.",
+  },
+  youtube: {
+    title: "The Best Homemade Ramen",
+    creator: "Joshua Weissman",
+    description:
+      "Rich ramen with layered broth, chashu pork, eggs, and classic toppings.",
+  },
+  other: {
+    title: "Recipe from link",
+    creator: "Imported source",
+    description: "Chef can help break this down, adapt it, or turn it into a plan.",
+  },
+} as const;
+
+type WidgetContext =
+  | { type: "none" }
+  | {
+      type: "link";
+      name: string;
+      detail: string;
+      url: string;
+      platform: "tiktok" | "instagram" | "youtube" | "other";
+    }
+  | {
+      type: "recipe";
+      name: string;
+      detail: string;
+      recipeId: string;
+    }
+  | {
+      type: "generated";
+      name: string;
+      detail: string;
+      recipe: AiRecipePreview;
+    };
+
+function detectPlatform(url: string): "tiktok" | "instagram" | "youtube" | "other" {
+  if (url.includes("tiktok.com")) return "tiktok";
+  if (url.includes("instagram.com")) return "instagram";
+  if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
+  return "other";
+}
+
+export function ChefChatWidget() {
+  const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  const [messages, setMessages] = useState<ChefChatMessage[]>([
+    {
+      role: "assistant",
+      content:
+        "I am right here while you cook. Paste a creator link, pin one of your recipes, or ask for meal ideas.",
+    },
+  ]);
+  const [followUps, setFollowUps] = useState<string[]>(STARTER_PROMPTS);
+  const [safetyNotes, setSafetyNotes] = useState<string[]>([]);
+  const [error, setError] = useState<string | undefined>();
+  const [context, setContext] = useState<WidgetContext>({ type: "none" });
+  const [handsFreeMode, setHandsFreeMode] = useState(false);
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [showPlanner, setShowPlanner] = useState(false);
+  const [mealPrompt, setMealPrompt] = useState("");
+  const [mealStyle, setMealStyle] = useState<
+    "standard" | "inventory_first" | "high_protein" | "meal_prep" | "quick"
+  >("standard");
+  const [generatedRecipes, setGeneratedRecipes] = useState<AiRecipePreview[]>([]);
+  const [generatedSummary, setGeneratedSummary] = useState("");
+  const [savedRecipes, setSavedRecipes] = useState<BaseRecipe[]>([]);
+  const [recipePickerOpen, setRecipePickerOpen] = useState(false);
+  const [loadingRecipes, setLoadingRecipes] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [isGenerating, startGeneration] = useTransition();
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  function pushAssistantMessage(content: string) {
+    setMessages((current) => [...current, { role: "assistant", content }]);
+  }
+
+  function buildChatContext() {
+    return {
+      page: pathname,
+      surface: "global_chef_chat_widget",
+      hands_free_mode: handsFreeMode,
+      selected_context_type: context.type,
+      selected_context_name: context.type === "none" ? null : context.name,
+      selected_context_detail: context.type === "none" ? null : context.detail,
+    };
+  }
+
+  function submit(messageOverride?: string) {
+    const nextPrompt = (messageOverride ?? prompt).trim();
+    if (!nextPrompt || isPending) return;
+
+    const userMessage: ChefChatMessage = {
+      role: "user",
+      content: nextPrompt,
+    };
+    const nextMessages = [...messages, userMessage];
+
+    setMessages(nextMessages);
+    setPrompt("");
+    setError(undefined);
+    setSafetyNotes([]);
+
+    startTransition(async () => {
+      const result = await askChefAction({
+        message: handsFreeMode
+          ? `${nextPrompt}\n\nRespond briefly and in a hands-free cooking style.`
+          : nextPrompt,
+        history: messages.filter((message) => message.content.trim()).slice(-8),
+        context: buildChatContext(),
+      });
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: result.message ?? "I could not generate a useful answer.",
+        },
+      ]);
+      setFollowUps(
+        result.followUpPrompts?.length
+          ? result.followUpPrompts
+          : handsFreeMode
+            ? HANDS_FREE_PROMPTS
+            : STARTER_PROMPTS,
+      );
+      setSafetyNotes(result.safetyNotes ?? []);
+    });
+  }
+
+  function importLink() {
+    const url = linkUrl.trim();
+    if (!url) return;
+
+    const platform = detectPlatform(url);
+    const data = MOCK_LINK_DATA[platform];
+    setContext({
+      type: "link",
+      name: data.title,
+      detail: data.creator,
+      url,
+      platform,
+    });
+    setShowLinkInput(false);
+    setLinkUrl("");
+    setGeneratedRecipes([]);
+    setGeneratedSummary("");
+    pushAssistantMessage(
+      `Pinned ${data.title} from ${data.creator}. Ask me to break it down, adapt it, simplify it, or turn it into a shopping plan.`,
+    );
+    setFollowUps([
+      "Summarize this recipe.",
+      "Make this easier for a weeknight.",
+      "What ingredients will I need?",
+    ]);
+  }
+
+  function openRecipePicker() {
+    if (loadingRecipes || isPending) return;
+
+    setRecipePickerOpen(true);
+
+    if (savedRecipes.length > 0) return;
+
+    setLoadingRecipes(true);
+    startTransition(async () => {
+      const result = await fetchUserRecipesAction();
+      setLoadingRecipes(false);
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      setSavedRecipes(result.recipes ?? []);
+    });
+  }
+
+  function selectRecipe(recipe: BaseRecipe) {
+    setContext({
+      type: "recipe",
+      name: recipe.name,
+      detail: `${recipe.servings} servings`,
+      recipeId: recipe.id,
+    });
+    setRecipePickerOpen(false);
+    setGeneratedRecipes([]);
+    setGeneratedSummary("");
+    pushAssistantMessage(
+      `Pinned ${recipe.name}. Ask about substitutions, scaling, timing, nutrition, or a hands-free step-by-step version.`,
+    );
+    setFollowUps([
+      "Scale this for 6 people.",
+      "Make this vegetarian.",
+      "Guide me step by step.",
+    ]);
+  }
+
+  function generateMeals() {
+    const nextPrompt = mealPrompt.trim();
+    if (!nextPrompt || isGenerating) return;
+
+    setError(undefined);
+    startGeneration(async () => {
+      const result = await generateMealsAction({
+        mealPrompt: nextPrompt,
+        mealStyle,
+        mealsNeeded: 3,
+        servingsPerMeal: 4,
+        notes:
+          "Return practical meal ideas that work well inside Chef's recipe and shopping workflow.",
+      });
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      const nextRecipes = result.recipes ?? [];
+      setGeneratedRecipes(nextRecipes);
+      setGeneratedSummary(result.summary ?? "");
+      setShowPlanner(false);
+      pushAssistantMessage(
+        result.summary ||
+          `I generated ${nextRecipes.length} recipe preview${nextRecipes.length === 1 ? "" : "s"} for you.`,
+      );
+
+      if (nextRecipes[0]) {
+        setContext({
+          type: "generated",
+          name: nextRecipes[0].name,
+          detail: `${nextRecipes[0].servings} servings · ${nextRecipes[0].estimated_cost_tier} cost`,
+          recipe: nextRecipes[0],
+        });
+      }
+
+      setFollowUps([
+        "Make one of these cheaper.",
+        "Which one is fastest?",
+        "Turn one into a cooking plan.",
+      ]);
+    });
+  }
+
+  function pinGeneratedRecipe(recipe: AiRecipePreview) {
+    setContext({
+      type: "generated",
+      name: recipe.name,
+      detail: `${recipe.servings} servings · ${recipe.estimated_cost_tier} cost`,
+      recipe,
+    });
+    pushAssistantMessage(
+      `Pinned ${recipe.name} from your generated ideas. We can refine it, swap ingredients, or turn it into a cooking plan.`,
+    );
+  }
+
+  const currentPrompts = handsFreeMode ? HANDS_FREE_PROMPTS : followUps;
+  const contextLabel =
+    context.type === "none" ? "No recipe pinned" : `${context.name} · ${context.detail}`;
+
+  return (
+    <div className="fixed bottom-24 right-4 z-[70] lg:bottom-6 lg:right-6">
+      {isOpen && (
+        <section className="relative mb-3 flex h-[min(760px,calc(100vh-5rem))] w-[min(460px,calc(100vw-1rem))] flex-col overflow-hidden rounded-[28px] border border-[#ecd9c9] bg-white shadow-[0_24px_80px_rgba(97,58,29,0.18)]">
+          <header
+            className="border-b border-[#efdfd2] px-4 py-4"
+            style={{ background: "linear-gradient(120deg, #fff7f1, #fffdfb)" }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-fixed-dim text-on-primary-fixed">
+                  <span className="material-symbols-outlined text-[22px]">restaurant</span>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
+                    Chef AI
+                  </p>
+                  <h2 className="text-sm font-semibold text-on-surface">
+                    Kitchen sidekick
+                  </h2>
+                  <p className="mt-0.5 text-xs text-outline">{contextLabel}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
+                aria-label="Close Chef chat"
+              >
+                <span className="material-symbols-outlined text-[19px]">close</span>
+              </button>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLinkInput((current) => !current);
+                  setShowPlanner(false);
+                }}
+                className="rounded-full border border-[#ead7c8] bg-white px-3 py-1.5 text-xs font-medium text-on-surface transition hover:border-primary/40"
+              >
+                Paste a link
+              </button>
+              <button
+                type="button"
+                onClick={openRecipePicker}
+                className="rounded-full border border-[#ead7c8] bg-white px-3 py-1.5 text-xs font-medium text-on-surface transition hover:border-primary/40"
+              >
+                My recipes
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPlanner((current) => !current);
+                  setShowLinkInput(false);
+                }}
+                className="rounded-full border border-[#ead7c8] bg-white px-3 py-1.5 text-xs font-medium text-on-surface transition hover:border-primary/40"
+              >
+                Plan meals
+              </button>
+              <button
+                type="button"
+                onClick={() => setHandsFreeMode((current) => !current)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  handsFreeMode
+                    ? "bg-primary-fixed-dim text-on-primary-fixed"
+                    : "border border-[#ead7c8] bg-white text-on-surface hover:border-primary/40"
+                }`}
+              >
+                Hands-free
+              </button>
+            </div>
+
+            {showLinkInput && (
+              <div className="mt-3 rounded-2xl border border-[#efdfd2] bg-white p-3">
+                <p className="mb-2 text-xs font-medium text-outline">
+                  Paste a TikTok, Instagram, or YouTube recipe link.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={linkUrl}
+                    onChange={(event) => setLinkUrl(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        importLink();
+                      }
+                    }}
+                    placeholder="https://..."
+                    className="flex-1 rounded-xl border border-outline-variant/70 bg-white px-3 py-2 text-sm text-on-surface outline-none focus:border-primary-fixed-dim"
+                  />
+                  <button
+                    type="button"
+                    onClick={importLink}
+                    disabled={!linkUrl.trim()}
+                    className="rounded-xl bg-primary-fixed-dim px-4 py-2 text-sm font-semibold text-on-primary-fixed disabled:opacity-50"
+                  >
+                    Pin
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {showPlanner && (
+              <div className="mt-3 rounded-2xl border border-[#efdfd2] bg-white p-3">
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={mealPrompt}
+                    onChange={(event) => setMealPrompt(event.target.value)}
+                    placeholder="Cheap high-protein dinners for the week"
+                    className="w-full rounded-xl border border-outline-variant/70 bg-white px-3 py-2 text-sm text-on-surface outline-none focus:border-primary-fixed-dim"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      ["standard", "Standard"],
+                      ["high_protein", "High protein"],
+                      ["meal_prep", "Meal prep"],
+                      ["quick", "Quick"],
+                      ["inventory_first", "Inventory first"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setMealStyle(value as typeof mealStyle)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                          mealStyle === value
+                            ? "bg-primary-fixed-dim text-on-primary-fixed"
+                            : "border border-[#ead7c8] bg-white text-on-surface"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={generateMeals}
+                    disabled={isGenerating || !mealPrompt.trim()}
+                    className="w-full rounded-xl bg-primary-fixed-dim px-4 py-2.5 text-sm font-semibold text-on-primary-fixed disabled:opacity-50"
+                  >
+                    {isGenerating ? "Generating..." : "Generate recipe ideas"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </header>
+
+          {generatedRecipes.length > 0 && (
+            <div className="border-b border-[#efdfd2] bg-[#fffaf6] px-4 py-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-on-surface">
+                    Generated ideas
+                  </p>
+                  <p className="text-xs text-outline">{generatedSummary}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {generatedRecipes.map((recipe) => (
+                  <button
+                    key={recipe.name}
+                    type="button"
+                    onClick={() => pinGeneratedRecipe(recipe)}
+                    className="min-w-[190px] shrink-0 rounded-2xl border border-[#ecd9c9] bg-white p-3 text-left shadow-sm transition hover:border-primary/40"
+                  >
+                    <p className="line-clamp-2 text-sm font-semibold text-on-surface">
+                      {recipe.name}
+                    </p>
+                    <p className="mt-1 text-xs text-outline">
+                      {recipe.servings} servings · {recipe.estimated_cost_tier} cost
+                    </p>
+                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-on-surface-variant">
+                      {recipe.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1 space-y-3 overflow-y-auto bg-surface-container-low/40 px-4 py-4">
+            {messages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}`}
+                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <p
+                  className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${
+                    message.role === "user"
+                      ? "bg-primary-fixed-dim text-on-primary-fixed"
+                      : "border border-outline-variant/50 bg-white text-on-surface"
+                  }`}
+                >
+                  {message.content}
+                </p>
+              </div>
+            ))}
+            {isPending && (
+              <p className="w-fit rounded-2xl border border-outline-variant/50 bg-white px-3.5 py-2.5 text-sm text-outline">
+                Thinking...
+              </p>
+            )}
+          </div>
+
+          <div className="border-t border-outline-variant/40 bg-white p-3">
+            {error && (
+              <p className="mb-2 rounded-xl border border-error/20 bg-error-container/40 px-3 py-2 text-sm text-error">
+                {error}
+              </p>
+            )}
+
+            {currentPrompts.length > 0 && (
+              <div className="mb-2 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                {currentPrompts.slice(0, 4).map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => submit(item)}
+                    disabled={isPending}
+                    className="shrink-0 rounded-full border border-outline-variant/70 bg-surface-container-low px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:bg-primary-surface disabled:opacity-60"
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <form
+              className="flex items-end gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                submit();
+              }}
+            >
+              <textarea
+                ref={inputRef}
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                placeholder={
+                  handsFreeMode
+                    ? "Ask for the next step, repeat, or timing..."
+                    : "Ask about cooking, ingredients, meal prep..."
+                }
+                rows={2}
+                className="max-h-28 min-h-12 flex-1 resize-none rounded-2xl border border-outline-variant/70 bg-white px-3 py-2 text-sm text-on-surface outline-none focus:border-primary-fixed-dim"
+              />
+              <button
+                type="button"
+                onClick={() => setHandsFreeMode((current) => !current)}
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${
+                  handsFreeMode
+                    ? "border-primary-fixed-dim bg-primary-surface text-primary-fixed-dim"
+                    : "border-outline-variant/70 bg-white text-outline"
+                }`}
+                aria-label="Toggle hands-free mode"
+              >
+                <span className="material-symbols-outlined text-[20px]">mic</span>
+              </button>
+              <button
+                type="submit"
+                disabled={isPending || !prompt.trim()}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-fixed-dim text-on-primary-fixed hover:bg-primary-fixed disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Ask Chef"
+              >
+                <span className="material-symbols-outlined text-[20px]">send</span>
+              </button>
+            </form>
+
+            {safetyNotes.length > 0 && (
+              <p className="mt-2 text-[11px] leading-4 text-outline">
+                {safetyNotes[0]}
+              </p>
+            )}
+          </div>
+
+          {recipePickerOpen && (
+            <div className="absolute inset-0 flex items-end bg-black/25">
+              <div className="max-h-[72%] w-full rounded-t-[28px] bg-white p-4 shadow-2xl">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-on-surface">My recipes</p>
+                    <p className="text-xs text-outline">
+                      Pick one to keep pinned while you chat.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRecipePickerOpen(false)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">close</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2 overflow-y-auto">
+                  {loadingRecipes ? (
+                    <p className="rounded-2xl border border-outline-variant/50 bg-surface-container-low px-3 py-3 text-sm text-outline">
+                      Loading recipes...
+                    </p>
+                  ) : savedRecipes.length === 0 ? (
+                    <p className="rounded-2xl border border-outline-variant/50 bg-surface-container-low px-3 py-3 text-sm text-outline">
+                      No recipes found yet.
+                    </p>
+                  ) : (
+                    savedRecipes.map((recipe) => (
+                      <button
+                        key={recipe.id}
+                        type="button"
+                        onClick={() => selectRecipe(recipe)}
+                        className="w-full rounded-2xl border border-[#ecd9c9] bg-white px-3 py-3 text-left transition hover:border-primary/40"
+                      >
+                        <p className="text-sm font-semibold text-on-surface">
+                          {recipe.name}
+                        </p>
+                        <p className="mt-1 text-xs text-outline">
+                          {recipe.servings} servings
+                          {recipe.nutrition_data?.calories
+                            ? ` · ${recipe.nutrition_data.calories} kcal`
+                            : ""}
+                        </p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      <button
+        type="button"
+        onClick={() => {
+          setIsOpen((current) => !current);
+          window.setTimeout(() => inputRef.current?.focus(), 0);
+        }}
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-fixed-dim text-on-primary-fixed shadow-xl ring-1 ring-white/70 transition hover:bg-primary-fixed active:scale-95"
+        aria-label="Open Chef chat"
+      >
+        <span className="material-symbols-outlined text-[25px]">
+          {isOpen ? "keyboard_arrow_down" : "restaurant"}
+        </span>
+      </button>
+    </div>
+  );
+}

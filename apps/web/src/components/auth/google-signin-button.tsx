@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -175,7 +175,7 @@ export function GoogleSigninButton({
 
   if (!clientId) {
     return (
-      <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--paper)]/60 px-4 py-3 text-sm text-[color:var(--ink-soft)]">
+      <div className="rounded-2xl border border-[#d7c2b9] bg-[#faf9f6]/60 px-4 py-3 text-sm text-[#85736c]">
         Google sign-in is unavailable until{" "}
         <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> is configured.
       </div>
@@ -185,28 +185,28 @@ export function GoogleSigninButton({
   return (
     <div className="grid gap-3">
       <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-[color:var(--line)]" />
-        <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--ink-soft)]">
+        <div className="h-px flex-1 bg-[#d7c2b9]" />
+        <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#85736c]">
           {contextLabel}
         </span>
-        <div className="h-px flex-1 bg-[color:var(--line)]" />
+        <div className="h-px flex-1 bg-[#d7c2b9]" />
       </div>
 
-      <div className="grid justify-items-start gap-3">
+      <div className="grid justify-center gap-3">
         <div
           id={buttonId}
           ref={buttonContainerRef}
-          className={isLoading ? "pointer-events-none opacity-70" : undefined}
+          className={isLoading ? "pointer-events-none opacity-" : undefined}
         />
 
         {isLoading ? (
-          <p className="text-sm text-[color:var(--ink-soft)]">
+          <p className="text-sm text-[#85736c]">
             Finishing Google sign-in...
           </p>
         ) : null}
 
         {error ? (
-          <p className="rounded-2xl border border-[color:var(--clay)]/20 bg-[color:var(--clay)]/10 px-4 py-3 text-sm text-[color:var(--clay)]">
+          <p className="rounded-2xl border border-error/20 bg-error/10 px-4 py-3 text-sm text-error text-center">
             {error}
           </p>
         ) : null}

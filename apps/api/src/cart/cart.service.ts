@@ -6,15 +6,17 @@ import {
 } from '@nestjs/common';
 import type {
   Cart,
-  CreateCartRequest,
+  AggregatedIngredient,
   MatchedIngredientProduct,
   Retailer,
-  CreateShoppingCartRequest,
   RetailerProductSearchResponse,
   ShoppingCart,
 } from '@cart/shared';
 import { AggregationService } from '../aggregation/aggregation.service';
+import { CartExportService } from '../cart-export/cart-export.service';
+import { IngredientsService } from '../ingredients/ingredients.service';
 import { MatchingService } from '../matching/matching.service';
+import { mapMissingIngredientMatch } from '../matching/matching.mapper';
 import { RecipeService } from '../recipe/recipe.service';
 import { UserContextService } from '../user/user-context.service';
 import { CartPersistenceService } from './cart.persistence';
@@ -35,7 +37,9 @@ export class CartService {
   constructor(
     private readonly recipeService: RecipeService,
     private readonly aggregationService: AggregationService,
+    private readonly ingredientsService: IngredientsService,
     private readonly matchingService: MatchingService,
+    private readonly cartExportService: CartExportService,
     private readonly cartPersistenceService: CartPersistenceService,
     private readonly userContextService: UserContextService,
   ) {}
@@ -93,6 +97,34 @@ export class CartService {
     }
 
     return draft;
+  }
+
+  async createRestockCart(
+    items: string[],
+    retailer: Retailer,
+    actorUserId?: string,
+  ): Promise<ShoppingCart> {
+    const actor =
+      await this.userContextService.resolveActorUserShoppingContext(actorUserId);
+
+    const syntheticDish = {
+      name: 'Restock Items',
+      ingredients: items
+        .map((name) => name.trim().toLowerCase())
+        .filter(Boolean)
+        .map((name) => ({ canonical_ingredient: name, amount: 1, unit: 'unit' })),
+      steps: [],
+    };
+
+    const cart = await this.cartPersistenceService.createCart({
+      userId: actor.id,
+      name: 'Restock Cart',
+      retailer,
+      selections: [],
+      dishes: [syntheticDish],
+    });
+
+    return this.createShoppingCart(cart.id!, { retailer }, actorUserId);
   }
 
   async createCart(input: CreateCartDto, actorUserId?: string): Promise<Cart> {
@@ -159,7 +191,7 @@ export class CartService {
   async listCarts(actorUserId?: string) {
     const actor = await this.userContextService.resolveActorUser(actorUserId);
     const carts = await this.cartPersistenceService.findCartsByUser(actor.id);
-    return carts.map((cart) => this.withCartOverview(cart));
+    return Promise.all(carts.map((cart) => this.withCartOverview(cart)));
   }
 
   async findCart(id: string, actorUserId?: string) {
@@ -186,29 +218,48 @@ export class CartService {
       throw new NotFoundException(`Cart ${cartId} not found`);
     }
 
+    const computation = await this.withKitchenInventory(
+      actor.id,
+      this.aggregationService.compute(cart.dishes).overview,
+    );
+    const ingredientsToBuy = computation.filter((ingredient) => !ingredient.in_kitchen);
     const searchContext = this.buildRetailerSearchContext(
       input.retailer,
       actor.preferredZipCode,
       actor.preferredKrogerLocationId,
     );
-    const computation = this.aggregationService.compute(cart.dishes);
-    const matchedItems = await this.matchingService.matchIngredients(
-      computation.overview,
-      input.retailer,
-      searchContext,
-    );
+    const matchedItems =
+      input.retailer === 'instacart'
+        ? ingredientsToBuy.map((ingredient) => ({
+            ...mapMissingIngredientMatch(ingredient),
+            notes: 'Instacart will resolve this item on the generated shopping list page.',
+          }))
+        : await this.matchingService.matchIngredients(
+            ingredientsToBuy,
+            input.retailer,
+            searchContext,
+          );
     const estimatedSubtotal =
       this.matchingService.estimateSubtotal(matchedItems);
+    const handoff = await this.cartExportService.createHandoff({
+      cartId,
+      cartName: cart.name,
+      retailer: input.retailer,
+      overview: ingredientsToBuy,
+      dishes: cart.dishes,
+    });
 
     return this.cartPersistenceService.createShoppingCart({
       userId: actor.id,
       cartId,
       shoppingCart: buildShoppingCartResponse({
         cartId,
-        overview: computation.overview,
+        overview: computation,
         matchedItems,
         estimatedSubtotal,
         retailer: input.retailer,
+        externalUrl: handoff.externalUrl,
+        externalReferenceId: handoff.externalReferenceId,
       }),
     });
   }
@@ -277,11 +328,29 @@ export class CartService {
     return this.findShoppingCart(id, actorUserId);
   }
 
+  async removeShoppingCart(id: string, actorUserId?: string) {
+    const actor = await this.userContextService.resolveActorUser(actorUserId);
+    const deleted = await this.cartPersistenceService.deleteShoppingCart(
+      actor.id,
+      id,
+    );
+
+    if (deleted.count === 0) {
+      throw new NotFoundException(`Shopping cart ${id} not found`);
+    }
+  }
+
   async searchRetailerProducts(
     retailer: Retailer,
     query: string,
     actorUserId?: string,
   ): Promise<RetailerProductSearchResponse> {
+    if (retailer === 'instacart') {
+      throw new BadRequestException(
+        'Instacart product search is not supported yet. Generate an Instacart handoff from a cart instead.',
+      );
+    }
+
     const actor =
       await this.userContextService.resolveActorUserShoppingContext(actorUserId);
     const searchContext = this.buildRetailerSearchContext(
@@ -301,11 +370,33 @@ export class CartService {
     };
   }
 
-  private withCartOverview(cart: Cart): Cart {
+  private async withCartOverview(cart: Cart): Promise<Cart> {
     return {
       ...cart,
-      overview: this.aggregationService.compute(cart.dishes).overview,
+      overview: await this.withKitchenInventory(
+        cart.user_id ?? '',
+        this.aggregationService.compute(cart.dishes).overview,
+      ),
     };
+  }
+
+  private async withKitchenInventory(
+    userId: string,
+    overview: AggregatedIngredient[],
+  ): Promise<AggregatedIngredient[]> {
+    if (!userId) {
+      return overview;
+    }
+
+    const inventorySlugs =
+      await this.ingredientsService.listInventoryIngredientSlugs(userId);
+
+    return overview.map((ingredient) => ({
+      ...ingredient,
+      in_kitchen: inventorySlugs.has(
+        this.ingredientsService.normalizeSlug(ingredient.canonical_ingredient),
+      ),
+    }));
   }
 
   private buildRetailerSearchContext(
@@ -330,6 +421,18 @@ export class CartService {
       return {
         zipCode: normalizedZipCode,
         locationId: normalizedLocationId || undefined,
+      };
+    }
+
+    if (retailer === 'instacart') {
+      if (!this.cartExportService.isProviderEnabled('instacart')) {
+        throw new ServiceUnavailableException(
+          'Instacart handoff is not configured right now.',
+        );
+      }
+
+      return {
+        zipCode: preferredZipCode?.trim() || undefined,
       };
     }
 

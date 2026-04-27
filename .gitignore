@@ -17,12 +17,10 @@ yarn-error.log*
 **/coverage
 **/generated
 **/package-lock.json
-.env
-.env.*
-.venv
-**/.venv
-__pycache__/
 **/__pycache__/
 *.pyc
-apps/vision-lab/data/runtime_inventory.json
+.env
+.env.*
+!/.env.example
 docs/superpowers/
+.claude/

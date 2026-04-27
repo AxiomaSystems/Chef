@@ -78,7 +78,7 @@ export async function savePreferencesAndCompleteAction(
     };
   }
 
-  redirect("/");
+  redirect("/dashboard");
 }
 
 export async function skipOnboardingAction() {
@@ -88,7 +88,8 @@ export async function skipOnboardingAction() {
 
   if (!completionResponse?.ok) {
     redirect("/onboarding?error=skip-failed");
+    return;
   }
 
-  redirect("/");
+  redirect("/dashboard");
 }

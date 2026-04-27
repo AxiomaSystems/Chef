@@ -835,9 +835,15 @@ Why:
 - Share-A-Cart-style flows may be useful even when native provider APIs are limited
 
 Implications:
-- add a future `CartExportProvider` boundary
+- add a `CartExportProvider` boundary
 - support shareable or browser-assisted flows if direct cart APIs are not practical
 - keep `ShoppingCart` as the persisted source of truth before any external transfer
+- Instacart should use this boundary first because its Developer Platform can create hosted shopping-list/recipe links that users can open and complete on Instacart
+
+Status:
+- implemented first as `CartExportService` with Instacart shopping-list handoff support
+- persisted `ShoppingCart.external_url` carries the generated handoff URL
+- Instacart is not treated as a Kroger-style `RetailerProductProvider` until product-search requirements justify that path
 
 ## 43. Chef Is A Meal Execution Platform, Not Just A Cart Generator
 
@@ -963,3 +969,48 @@ Implications:
 - prefer nutrition databases for calculation
 - use AI for normalization where needed
 - show nutrition in recipe/detail and tracking surfaces, not every compact card
+
+## 50. Retailer Capabilities Should Be Discoverable
+
+Decision:
+- expose retailer readiness through a dedicated capability endpoint instead of hardcoding assumptions into the frontend
+
+Why:
+- Kroger, Instacart, Walmart, Walgreens, and future retailers will not expose the same capabilities
+- product search, location lookup, hosted handoff, native checkout, and partner-gated commerce are different modes
+- the demo should be able to prefer Instacart handoff without hiding Kroger as the matching proof path
+
+Implemented direction:
+- `GET /api/v1/retailers/capabilities`
+- Instacart reports hosted cart handoff support
+- Kroger reports product search and location lookup support
+- Walmart reports partner-required status unless explicitly configured later
+
+Implications:
+- frontend surfaces can eventually choose retailer options from capabilities instead of static selects
+- provider availability can change by environment without changing UI code
+- new retailer integrations should declare capabilities before being used in user-facing flows
+
+## 51. Kitchen Inventory Starts As Presence, Not Exact Quantity
+
+Decision:
+- implement kitchen inventory as "the user says they have this ingredient" before exact amount tracking
+- use a shared `Ingredient` catalog plus user-scoped `KitchenInventoryItem` rows
+
+Why:
+- users get value from avoiding duplicate purchases before they get value from exact pantry math
+- exact amount tracking creates friction and requires stronger UX, receipts, or computer vision
+- a shared ingredient catalog is the right base for future nutrition, retailer query planning, and CV labels
+
+Implemented direction:
+- `Ingredient` is global and deduplicated by slug
+- `KitchenInventoryItem` links one user to one ingredient
+- recipe seed data populates the ingredient catalog
+- demo seed data adds common kitchen items to the dev user
+- cart overviews mark `in_kitchen`
+- shopping-cart generation skips `in_kitchen` ingredients
+
+Implications:
+- inventory is useful for the demo without pretending to know exact pantry quantities
+- per-cart ingredient review is still needed as an override layer
+- future computer vision should map detections into `Ingredient`, not directly into shopping-cart lines

@@ -36,6 +36,27 @@ enum CuisineKind {
   other
 }
 
+enum KitchenInventorySource {
+  manual
+  cart
+  vision
+  receipt
+  inferred
+  seed
+}
+
+enum KitchenInventoryConfidence {
+  low
+  medium
+  high
+}
+
+enum MealType {
+  breakfast
+  lunch
+  dinner
+}
+
 model User {
   id             String          @id @default(cuid())
   email          String          @unique
@@ -47,6 +68,8 @@ model User {
   preferredLatitude Float?
   preferredLongitude Float?
   preferredKrogerLocationId String?
+  savedAddresses Json?
+  paymentCards Json?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   authIdentities AuthIdentity[]
@@ -58,6 +81,8 @@ model User {
   shoppingCarts  ShoppingCart[]
   preferredCuisines UserPreferredCuisine[]
   preferredTags  UserPreferredTag[]
+  kitchenInventoryItems KitchenInventoryItem[]
+  mealPlans      MealPlan[]
 }
 
 model AuthIdentity {
@@ -200,6 +225,41 @@ model DishIngredient {
   @@index([baseRecipeId, sortOrder])
 }
 
+model Ingredient {
+  id            String   @id @default(cuid())
+  canonicalName String
+  slug          String   @unique
+  aliases       Json?
+  category      String?
+  defaultUnit   String?
+  visionLabels  Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  kitchenInventoryItems KitchenInventoryItem[]
+
+  @@index([canonicalName])
+  @@index([category, canonicalName])
+}
+
+model KitchenInventoryItem {
+  id              String                     @id @default(cuid())
+  userId          String
+  ingredientId    String
+  label           String?
+  estimatedAmount Float?
+  unit            String?
+  source          KitchenInventorySource     @default(manual)
+  confidence      KitchenInventoryConfidence @default(medium)
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+  user            User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingredient      Ingredient                 @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ingredientId])
+  @@index([userId, createdAt])
+  @@index([ingredientId])
+}
+
 model RecipeStep {
   id          String     @id @default(cuid())
   baseRecipeId String
@@ -240,22 +300,37 @@ model Cart {
 }
 
 model ShoppingCart {
-  id                String   @id @default(cuid())
-  userId            String
-  cartId            String
-  cartDraftId       String?
-  retailer          String
-  overview          Json
-  matchedItems      Json
-  estimatedSubtotal Float
-  estimatedTotal    Float?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cart              Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  cartDraft         CartDraft? @relation(fields: [cartDraftId], references: [id], onDelete: SetNull)
+  id                  String   @id @default(cuid())
+  userId              String
+  cartId              String
+  cartDraftId         String?
+  retailer            String
+  overview            Json
+  matchedItems        Json
+  estimatedSubtotal   Float
+  estimatedTotal      Float?
+  externalUrl         String?
+  externalReferenceId String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cart                Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartDraft           CartDraft? @relation(fields: [cartDraftId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([cartId])
   @@index([cartDraftId])
+}
+
+model MealPlan {
+  id        String   @id @default(cuid())
+  userId    String
+  weekStart DateTime
+  days      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([userId, weekStart])
 }

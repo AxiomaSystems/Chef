@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
   const tokens = (await authResponse.json()) as GoogleAuthTokens;
   const response = NextResponse.json({
-    redirectTo: tokens.onboarding_completed_at ? "/" : "/onboarding",
+    redirectTo: tokens.onboarding_completed_at ? "/dashboard" : "/onboarding",
   });
 
   applyAuthCookies(response.cookies, tokens);

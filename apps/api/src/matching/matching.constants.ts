@@ -17,3 +17,13 @@ export const KROGER_CLIENT_ID = process.env.KROGER_CLIENT_ID;
 export const KROGER_CLIENT_SECRET = process.env.KROGER_CLIENT_SECRET;
 export const KROGER_API_BASE_URL = 'https://api.kroger.com/v1/';
 export const KROGER_TOKEN_URL = `${KROGER_API_BASE_URL}connect/oauth2/token`;
+
+export const INSTACART_USE_REAL_PROVIDER =
+  process.env.INSTACART_USE_REAL_PROVIDER === 'true';
+
+export const INSTACART_API_KEY = process.env.INSTACART_API_KEY;
+export const INSTACART_ENV = process.env.INSTACART_ENV ?? 'development';
+export const INSTACART_API_BASE_URL =
+  INSTACART_ENV === 'production'
+    ? 'https://connect.instacart.com'
+    : 'https://connect.dev.instacart.tools';
