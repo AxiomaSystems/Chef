@@ -69,7 +69,7 @@ function RecipeDetailOverlayContent({
   const [deleteError, setDeleteError] = useState<string | undefined>();
   const [, startDelete] = useTransition();
   const [deleting, setDeleting] = useState(false);
-  const [prepStarted, setPrepStarted] = useState(false);
+  const [prepStarted] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -89,6 +89,28 @@ function RecipeDetailOverlayContent({
   const canEdit = !!currentRecipe.owner_user_id && !currentRecipe.is_system_recipe;
   const hasSteps = currentRecipe.steps.length > 0;
   const currentStep = currentRecipe.steps[activeStep] ?? null;
+  const statCards = [
+    {
+      label: "Calories",
+      value: nutrition.calories ? `${nutrition.calories}` : "--",
+      eyebrow: "Energy",
+    },
+    {
+      label: "Protein",
+      value: nutrition.protein_g ? `${nutrition.protein_g}g` : "--",
+      eyebrow: "Balance",
+    },
+    {
+      label: "Servings",
+      value: `${currentRecipe.servings}`,
+      eyebrow: "Yield",
+    },
+    {
+      label: "Carbs",
+      value: nutrition.carbs_g ? `${nutrition.carbs_g}g` : "--",
+      eyebrow: "Fuel",
+    },
+  ];
 
   function handleDelete() {
     setDeleteError(undefined);
@@ -112,10 +134,13 @@ function RecipeDetailOverlayContent({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6">
-      <div className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-on-surface/45 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
-      <div className="relative flex max-h-[95vh] w-full flex-col overflow-hidden rounded-t-2xl bg-background shadow-2xl sm:max-h-[92vh] sm:max-w-6xl sm:rounded-[2rem]">
-        <div className="relative h-56 flex-shrink-0 bg-surface-container sm:h-72">
+      <div className="relative flex max-h-[95vh] w-full flex-col overflow-hidden rounded-t-2xl bg-[#fffdf9] shadow-2xl sm:max-h-[92vh] sm:max-w-6xl sm:rounded-[2rem]">
+        <div className="relative h-[300px] flex-shrink-0 bg-surface-container sm:h-[360px]">
           <RecipeImage
             src={currentRecipe.cover_image_url}
             alt={currentRecipe.name}
@@ -123,73 +148,87 @@ function RecipeDetailOverlayContent({
             className="absolute inset-0 h-full w-full"
             imgClassName="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-white/10" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,14,9,0.16)_0%,rgba(20,14,9,0.42)_38%,rgba(20,14,9,0.88)_100%)]" />
 
           <button
             onClick={onClose}
-            className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 text-label-sm text-white backdrop-blur-sm transition-colors hover:bg-white/30"
+            className="absolute left-5 top-5 flex items-center gap-1.5 rounded-full bg-white/18 px-3.5 py-2 text-label-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/28"
           >
             <span className="material-symbols-outlined text-[16px]">arrow_back</span>
             Back to Collection
           </button>
 
           <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-primary-fixed-dim px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-on-primary-fixed">
-                {currentRecipe.cuisine.label}
-              </span>
-              {badges.map((badge) => (
-                <span
-                  key={badge.id}
-                  className="rounded-full bg-secondary-container px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-on-secondary-container"
-                >
-                  {badge.name}
+            <div className="max-w-3xl">
+              <div className="mb-4 flex flex-wrap gap-2">
+                <span className="rounded-full bg-primary-fixed-dim px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-on-primary-fixed">
+                  {currentRecipe.cuisine.label}
                 </span>
-              ))}
-            </div>
+                {badges.map((badge) => (
+                  <span
+                    key={badge.id}
+                    className="rounded-full bg-white/14 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur-md"
+                  >
+                    {badge.name}
+                  </span>
+                ))}
+              </div>
 
-            <h2 className="max-w-2xl text-[2rem] font-black leading-tight text-white sm:text-[2.7rem]">
-              {currentRecipe.name}
-            </h2>
-            {currentRecipe.description && (
-              <p className="mt-2 max-w-xl text-body-sm text-white/80 sm:text-body-md">
-                {currentRecipe.description}
-              </p>
-            )}
+              <h2 className="text-[2.2rem] font-black leading-[1.02] text-white sm:text-[3.2rem]">
+                {currentRecipe.name}
+              </h2>
+              {currentRecipe.description && (
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-white/82 sm:text-[1.02rem]">
+                  {currentRecipe.description}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 divide-x divide-y border-b border-outline-variant/30 bg-white/95 sm:grid-cols-4 sm:divide-y-0">
-          {[
-            { label: "Calories", value: nutrition.calories ?? "-" },
-            { label: "Protein", value: nutrition.protein_g ? `${nutrition.protein_g}g` : "-" },
-            { label: "Servings", value: currentRecipe.servings },
-            { label: "Carbs", value: nutrition.carbs_g ? `${nutrition.carbs_g}g` : "-" },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex flex-col items-center justify-center px-2 py-4">
-              <p className="text-headline-sm font-black text-on-surface">{value}</p>
-              <p className="mt-0.5 text-label-sm text-outline">{label}</p>
-            </div>
-          ))}
+        <div className="border-b border-[#ecdfd2] bg-white px-4 py-4 sm:px-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {statCards.map((card) => (
+              <div
+                key={card.label}
+                className="rounded-[1.35rem] border border-[#efdfd2] bg-[#fffaf5] px-4 py-4 shadow-[0_8px_24px_rgba(97,58,29,0.04)]"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-outline">
+                  {card.eyebrow}
+                </p>
+                <p className="mt-2 text-[2rem] font-black leading-none text-on-surface">
+                  {card.value}
+                </p>
+                <p className="mt-1 text-sm text-on-surface-variant">{card.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="grid min-h-0 grid-cols-1 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.2fr)]">
-            <div className="space-y-5 border-b border-outline-variant/30 p-6 sm:p-8 xl:border-b-0 xl:border-r">
-              <div className="flex items-center justify-between">
-                <h3 className="text-headline-sm font-bold text-on-surface">Ingredients</h3>
-                <span className="rounded-full bg-primary/8 px-3 py-1 text-label-sm font-semibold text-primary">
+          <div className="grid min-h-0 grid-cols-1 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)]">
+            <div className="space-y-6 border-b border-[#ecdfd2] bg-[#fffdfa] p-6 sm:p-8 xl:border-b-0 xl:border-r">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-[2rem] font-bold tracking-tight text-on-surface">
+                    Ingredients
+                  </h3>
+                  <p className="mt-1 text-sm text-outline">
+                    Everything you need for the full dish.
+                  </p>
+                </div>
+                <span className="rounded-full bg-[#fff1e4] px-3 py-1.5 text-label-sm font-semibold text-primary">
                   {currentRecipe.ingredients.length} items
                 </span>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {currentRecipe.ingredients.map((ingredient, index) => (
                   <div
                     key={`${ingredient.canonical_ingredient}-${index}`}
-                    className="flex items-center gap-3 rounded-2xl border border-white/70 bg-surface-container-low px-4 py-3 shadow-[0_10px_30px_rgba(137,80,50,0.04)]"
+                    className="flex items-start gap-3 rounded-[1.4rem] border border-[#efe2d6] bg-white px-4 py-3.5 shadow-[0_10px_30px_rgba(137,80,50,0.04)]"
                   >
-                    <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-[#d8c4b9]" />
+                    <span className="mt-2 h-2.5 w-2.5 flex-shrink-0 rounded-full bg-[#e2cbbd]" />
 
                     <div className="min-w-0 flex-1">
                       <p className="text-body-sm font-medium text-on-surface">
@@ -201,7 +240,7 @@ function RecipeDetailOverlayContent({
                       )}
                     </div>
 
-                    <span className="shrink-0 text-label-sm text-outline">
+                    <span className="shrink-0 rounded-full bg-[#fff8f1] px-2.5 py-1 text-label-sm text-outline">
                       {ingredient.amount} {ingredient.unit}
                     </span>
                   </div>
@@ -209,9 +248,14 @@ function RecipeDetailOverlayContent({
               </div>
 
               {Object.values(nutrition).some(Boolean) && (
-                <div className="rounded-[1.75rem] border border-outline-variant/30 bg-white p-5 shadow-sm">
-                  <h4 className="mb-3 text-label-lg text-primary">Nutrition Info</h4>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-[1.75rem] border border-[#efdfd2] bg-white p-5 shadow-sm">
+                  <div className="mb-4">
+                    <h4 className="text-lg font-bold text-on-surface">Nutrition</h4>
+                    <p className="mt-1 text-sm text-outline">
+                      Estimated per serving.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
                     {[
                       ["Calories", nutrition.calories, ""],
                       ["Protein", nutrition.protein_g, "g"],
@@ -222,9 +266,11 @@ function RecipeDetailOverlayContent({
                     ]
                       .filter(([, value]) => value !== undefined && value !== null)
                       .map(([label, value, unit]) => (
-                        <div key={String(label)} className="rounded-xl bg-surface-container-low p-2.5">
-                          <p className="text-[10px] uppercase tracking-wide text-outline">{String(label)}</p>
-                          <p className="mt-0.5 text-label-lg font-bold text-on-surface">
+                        <div key={String(label)} className="rounded-[1rem] bg-[#fffaf5] p-3">
+                          <p className="text-[10px] uppercase tracking-[0.14em] text-outline">
+                            {String(label)}
+                          </p>
+                          <p className="mt-1 text-lg font-bold text-on-surface">
                             {String(value)}
                             {String(unit)}
                           </p>
@@ -235,25 +281,30 @@ function RecipeDetailOverlayContent({
               )}
             </div>
 
-            <div className="space-y-6 bg-[radial-gradient(circle_at_top_right,rgba(243,148,71,0.14),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))] p-6 sm:p-8">
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="space-y-6 bg-[radial-gradient(circle_at_top_right,rgba(243,148,71,0.12),transparent_24%),linear-gradient(180deg,#fffdfa_0%,#fff8f2_100%)] p-6 sm:p-8">
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
-                    <h3 className="text-headline-sm font-bold text-on-surface">Preparation</h3>
+                    <h3 className="text-[2rem] font-bold tracking-tight text-on-surface">
+                      Preparation
+                    </h3>
                     {prepStarted && (
-                      <span className="rounded-full bg-primary-fixed-dim/15 px-3 py-1 text-label-sm font-semibold text-primary">
+                      <span className="rounded-full bg-primary-fixed-dim/15 px-3 py-1.5 text-label-sm font-semibold text-primary">
                         In progress
                       </span>
                     )}
                   </div>
-                  <p className="max-w-xl text-body-sm text-on-surface-variant">
-                    A guided cooking flow with a focused current step, warm status cards, and quick progress context.
+                  <p className="max-w-xl text-body-sm leading-7 text-on-surface-variant">
+                    Step through the recipe with a focused current action, visible
+                    progress, and a timer that feels ready for the kitchen.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 rounded-[1.75rem] border border-outline-variant/30 bg-white/80 p-4 shadow-sm">
-                  <div className="rounded-2xl bg-[#fff5e8] p-4">
-                    <p className="text-label-sm uppercase tracking-[0.14em] text-primary">Active timer</p>
+                <div className="grid grid-cols-2 gap-3 rounded-[1.75rem] border border-[#efdfd2] bg-white/90 p-4 shadow-sm">
+                  <div className="rounded-[1.25rem] bg-[#fff4e7] p-4">
+                    <p className="text-label-sm uppercase tracking-[0.14em] text-primary">
+                      Active timer
+                    </p>
                     <p className="mt-2 text-[2rem] font-black leading-none text-on-surface">
                       {prepStarted ? formatElapsed(elapsedSeconds) : "00:00"}
                     </p>
@@ -262,10 +313,14 @@ function RecipeDetailOverlayContent({
                     </p>
                   </div>
 
-                  <div className="rounded-2xl bg-surface-container-low p-4">
-                    <p className="text-label-sm uppercase tracking-[0.14em] text-outline">Progress</p>
+                  <div className="rounded-[1.25rem] bg-[#f7f2ed] p-4">
+                    <p className="text-label-sm uppercase tracking-[0.14em] text-outline">
+                      Progress
+                    </p>
                     <p className="mt-2 text-[2rem] font-black leading-none text-on-surface">
-                      {hasSteps ? `${Math.min(activeStep + 1, currentRecipe.steps.length)}/${currentRecipe.steps.length}` : "0/0"}
+                      {hasSteps
+                        ? `${Math.min(activeStep + 1, currentRecipe.steps.length)}/${currentRecipe.steps.length}`
+                        : "0/0"}
                     </p>
                     <p className="mt-1 text-body-sm text-on-surface-variant">
                       {prepStarted ? "Current step unlocked" : "Ready to cook"}
@@ -282,7 +337,9 @@ function RecipeDetailOverlayContent({
                         {currentStep.step}
                       </div>
                       <div className="space-y-2">
-                        <p className="text-label-sm uppercase tracking-[0.16em] text-primary">Now cooking</p>
+                        <p className="text-label-sm uppercase tracking-[0.16em] text-primary">
+                          Now cooking
+                        </p>
                         <p className="text-xl font-black text-on-surface">
                           {splitStepCopy(currentStep.what_to_do).title}
                         </p>
@@ -303,7 +360,11 @@ function RecipeDetailOverlayContent({
                         Previous
                       </button>
                       <button
-                        onClick={() => setActiveStep((step) => Math.min(currentRecipe.steps.length - 1, step + 1))}
+                        onClick={() =>
+                          setActiveStep((step) =>
+                            Math.min(currentRecipe.steps.length - 1, step + 1),
+                          )
+                        }
                         disabled={activeStep >= currentRecipe.steps.length - 1}
                         className="rounded-full bg-primary px-5 py-2 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -327,7 +388,7 @@ function RecipeDetailOverlayContent({
                       className={`flex w-full gap-4 rounded-[1.5rem] border p-4 text-left transition-all ${
                         isActive
                           ? "border-[#f0c18f] bg-white shadow-[0_16px_40px_rgba(137,80,50,0.10)]"
-                          : "border-transparent bg-transparent hover:border-outline-variant/40 hover:bg-white/60"
+                          : "border-[#f2e5da] bg-white/76 hover:border-[#e7cfbc] hover:bg-white"
                       }`}
                     >
                       <div
@@ -350,7 +411,9 @@ function RecipeDetailOverlayContent({
                           )}
                         </div>
                         {body && (
-                          <p className="text-body-sm leading-relaxed text-on-surface-variant">{body}</p>
+                          <p className="text-body-sm leading-relaxed text-on-surface-variant">
+                            {body}
+                          </p>
                         )}
                       </div>
                     </button>
@@ -395,7 +458,9 @@ function RecipeDetailOverlayContent({
 
             {canEdit && onDeleted && confirmDelete && (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-body-sm text-on-surface-variant">Delete this recipe?</span>
+                <span className="text-body-sm text-on-surface-variant">
+                  Delete this recipe?
+                </span>
                 <button
                   onClick={() => setConfirmDelete(false)}
                   disabled={deleting}
@@ -409,7 +474,9 @@ function RecipeDetailOverlayContent({
                   className="flex items-center gap-1.5 rounded-full bg-error px-4 py-1.5 text-label-sm font-semibold text-on-error transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                   {deleting && (
-                    <span className="material-symbols-outlined animate-spin text-[14px]">refresh</span>
+                    <span className="material-symbols-outlined animate-spin text-[14px]">
+                      refresh
+                    </span>
                   )}
                   {deleting ? "Deleting..." : "Yes, delete"}
                 </button>

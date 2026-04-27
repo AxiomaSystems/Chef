@@ -9,7 +9,6 @@ const navItems = [
   { href: "/meal-plan", icon: "calendar_month", label: "Meal Plan" },
   { href: "/shopping", icon: "shopping_cart", label: "Shopping" },
   { href: "/inventory", icon: "inventory_2", label: "Inventory" },
-  { href: "/chef-ai", icon: "smart_toy", label: "Chef AI" },
 ];
 
 export function Sidebar() {

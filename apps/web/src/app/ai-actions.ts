@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import type { BaseRecipe, RecipeNutritionData } from "@cart/shared";
 import { ACCESS_TOKEN_COOKIE, buildApiUrl } from "@/lib/auth";
 
 export type ChefChatMessage = {
@@ -14,6 +15,49 @@ export type ChefChatActionState = {
   message?: string;
   followUpPrompts?: string[];
   safetyNotes?: string[];
+};
+
+export type AiDishIngredient = {
+  canonical_ingredient: string;
+  amount: number;
+  unit: string;
+  display_ingredient: string | null;
+  preparation: string | null;
+  optional: boolean;
+  group: string | null;
+};
+
+export type AiRecipeStep = {
+  step: number;
+  what_to_do: string;
+};
+
+export type AiRecipePreview = {
+  name: string;
+  cuisine: string;
+  description: string;
+  servings: number;
+  ingredients: AiDishIngredient[];
+  steps: AiRecipeStep[];
+  tags: string[];
+  nutrition_estimate: RecipeNutritionData | null;
+  estimated_cost_tier: "low" | "medium" | "high";
+  cost_notes: string[];
+  quality_tradeoffs: string[];
+  assumptions: string[];
+};
+
+export type GenerateMealsActionState = {
+  error?: string;
+  summary?: string;
+  recipes?: AiRecipePreview[];
+  planningNotes?: string[];
+  costNotes?: string[];
+};
+
+export type UserRecipesActionState = {
+  error?: string;
+  recipes?: BaseRecipe[];
 };
 
 async function readErrorMessage(response: Response | null, fallback: string) {
@@ -78,6 +122,102 @@ export async function askChefAction(input: {
     message: payload.message ?? "",
     followUpPrompts: payload.follow_up_prompts ?? [],
     safetyNotes: payload.safety_notes ?? [],
+  };
+}
+
+async function requireAccessToken() {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
+
+  if (!accessToken) {
+    redirect("/login");
+  }
+
+  return accessToken;
+}
+
+export async function generateMealsAction(input: {
+  mealPrompt: string;
+  servingsPerMeal?: number;
+  mealsNeeded?: number;
+  mealStyle?:
+    | "standard"
+    | "inventory_first"
+    | "high_protein"
+    | "low_calorie"
+    | "meal_prep"
+    | "quick";
+  budgetMode?: "minimize_cost" | "balanced" | "premium";
+  notes?: string;
+}): Promise<GenerateMealsActionState> {
+  const mealPrompt = input.mealPrompt.trim();
+
+  if (!mealPrompt) {
+    return { error: "Give Chef a meal idea first." };
+  }
+
+  const accessToken = await requireAccessToken();
+
+  const response = await fetch(buildApiUrl("/ai/meals/generate"), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      meal_prompt: mealPrompt,
+      servings_per_meal: input.servingsPerMeal ?? 4,
+      meals_needed: input.mealsNeeded ?? 1,
+      meal_style: input.mealStyle ?? "standard",
+      budget_mode: input.budgetMode ?? "balanced",
+      notes: input.notes ?? "",
+    }),
+    cache: "no-store",
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: await readErrorMessage(response, "Chef could not generate meals right now."),
+    };
+  }
+
+  const payload = (await response.json()) as {
+    summary?: string;
+    recipes?: AiRecipePreview[];
+    planning_notes?: string[];
+    cost_minimization_notes?: string[];
+  };
+
+  return {
+    summary: payload.summary ?? "",
+    recipes: payload.recipes ?? [],
+    planningNotes: payload.planning_notes ?? [],
+    costNotes: payload.cost_minimization_notes ?? [],
+  };
+}
+
+export async function fetchUserRecipesAction(): Promise<UserRecipesActionState> {
+  const accessToken = await requireAccessToken();
+
+  const response = await fetch(buildApiUrl("/recipes"), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: await readErrorMessage(response, "Could not load your recipes right now."),
+    };
+  }
+
+  const payload = (await response.json()) as { data?: BaseRecipe[] };
+
+  return {
+    recipes: payload.data ?? [],
   };
 }
 

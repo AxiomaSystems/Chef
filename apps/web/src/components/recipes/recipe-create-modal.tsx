@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useRef, useState, useTransition } from "react";
 import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
 import { createRecipeAction, updateRecipeAction } from "@/app/home-actions";
+import { generateMealsAction, type AiRecipePreview } from "@/app/ai-actions";
 
 type IngredientRow = {
   canonical_ingredient: string;
@@ -45,6 +46,7 @@ export function RecipeCreateModal({
   initialRecipe?: BaseRecipe | null;
 }) {
   const isEditing = !!initialRecipe;
+  const dietaryTags = tags.filter((tag) => tag.kind === "dietary_badge");
 
   const [name, setName] = useState(initialRecipe?.name ?? "");
   const [description, setDescription] = useState(
@@ -115,7 +117,147 @@ export function RecipeCreateModal({
   );
   const [error, setError] = useState<string | undefined>();
   const [, startSave] = useTransition();
+  const [isAutofilling, startAutofill] = useTransition();
   const [saving, setSaving] = useState(false);
+  const [autofillHint, setAutofillHint] = useState<string | undefined>();
+  const [lastAutofilledName, setLastAutofilledName] = useState("");
+
+  function isLikelyEmptyRecipeDraft() {
+    const hasDescription = description.trim().length > 0;
+    const hasRealIngredients = ingredients.some(
+      (row) => row.canonical_ingredient.trim() || row.amount.trim(),
+    );
+    const hasRealSteps = steps.some((row) => row.what_to_do.trim());
+    const hasNutrition = calories || proteinG || carbsG || fatG;
+
+    return (
+      !hasDescription &&
+      !hasRealIngredients &&
+      !hasRealSteps &&
+      !hasNutrition &&
+      selectedTagIds.length === 0
+    );
+  }
+
+  function findCuisineIdFromLabel(label: string) {
+    const normalized = label.trim().toLowerCase();
+
+    const exactMatch = cuisines.find(
+      (cuisine) =>
+        cuisine.label.trim().toLowerCase() === normalized ||
+        cuisine.slug.trim().toLowerCase() === normalized,
+    );
+
+    if (exactMatch) return exactMatch.id;
+
+    const partialMatch = cuisines.find((cuisine) =>
+      cuisine.label.trim().toLowerCase().includes(normalized),
+    );
+
+    return partialMatch?.id ?? cuisines[0]?.id ?? cuisineId;
+  }
+
+  function findTagIdsFromNames(nextTags: string[]) {
+    const normalizedTags = nextTags.map((tag) => tag.trim().toLowerCase());
+
+    return dietaryTags
+      .filter((tag) => normalizedTags.includes(tag.name.trim().toLowerCase()))
+      .map((tag) => tag.id);
+  }
+
+  function applyAiRecipePreview(recipe: AiRecipePreview) {
+    setDescription(recipe.description ?? "");
+    setCuisineId(findCuisineIdFromLabel(recipe.cuisine));
+    setServings(recipe.servings > 0 ? recipe.servings : 2);
+    setIngredients(
+      recipe.ingredients.length > 0
+        ? recipe.ingredients.map((ingredient) => ({
+            canonical_ingredient: ingredient.canonical_ingredient,
+            amount: String(ingredient.amount),
+            unit: ingredient.unit || "cup",
+            preparation: ingredient.preparation ?? "",
+            optional: !!ingredient.optional,
+          }))
+        : [
+            {
+              canonical_ingredient: "",
+              amount: "",
+              unit: "cup",
+              preparation: "",
+              optional: false,
+            },
+          ],
+    );
+    setSteps(
+      recipe.steps.length > 0
+        ? recipe.steps.map((step) => ({
+            what_to_do: step.what_to_do,
+          }))
+        : [{ what_to_do: "" }],
+    );
+    setSelectedTagIds(findTagIdsFromNames(recipe.tags ?? []));
+    setCalories(
+      recipe.nutrition_estimate?.calories !== undefined
+        ? String(recipe.nutrition_estimate.calories)
+        : "",
+    );
+    setProteinG(
+      recipe.nutrition_estimate?.protein_g !== undefined
+        ? String(recipe.nutrition_estimate.protein_g)
+        : "",
+    );
+    setCarbsG(
+      recipe.nutrition_estimate?.carbs_g !== undefined
+        ? String(recipe.nutrition_estimate.carbs_g)
+        : "",
+    );
+    setFatG(
+      recipe.nutrition_estimate?.fat_g !== undefined
+        ? String(recipe.nutrition_estimate.fat_g)
+        : "",
+    );
+  }
+
+  function autofillFromName(trigger: "auto" | "manual") {
+    const normalizedName = name.trim();
+
+    if (!normalizedName || isEditing || isAutofilling) return;
+    if (trigger === "auto" && !isLikelyEmptyRecipeDraft()) return;
+    if (trigger === "auto" && lastAutofilledName === normalizedName) return;
+
+    setError(undefined);
+    setAutofillHint(undefined);
+
+    startAutofill(async () => {
+      const result = await generateMealsAction({
+        mealPrompt: normalizedName,
+        mealsNeeded: 1,
+        servingsPerMeal: servings || 2,
+        mealStyle: "standard",
+        notes:
+          "Return one practical recipe preview suitable for pre-filling a manual recipe creation form.",
+      });
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      const recipe = result.recipes?.[0];
+      if (!recipe) {
+        setError("Chef could not generate a recipe draft from that name.");
+        return;
+      }
+
+      applyAiRecipePreview(recipe);
+      setLastAutofilledName(normalizedName);
+      setAutofillHint(
+        trigger === "auto"
+          ? "Chef filled in the rest of the form from the recipe name."
+          : "Chef refreshed the recipe draft with AI suggestions.",
+      );
+    });
+  }
 
   function updateIngredient<K extends keyof IngredientRow>(
     i: number,
@@ -272,6 +414,11 @@ export function RecipeCreateModal({
               {error}
             </div>
           )}
+          {autofillHint && (
+            <div className="rounded-xl bg-primary-surface p-3 text-body-sm text-on-surface">
+              {autofillHint}
+            </div>
+          )}
 
           <section className="space-y-4">
             <h3 className="border-b border-outline-variant/30 pb-2 text-label-lg font-bold text-on-surface">
@@ -284,10 +431,38 @@ export function RecipeCreateModal({
               </label>
               <input
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setAutofillHint(undefined);
+                }}
+                onBlur={() => autofillFromName("auto")}
                 placeholder="e.g. Lemon Herb Salmon"
                 className="w-full rounded-xl border border-outline-variant/50 bg-white px-4 py-2.5 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
+              {!isEditing && (
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <p className="text-[11px] leading-5 text-outline">
+                    Enter a recipe name and Chef can draft the rest automatically.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => autofillFromName("manual")}
+                    disabled={!name.trim() || isAutofilling}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-outline-variant/50 bg-white px-3 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary-surface disabled:opacity-50"
+                  >
+                    {isAutofilling ? (
+                      <span className="material-symbols-outlined animate-spin text-[14px]">
+                        refresh
+                      </span>
+                    ) : (
+                      <span className="material-symbols-outlined text-[14px]">
+                        auto_awesome
+                      </span>
+                    )}
+                    {isAutofilling ? "Drafting..." : "Autofill with AI"}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
