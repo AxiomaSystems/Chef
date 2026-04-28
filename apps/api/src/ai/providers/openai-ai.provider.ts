@@ -1,11 +1,17 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import type { AiProvider } from '../ai.provider';
-import { chatSchema, ingredientSwapSchema, mealGenerationSchema } from '../ai.schemas';
+import {
+  chatSchema,
+  ingredientSwapSchema,
+  mealGenerationSchema,
+  recipeImportSchema,
+} from '../ai.schemas';
 import type {
   AiChatMessage,
   AiChatResult,
   AiIngredientSwapResult,
   AiMealGenerationResult,
+  AiRecipeImportResult,
 } from '../ai.types';
 import type { GenerateMealsDto } from '../dto/generate-meals.dto';
 import type { SwapIngredientDto } from '../dto/swap-ingredient.dto';
@@ -26,22 +32,41 @@ export class OpenAiAiProvider implements AiProvider {
   readonly name = 'openai';
   private readonly model = process.env.OPENAI_MODEL ?? 'gpt-5.4-mini';
 
-  async generateMeals(input: GenerateMealsDto): Promise<AiMealGenerationResult> {
+  async generateMeals(
+    input: GenerateMealsDto,
+  ): Promise<AiMealGenerationResult> {
     return this.createStructuredResponse<AiMealGenerationResult>({
       schemaName: 'chef_meal_generation',
       schema: mealGenerationSchema,
-      task:
-        'Generate structured recipe preview data from the meal request. Respect dietary preferences, allergies, inventory, budget mode, meal quantity, and quality goals.',
+      task: 'Generate structured recipe preview data from the meal request. Respect dietary preferences, allergies, inventory, budget mode, meal quantity, and quality goals.',
       payload: input,
     });
   }
 
-  async swapIngredient(input: SwapIngredientDto): Promise<AiIngredientSwapResult> {
+  async swapIngredient(
+    input: SwapIngredientDto,
+  ): Promise<AiIngredientSwapResult> {
     return this.createStructuredResponse<AiIngredientSwapResult>({
       schemaName: 'chef_ingredient_swap',
       schema: ingredientSwapSchema,
-      task:
-        'Evaluate this ingredient swap, explain downsides and benefits, then return an updated structured recipe preview. The UI will ask the user to confirm before applying it.',
+      task: 'Evaluate this ingredient swap, explain downsides and benefits, then return an updated structured recipe preview. The UI will ask the user to confirm before applying it.',
+      payload: input,
+    });
+  }
+
+  async importRecipe(input: {
+    request: { url: string; supplemental_text?: string };
+    platform: 'youtube' | 'instagram' | 'tiktok' | 'generic';
+    source_title: string;
+    source_creator: string | null;
+    source_description: string;
+    extracted_text: string;
+    extraction_notes: string[];
+  }): Promise<AiRecipeImportResult> {
+    return this.createStructuredResponse<AiRecipeImportResult>({
+      schemaName: 'chef_recipe_import',
+      schema: recipeImportSchema,
+      task: 'Turn the imported recipe source into one structured Chef recipe preview. Use the extracted source text, metadata, and any supplemental caption/transcript text. Be explicit when fields are inferred or uncertain.',
       payload: input,
     });
   }
@@ -54,8 +79,7 @@ export class OpenAiAiProvider implements AiProvider {
     return this.createStructuredResponse<AiChatResult>({
       schemaName: 'chef_food_chat',
       schema: chatSchema,
-      task:
-        'Answer the user as a concise cooking, meal prep, ingredient, recipe, and Chef workflow assistant. Use context when provided.',
+      task: 'Answer the user as a concise cooking, meal prep, ingredient, recipe, and Chef workflow assistant. Use context when provided.',
       payload: input,
     });
   }
@@ -105,9 +129,10 @@ export class OpenAiAiProvider implements AiProvider {
       }),
     });
 
-    const body = (await response.json().catch(() => null)) as
-      | Record<string, unknown>
-      | null;
+    const body = (await response.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null;
 
     if (!response.ok) {
       const message =
@@ -141,22 +166,37 @@ function extractOutputText(body: Record<string, unknown> | null): string {
   const chunks: string[] = [];
 
   for (const item of output) {
-    if (!item || typeof item !== 'object' || !('content' in item)) {
+    if (!isResponseOutputItem(item)) {
       continue;
     }
 
-    const content = Array.isArray(item.content) ? item.content : [];
+    const content = item.content;
     for (const block of content) {
-      if (!block || typeof block !== 'object') {
+      if (!isResponseTextBlock(block)) {
         continue;
       }
 
-      if ('text' in block && typeof block.text === 'string') {
-        chunks.push(block.text);
-      }
+      chunks.push(block.text);
     }
   }
 
   return chunks.join('');
 }
 
+function isResponseTextBlock(value: unknown): value is { text: string } {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    'text' in value &&
+    typeof value.text === 'string'
+  );
+}
+
+function isResponseOutputItem(value: unknown): value is { content: unknown[] } {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    'content' in value &&
+    Array.isArray(value.content)
+  );
+}

@@ -4,20 +4,26 @@ import type {
   AiChatResult,
   AiIngredientSwapResult,
   AiMealGenerationResult,
+  AiRecipeImportResult,
   AiRecipePreview,
 } from '../ai.types';
 import type { GenerateMealsDto } from '../dto/generate-meals.dto';
+import type { ImportRecipeDto } from '../dto/import-recipe.dto';
 import type { SwapIngredientDto } from '../dto/swap-ingredient.dto';
 
 @Injectable()
 export class MockAiProvider implements AiProvider {
   readonly name = 'mock';
 
-  async generateMeals(input: GenerateMealsDto): Promise<AiMealGenerationResult> {
+  generateMeals(input: GenerateMealsDto): Promise<AiMealGenerationResult> {
     const recipeCount = input.meals_needed && input.meals_needed > 2 ? 3 : 1;
     const recipeName = titleCase(input.meal_prompt || 'Chef test meal');
-    const dietaryText = (input.dietary_preferences ?? []).join(' ').toLowerCase();
-    const protein = dietaryText.includes('vegan') ? 'chickpeas' : 'chicken breast';
+    const dietaryText = (input.dietary_preferences ?? [])
+      .join(' ')
+      .toLowerCase();
+    const protein = dietaryText.includes('vegan')
+      ? 'chickpeas'
+      : 'chicken breast';
     const vegetable =
       input.budget_mode === 'minimize_cost'
         ? 'frozen mixed vegetables'
@@ -25,7 +31,10 @@ export class MockAiProvider implements AiProvider {
 
     const recipes = Array.from({ length: recipeCount }, (_, index) =>
       buildRecipe({
-        name: recipeCount === 1 ? recipeName : `${recipeName} Variation ${index + 1}`,
+        name:
+          recipeCount === 1
+            ? recipeName
+            : `${recipeName} Variation ${index + 1}`,
         servings: input.servings_per_meal ?? 4,
         protein,
         vegetable,
@@ -34,7 +43,7 @@ export class MockAiProvider implements AiProvider {
       }),
     );
 
-    return {
+    return Promise.resolve({
       summary: `Generated ${recipes.length} structured recipe preview(s).`,
       recipes,
       inventory_used: (input.inventory ?? []).filter((item) =>
@@ -46,10 +55,10 @@ export class MockAiProvider implements AiProvider {
       planning_notes: [
         'Mock AI is active. Set CHEF_LLM_PROVIDER=openai and OPENAI_API_KEY for real model output.',
       ],
-    };
+    });
   }
 
-  async swapIngredient(input: SwapIngredientDto): Promise<AiIngredientSwapResult> {
+  swapIngredient(input: SwapIngredientDto): Promise<AiIngredientSwapResult> {
     const original = input.ingredient_to_replace.trim().toLowerCase();
     const replacement = input.desired_replacement.trim().toLowerCase();
     const recipe = normalizeRecipe(input.recipe);
@@ -63,13 +72,15 @@ export class MockAiProvider implements AiProvider {
         : ingredient,
     );
 
-    return {
+    return Promise.resolve({
       confirmation_message: `Replace ${original} with ${replacement}?`,
       original_ingredient: original,
       replacement_ingredient: replacement,
       should_apply: true,
       downsides: ['Flavor, texture, and cook time may change.'],
-      benefits: ['The recipe remains structured and can still flow into cart generation.'],
+      benefits: [
+        'The recipe remains structured and can still flow into cart generation.',
+      ],
       updated_recipe: {
         ...recipe,
         name: `${recipe.name} with ${titleCase(replacement)}`,
@@ -80,13 +91,64 @@ export class MockAiProvider implements AiProvider {
         ],
       },
       ingredient_delta_notes: [`Changed ${original} to ${replacement}.`],
-    };
+    });
   }
 
-  async chat(input: { message: string }): Promise<AiChatResult> {
-    return {
-      message:
-        `Mock Chef answer: for "${input.message}", start by clarifying servings, dietary needs, available ingredients, and budget. Then choose one simple structured recipe and review missing ingredients before shopping.`,
+  importRecipe(input: {
+    request: ImportRecipeDto;
+    platform: 'youtube' | 'instagram' | 'tiktok' | 'generic';
+    source_title: string;
+    source_creator: string | null;
+    source_description: string;
+    extracted_text: string;
+    extraction_notes: string[];
+  }): Promise<AiRecipeImportResult> {
+    const baseName = titleCase(
+      input.source_title ||
+        deriveTitleFromUrl(input.request.url) ||
+        'Imported creator recipe',
+    );
+    const importedRecipe = buildRecipe({
+      name: baseName,
+      servings: 4,
+      protein:
+        input.platform === 'youtube'
+          ? 'chicken thigh'
+          : input.platform === 'tiktok'
+            ? 'salmon fillet'
+            : 'shrimp',
+      vegetable:
+        input.platform === 'instagram' ? 'cherry tomato' : 'bell pepper',
+      mealStyle: 'standard',
+      budgetMode: 'balanced',
+    });
+
+    return Promise.resolve({
+      source_url: input.request.url,
+      platform: input.platform,
+      source_title: baseName,
+      source_creator: input.source_creator,
+      source_description:
+        input.source_description ||
+        'Imported from creator metadata in mock mode.',
+      imported_recipe: {
+        ...importedRecipe,
+        description: input.source_description || importedRecipe.description,
+        assumptions: [
+          ...importedRecipe.assumptions,
+          'This import was structured by the mock AI provider.',
+        ],
+      },
+      extraction_notes: [
+        ...input.extraction_notes,
+        'Mock import used URL and metadata cues instead of a live model extraction.',
+      ],
+    });
+  }
+
+  chat(input: { message: string }): Promise<AiChatResult> {
+    return Promise.resolve({
+      message: `Mock Chef answer: for "${input.message}", start by clarifying servings, dietary needs, available ingredients, and budget. Then choose one simple structured recipe and review missing ingredients before shopping.`,
       follow_up_prompts: [
         'What can I make with my inventory?',
         'Make this cheaper.',
@@ -95,7 +157,7 @@ export class MockAiProvider implements AiProvider {
       safety_notes: [
         'For allergies, medical diets, and food safety, verify details with trusted sources.',
       ],
-    };
+    });
   }
 }
 
@@ -157,7 +219,8 @@ function buildRecipe(input: {
     ],
     tags: ['mock', input.mealStyle, input.budgetMode],
     nutrition_estimate: null,
-    estimated_cost_tier: input.budgetMode === 'minimize_cost' ? 'low' : 'medium',
+    estimated_cost_tier:
+      input.budgetMode === 'minimize_cost' ? 'low' : 'medium',
     cost_notes: ['Mock output is not priced against a retailer catalog.'],
     quality_tradeoffs: ['Generated without a real LLM.'],
     assumptions: ['Local mock provider is active.'],
@@ -193,3 +256,12 @@ function titleCase(input: string) {
     .join(' ');
 }
 
+function deriveTitleFromUrl(input: string) {
+  try {
+    const url = new URL(input);
+    const lastPart = url.pathname.split('/').filter(Boolean).at(-1) ?? '';
+    return lastPart.replace(/[-_]+/g, ' ').trim();
+  } catch {
+    return '';
+  }
+}

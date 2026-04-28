@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { BaseRecipe } from "@cart/shared";
+import { PreparationChefAssistant } from "@/components/ai/preparation-chef-assistant";
 import { RecipeImage } from "@/components/ui/recipe-image";
 
 function getDietaryBadges(recipe: BaseRecipe) {
@@ -277,36 +278,50 @@ export function RecipePreparationClient({
           </div>
 
           <div className="lg:col-span-8">
-            <div className="mb-6 flex flex-col gap-4 rounded-[28px] border border-outline-variant/20 bg-white p-6 shadow-[0_4px_20px_rgba(255,179,71,0.08)] lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-headline-sm text-on-surface">Preparation</h2>
-                <p className="mt-2 max-w-2xl text-body-md text-on-surface-variant">
-                  Work through the recipe one step at a time with a focused cooking view.
-                </p>
+            <div className="mb-6 rounded-[28px] border border-outline-variant/20 bg-white p-6 shadow-[0_4px_20px_rgba(255,179,71,0.08)]">
+              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+                <div>
+                  <h2 className="text-headline-sm text-on-surface">Preparation</h2>
+                  <p className="mt-2 max-w-2xl text-body-md text-on-surface-variant">
+                    Work through the recipe one step at a time with a focused cooking view.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-[22px] bg-[#fff5e8] p-4">
+                    <p className="text-label-sm uppercase tracking-[0.14em] text-primary">
+                      Active Timer
+                    </p>
+                    <p className="mt-2 text-headline-md text-on-surface">
+                      {started ? formatElapsed(elapsedSeconds) : "00:00"}
+                    </p>
+                    <p className="mt-1 text-body-sm text-on-surface-variant">
+                      {started ? "Since preparation started" : "Starts when you begin"}
+                    </p>
+                  </div>
+                  <div className="rounded-[22px] bg-surface-container-low p-4">
+                    <p className="text-label-sm uppercase tracking-[0.14em] text-outline">
+                      Progress
+                    </p>
+                    <p className="mt-2 text-headline-md text-on-surface">
+                      {recipe.steps.length ? `${activeStep + 1}/${recipe.steps.length}` : "0/0"}
+                    </p>
+                    <p className="mt-1 text-body-sm text-on-surface-variant">
+                      {ingredientCompletion}% ingredients checked
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3 lg:min-w-[19rem]">
-                <div className="rounded-[22px] bg-[#fff5e8] p-4">
-                  <p className="text-label-sm uppercase tracking-[0.14em] text-primary">
-                    Active Timer
-                  </p>
-                  <p className="mt-2 text-headline-md text-on-surface">
-                    {started ? formatElapsed(elapsedSeconds) : "00:00"}
-                  </p>
-                  <p className="mt-1 text-body-sm text-on-surface-variant">
-                    {started ? "Since preparation started" : "Starts when you begin"}
-                  </p>
-                </div>
-                <div className="rounded-[22px] bg-surface-container-low p-4">
-                  <p className="text-label-sm uppercase tracking-[0.14em] text-outline">
-                    Progress
-                  </p>
-                  <p className="mt-2 text-headline-md text-on-surface">
-                    {recipe.steps.length ? `${activeStep + 1}/${recipe.steps.length}` : "0/0"}
-                  </p>
-                  <p className="mt-1 text-body-sm text-on-surface-variant">
-                    {ingredientCompletion}% ingredients checked
-                  </p>
-                </div>
+
+              <div className="mt-5">
+                <PreparationChefAssistant
+                  recipe={recipe}
+                  currentStepNumber={currentStep?.step ?? activeStep + 1}
+                  currentStepText={currentStep?.what_to_do ?? null}
+                  checkedCount={checkedCount}
+                  ingredientCompletion={ingredientCompletion}
+                  started={started}
+                />
               </div>
             </div>
 
