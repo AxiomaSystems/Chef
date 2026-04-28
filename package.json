@@ -17,6 +17,17 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r exec tsc --noEmit"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "@scarf/scarf",
+      "argon2",
+      "prisma",
+      "unrs-resolver"
+    ]
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
