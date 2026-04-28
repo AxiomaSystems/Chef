@@ -10,6 +10,7 @@ The source of truth for implemented types is still the code:
 - [aggregation.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/aggregation.ts)
 - [product.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/product.ts)
 - [cart.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/cart.ts)
+- [meal-plan.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/meal-plan.ts)
 - [cuisine.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/cuisine.ts)
 - [vision.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/vision.ts)
 - [user.ts](/C:/Users/akuma/repos/cart-generator/packages/shared/src/user.ts)
@@ -319,6 +320,40 @@ Interpretation:
 - it is intentionally lighter-weight than a persisted `Cart`
 - in the current product UX it should be treated as incomplete saved work, not the main planning object
 - generating a `Cart` from a persisted draft should consume that draft by default
+
+## 3. Cart Models
+
+## 2.5. Meal Plan Models
+
+### MealPlanDay
+
+```ts
+type MealPlanDay = {
+  breakfast?: string;
+  lunch?: string;
+  dinner?: string;
+};
+```
+
+### MealPlan
+
+```ts
+type MealPlan = {
+  id?: string;
+  user_id?: string;
+  week_start: string;
+  days: MealPlanDay[];
+  created_at?: string;
+  updated_at?: string;
+};
+```
+
+Interpretation:
+
+- one meal plan represents one user's week
+- `week_start` is normalized to a Monday in `YYYY-MM-DD` format
+- each day slot references recipe ids, not free-text meal names
+- this is currently a scheduling layer, not a derived shopping/cart artifact
 
 ## 3. Cart Models
 
@@ -739,6 +774,48 @@ Interpretation:
 - `kroger_location_id` is optional retailer-specific cache data, not a replacement for the neutral location fields
 - empty arrays are valid and do not imply incomplete onboarding
 
+### CheckoutProfile
+
+```ts
+type CheckoutProfile = {
+  saved_addresses: SavedAddress[];
+  payment_cards: PaymentCard[];
+};
+```
+
+### SavedAddress
+
+```ts
+type SavedAddress = {
+  id: string;
+  label: string;
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  isDefault: boolean;
+};
+```
+
+### PaymentCard
+
+```ts
+type PaymentCard = {
+  id: string;
+  cardType: "Visa" | "Mastercard" | "Amex" | "Discover";
+  lastFour: string;
+  expiry: string;
+  name: string;
+  isDefault: boolean;
+};
+```
+
+Interpretation:
+
+- checkout profile state is user-scoped convenience data for checkout-oriented UI flows
+- it is not the same thing as real payment processing or tokenized billing state
+- the current implementation stores display-oriented profile data, not gateway-owned payment credentials
+
 ## 8. Auth Models
 
 ### AuthProvider
@@ -932,6 +1009,7 @@ Interpretation:
 - system recipes and user-owned recipes are distinct states
 - a user can only have one saved fork per source system recipe
 - one `Cart` is now the parent of persisted `ShoppingCart` snapshots
+- `MealPlan` is a separate weekly scheduling artifact, not a subtype of `Cart`
 - one `Cart` now carries retailer context before shopping-cart generation
 - auth can attach multiple identities to one user account
 - cuisines are stored relationally as a global catalog

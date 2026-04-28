@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsIn, IsOptional, IsString, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { AiRecipePreviewDto } from './recipe-preview.dto';
 
@@ -11,10 +18,12 @@ export class SwapIngredientDto {
 
   @ApiProperty({ example: 'chicken breast' })
   @IsString()
+  @MaxLength(200)
   ingredient_to_replace!: string;
 
   @ApiProperty({ example: 'black beans' })
   @IsString()
+  @MaxLength(200)
   desired_replacement!: string;
 
   @ApiPropertyOptional({ example: ['vegetarian'] })
@@ -37,6 +46,7 @@ export class SwapIngredientDto {
   @ApiPropertyOptional({ example: 'Keep the protein high.' })
   @IsOptional()
   @IsString()
+  @MaxLength(4000)
   notes?: string;
 }
 
