@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { RequestActorGuard } from '../auth/request-actor.guard';
+import { AiRateLimitGuard } from './ai-rate-limit.guard';
 import { AiService } from './ai.service';
 import type {
   AiChatResult,
@@ -15,7 +16,7 @@ import { SwapIngredientDto } from './dto/swap-ingredient.dto';
 
 @ApiTags('ai')
 @ApiBearerAuth()
-@UseGuards(RequestActorGuard)
+@UseGuards(RequestActorGuard, AiRateLimitGuard)
 @Controller('api/v1/ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
