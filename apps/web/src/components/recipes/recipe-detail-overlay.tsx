@@ -228,7 +228,7 @@ function RecipeDetailOverlayContent({
                     key={`${ingredient.canonical_ingredient}-${index}`}
                     className="flex items-start gap-3 rounded-[1.4rem] border border-[#efe2d6] bg-white px-4 py-3.5 shadow-[0_10px_30px_rgba(137,80,50,0.04)]"
                   >
-                    <span className="mt-2 h-2.5 w-2.5 flex-shrink-0 rounded-full bg-[#e2cbbd]" />
+                    <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-[#e2cbbd]" />
 
                     <div className="min-w-0 flex-1">
                       <p className="text-body-sm font-medium text-on-surface">

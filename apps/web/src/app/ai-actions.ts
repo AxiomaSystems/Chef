@@ -140,6 +140,45 @@ export async function askChefAction(input: {
   };
 }
 
+export type IngredientPrepActionState = {
+  error?: string;
+  notes?: string[];
+};
+
+export async function getIngredientPrepAction(input: {
+  recipeName: string;
+  ingredients: {
+    canonical_ingredient: string;
+    display_ingredient: string | null;
+    amount: number;
+    unit: string;
+  }[];
+}): Promise<IngredientPrepActionState> {
+  const ingredientList = input.ingredients
+    .map(
+      (i, idx) =>
+        `${idx + 1}. ${i.amount} ${i.unit} ${i.display_ingredient ?? i.canonical_ingredient}`,
+    )
+    .join("\n");
+
+  const message = `For each ingredient in "${input.recipeName}", write one short prep instruction (how to wash, cut, measure, or get it ready before cooking starts). Reply ONLY with a valid JSON array of strings, one instruction per ingredient in the exact same order listed. No markdown, no extra text.\n\nIngredients:\n${ingredientList}`;
+
+  const result = await askChefAction({ message, history: [] });
+
+  if (result.error || !result.message) {
+    return { error: result.error ?? "Could not generate prep guide." };
+  }
+
+  try {
+    const cleaned = result.message.replace(/```json\n?|\n?```/g, "").trim();
+    const notes = JSON.parse(cleaned) as string[];
+    if (!Array.isArray(notes)) return { error: "Unexpected response format." };
+    return { notes };
+  } catch {
+    return { error: "Could not parse prep instructions." };
+  }
+}
+
 async function requireAccessToken() {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
