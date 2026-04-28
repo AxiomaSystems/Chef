@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { RecipeDetailOverlay } from "@/components/recipes/recipe-detail-overlay";
@@ -34,6 +34,14 @@ export function RecipesClient({
   recipes: BaseRecipe[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setShowCreate(true);
+      router.replace("/recipes", { scroll: false });
+    }
+  }, []);
 
   const [recipes, setRecipes]             = useState(initialRecipes);
   const [tab, setTab]                     = useState<Tab>("all");
