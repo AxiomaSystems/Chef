@@ -1,66 +1,176 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { Cuisine, Tag } from "@cart/shared";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { savePreferencesAndCompleteAction, skipOnboardingAction } from "./actions";
+import type { Cuisine, Tag, UserPreferences } from "@cart/shared";
+import type {
+  AvailableAppliance,
+  BiggestCookingFrustration,
+  CalorieTrackingMode,
+  CookingSkillLevel,
+  DislikedIngredient,
+  DislikedTexture,
+  FavoriteFlavor,
+  FavoriteProtein,
+  GoalPriority,
+  HouseholdSize,
+  KidsProfile,
+  PreferredCookingTime,
+  PreferredStore,
+  RecipeDiscoverySource,
+  ShoppingMode,
+  SpiceLevel,
+  TypicalMealTime,
+  WeeklyBudget,
+} from "@cart/shared";
+import { OnboardingShell } from "@/components/onboarding/onboarding-shell";
+import { StepHousehold } from "@/components/onboarding/steps/step-household";
+import { StepCuisineDietary } from "@/components/onboarding/steps/step-cuisine-dietary";
+import { StepFavorites } from "@/components/onboarding/steps/step-favorites";
+import { StepAvoids } from "@/components/onboarding/steps/step-avoids";
+import { StepKitchenReality } from "@/components/onboarding/steps/step-kitchen-reality";
+import { StepGoalsNutrition } from "@/components/onboarding/steps/step-goals-nutrition";
+import { StepShoppingBehavior } from "@/components/onboarding/steps/step-shopping-behavior";
+import { StepDiscoveryFriction } from "@/components/onboarding/steps/step-discovery-friction";
+import { StepLocation } from "@/components/onboarding/steps/step-location";
+import {
+  savePreferencesAndCompleteAction,
+  skipOnboardingAction,
+} from "./actions";
+
+const TOTAL_STEPS = 9;
+
+const STEP_COPY: Record<number, { title: string; subtitle: string }> = {
+  1: {
+    title: "Who are you cooking for?",
+    subtitle: "Portions, budgets, and leftovers start here.",
+  },
+  2: {
+    title: "What food feels like you?",
+    subtitle: "Choose cuisines and dietary filters.",
+  },
+  3: {
+    title: "What should Chef prioritize?",
+    subtitle: "These are soft preferences, not hard rules.",
+  },
+  4: {
+    title: "What should Chef avoid?",
+    subtitle: "Pick only the things that reliably ruin a meal for you.",
+  },
+  5: {
+    title: "Your kitchen reality",
+    subtitle: "Equipment and time shape better recommendations.",
+  },
+  6: {
+    title: "Goals and nutrition",
+    subtitle: "Tell Chef what tradeoffs matter most.",
+  },
+  7: {
+    title: "Shopping behavior",
+    subtitle: "This helps Chef build realistic grocery carts.",
+  },
+  8: {
+    title: "Where do recipes come from?",
+    subtitle: "This helps shape future import tools.",
+  },
+  9: {
+    title: "Where do you shop?",
+    subtitle: "Nearby stores make the cart more useful.",
+  },
+};
+
+type FormState = {
+  household_size: HouseholdSize | null;
+  kids_profile: KidsProfile | null;
+  preferred_cuisine_ids: string[];
+  preferred_tag_ids: string[];
+  favorite_proteins: FavoriteProtein[];
+  favorite_flavors: FavoriteFlavor[];
+  spice_level: SpiceLevel | null;
+  disliked_ingredients: DislikedIngredient[];
+  disliked_textures: DislikedTexture[];
+  cooking_skill_level: CookingSkillLevel | null;
+  available_appliances: AvailableAppliance[];
+  preferred_cooking_time: PreferredCookingTime | null;
+  typical_meal_times: TypicalMealTime[];
+  goal_priorities: GoalPriority[];
+  calorie_tracking_mode: CalorieTrackingMode | null;
+  weekly_budget: WeeklyBudget | null;
+  preferred_stores: PreferredStore[];
+  shopping_mode: ShoppingMode | null;
+  recipe_discovery_sources: RecipeDiscoverySource[];
+  biggest_cooking_frustration: BiggestCookingFrustration | null;
+  shopping_location_zip: string;
+  shopping_location_label: string;
+  shopping_location_kroger_location_id: string;
+};
+
+function buildInitialState(prefs: UserPreferences | null): FormState {
+  return {
+    household_size: prefs?.household_size ?? null,
+    kids_profile: prefs?.kids_profile ?? null,
+    preferred_cuisine_ids: prefs?.preferred_cuisine_ids ?? [],
+    preferred_tag_ids: prefs?.preferred_tag_ids ?? [],
+    favorite_proteins: (prefs?.favorite_proteins ?? []) as FavoriteProtein[],
+    favorite_flavors: (prefs?.favorite_flavors ?? []) as FavoriteFlavor[],
+    spice_level: prefs?.spice_level ?? null,
+    disliked_ingredients: (prefs?.disliked_ingredients ?? []) as DislikedIngredient[],
+    disliked_textures: (prefs?.disliked_textures ?? []) as DislikedTexture[],
+    cooking_skill_level: prefs?.cooking_skill_level ?? null,
+    available_appliances: (prefs?.available_appliances ?? []) as AvailableAppliance[],
+    preferred_cooking_time: prefs?.preferred_cooking_time ?? null,
+    typical_meal_times: (prefs?.typical_meal_times ?? []) as TypicalMealTime[],
+    goal_priorities: (prefs?.goal_priorities ?? []) as GoalPriority[],
+    calorie_tracking_mode: prefs?.calorie_tracking_mode ?? null,
+    weekly_budget: prefs?.weekly_budget ?? null,
+    preferred_stores: (prefs?.preferred_stores ?? []) as PreferredStore[],
+    shopping_mode: prefs?.shopping_mode ?? null,
+    recipe_discovery_sources: (prefs?.recipe_discovery_sources ?? []) as RecipeDiscoverySource[],
+    biggest_cooking_frustration: prefs?.biggest_cooking_frustration ?? null,
+    shopping_location_zip: prefs?.shopping_location?.zip_code ?? "",
+    shopping_location_label: prefs?.shopping_location?.label ?? "",
+    shopping_location_kroger_location_id:
+      prefs?.shopping_location?.kroger_location_id ?? "",
+  };
+}
 
 export function OnboardingClient({
   cuisines,
   dietaryTags,
+  existingPreferences,
 }: {
   cuisines: Cuisine[];
   dietaryTags: Tag[];
+  existingPreferences: UserPreferences | null;
 }) {
   const [step, setStep] = useState(1);
-  const [selectedCuisineIds, setSelectedCuisineIds] = useState<string[]>([]);
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [zip, setZip] = useState("");
-  const [error, setError] = useState<string | undefined>();
+  const [form, setForm] = useState<FormState>(() =>
+    buildInitialState(existingPreferences),
+  );
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function toggleCuisine(id: string) {
-    setSelectedCuisineIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  }
-
-  function toggleTag(id: string) {
-    setSelectedTagIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+  function patch<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   function handleNext() {
-    if (step < 3) setStep((s) => s + 1);
+    if (step < TOTAL_STEPS) {
+      setStep((s) => s + 1);
+      setError(null);
+    } else {
+      handleFinish();
+    }
   }
 
   function handleBack() {
-    if (step > 1) setStep((s) => s - 1);
-  }
-
-  function handleFinish() {
-    setError(undefined);
-    startTransition(async () => {
-      const fd = new FormData();
-      selectedCuisineIds.forEach((id) => fd.append("preferred_cuisine_ids", id));
-      selectedTagIds.forEach((id) => fd.append("preferred_tag_ids", id));
-      if (zip.trim()) {
-        fd.set("shopping_location_zip_code", zip.trim());
-        fd.set("shopping_location_label", `ZIP ${zip.trim()}`);
-      }
-
-      const result = await savePreferencesAndCompleteAction({ }, fd);
-      if (result?.error) {
-        setError(result.error);
-      }
-    });
+    setStep((s) => Math.max(1, s - 1));
+    setError(null);
   }
 
   function handleSkip() {
-    if (step < 3) {
+    if (step < TOTAL_STEPS) {
       setStep((s) => s + 1);
+      setError(null);
     } else {
       startTransition(async () => {
         await skipOnboardingAction();
@@ -68,207 +178,114 @@ export function OnboardingClient({
     }
   }
 
-  const stepLabels = ["Cuisines", "Dietary", "Location"];
+  function handleFinish() {
+    setError(null);
+    startTransition(async () => {
+      const result = await savePreferencesAndCompleteAction(form);
+      if (result?.error) setError(result.error);
+    });
+  }
+
+  const copy = STEP_COPY[step]!;
 
   return (
-    <main className="min-h-screen bg-[#faf9f6] flex items-center justify-center p-6">
-      <div className="max-w-lg w-full">
-        {/* Brand */}
-        <div className="text-center mb-8">
-          <p className="text-headline-sm text-[#ffb38e] font-black tracking-tight">Chef</p>
-          <p className="text-body-md text-[#52443d] mt-1">Let&apos;s set up your experience</p>
-        </div>
-
-        {/* Progress indicator */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {stepLabels.map((label, i) => {
-            const stepNum = i + 1;
-            const isActive = stepNum === step;
-            const isDone = stepNum < step;
-            return (
-              <div key={label} className="flex items-center gap-2">
-                <div className="flex flex-col items-center gap-1">
-                  <div
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      isActive
-                        ? "w-10 bg-[#895032]"
-                        : isDone
-                          ? "w-6 bg-[#895032]/50"
-                          : "w-6 bg-[#d7c2b9]"
-                    }`}
-                  />
-                  <span
-                    className={`text-label-sm transition-all ${
-                      isActive ? "text-[#895032] font-semibold" : "text-[#85736c]"
-                    }`}
-                  >
-                    {label}
-                  </span>
-                </div>
-                {i < stepLabels.length - 1 && (
-                  <div className="w-6 h-px bg-[#d7c2b9] mb-4" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Card */}
-        <div className="bg-white rounded-2xl p-8 shadow-[0_4px_20px_-4px_rgba(137,80,50,0.12)]">
-          {/* Step 1: Cuisines */}
-          {step === 1 && (
-            <div>
-              <h2 className="text-headline-sm text-[#1a1c1a] font-bold">
-                What cuisines do you love?
-              </h2>
-              <p className="text-body-sm text-[#85736c] mt-1">
-                Pick as many as you like. We&apos;ll tailor your recipe feed.
-              </p>
-              {cuisines.length === 0 ? (
-                <p className="text-body-sm text-[#85736c] mt-6">Loading cuisines…</p>
-              ) : (
-                <div className="flex flex-wrap gap-2 mt-6">
-                  {cuisines.map((cuisine) => {
-                    const isSelected = selectedCuisineIds.includes(cuisine.id);
-                    return (
-                      <button
-                        key={cuisine.id}
-                        onClick={() => toggleCuisine(cuisine.id)}
-                        className={`px-4 py-2 rounded-full text-label-md font-semibold transition-all active:scale-[0.97] ${
-                          isSelected
-                            ? "bg-[#895032] text-white shadow-sm"
-                            : "bg-[#f4f3f1] text-[#52443d] hover:bg-[#efe3b3]"
-                        }`}
-                      >
-                        {cuisine.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 2: Dietary */}
-          {step === 2 && (
-            <div>
-              <h2 className="text-headline-sm text-[#1a1c1a] font-bold">
-                Any dietary preferences?
-              </h2>
-              <p className="text-body-sm text-[#85736c] mt-1">
-                We&apos;ll filter recipes and ingredients to match.
-              </p>
-              {dietaryTags.length === 0 ? (
-                <p className="text-body-sm text-[#85736c] mt-6">No dietary options available.</p>
-              ) : (
-                <div className="flex flex-wrap gap-2 mt-6">
-                  {dietaryTags.map((tag) => {
-                    const isSelected = selectedTagIds.includes(tag.id);
-                    return (
-                      <button
-                        key={tag.id}
-                        onClick={() => toggleTag(tag.id)}
-                        className={`px-4 py-2 rounded-full text-label-md font-semibold transition-all active:scale-[0.97] ${
-                          isSelected
-                            ? "bg-[#895032] text-white shadow-sm"
-                            : "bg-[#f4f3f1] text-[#52443d] hover:bg-[#efe3b3]"
-                        }`}
-                      >
-                        {tag.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 3: Location */}
-          {step === 3 && (
-            <div>
-              <h2 className="text-headline-sm text-[#1a1c1a] font-bold">
-                Where do you shop?
-              </h2>
-              <p className="text-body-sm text-[#85736c] mt-1">
-                We use this to find Kroger products near you.
-              </p>
-              <div className="mt-6">
-                <Input
-                  label="ZIP Code"
-                  type="text"
-                  placeholder="e.g. 60201"
-                  icon="location_on"
-                  value={zip}
-                  onChange={(e) => setZip(e.target.value)}
-                  maxLength={5}
-                  hint="Enter your 5-digit ZIP code to find nearby Kroger stores."
-                />
-              </div>
-              <div className="mt-5 rounded-xl bg-[#f4f3f1] p-4 flex gap-3 items-start">
-                <span className="material-symbols-outlined text-[20px] text-[#895032] mt-0.5">
-                  info
-                </span>
-                <p className="text-body-sm text-[#52443d]">
-                  Chef connects directly to Kroger&apos;s API to build your grocery cart. Your ZIP
-                  helps us surface in-stock items at your nearest store.
-                </p>
-              </div>
-              {error && (
-                <p className="text-body-sm text-[#ba1a1a] mt-3">{error}</p>
-              )}
-            </div>
-          )}
-
-          {/* Navigation */}
-          <div className="flex items-center justify-between mt-8">
-            <div>
-              {step > 1 ? (
-                <button
-                  onClick={handleBack}
-                  disabled={isPending}
-                  className="text-label-md text-[#52443d] hover:text-[#1a1c1a] flex items-center gap-1 transition-all active:scale-[0.98] disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-                  Back
-                </button>
-              ) : (
-                <div />
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleSkip}
-                disabled={isPending}
-                className="text-label-md text-[#85736c] hover:text-[#52443d] transition-all active:scale-[0.98] disabled:opacity-50"
-              >
-                {step === 3 ? "Skip" : "Skip"}
-              </button>
-              {step < 3 ? (
-                <Button
-                  variant="primary"
-                  onClick={handleNext}
-                  icon="arrow_forward"
-                  iconPosition="right"
-                >
-                  Next
-                </Button>
-              ) : (
-                <Button
-                  variant="primary"
-                  onClick={handleFinish}
-                  icon={isPending ? "refresh" : "check"}
-                  iconPosition="right"
-                  disabled={isPending}
-                >
-                  {isPending ? "Saving…" : "Finish"}
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <p className="text-center text-body-sm text-[#85736c] mt-4">Step {step} of 3</p>
-      </div>
-    </main>
+    <OnboardingShell
+      currentStep={step}
+      title={copy.title}
+      subtitle={copy.subtitle}
+      onBack={step > 1 ? handleBack : null}
+      onSkip={handleSkip}
+      onNext={handleNext}
+      nextLabel={step === TOTAL_STEPS ? "Finish" : "Next"}
+      isPending={isPending}
+      error={error}
+    >
+      {step === 1 && (
+        <StepHousehold
+          householdSize={form.household_size}
+          kidsProfile={form.kids_profile}
+          onHouseholdSizeChange={(v) => patch("household_size", v)}
+          onKidsProfileChange={(v) => patch("kids_profile", v)}
+        />
+      )}
+      {step === 2 && (
+        <StepCuisineDietary
+          cuisines={cuisines}
+          dietaryTags={dietaryTags}
+          selectedCuisineIds={form.preferred_cuisine_ids}
+          selectedTagIds={form.preferred_tag_ids}
+          onCuisinesChange={(v) => patch("preferred_cuisine_ids", v)}
+          onTagsChange={(v) => patch("preferred_tag_ids", v)}
+        />
+      )}
+      {step === 3 && (
+        <StepFavorites
+          favoriteProteins={form.favorite_proteins}
+          favoriteFlavors={form.favorite_flavors}
+          spiceLevel={form.spice_level}
+          onFavoriteProteinsChange={(v) => patch("favorite_proteins", v)}
+          onFavoriteFlavorsChange={(v) => patch("favorite_flavors", v)}
+          onSpiceLevelChange={(v) => patch("spice_level", v)}
+        />
+      )}
+      {step === 4 && (
+        <StepAvoids
+          dislikedIngredients={form.disliked_ingredients}
+          dislikedTextures={form.disliked_textures}
+          onDislikedIngredientsChange={(v) => patch("disliked_ingredients", v)}
+          onDislikedTexturesChange={(v) => patch("disliked_textures", v)}
+        />
+      )}
+      {step === 5 && (
+        <StepKitchenReality
+          cookingSkillLevel={form.cooking_skill_level}
+          availableAppliances={form.available_appliances}
+          preferredCookingTime={form.preferred_cooking_time}
+          typicalMealTimes={form.typical_meal_times}
+          onCookingSkillLevelChange={(v) => patch("cooking_skill_level", v)}
+          onAvailableAppliancesChange={(v) => patch("available_appliances", v)}
+          onPreferredCookingTimeChange={(v) => patch("preferred_cooking_time", v)}
+          onTypicalMealTimesChange={(v) => patch("typical_meal_times", v)}
+        />
+      )}
+      {step === 6 && (
+        <StepGoalsNutrition
+          goalPriorities={form.goal_priorities}
+          calorieTrackingMode={form.calorie_tracking_mode}
+          onGoalPrioritiesChange={(v) => patch("goal_priorities", v)}
+          onCalorieTrackingModeChange={(v) => patch("calorie_tracking_mode", v)}
+        />
+      )}
+      {step === 7 && (
+        <StepShoppingBehavior
+          weeklyBudget={form.weekly_budget}
+          preferredStores={form.preferred_stores}
+          shoppingMode={form.shopping_mode}
+          onWeeklyBudgetChange={(v) => patch("weekly_budget", v)}
+          onPreferredStoresChange={(v) => patch("preferred_stores", v)}
+          onShoppingModeChange={(v) => patch("shopping_mode", v)}
+        />
+      )}
+      {step === 8 && (
+        <StepDiscoveryFriction
+          recipeDiscoverySources={form.recipe_discovery_sources}
+          biggestCookingFrustration={form.biggest_cooking_frustration}
+          onRecipeDiscoverySourcesChange={(v) =>
+            patch("recipe_discovery_sources", v)
+          }
+          onBiggestCookingFrustrationChange={(v) =>
+            patch("biggest_cooking_frustration", v)
+          }
+        />
+      )}
+      {step === 9 && (
+        <StepLocation
+          zip={form.shopping_location_zip}
+          label={form.shopping_location_label}
+          onZipChange={(v) => patch("shopping_location_zip", v)}
+          onLabelChange={(v) => patch("shopping_location_label", v)}
+        />
+      )}
+    </OnboardingShell>
   );
 }

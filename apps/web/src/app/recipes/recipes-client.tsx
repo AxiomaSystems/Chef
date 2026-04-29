@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
@@ -20,7 +20,7 @@ const FAV_STYLES = [
   { bg: "bg-rose-100",   text: "text-rose-600",    icon: "favorite" },
 ];
 
-type Tab = "all" | "saved" | "mine";
+type Tab = "mine" | "public" | "saved";
 
 /* ── component ──────────────────────────────────────────────────── */
 
@@ -28,21 +28,23 @@ export function RecipesClient({
   cuisines,
   tags,
   recipes: initialRecipes,
+  openCreateOnLoad = false,
 }: {
   cuisines: Cuisine[];
   tags: Tag[];
   recipes: BaseRecipe[];
+  openCreateOnLoad?: boolean;
 }) {
   const router = useRouter();
 
   const [recipes, setRecipes]             = useState(initialRecipes);
-  const [tab, setTab]                     = useState<Tab>("all");
+  const [tab, setTab]                     = useState<Tab>("mine");
   const [search, setSearch]               = useState("");
   const [activeCuisine, setActiveCuisine] = useState<string | null>(null);
   const [activeTag, setActiveTag]         = useState<string | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<BaseRecipe | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<BaseRecipe | null>(null);
-  const [showCreate, setShowCreate]       = useState(false);
+  const [showCreate, setShowCreate]       = useState(openCreateOnLoad);
   const [selections, setSelections]       = useState<Map<string, BaseRecipe>>(new Map());
   const [savingId, setSavingId]           = useState<string | null>(null);
   const [buildError, setBuildError]       = useState<string | undefined>();
@@ -50,11 +52,22 @@ export function RecipesClient({
   const [, startFork]                     = useTransition();
   const recipeGridRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (openCreateOnLoad) {
+      router.replace("/recipes", { scroll: false });
+    }
+  }, [router, openCreateOnLoad]);
+
   const dietaryTags = tags.filter((t) => t.kind === "dietary_badge").slice(0, 6);
 
   // IDs of system recipes that the user has already forked/saved
+  const savedRecipesBySourceId = new Map(
+    recipes
+      .filter((r) => r.forked_from_recipe_id)
+      .map((r) => [r.forked_from_recipe_id!, r]),
+  );
   const savedSourceIds = new Set(
-    recipes.filter((r) => r.forked_from_recipe_id).map((r) => r.forked_from_recipe_id!),
+    savedRecipesBySourceId.keys(),
   );
   // User-created recipes (not a system fork, not a system recipe)
   const isUserOwned   = (r: BaseRecipe) => !!r.owner_user_id && !r.is_system_recipe;
@@ -62,9 +75,8 @@ export function RecipesClient({
 
   const tabFiltered =
     tab === "saved" ? recipes.filter(isUserSaved) :
-    tab === "mine"  ? recipes.filter((r) => isUserOwned(r) && !isUserSaved(r)) :
-    // "All" — hide forks so saved recipes don't duplicate the originals
-    recipes.filter((r) => !isUserSaved(r));
+    tab === "public" ? recipes.filter((r) => !isUserOwned(r) && !isUserSaved(r)) :
+    recipes.filter((r) => isUserOwned(r) && !isUserSaved(r));
 
   const filtered = tabFiltered.filter((r) => {
     if (search && !r.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -157,10 +169,10 @@ export function RecipesClient({
               <span className="material-symbols-outlined text-on-secondary-container/60 text-[20px]">arrow_forward</span>
             </button>
 
-            {/* Explore templates */}
+            {/* Public recipes */}
             <button
               onClick={() => {
-                setTab("all");
+                setTab("public");
                 setTimeout(() => recipeGridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
               }}
               className="bg-primary-surface rounded-2xl p-5 flex flex-col gap-3 cursor-pointer hover:brightness-95 transition-all text-left border border-primary-fixed-dim/20"
@@ -169,8 +181,8 @@ export function RecipesClient({
                 <span className="material-symbols-outlined text-[28px] text-primary">auto_fix_high</span>
               </div>
               <div>
-                <p className="text-label-lg font-bold text-on-surface">Explore templates</p>
-                <p className="text-body-sm text-outline mt-0.5 leading-snug">Start from professional nutritional frameworks.</p>
+                <p className="text-label-lg font-bold text-on-surface">Public recipes</p>
+                <p className="text-body-sm text-outline mt-0.5 leading-snug">Browse shared recipes and save the ones you like.</p>
               </div>
               <span className="material-symbols-outlined text-outline text-[20px]">arrow_forward</span>
             </button>
@@ -205,7 +217,7 @@ export function RecipesClient({
         {/* ── Tabs ─────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex gap-1 bg-surface-container-low rounded-full p-1">
-            {([ ["all", "All Recipes"], ["saved", "Saved"], ["mine", "My Recipes"] ] as [Tab, string][]).map(([t, label]) => (
+            {([ ["mine", "My Recipes"], ["public", "Public Recipes"], ["saved", "Saved Recipes"] ] as [Tab, string][]).map(([t, label]) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -264,16 +276,16 @@ export function RecipesClient({
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-20 text-center">
             <span className="material-symbols-outlined text-[48px] text-outline-variant">
-              {tab === "saved" ? "bookmark" : tab === "mine" ? "draw" : "restaurant"}
+              {tab === "saved" ? "bookmark" : tab === "public" ? "restaurant" : "draw"}
             </span>
             <div>
               <p className="text-label-lg font-semibold text-on-surface">
-                {tab === "saved" ? "No saved recipes yet" : tab === "mine" ? "No created recipes yet" : "No recipes match"}
+                {tab === "saved" ? "No saved recipes yet" : tab === "public" ? "No public recipes found" : "No created recipes yet"}
               </p>
               <p className="text-body-sm text-outline mt-1">
                 {tab === "saved" ? "Tap the bookmark on any recipe to save it here." :
-                 tab === "mine"  ? "Use \u201cCreate own\u201d to build your first recipe." :
-                 "Try a different filter or search term."}
+                 tab === "public" ? "Try a different filter or search term." :
+                 "Use \u201cCreate own\u201d to build your first recipe."}
               </p>
             </div>
             {tab === "mine" && (
@@ -291,12 +303,14 @@ export function RecipesClient({
             {filtered.map((recipe) => {
               const dietBadge  = recipe.tags.find((t) => t.kind === "dietary_badge");
               const isSelected = selections.has(recipe.id);
+              const savedRecipe = savedRecipesBySourceId.get(recipe.id);
               const isSaved    = savedSourceIds.has(recipe.id) || isUserSaved(recipe);
               const isSaving   = savingId === recipe.id;
               const canSave    = recipe.is_system_recipe && !isSaved;
+              const recipeToOpen = savedRecipe ?? recipe;
 
               return (
-                <div key={recipe.id} className="group cursor-pointer space-y-2" onClick={() => setSelectedRecipe(recipe)}>
+                <div key={recipe.id} className="group cursor-pointer space-y-2" onClick={() => setSelectedRecipe(recipeToOpen)}>
                   {/* Image */}
                   <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-container">
                     <RecipeImage
