@@ -25,7 +25,8 @@ import type {
 import { OnboardingShell } from "@/components/onboarding/onboarding-shell";
 import { StepHousehold } from "@/components/onboarding/steps/step-household";
 import { StepCuisineDietary } from "@/components/onboarding/steps/step-cuisine-dietary";
-import { StepTasteDislikes } from "@/components/onboarding/steps/step-taste-dislikes";
+import { StepFavorites } from "@/components/onboarding/steps/step-favorites";
+import { StepAvoids } from "@/components/onboarding/steps/step-avoids";
 import { StepKitchenReality } from "@/components/onboarding/steps/step-kitchen-reality";
 import { StepGoalsNutrition } from "@/components/onboarding/steps/step-goals-nutrition";
 import { StepShoppingBehavior } from "@/components/onboarding/steps/step-shopping-behavior";
@@ -36,42 +37,44 @@ import {
   skipOnboardingAction,
 } from "./actions";
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
 
 const STEP_COPY: Record<number, { title: string; subtitle: string }> = {
   1: {
     title: "Who are you cooking for?",
-    subtitle: "This helps us size recipes and plan portions correctly.",
+    subtitle: "Portions, budgets, and leftovers start here.",
   },
   2: {
-    title: "Cuisine and dietary profile",
-    subtitle: "Pick the cuisines you love and any dietary requirements.",
+    title: "What food feels like you?",
+    subtitle: "Choose cuisines and dietary filters.",
   },
   3: {
-    title: "Taste and dislikes",
-    subtitle:
-      "Tell us what you love and what you'd rather avoid.",
+    title: "What should Chef prioritize?",
+    subtitle: "These are soft preferences, not hard rules.",
   },
   4: {
-    title: "Your kitchen reality",
-    subtitle: "We'll only suggest recipes that fit your setup and schedule.",
+    title: "What should Chef avoid?",
+    subtitle: "Pick only the things that reliably ruin a meal for you.",
   },
   5: {
-    title: "Goals and nutrition",
-    subtitle: "What are you optimising for? We'll weight recommendations to match.",
+    title: "Your kitchen reality",
+    subtitle: "Equipment and time shape better recommendations.",
   },
   6: {
-    title: "Shopping behaviour",
-    subtitle: "We use this to build smarter grocery lists.",
+    title: "Goals and nutrition",
+    subtitle: "Tell Chef what tradeoffs matter most.",
   },
   7: {
-    title: "Discovery and friction",
-    subtitle: "A little context on how you find recipes and what gets in the way.",
+    title: "Shopping behavior",
+    subtitle: "This helps Chef build realistic grocery carts.",
   },
   8: {
+    title: "Where do recipes come from?",
+    subtitle: "This helps shape future import tools.",
+  },
+  9: {
     title: "Where do you shop?",
-    subtitle:
-      "We use your location to find in-stock items at nearby stores.",
+    subtitle: "Nearby stores make the cart more useful.",
   },
 };
 
@@ -216,20 +219,24 @@ export function OnboardingClient({
         />
       )}
       {step === 3 && (
-        <StepTasteDislikes
+        <StepFavorites
           favoriteProteins={form.favorite_proteins}
           favoriteFlavors={form.favorite_flavors}
           spiceLevel={form.spice_level}
-          dislikedIngredients={form.disliked_ingredients}
-          dislikedTextures={form.disliked_textures}
           onFavoriteProteinsChange={(v) => patch("favorite_proteins", v)}
           onFavoriteFlavorsChange={(v) => patch("favorite_flavors", v)}
           onSpiceLevelChange={(v) => patch("spice_level", v)}
+        />
+      )}
+      {step === 4 && (
+        <StepAvoids
+          dislikedIngredients={form.disliked_ingredients}
+          dislikedTextures={form.disliked_textures}
           onDislikedIngredientsChange={(v) => patch("disliked_ingredients", v)}
           onDislikedTexturesChange={(v) => patch("disliked_textures", v)}
         />
       )}
-      {step === 4 && (
+      {step === 5 && (
         <StepKitchenReality
           cookingSkillLevel={form.cooking_skill_level}
           availableAppliances={form.available_appliances}
@@ -241,7 +248,7 @@ export function OnboardingClient({
           onTypicalMealTimesChange={(v) => patch("typical_meal_times", v)}
         />
       )}
-      {step === 5 && (
+      {step === 6 && (
         <StepGoalsNutrition
           goalPriorities={form.goal_priorities}
           calorieTrackingMode={form.calorie_tracking_mode}
@@ -249,7 +256,7 @@ export function OnboardingClient({
           onCalorieTrackingModeChange={(v) => patch("calorie_tracking_mode", v)}
         />
       )}
-      {step === 6 && (
+      {step === 7 && (
         <StepShoppingBehavior
           weeklyBudget={form.weekly_budget}
           preferredStores={form.preferred_stores}
@@ -259,7 +266,7 @@ export function OnboardingClient({
           onShoppingModeChange={(v) => patch("shopping_mode", v)}
         />
       )}
-      {step === 7 && (
+      {step === 8 && (
         <StepDiscoveryFriction
           recipeDiscoverySources={form.recipe_discovery_sources}
           biggestCookingFrustration={form.biggest_cooking_frustration}
@@ -271,7 +278,7 @@ export function OnboardingClient({
           }
         />
       )}
-      {step === 8 && (
+      {step === 9 && (
         <StepLocation
           zip={form.shopping_location_zip}
           label={form.shopping_location_label}

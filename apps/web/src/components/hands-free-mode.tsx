@@ -3,6 +3,33 @@
 import { useEffect, useRef, useState } from "react";
 import type { BaseRecipe } from "@cart/shared";
 
+type SpeechRecognitionResultEvent = Event & {
+  results: {
+    [index: number]: {
+      [index: number]: {
+        transcript?: string;
+      };
+    };
+  };
+};
+
+type SpeechRecognitionErrorLikeEvent = Event & {
+  error?: string;
+};
+
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  maxAlternatives: number;
+  onresult: ((event: SpeechRecognitionResultEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorLikeEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+};
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -92,15 +119,19 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
 
   // Voice recognition — non-continuous, immediate restart so indicator never flickers
   useEffect(() => {
+    const speechWindow = window as Window & {
+      SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+      webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    };
     const SR =
-      (window as any).SpeechRecognition ??
-      (window as any).webkitSpeechRecognition;
+      speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
 
     if (!SR) {
       setVoiceSupported(false);
       return;
     }
 
+    const Recognition = SR;
     let active = true;
 
     function showFeedback(text: string) {
@@ -146,20 +177,20 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       // Mark as listening immediately so the indicator never flickers during restart
       setIsListening(true);
 
-      const rec: SpeechRecognition = new SR();
+      const rec = new Recognition();
       rec.continuous = false;
       rec.interimResults = false;
       rec.lang = "en-US";
       rec.maxAlternatives = 1;
 
-      rec.onresult = (event: SpeechRecognitionEvent) => {
+      rec.onresult = (event) => {
         const transcript = event.results[0]?.[0]?.transcript
           ?.trim()
           .toLowerCase();
         if (transcript) handleTranscript(transcript);
       };
 
-      rec.onerror = (event: SpeechRecognitionErrorEvent) => {
+      rec.onerror = (event) => {
         if (
           event.error === "not-allowed" ||
           event.error === "service-not-allowed"

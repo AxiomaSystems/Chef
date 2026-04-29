@@ -25,7 +25,7 @@ export function StepLocation({ zip, label, onZipChange, onLabelChange }: Props) 
             onChange={(e) => onZipChange(e.target.value)}
             placeholder="60611"
             maxLength={5}
-            className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-white/70 px-4 text-sm text-[#1a1c1a] outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032]"
+            className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-white/80 px-4 text-sm text-[#1a1c1a] shadow-sm outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032] focus:bg-white focus:shadow-[0_0_0_4px_rgba(137,80,50,0.12)]"
           />
         </div>
 
@@ -42,12 +42,12 @@ export function StepLocation({ zip, label, onZipChange, onLabelChange }: Props) 
             value={label}
             onChange={(e) => onLabelChange(e.target.value)}
             placeholder="Chicago, IL"
-            className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-white/70 px-4 text-sm text-[#1a1c1a] outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032]"
+            className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-white/80 px-4 text-sm text-[#1a1c1a] shadow-sm outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032] focus:bg-white focus:shadow-[0_0_0_4px_rgba(137,80,50,0.12)]"
           />
         </div>
       </div>
 
-      <div className="flex gap-3 rounded-xl bg-[#f4f3f1] p-4">
+      <div className="flex gap-3 rounded-2xl border border-[#e5ead8] bg-[#f4f8ec] p-4">
         <span className="material-symbols-outlined mt-0.5 text-[20px] text-[#895032]">
           info
         </span>
