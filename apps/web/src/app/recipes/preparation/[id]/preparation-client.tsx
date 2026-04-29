@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { BaseRecipe } from "@cart/shared";
 import { PreparationChefAssistant } from "@/components/ai/preparation-chef-assistant";
+import { HandsFreeMode } from "@/components/hands-free-mode";
 import { RecipeImage } from "@/components/ui/recipe-image";
 import { getIngredientPrepAction } from "@/app/ai-actions";
 
@@ -37,6 +38,7 @@ export function RecipePreparationClient({
   const [started, setStarted] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [activeStep, setActiveStep] = useState(0);
+  const [handsFreeOpen, setHandsFreeOpen] = useState(false);
   const [checkedIngredients, setCheckedIngredients] = useState<string[]>([]);
   const [prepNotes, setPrepNotes] = useState<string[]>([]);
   const [prepError, setPrepError] = useState<string | null>(null);
@@ -53,6 +55,11 @@ export function RecipePreparationClient({
 
     return () => window.clearInterval(interval);
   }, [started]);
+
+  // Reset per-step timer whenever the active step changes
+  useEffect(() => {
+    setElapsedSeconds(0);
+  }, [activeStep]);
 
   const nutrition = recipe.nutrition_data ?? {};
   const badges = getDietaryBadges(recipe);
@@ -331,7 +338,7 @@ export function RecipePreparationClient({
                       {started ? formatElapsed(elapsedSeconds) : "00:00"}
                     </p>
                     <p className="mt-1 text-body-sm text-on-surface-variant">
-                      {started ? "Since preparation started" : "Starts when you begin"}
+                      {started ? "This step" : "Starts when you begin"}
                     </p>
                   </div>
                   <div className="rounded-[22px] bg-surface-container-low p-4">
@@ -474,6 +481,14 @@ export function RecipePreparationClient({
                 </button>
                 <button
                   type="button"
+                  onClick={() => setHandsFreeOpen(true)}
+                  className="flex items-center gap-2 rounded-full border border-outline-variant bg-white px-5 py-2.5 text-label-lg text-on-surface transition-colors hover:bg-surface-container-low"
+                >
+                  <span className="material-symbols-outlined text-[18px]">mic</span>
+                  Hands-free
+                </button>
+                <button
+                  type="button"
                   onClick={startPreparation}
                   className="rounded-full bg-primary px-7 py-2.5 text-label-lg text-on-primary shadow-[0_10px_24px_rgba(243,148,71,0.25)] transition-opacity hover:opacity-90"
                 >
@@ -481,6 +496,13 @@ export function RecipePreparationClient({
                 </button>
               </div>
             </div>
+
+            {handsFreeOpen ? (
+              <HandsFreeMode
+                recipe={recipe}
+                onClose={() => setHandsFreeOpen(false)}
+              />
+            ) : null}
           </div>
         </div>
       </div>
