@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   Max,
   Min,
 } from 'class-validator';
@@ -13,6 +14,7 @@ import {
 export class GenerateMealsDto {
   @ApiProperty({ example: 'Cheap high-protein burrito bowls for weekday lunches' })
   @IsString()
+  @MaxLength(2000)
   meal_prompt!: string;
 
   @ApiPropertyOptional({ example: 4 })
@@ -97,6 +99,7 @@ export class GenerateMealsDto {
   @ApiPropertyOptional({ example: 'Use ingredients available in a normal US grocery store.' })
   @IsOptional()
   @IsString()
+  @MaxLength(4000)
   notes?: string;
 }
 

@@ -17,7 +17,7 @@ export default async function RecipePreparationPage({
   }
 
   return (
-    <AppShell topBarTitle="Preparation" showBack showChefChatWidget={false}>
+    <AppShell topBarTitle="Preparation" showBack>
       <RecipePreparationClient recipe={recipeResult.data} />
     </AppShell>
   );

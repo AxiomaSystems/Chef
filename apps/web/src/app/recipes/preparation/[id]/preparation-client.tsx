@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { BaseRecipe } from "@cart/shared";
 import { PreparationChefAssistant } from "@/components/ai/preparation-chef-assistant";
+import { HandsFreeMode } from "@/components/hands-free-mode";
 import { RecipeImage } from "@/components/ui/recipe-image";
+import { getIngredientPrepAction } from "@/app/ai-actions";
 
 function getDietaryBadges(recipe: BaseRecipe) {
   return recipe.tags.filter((tag) => tag.kind === "dietary_badge").slice(0, 3);
@@ -36,7 +38,11 @@ export function RecipePreparationClient({
   const [started, setStarted] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [activeStep, setActiveStep] = useState(0);
+  const [handsFreeOpen, setHandsFreeOpen] = useState(false);
   const [checkedIngredients, setCheckedIngredients] = useState<string[]>([]);
+  const [prepNotes, setPrepNotes] = useState<string[]>([]);
+  const [prepError, setPrepError] = useState<string | null>(null);
+  const [isPrepPending, startPrepTransition] = useTransition();
 
   useEffect(() => {
     if (!started) {
@@ -49,6 +55,11 @@ export function RecipePreparationClient({
 
     return () => window.clearInterval(interval);
   }, [started]);
+
+  // Reset per-step timer whenever the active step changes
+  useEffect(() => {
+    setElapsedSeconds(0);
+  }, [activeStep]);
 
   const nutrition = recipe.nutrition_data ?? {};
   const badges = getDietaryBadges(recipe);
@@ -91,6 +102,21 @@ export function RecipePreparationClient({
       },
     ];
   }, [nutrition.carbs_g, nutrition.fat_g, nutrition.protein_g]);
+
+  function loadPrepGuide() {
+    setPrepError(null);
+    startPrepTransition(async () => {
+      const result = await getIngredientPrepAction({
+        recipeName: recipe.name,
+        ingredients: recipe.ingredients,
+      });
+      if (result.error) {
+        setPrepError(result.error);
+      } else {
+        setPrepNotes(result.notes ?? []);
+      }
+    });
+  }
 
   function toggleIngredient(key: string) {
     setCheckedIngredients((current) =>
@@ -215,10 +241,26 @@ export function RecipePreparationClient({
             <div className="sticky top-24">
               <div className="mb-6 flex items-center justify-between gap-3">
                 <h2 className="text-headline-sm text-on-surface">Ingredients</h2>
-                <span className="rounded-lg bg-secondary-container/30 px-3 py-1 text-label-sm text-on-secondary-container">
-                  {checkedCount}/{recipe.ingredients.length} ready
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-lg bg-secondary-container/30 px-3 py-1 text-label-sm text-on-secondary-container">
+                    {checkedCount}/{recipe.ingredients.length} ready
+                  </span>
+                  <button
+                    type="button"
+                    onClick={loadPrepGuide}
+                    disabled={isPrepPending}
+                    className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1 text-label-sm text-primary transition-colors hover:bg-primary/20 disabled:opacity-60"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">
+                      {isPrepPending ? "progress_activity" : "menu_book"}
+                    </span>
+                    {isPrepPending ? "Generating…" : "Prep Guide"}
+                  </button>
+                </div>
               </div>
+              {prepError && (
+                <p className="mb-4 text-[11px] text-error">{prepError}</p>
+              )}
 
               <div className="space-y-4">
                 {recipe.ingredients.map((ingredient, index) => {
@@ -248,13 +290,7 @@ export function RecipePreparationClient({
                         </span>
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p
-                          className={`text-body-sm ${
-                            checked
-                              ? "text-on-surface"
-                              : "text-on-surface"
-                          }`}
-                        >
+                        <p className="text-body-sm text-on-surface">
                           {ingredient.amount} {ingredient.unit}{" "}
                           {ingredient.display_ingredient ??
                             ingredient.canonical_ingredient}
@@ -262,13 +298,19 @@ export function RecipePreparationClient({
                             ? `, ${ingredient.preparation}`
                             : ""}
                         </p>
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">
-                          {checked
-                            ? "Ready"
-                            : ingredient.optional
-                              ? "Optional"
-                              : "Check before cooking"}
-                        </p>
+                        {prepNotes[index] ? (
+                          <p className="mt-1 text-[11px] italic text-primary/80">
+                            {prepNotes[index]}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">
+                            {checked
+                              ? "Ready"
+                              : ingredient.optional
+                                ? "Optional"
+                                : "Check before cooking"}
+                          </p>
+                        )}
                       </div>
                     </button>
                   );
@@ -296,7 +338,7 @@ export function RecipePreparationClient({
                       {started ? formatElapsed(elapsedSeconds) : "00:00"}
                     </p>
                     <p className="mt-1 text-body-sm text-on-surface-variant">
-                      {started ? "Since preparation started" : "Starts when you begin"}
+                      {started ? "This step" : "Starts when you begin"}
                     </p>
                   </div>
                   <div className="rounded-[22px] bg-surface-container-low p-4">
@@ -439,6 +481,14 @@ export function RecipePreparationClient({
                 </button>
                 <button
                   type="button"
+                  onClick={() => setHandsFreeOpen(true)}
+                  className="flex items-center gap-2 rounded-full border border-outline-variant bg-white px-5 py-2.5 text-label-lg text-on-surface transition-colors hover:bg-surface-container-low"
+                >
+                  <span className="material-symbols-outlined text-[18px]">mic</span>
+                  Hands-free
+                </button>
+                <button
+                  type="button"
                   onClick={startPreparation}
                   className="rounded-full bg-primary px-7 py-2.5 text-label-lg text-on-primary shadow-[0_10px_24px_rgba(243,148,71,0.25)] transition-opacity hover:opacity-90"
                 >
@@ -446,6 +496,13 @@ export function RecipePreparationClient({
                 </button>
               </div>
             </div>
+
+            {handsFreeOpen ? (
+              <HandsFreeMode
+                recipe={recipe}
+                onClose={() => setHandsFreeOpen(false)}
+              />
+            ) : null}
           </div>
         </div>
       </div>
