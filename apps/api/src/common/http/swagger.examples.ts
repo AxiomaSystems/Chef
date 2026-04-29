@@ -458,6 +458,64 @@ export const createShoppingCartRequestExample = {
   retailer: 'instacart',
 };
 
+export const ingredientReviewExample = {
+  cart_id: 'cart-1',
+  items: [
+    {
+      canonical_ingredient: 'chicken thigh',
+      total_amount: 800,
+      unit: 'g',
+      source_dishes: [
+        {
+          dish_name: 'Arroz con pollo casero',
+          amount: 800,
+          unit: 'g',
+        },
+      ],
+      action: 'adjust',
+      adjusted_amount: 400,
+      adjusted_unit: 'g',
+    },
+    {
+      canonical_ingredient: 'rice',
+      total_amount: 2,
+      unit: 'cup',
+      source_dishes: [
+        {
+          dish_name: 'Arroz con pollo casero',
+          amount: 2,
+          unit: 'cup',
+        },
+      ],
+      action: 'already_have',
+    },
+  ],
+  created_at: '2026-04-29T19:30:00.000Z',
+  updated_at: '2026-04-29T19:35:00.000Z',
+};
+
+export const updateIngredientReviewRequestExample = {
+  items: [
+    {
+      canonical_ingredient: 'chicken thigh',
+      unit: 'g',
+      action: 'adjust',
+      adjusted_amount: 400,
+      adjusted_unit: 'g',
+    },
+    {
+      canonical_ingredient: 'rice',
+      unit: 'cup',
+      action: 'already_have',
+    },
+    {
+      canonical_ingredient: 'cilantro',
+      unit: 'g',
+      action: 'skip',
+    },
+  ],
+};
+
 export const shoppingCartExample = {
   id: 'shopping-cart-1',
   user_id: 'user-1',

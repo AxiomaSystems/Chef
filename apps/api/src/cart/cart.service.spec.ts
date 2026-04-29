@@ -101,8 +101,10 @@ describe('CartService', () => {
       })),
       updateCart: jest.fn(),
       deleteCart: jest.fn(),
+      upsertIngredientReview: jest.fn(),
       findCartsByUser: jest.fn(),
       findCartById: jest.fn(),
+      findIngredientReviewByCartId: jest.fn().mockResolvedValue(null),
       createShoppingCart: jest.fn().mockImplementation(async ({ userId, cartId, shoppingCart }) => ({
         id: 'shopping-cart-1',
         user_id: userId,
@@ -248,6 +250,85 @@ describe('CartService', () => {
     await expect(
       service.createShoppingCart('cart-1', { retailer: 'kroger' }),
     ).rejects.toThrow('Set your shopping location first.');
+  });
+
+  it('applies ingredient review decisions before product matching', async () => {
+    cartPersistenceService.findCartById.mockResolvedValue({
+      id: 'cart-1',
+      user_id: 'user-1',
+      name: 'Weekly dinner plan',
+      retailer: 'walmart',
+      selections: [
+        {
+          recipe_id: 'recipe-1',
+          recipe_type: 'base',
+          quantity: 1,
+        },
+      ],
+      dishes: [
+        {
+          id: 'recipe-1',
+          name: recipe.name,
+          cuisine: recipe.cuisine.label,
+          servings: recipe.servings,
+          ingredients: recipe.ingredients,
+          steps: recipe.steps,
+          tags: recipe.tags.map((tag) => tag.name),
+        },
+      ],
+      overview: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    cartPersistenceService.findIngredientReviewByCartId.mockResolvedValue({
+      cart_id: 'cart-1',
+      items: [
+        {
+          canonical_ingredient: 'rice',
+          total_amount: 2,
+          unit: 'cup',
+          source_dishes: [{ dish_name: recipe.name, amount: 2, unit: 'cup' }],
+          action: 'already_have',
+        },
+        {
+          canonical_ingredient: 'chicken thigh',
+          total_amount: 800,
+          unit: 'g',
+          source_dishes: [{ dish_name: recipe.name, amount: 800, unit: 'g' }],
+          action: 'adjust',
+          adjusted_amount: 400,
+          adjusted_unit: 'g',
+        },
+      ],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    await service.createShoppingCart('cart-1', { retailer: 'walmart' });
+
+    const createdShoppingCart =
+      cartPersistenceService.createShoppingCart.mock.calls[0][0].shoppingCart;
+    expect(createdShoppingCart.overview).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonical_ingredient: 'rice',
+          in_kitchen: true,
+          review_action: 'already_have',
+        }),
+        expect.objectContaining({
+          canonical_ingredient: 'chicken thigh',
+          total_amount: 400,
+          review_action: 'adjust',
+        }),
+      ]),
+    );
+    expect(createdShoppingCart.matched_items).toHaveLength(1);
+    expect(createdShoppingCart.matched_items[0]).toEqual(
+      expect.objectContaining({
+        canonical_ingredient: 'chicken thigh',
+        needed_amount: 400,
+      }),
+    );
   });
 
   it('creates an Instacart handoff shopping cart without product matching', async () => {

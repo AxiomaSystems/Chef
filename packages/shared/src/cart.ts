@@ -1,4 +1,7 @@
-import type { AggregatedIngredient } from "./aggregation";
+import type {
+  AggregatedIngredient,
+  AggregatedIngredientSource,
+} from "./aggregation";
 import type {
   MatchedIngredientProduct,
   Retailer,
@@ -44,6 +47,41 @@ export type Cart = {
 
 export type CreateShoppingCartRequest = {
   retailer: Retailer;
+};
+
+export type IngredientReviewAction =
+  | "buy"
+  | "already_have"
+  | "skip"
+  | "adjust";
+
+export type IngredientReviewItem = {
+  canonical_ingredient: string;
+  total_amount: number;
+  unit: string;
+  source_dishes: AggregatedIngredientSource[];
+  action: IngredientReviewAction;
+  adjusted_amount?: number;
+  adjusted_unit?: string;
+};
+
+export type IngredientReview = {
+  cart_id: string;
+  items: IngredientReviewItem[];
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type UpdateIngredientReviewItemRequest = {
+  canonical_ingredient: string;
+  unit: string;
+  action: IngredientReviewAction;
+  adjusted_amount?: number;
+  adjusted_unit?: string;
+};
+
+export type UpdateIngredientReviewRequest = {
+  items: UpdateIngredientReviewItemRequest[];
 };
 
 export type ShoppingCart = {

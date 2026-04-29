@@ -402,6 +402,58 @@ export class AggregatedIngredientResponseDto {
 
   @ApiPropertyOptional({ example: true })
   in_kitchen?: boolean;
+
+  @ApiPropertyOptional({
+    enum: ['buy', 'already_have', 'skip', 'adjust'],
+    example: 'adjust',
+  })
+  review_action?: string;
+
+  @ApiPropertyOptional({ example: 1.5 })
+  reviewed_amount?: number;
+
+  @ApiPropertyOptional({ example: 'cup' })
+  reviewed_unit?: string;
+}
+
+export class IngredientReviewItemResponseDto {
+  @ApiProperty({ example: 'rice' })
+  canonical_ingredient!: string;
+
+  @ApiProperty({ example: 2 })
+  total_amount!: number;
+
+  @ApiProperty({ example: 'cup' })
+  unit!: string;
+
+  @ApiProperty({ type: () => [AggregatedIngredientSourceResponseDto] })
+  source_dishes!: AggregatedIngredientSourceResponseDto[];
+
+  @ApiProperty({
+    enum: ['buy', 'already_have', 'skip', 'adjust'],
+    example: 'adjust',
+  })
+  action!: string;
+
+  @ApiPropertyOptional({ example: 1.5 })
+  adjusted_amount?: number;
+
+  @ApiPropertyOptional({ example: 'cup' })
+  adjusted_unit?: string;
+}
+
+export class IngredientReviewResponseDto {
+  @ApiProperty({ example: 'cart-1' })
+  cart_id!: string;
+
+  @ApiProperty({ type: () => [IngredientReviewItemResponseDto] })
+  items!: IngredientReviewItemResponseDto[];
+
+  @ApiPropertyOptional({ example: '2026-04-29T19:30:00.000Z' })
+  created_at?: string;
+
+  @ApiPropertyOptional({ example: '2026-04-29T19:35:00.000Z' })
+  updated_at?: string;
 }
 
 export class ProductCandidateResponseDto {

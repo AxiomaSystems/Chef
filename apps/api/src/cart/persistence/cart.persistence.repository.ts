@@ -3,6 +3,7 @@ import type {
   CreateCartPersistenceInput,
   CreateCartDraftPersistenceInput,
   CreateShoppingCartPersistenceInput,
+  UpsertIngredientReviewPersistenceInput,
   UpdateCartDraftPersistenceInput,
   UpdateCartPersistenceInput,
   UpdateShoppingCartPersistenceInput,
@@ -71,6 +72,19 @@ export class CartPersistenceRepository {
     });
   }
 
+  upsertIngredientReview(input: UpsertIngredientReviewPersistenceInput) {
+    return this.prisma.ingredientReview.upsert({
+      where: { cartId: input.cartId },
+      create: {
+        cartId: input.cartId,
+        items: input.items,
+      },
+      update: {
+        items: input.items,
+      },
+    });
+  }
+
   createShoppingCart(input: CreateShoppingCartPersistenceInput) {
     return this.prisma.shoppingCart.create({
       data: {
@@ -134,6 +148,17 @@ export class CartPersistenceRepository {
   findCartById(userId: string, id: string) {
     return this.prisma.cart.findFirst({
       where: { id, userId },
+    });
+  }
+
+  findIngredientReviewByCartId(userId: string, cartId: string) {
+    return this.prisma.ingredientReview.findFirst({
+      where: {
+        cartId,
+        cart: {
+          userId,
+        },
+      },
     });
   }
 
