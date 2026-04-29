@@ -140,6 +140,7 @@ The main architecture and design notes live in:
 - [docs/business.md](/C:/Users/akuma/repos/cart-generator/docs/business.md)
 - [docs/goals.md](/C:/Users/akuma/repos/cart-generator/docs/goals.md)
 - [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md)
+- [docs/branching.md](/C:/Users/akuma/repos/cart-generator/docs/branching.md)
 - [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md)
 - [docs/llm-mechanism.md](/C:/Users/akuma/repos/cart-generator/docs/llm-mechanism.md)
 - [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md)
