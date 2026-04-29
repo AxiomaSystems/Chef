@@ -180,6 +180,7 @@ export class UserPreferencesResponseDto {
     label?: string;
     latitude?: number;
     longitude?: number;
+    kroger_location_id?: string;
   };
 
   @ApiProperty({ example: ['cuisine-peruvian', 'cuisine-mediterranean'] })
@@ -193,6 +194,60 @@ export class UserPreferencesResponseDto {
 
   @ApiProperty({ type: () => [TagResponseDto] })
   preferred_tags!: TagResponseDto[];
+
+  @ApiPropertyOptional({ example: 'three_to_four_people' })
+  household_size?: string;
+
+  @ApiPropertyOptional({ example: 'no_kids' })
+  kids_profile?: string;
+
+  @ApiProperty({ example: ['chicken', 'salmon'] })
+  favorite_proteins!: string[];
+
+  @ApiProperty({ example: ['spicy', 'savory_umami'] })
+  favorite_flavors!: string[];
+
+  @ApiPropertyOptional({ example: 'medium' })
+  spice_level?: string;
+
+  @ApiProperty({ example: ['olives'] })
+  disliked_ingredients!: string[];
+
+  @ApiProperty({ example: ['chewy'] })
+  disliked_textures!: string[];
+
+  @ApiPropertyOptional({ example: 'intermediate' })
+  cooking_skill_level?: string;
+
+  @ApiProperty({ example: ['oven', 'air_fryer', 'blender'] })
+  available_appliances!: string[];
+
+  @ApiPropertyOptional({ example: '15_to_30_min' })
+  preferred_cooking_time?: string;
+
+  @ApiProperty({ example: ['lunch', 'dinner'] })
+  typical_meal_times!: string[];
+
+  @ApiProperty({ example: ['save_money', 'eat_healthier'] })
+  goal_priorities!: string[];
+
+  @ApiPropertyOptional({ example: 'casual' })
+  calorie_tracking_mode?: string;
+
+  @ApiPropertyOptional({ example: '50_to_100' })
+  weekly_budget?: string;
+
+  @ApiProperty({ example: ['kroger', 'walmart'] })
+  preferred_stores!: string[];
+
+  @ApiPropertyOptional({ example: 'in_store' })
+  shopping_mode?: string;
+
+  @ApiProperty({ example: ['youtube', 'social_media'] })
+  recipe_discovery_sources!: string[];
+
+  @ApiPropertyOptional({ example: 'dont_know_what_to_make' })
+  biggest_cooking_frustration?: string;
 }
 
 export class SavedAddressResponseDto {
@@ -409,7 +464,10 @@ export class MatchedIngredientProductResponseDto {
   @ApiProperty({ example: 'rice' })
   walmart_search_query!: string;
 
-  @ApiPropertyOptional({ type: () => ProductCandidateResponseDto, nullable: true })
+  @ApiPropertyOptional({
+    type: () => ProductCandidateResponseDto,
+    nullable: true,
+  })
   selected_product!: ProductCandidateResponseDto | null;
 
   @ApiPropertyOptional({ example: 1 })
@@ -562,8 +620,7 @@ export class ShoppingCartHistorySummaryResponseDto {
   estimated_subtotal!: number;
 
   @ApiPropertyOptional({
-    example:
-      'https://www.instacart.com/store/products/products_link/example',
+    example: 'https://www.instacart.com/store/products/products_link/example',
   })
   external_url?: string;
 
@@ -609,8 +666,7 @@ export class ShoppingCartResponseDto {
   retailer!: string;
 
   @ApiPropertyOptional({
-    example:
-      'https://www.instacart.com/store/products/products_link/example',
+    example: 'https://www.instacart.com/store/products/products_link/example',
   })
   external_url?: string;
 
