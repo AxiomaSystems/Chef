@@ -12,6 +12,7 @@ import type {
   UserPreferences,
   UserStats,
 } from '@cart/shared';
+import { Prisma } from '../../generated/prisma/index.js';
 import { PasswordHasherService } from '../auth/password-hasher.service';
 import { mapCuisine } from '../cuisines/cuisines.mapper';
 import { PrismaService } from '../prisma/prisma.service';
@@ -48,6 +49,34 @@ export class MeService {
     }
   }
 
+  private normalizeJsonStringArray(value: unknown): string[] | undefined {
+    if (!Array.isArray(value)) {
+      return undefined;
+    }
+
+    const values = value
+      .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+      .filter(Boolean);
+
+    return values.length > 0 ? values : undefined;
+  }
+
+  private mapDietaryPreferences(value: unknown): UserPreferences['dietary_preferences'] {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return undefined;
+    }
+
+    const preferredTagIds = this.normalizeJsonStringArray(
+      (value as { preferred_tag_ids?: unknown }).preferred_tag_ids,
+    );
+
+    return preferredTagIds
+      ? {
+          preferred_tag_ids: preferredTagIds,
+        }
+      : undefined;
+  }
+
   private mapPreferences(input: {
     user: {
       preferredZipCode: string | null;
@@ -55,6 +84,25 @@ export class MeService {
       preferredLatitude: number | null;
       preferredLongitude: number | null;
       preferredKrogerLocationId: string | null;
+      householdSize: string | null;
+      kidsProfile: string | null;
+      dietaryPreferences: unknown;
+      favoriteProteins: unknown;
+      favoriteFlavors: unknown;
+      spiceLevel: string | null;
+      dislikedIngredients: unknown;
+      dislikedTextures: unknown;
+      cookingSkillLevel: string | null;
+      availableAppliances: unknown;
+      preferredCookingTime: string | null;
+      typicalMealTimes: unknown;
+      goalPriorities: unknown;
+      calorieTrackingMode: string | null;
+      weeklyBudget: string | null;
+      preferredStores: unknown;
+      shoppingMode: string | null;
+      recipeDiscoverySources: unknown;
+      biggestCookingFrustration: string | null;
     };
     preferredCuisines: Array<{
       cuisine: Parameters<typeof mapCuisine>[0];
@@ -90,6 +138,36 @@ export class MeService {
                 input.user.preferredKrogerLocationId ?? undefined,
             }
           : undefined,
+      household_size: input.user.householdSize ?? undefined,
+      kids_profile: input.user.kidsProfile ?? undefined,
+      dietary_preferences: this.mapDietaryPreferences(
+        input.user.dietaryPreferences,
+      ),
+      favorite_proteins: this.normalizeJsonStringArray(
+        input.user.favoriteProteins,
+      ),
+      favorite_flavors: this.normalizeJsonStringArray(input.user.favoriteFlavors),
+      spice_level: input.user.spiceLevel ?? undefined,
+      disliked_ingredients: this.normalizeJsonStringArray(
+        input.user.dislikedIngredients,
+      ),
+      disliked_textures: this.normalizeJsonStringArray(input.user.dislikedTextures),
+      cooking_skill_level: input.user.cookingSkillLevel ?? undefined,
+      available_appliances: this.normalizeJsonStringArray(
+        input.user.availableAppliances,
+      ),
+      preferred_cooking_time: input.user.preferredCookingTime ?? undefined,
+      typical_meal_times: this.normalizeJsonStringArray(input.user.typicalMealTimes),
+      goal_priorities: this.normalizeJsonStringArray(input.user.goalPriorities),
+      calorie_tracking_mode: input.user.calorieTrackingMode ?? undefined,
+      weekly_budget: input.user.weeklyBudget ?? undefined,
+      preferred_stores: this.normalizeJsonStringArray(input.user.preferredStores),
+      shopping_mode: input.user.shoppingMode ?? undefined,
+      recipe_discovery_sources: this.normalizeJsonStringArray(
+        input.user.recipeDiscoverySources,
+      ),
+      biggest_cooking_frustration:
+        input.user.biggestCookingFrustration ?? undefined,
     };
   }
 
@@ -334,6 +412,25 @@ export class MeService {
           preferredLatitude: true,
           preferredLongitude: true,
           preferredKrogerLocationId: true,
+          householdSize: true,
+          kidsProfile: true,
+          dietaryPreferences: true,
+          favoriteProteins: true,
+          favoriteFlavors: true,
+          spiceLevel: true,
+          dislikedIngredients: true,
+          dislikedTextures: true,
+          cookingSkillLevel: true,
+          availableAppliances: true,
+          preferredCookingTime: true,
+          typicalMealTimes: true,
+          goalPriorities: true,
+          calorieTrackingMode: true,
+          weeklyBudget: true,
+          preferredStores: true,
+          shoppingMode: true,
+          recipeDiscoverySources: true,
+          biggestCookingFrustration: true,
         },
       }),
       this.prisma.userPreferredCuisine.findMany({
@@ -417,6 +514,14 @@ export class MeService {
     const normalizedKrogerLocationId =
       shoppingLocation?.kroger_location_id?.trim() || null;
 
+    // Normalize new onboarding fields
+    const normalizeStringArray = (arr: string[] | undefined) =>
+      arr?.filter((v) => v && v.trim()).map((v) => v.trim()) || [];
+    const normalizeStringArrayJson = (arr: string[] | undefined) => {
+      const values = normalizeStringArray(arr);
+      return values.length > 0 ? values : Prisma.JsonNull;
+    };
+
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: userId },
@@ -426,6 +531,31 @@ export class MeService {
           preferredLatitude: normalizedLatitude,
           preferredLongitude: normalizedLongitude,
           preferredKrogerLocationId: normalizedKrogerLocationId,
+          // ─── New onboarding fields ─────────────────────────────────────
+          householdSize: input.household_size?.trim() || null,
+          kidsProfile: input.kids_profile?.trim() || null,
+          dietaryPreferences: {
+            preferred_tag_ids: normalizeStringArray(input.preferred_tag_ids),
+          },
+          favoriteProteins: normalizeStringArrayJson(input.favorite_proteins),
+          favoriteFlavors: normalizeStringArrayJson(input.favorite_flavors),
+          spiceLevel: input.spice_level?.trim() || null,
+          dislikedIngredients: normalizeStringArrayJson(input.disliked_ingredients),
+          dislikedTextures: normalizeStringArrayJson(input.disliked_textures),
+          cookingSkillLevel: input.cooking_skill_level?.trim() || null,
+          availableAppliances: normalizeStringArrayJson(input.available_appliances),
+          preferredCookingTime: input.preferred_cooking_time?.trim() || null,
+          typicalMealTimes: normalizeStringArrayJson(input.typical_meal_times),
+          goalPriorities: normalizeStringArrayJson(input.goal_priorities),
+          calorieTrackingMode: input.calorie_tracking_mode?.trim() || null,
+          weeklyBudget: input.weekly_budget?.trim() || null,
+          preferredStores: normalizeStringArrayJson(input.preferred_stores),
+          shoppingMode: input.shopping_mode?.trim() || null,
+          recipeDiscoverySources: normalizeStringArrayJson(
+            input.recipe_discovery_sources,
+          ),
+          biggestCookingFrustration:
+            input.biggest_cooking_frustration?.trim() || null,
         },
       }),
       this.prisma.userPreferredCuisine.deleteMany({

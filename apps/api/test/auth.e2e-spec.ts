@@ -144,6 +144,10 @@ describe('Auth flow (e2e)', () => {
           mediterraneanCuisine!.id,
         ],
         preferred_tag_ids: [weeknightTag!.id, comfortFoodTag!.id],
+        household_size: '3-4 people',
+        favorite_proteins: ['Chicken', 'Salmon'],
+        spice_level: 'Medium heat',
+        disliked_ingredients: ['Olives'],
       })
       .expect(200);
 
@@ -157,6 +161,16 @@ describe('Auth flow (e2e)', () => {
           weeknightTag!.id,
           comfortFoodTag!.id,
         ]),
+        household_size: '3-4 people',
+        dietary_preferences: {
+          preferred_tag_ids: expect.arrayContaining([
+            weeknightTag!.id,
+            comfortFoodTag!.id,
+          ]),
+        },
+        favorite_proteins: ['Chicken', 'Salmon'],
+        spice_level: 'Medium heat',
+        disliked_ingredients: ['Olives'],
       }),
     );
     expect(updatedPreferences.body.preferred_cuisines).toEqual(
@@ -187,6 +201,16 @@ describe('Auth flow (e2e)', () => {
           weeknightTag!.id,
           comfortFoodTag!.id,
         ]),
+        household_size: '3-4 people',
+        dietary_preferences: {
+          preferred_tag_ids: expect.arrayContaining([
+            weeknightTag!.id,
+            comfortFoodTag!.id,
+          ]),
+        },
+        favorite_proteins: ['Chicken', 'Salmon'],
+        spice_level: 'Medium heat',
+        disliked_ingredients: ['Olives'],
       }),
     );
 

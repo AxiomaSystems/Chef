@@ -63,6 +63,30 @@ model User {
   name           String
   role           UserRole        @default(user)
   onboardingCompletedAt DateTime?
+  householdSize             String?
+  kidsProfile               String?
+  dietaryPreferences        Json?
+  allergies                 Json?
+  favoriteProteins          Json?
+  favoriteFlavors           Json?
+  spiceLevel                String?
+  dislikedIngredients       Json?
+  dislikedTextures          Json?
+  cookingSkillLevel         String?
+  availableAppliances       Json?
+  preferredCookingTime      String?
+  typicalMealTimes          Json?
+  goalPriorities            Json?
+  calorieTrackingMode       String?
+  dailyCaloriesTarget       Int?
+  dailyProteinTargetGrams   Int?
+  dailyCarbsTargetGrams     Int?
+  dailyFatTargetGrams       Int?
+  weeklyBudget              String?
+  preferredStores           Json?
+  shoppingMode              String?
+  recipeDiscoverySources    Json?
+  biggestCookingFrustration String?
   preferredZipCode String?
   preferredLocationLabel String?
   preferredLatitude Float?

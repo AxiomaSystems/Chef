@@ -166,6 +166,11 @@ export class TagResponseDto {
   updated_at!: string;
 }
 
+export class DietaryPreferencesResponseDto {
+  @ApiProperty({ example: ['tag-system-vegetarian', 'tag-system-gluten-free'] })
+  preferred_tag_ids!: string[];
+}
+
 export class UserPreferencesResponseDto {
   @ApiPropertyOptional({
     example: {
@@ -193,6 +198,63 @@ export class UserPreferencesResponseDto {
 
   @ApiProperty({ type: () => [TagResponseDto] })
   preferred_tags!: TagResponseDto[];
+
+  @ApiPropertyOptional({ example: '3-4 people' })
+  household_size?: string;
+
+  @ApiPropertyOptional({ example: 'Yes - kids (5-12)' })
+  kids_profile?: string;
+
+  @ApiPropertyOptional({ type: () => DietaryPreferencesResponseDto })
+  dietary_preferences?: DietaryPreferencesResponseDto;
+
+  @ApiPropertyOptional({ example: ['Chicken', 'Salmon'] })
+  favorite_proteins?: string[];
+
+  @ApiPropertyOptional({ example: ['Spicy', 'Savory / Umami'] })
+  favorite_flavors?: string[];
+
+  @ApiPropertyOptional({ example: 'Medium heat' })
+  spice_level?: string;
+
+  @ApiPropertyOptional({ example: ['Mushrooms', 'Olives'] })
+  disliked_ingredients?: string[];
+
+  @ApiPropertyOptional({ example: ['Chewy', 'Sticky'] })
+  disliked_textures?: string[];
+
+  @ApiPropertyOptional({ example: 'Intermediate - I improvise sometimes' })
+  cooking_skill_level?: string;
+
+  @ApiPropertyOptional({ example: ['Oven', 'Air fryer'] })
+  available_appliances?: string[];
+
+  @ApiPropertyOptional({ example: '15-30 minutes' })
+  preferred_cooking_time?: string;
+
+  @ApiPropertyOptional({ example: ['Dinner', 'Meal prep in batches'] })
+  typical_meal_times?: string[];
+
+  @ApiPropertyOptional({ example: ['Eat healthier overall', 'Cook faster on weeknights'] })
+  goal_priorities?: string[];
+
+  @ApiPropertyOptional({ example: 'Casually - I just stay aware' })
+  calorie_tracking_mode?: string;
+
+  @ApiPropertyOptional({ example: '$50-$100' })
+  weekly_budget?: string;
+
+  @ApiPropertyOptional({ example: ['Kroger', 'Aldi'] })
+  preferred_stores?: string[];
+
+  @ApiPropertyOptional({ example: 'I go in-store' })
+  shopping_mode?: string;
+
+  @ApiPropertyOptional({ example: ['YouTube', 'Pinterest'] })
+  recipe_discovery_sources?: string[];
+
+  @ApiPropertyOptional({ example: 'I never know what to make' })
+  biggest_cooking_frustration?: string;
 }
 
 export class SavedAddressResponseDto {

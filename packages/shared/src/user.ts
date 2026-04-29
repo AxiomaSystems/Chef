@@ -24,6 +24,10 @@ export type CheckoutProfile = {
   payment_cards: PaymentCard[];
 };
 
+export type DietaryPreferences = {
+  preferred_tag_ids: string[];
+};
+
 export type User = {
   id: string;
   email: string;
@@ -63,6 +67,25 @@ export type UserPreferences = {
     longitude?: number;
     kroger_location_id?: string;
   };
+  household_size?: string;
+  kids_profile?: string;
+  dietary_preferences?: DietaryPreferences;
+  favorite_proteins?: string[];
+  favorite_flavors?: string[];
+  spice_level?: string;
+  disliked_ingredients?: string[];
+  disliked_textures?: string[];
+  cooking_skill_level?: string;
+  available_appliances?: string[];
+  preferred_cooking_time?: string;
+  typical_meal_times?: string[];
+  goal_priorities?: string[];
+  calorie_tracking_mode?: string;
+  weekly_budget?: string;
+  preferred_stores?: string[];
+  shopping_mode?: string;
+  recipe_discovery_sources?: string[];
+  biggest_cooking_frustration?: string;
 };
 
 export type UserStats = {
