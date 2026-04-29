@@ -55,7 +55,14 @@ export function RecipeCreateModal({
   const [cuisineId, setCuisineId] = useState(
     initialRecipe?.cuisine_id ?? cuisines[0]?.id ?? "",
   );
-  const [servings, setServings] = useState(initialRecipe?.servings ?? 2);
+  const initialCuisine = cuisines.find(
+    (cuisine) => cuisine.id === (initialRecipe?.cuisine_id ?? cuisines[0]?.id),
+  );
+  const [cuisineQuery, setCuisineQuery] = useState(initialCuisine?.label ?? "");
+  const [isCuisineMenuOpen, setIsCuisineMenuOpen] = useState(false);
+  const [servings, setServings] = useState(
+    initialRecipe?.servings !== undefined ? String(initialRecipe.servings) : "2",
+  );
   const [coverImageUrl, setCoverImageUrl] = useState(
     initialRecipe?.cover_image_url ?? "",
   );
@@ -139,8 +146,21 @@ export function RecipeCreateModal({
     );
   }
 
-  function findCuisineIdFromLabel(label: string) {
+  function normalizeCuisineText(value: string) {
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function findCuisineFromLabel(label: string) {
     const normalized = label.trim().toLowerCase();
+    const searchable = normalizeCuisineText(label);
+
+    if (!searchable) return null;
 
     const exactMatch = cuisines.find(
       (cuisine) =>
@@ -148,13 +168,143 @@ export function RecipeCreateModal({
         cuisine.slug.trim().toLowerCase() === normalized,
     );
 
-    if (exactMatch) return exactMatch.id;
+    if (exactMatch) return exactMatch;
 
-    const partialMatch = cuisines.find((cuisine) =>
-      cuisine.label.trim().toLowerCase().includes(normalized),
+    const normalizedMatch = cuisines.find((cuisine) => {
+      const labelText = normalizeCuisineText(cuisine.label);
+      const slugText = normalizeCuisineText(cuisine.slug);
+      return (
+        labelText === searchable ||
+        slugText === searchable ||
+        labelText.includes(searchable) ||
+        searchable.includes(labelText) ||
+        slugText.includes(searchable) ||
+        searchable.includes(slugText)
+      );
+    });
+
+    if (normalizedMatch) return normalizedMatch;
+
+    const searchWords = searchable.split(" ").filter(Boolean);
+    const wordMatch = cuisines.find((cuisine) => {
+      const cuisineWords = new Set(
+        `${normalizeCuisineText(cuisine.label)} ${normalizeCuisineText(cuisine.slug)}`
+          .split(" ")
+          .filter(Boolean),
+      );
+      return searchWords.some((word) => cuisineWords.has(word));
+    });
+
+    return wordMatch ?? null;
+  }
+
+  function getFallbackCuisine() {
+    return (
+      cuisines.find((cuisine) => cuisine.slug === "other") ??
+      cuisines.find((cuisine) => cuisine.kind === "other") ??
+      cuisines.find(
+        (cuisine) => cuisine.label.trim().toLowerCase() === "other",
+      ) ??
+      cuisines[0] ??
+      null
     );
+  }
 
-    return partialMatch?.id ?? cuisines[0]?.id ?? cuisineId;
+  function resolveCuisineForText(label: string) {
+    return findCuisineFromLabel(label) ?? getFallbackCuisine();
+  }
+
+  function handleCuisineQueryChange(nextQuery: string) {
+    setCuisineQuery(nextQuery);
+    setIsCuisineMenuOpen(true);
+    const cuisine = nextQuery.trim() ? resolveCuisineForText(nextQuery) : null;
+    setCuisineId(cuisine?.id ?? "");
+  }
+
+  function commitCuisineQuery() {
+    const matchedCuisine = findCuisineFromLabel(cuisineQuery);
+
+    if (matchedCuisine) {
+      setCuisineId(matchedCuisine.id);
+      setCuisineQuery(matchedCuisine.label);
+      return;
+    }
+
+    if (cuisineQuery.trim()) {
+      setCuisineId(getFallbackCuisine()?.id ?? "");
+    }
+
+    setIsCuisineMenuOpen(false);
+  }
+
+  function parseServings(value: string, fallback = 2) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  }
+
+  const filteredCuisines = cuisines.filter((cuisine) => {
+    const query = normalizeCuisineText(cuisineQuery);
+    if (!query) return true;
+    const label = normalizeCuisineText(cuisine.label);
+    const slug = normalizeCuisineText(cuisine.slug);
+    return label.includes(query) || slug.includes(query);
+  });
+
+  const cuisineOptions =
+    filteredCuisines.length > 0 ? filteredCuisines : cuisines.slice(0, 8);
+
+  function chooseCuisine(cuisine: Cuisine) {
+    setCuisineId(cuisine.id);
+    setCuisineQuery(cuisine.label);
+    setIsCuisineMenuOpen(false);
+  }
+
+  function handleServingsChange(nextValue: string) {
+    if (/^\d*$/.test(nextValue)) {
+      setServings(nextValue);
+    }
+  }
+
+  function normalizeServings() {
+    setServings((prev) => String(parseServings(prev)));
+  }
+
+  function getAutofillServings() {
+    return parseServings(servings);
+  }
+
+  function getSubmitServings() {
+    return parseServings(servings);
+  }
+
+  function applyCuisineFromAi(label: string) {
+    const matchedCuisine = findCuisineFromLabel(label);
+
+    if (matchedCuisine) {
+      setCuisineId(matchedCuisine.id);
+      setCuisineQuery(matchedCuisine.label);
+      return;
+    }
+
+    setCuisineId(getFallbackCuisine()?.id ?? "");
+    setCuisineQuery(label.trim());
+  }
+
+  function getSelectedCuisineLabel() {
+    return cuisines.find((cuisine) => cuisine.id === cuisineId)?.label ?? "";
+  }
+
+  function isCuisineQueryValid() {
+    return !!cuisineId && cuisineQuery.trim() === getSelectedCuisineLabel();
+  }
+
+  function shouldShowCuisineOptions() {
+    return (
+      isCuisineMenuOpen &&
+      cuisineQuery.trim().length > 0 &&
+      !isCuisineQueryValid() &&
+      cuisineOptions.length > 0
+    );
   }
 
   function findTagIdsFromNames(nextTags: string[]) {
@@ -167,8 +317,8 @@ export function RecipeCreateModal({
 
   function applyAiRecipePreview(recipe: AiRecipePreview) {
     setDescription(recipe.description ?? "");
-    setCuisineId(findCuisineIdFromLabel(recipe.cuisine));
-    setServings(recipe.servings > 0 ? recipe.servings : 2);
+    applyCuisineFromAi(recipe.cuisine);
+    setServings(String(recipe.servings > 0 ? recipe.servings : 2));
     setIngredients(
       recipe.ingredients.length > 0
         ? recipe.ingredients.map((ingredient) => ({
@@ -232,7 +382,7 @@ export function RecipeCreateModal({
       const result = await generateMealsAction({
         mealPrompt: normalizedName,
         mealsNeeded: 1,
-        servingsPerMeal: servings || 2,
+        servingsPerMeal: getAutofillServings(),
         mealStyle: "standard",
         notes:
           "Return one practical recipe preview suitable for pre-filling a manual recipe creation form.",
@@ -314,10 +464,15 @@ export function RecipeCreateModal({
       return;
     }
 
-    if (!cuisineId) {
-      setError("Please select a cuisine.");
+    const resolvedCuisineId =
+      cuisineId || (cuisineQuery.trim() ? getFallbackCuisine()?.id : "");
+
+    if (!resolvedCuisineId) {
+      setError("Cuisine is required.");
       return;
     }
+
+    const normalizedServingCount = getSubmitServings();
 
     const validIngredients = ingredients.filter(
       (row) => row.canonical_ingredient.trim() && row.amount && row.unit,
@@ -336,8 +491,8 @@ export function RecipeCreateModal({
     const payload = {
       name: name.trim(),
       description: description.trim() || undefined,
-      cuisine_id: cuisineId,
-      servings,
+      cuisine_id: resolvedCuisineId,
+      servings: normalizedServingCount,
       cover_image_url: coverImageUrl.trim() || undefined,
       tag_ids: selectedTagIds.length ? selectedTagIds : undefined,
       ingredients: validIngredients.map((row) => ({
@@ -483,17 +638,44 @@ export function RecipeCreateModal({
                 <label className="text-label-sm uppercase tracking-wide text-outline">
                   Cuisine *
                 </label>
-                <select
-                  value={cuisineId}
-                  onChange={(event) => setCuisineId(event.target.value)}
-                  className="w-full rounded-xl border border-outline-variant/50 bg-white px-4 py-2.5 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  {cuisines.map((cuisine) => (
-                    <option key={cuisine.id} value={cuisine.id}>
-                      {cuisine.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    value={cuisineQuery}
+                    onChange={(event) =>
+                      handleCuisineQueryChange(event.target.value)
+                    }
+                    onFocus={() => setIsCuisineMenuOpen(true)}
+                    onBlur={commitCuisineQuery}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === "Escape") {
+                        event.currentTarget.blur();
+                      }
+                    }}
+                    list="recipe-cuisine-options"
+                    placeholder="Type a cuisine"
+                    className="w-full rounded-xl border border-outline-variant/50 bg-white px-4 py-2.5 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                  <datalist id="recipe-cuisine-options">
+                    {cuisines.map((cuisine) => (
+                      <option key={cuisine.id} value={cuisine.label} />
+                    ))}
+                  </datalist>
+                  {shouldShowCuisineOptions() && (
+                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-outline-variant/50 bg-white py-1 shadow-lg">
+                      {cuisineOptions.slice(0, 8).map((cuisine) => (
+                        <button
+                          key={cuisine.id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => chooseCuisine(cuisine)}
+                          className="block w-full px-4 py-2 text-left text-body-sm text-on-surface transition-colors hover:bg-surface-container-low"
+                        >
+                          {cuisine.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-1">
                 <label className="text-label-sm uppercase tracking-wide text-outline">
@@ -503,9 +685,8 @@ export function RecipeCreateModal({
                   type="number"
                   min={1}
                   value={servings}
-                  onChange={(event) =>
-                    setServings(parseInt(event.target.value, 10) || 1)
-                  }
+                  onChange={(event) => handleServingsChange(event.target.value)}
+                  onBlur={normalizeServings}
                   className="w-full rounded-xl border border-outline-variant/50 bg-white px-4 py-2.5 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>

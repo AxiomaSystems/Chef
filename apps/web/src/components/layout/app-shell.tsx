@@ -1,14 +1,12 @@
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { BottomNav } from "./bottom-nav";
-import { ChefChatWidget } from "@/components/ai/chef-chat-widget";
 
 interface AppShellProps {
   children: React.ReactNode;
   topBarTitle?: string;
   topBarActions?: React.ReactNode;
   showBack?: boolean;
-  showChefChatWidget?: boolean;
 }
 
 export function AppShell({
@@ -16,7 +14,6 @@ export function AppShell({
   topBarTitle,
   topBarActions,
   showBack,
-  showChefChatWidget = true,
 }: AppShellProps) {
   return (
     <div className="min-h-screen bg-background">
@@ -26,7 +23,6 @@ export function AppShell({
         <main className="flex-1 pb-20 lg:pb-0">{children}</main>
       </div>
       <BottomNav />
-      {showChefChatWidget ? <ChefChatWidget /> : null}
     </div>
   );
 }
