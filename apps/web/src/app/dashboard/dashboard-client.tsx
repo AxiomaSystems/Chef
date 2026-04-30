@@ -28,7 +28,6 @@ export function DashboardClient({
   const firstName = user?.name?.split(" ")[0] ?? "there";
   const featuredRecipe = recipes[0] ?? null;
   const latestShoppingCart = shoppingCarts[0] ?? null;
-  const latestCart = carts[0] ?? null;
   const browseRecipes = recipes.slice(1); // exclude featured from grid
 
   function handleAddToCart(recipe: BaseRecipe) {
@@ -100,7 +99,6 @@ export function DashboardClient({
 
           <CartSidebarCards
             latestShoppingCart={latestShoppingCart}
-            latestCart={latestCart}
             cartCount={carts.length}
             shoppingCartCount={shoppingCarts.length}
           />
