@@ -312,6 +312,201 @@ export type UserPreferences = {
   biggest_cooking_frustration?: BiggestCookingFrustration;
 };
 
+export const USER_FOOD_RULE_KIND_VALUES = [
+  "dietary_constraint",
+  "ingredient_preference",
+  "texture_preference",
+] as const;
+
+export type UserFoodRuleKind = (typeof USER_FOOD_RULE_KIND_VALUES)[number];
+
+export const USER_FOOD_RULE_ACTION_VALUES = [
+  "prefer",
+  "dislike",
+  "avoid",
+  "require",
+] as const;
+
+export type UserFoodRuleAction = (typeof USER_FOOD_RULE_ACTION_VALUES)[number];
+
+export const USER_RULE_STRICTNESS_VALUES = ["soft", "hard"] as const;
+
+export type UserRuleStrictness = (typeof USER_RULE_STRICTNESS_VALUES)[number];
+
+export const USER_MEMORY_SOURCE_VALUES = [
+  "onboarding",
+  "manual",
+  "behavior",
+  "inferred",
+  "import",
+] as const;
+
+export type UserMemorySource = (typeof USER_MEMORY_SOURCE_VALUES)[number];
+
+export const USER_MEMORY_CONFIDENCE_VALUES = [
+  "low",
+  "medium",
+  "high",
+] as const;
+
+export type UserMemoryConfidence =
+  (typeof USER_MEMORY_CONFIDENCE_VALUES)[number];
+
+export const USER_GOAL_KIND_VALUES = [
+  "save_money",
+  "save_time",
+  "eat_healthier",
+  "hit_protein",
+  "reduce_waste",
+  "try_new_foods",
+  "cook_more_at_home",
+  "meal_prep",
+  "spend_less_on_takeout",
+] as const;
+
+export type UserGoalKind = (typeof USER_GOAL_KIND_VALUES)[number];
+
+export const USER_GOAL_TIMEFRAME_VALUES = [
+  "default",
+  "this_week",
+  "long_term",
+] as const;
+
+export type UserGoalTimeframe = (typeof USER_GOAL_TIMEFRAME_VALUES)[number];
+
+export type UserFoodRule = {
+  id: string;
+  kind: UserFoodRuleKind;
+  label: string;
+  normalized_label: string;
+  ingredient_id?: string;
+  tag_id?: string;
+  action: UserFoodRuleAction;
+  strictness: UserRuleStrictness;
+  active: boolean;
+  starts_at?: string;
+  expires_at?: string;
+  source: UserMemorySource;
+  confidence: UserMemoryConfidence;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UserGoal = {
+  id: string;
+  goal: UserGoalKind;
+  priority: number;
+  active: boolean;
+  starts_at?: string;
+  expires_at?: string;
+  timeframe: UserGoalTimeframe;
+  source: UserMemorySource;
+  confidence: UserMemoryConfidence;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UserPantryStaple = {
+  ingredient_id: string;
+  canonical_name: string;
+  source: UserMemorySource;
+  confidence: UserMemoryConfidence;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChefMemorySummary = {
+  household?: {
+    label: string;
+    detail?: string;
+  };
+  taste: {
+    cuisine_count: number;
+    favorite_proteins: string[];
+    favorite_flavors: string[];
+    spice_level?: string;
+  };
+  rules: {
+    hard_rule_count: number;
+    soft_rule_count: number;
+    labels: string[];
+  };
+  kitchen: {
+    skill_level?: string;
+    appliance_count: number;
+    preferred_time?: string;
+  };
+  pantry: {
+    staple_count: number;
+    labels: string[];
+  };
+  goals: Array<{
+    goal: UserGoalKind;
+    priority: number;
+    timeframe: UserGoalTimeframe;
+  }>;
+  shopping: {
+    preferred_store_count: number;
+    shopping_mode?: string;
+    location_label?: string;
+  };
+  completion: {
+    has_household: boolean;
+    has_taste: boolean;
+    has_rules: boolean;
+    has_kitchen: boolean;
+    has_pantry: boolean;
+    has_goals: boolean;
+    has_shopping: boolean;
+    has_location: boolean;
+  };
+};
+
+export type UserProfileMemory = {
+  user: User;
+  preferences: UserPreferences;
+  food_rules: UserFoodRule[];
+  goals: UserGoal[];
+  pantry_staples: UserPantryStaple[];
+  summary: ChefMemorySummary;
+};
+
+export type UpsertUserFoodRuleInput = {
+  id?: string;
+  kind: UserFoodRuleKind;
+  label: string;
+  ingredient_id?: string;
+  tag_id?: string;
+  action: UserFoodRuleAction;
+  strictness: UserRuleStrictness;
+  active?: boolean;
+  starts_at?: string;
+  expires_at?: string;
+  source?: UserMemorySource;
+  confidence?: UserMemoryConfidence;
+  notes?: string;
+};
+
+export type UpsertUserGoalInput = {
+  id?: string;
+  goal: UserGoalKind;
+  priority: number;
+  active?: boolean;
+  starts_at?: string;
+  expires_at?: string;
+  timeframe?: UserGoalTimeframe;
+  source?: UserMemorySource;
+  confidence?: UserMemoryConfidence;
+};
+
+export type UpdateUserProfileMemoryRequest = {
+  preferences?: Partial<UserPreferences>;
+  food_rules?: UpsertUserFoodRuleInput[];
+  goals?: UpsertUserGoalInput[];
+  pantry_staple_ingredient_ids?: string[];
+};
+
 export type UserStats = {
   owned_recipe_count: number;
   cart_draft_count: number;

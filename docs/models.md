@@ -824,7 +824,120 @@ Interpretation:
 - `kroger_location_id` is optional retailer-specific cache data, not a replacement for the neutral location fields
 - empty arrays are valid and do not imply incomplete onboarding
 - onboarding profile fields are intentionally coded values, not display-copy strings
-- cuisines and dietary tags remain relational; broader onboarding answers are currently JSON-backed user profile attributes
+- cuisines and dietary tags remain relational; broader onboarding answers are split between legacy `User` profile fields and Profile Memory v2 records
+
+### UserProfileMemory
+
+Profile Memory v2 is the richer user-memory surface for onboarding and future agent context.
+
+```ts
+type UserProfileMemory = {
+  user: User;
+  preferences: UserPreferences;
+  food_rules: UserFoodRule[];
+  goals: UserGoal[];
+  pantry_staples: UserPantryStaple[];
+  summary: ChefMemorySummary;
+};
+```
+
+API:
+
+- `GET /api/v1/me/profile-memory`
+- `PATCH /api/v1/me/profile-memory`
+
+Interpretation:
+
+- `/me/preferences` remains the compatibility source for cuisines, tags, shopping location, and simple profile defaults
+- `/me/profile-memory` is source of truth for v2 food rules, weighted goals, and rough pantry staples
+- reads return both legacy preferences and v2 records so old and new clients can coexist
+- `summary` is derived on read for onboarding UI and agent prompt context; it is not persisted as primary state
+
+### UserFoodRule
+
+```ts
+type UserFoodRule = {
+  id: string;
+  kind: "dietary_constraint" | "ingredient_preference" | "texture_preference";
+  label: string;
+  normalized_label: string;
+  ingredient_id?: string;
+  tag_id?: string;
+  action: "prefer" | "dislike" | "avoid" | "require";
+  strictness: "soft" | "hard";
+  active: boolean;
+  starts_at?: string;
+  expires_at?: string;
+  source: "onboarding" | "manual" | "behavior" | "inferred" | "import";
+  confidence: "low" | "medium" | "high";
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+};
+```
+
+Interpretation:
+
+- `require` supports positive constraints such as vegan, halal, kosher, or gluten-free
+- hard rules represent user-confirmed safety or identity constraints
+- soft rules represent ranking, down-ranking, or review-before-use behavior
+- `active`, `starts_at`, and `expires_at` allow temporary memory such as "avoid seafood this week"
+- writes upsert by a service-level dedupe key built from user, kind, ingredient/tag/normalized label, and action
+- inferred or behavior-derived memory cannot create hard rules or `require` constraints
+- inferred dietary, medical, allergy, or religious constraints require explicit user confirmation before persistence
+
+### UserGoal
+
+```ts
+type UserGoal = {
+  id: string;
+  goal:
+    | "save_money"
+    | "save_time"
+    | "eat_healthier"
+    | "hit_protein"
+    | "reduce_waste"
+    | "try_new_foods"
+    | "cook_more_at_home"
+    | "meal_prep"
+    | "spend_less_on_takeout";
+  priority: number;
+  active: boolean;
+  starts_at?: string;
+  expires_at?: string;
+  timeframe: "default" | "this_week" | "long_term";
+  source: "onboarding" | "manual" | "behavior" | "inferred" | "import";
+  confidence: "low" | "medium" | "high";
+  created_at: string;
+  updated_at: string;
+};
+```
+
+Interpretation:
+
+- `priority` is constrained to `1..5`
+- goals model tradeoffs rather than flat preference lists
+- public API uses `timeframe = "default"`; Prisma stores that enum as `default_timeframe`
+- temporary goals such as budget mode this month use `starts_at` / `expires_at`
+
+### UserPantryStaple
+
+```ts
+type UserPantryStaple = {
+  ingredient_id: string;
+  canonical_name: string;
+  source: "onboarding" | "manual" | "behavior" | "inferred" | "import";
+  confidence: "low" | "medium" | "high";
+  created_at: string;
+  updated_at: string;
+};
+```
+
+Interpretation:
+
+- pantry staples mean "usually have", not exact inventory quantity
+- staples should bias ingredient review and cart generation, not silently delete expensive or specific items
+- exact pantry state remains the responsibility of `KitchenInventoryItem`
 
 ### CheckoutProfile
 
@@ -1132,7 +1245,7 @@ Interpretation:
 - cuisines are stored relationally as a global catalog
 - tags are stored relationally as `Tag` + `RecipeTag`
 - core cuisine/tag preferences are stored relationally through join tables
-- broader onboarding/profile preferences are currently JSON-backed user attributes
+- broader onboarding/profile preferences are a transitional mix: stable simple defaults remain on `User`, while Profile Memory v2 stores food rules, agent goals, and pantry staples in dedicated relational tables
 - recipe HTTP payloads now use explicit tag references instead of `tags: string[]`
 - specialty ingredients should prefer honest no-match over forced substitution when the active retailer catalog has no reasonable candidate
 - ingredient review is the per-cart override layer before shopping-cart generation

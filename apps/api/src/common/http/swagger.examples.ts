@@ -387,6 +387,137 @@ export const updateMePreferencesRequestExample = {
   biggest_cooking_frustration: 'dont_know_what_to_make',
 };
 
+export const profileMemoryExample = {
+  user: meProfileExample,
+  preferences: mePreferencesExample,
+  food_rules: [
+    {
+      id: 'rule-vegan',
+      kind: 'dietary_constraint',
+      label: 'Vegan',
+      normalized_label: 'vegan',
+      tag_id: 'tag-system-vegan',
+      action: 'require',
+      strictness: 'hard',
+      active: true,
+      source: 'onboarding',
+      confidence: 'high',
+      created_at: '2026-04-30T18:00:00.000Z',
+      updated_at: '2026-04-30T18:00:00.000Z',
+    },
+    {
+      id: 'rule-mushrooms',
+      kind: 'ingredient_preference',
+      label: 'Mushrooms',
+      normalized_label: 'mushrooms',
+      ingredient_id: 'ingredient-mushroom',
+      action: 'avoid',
+      strictness: 'soft',
+      active: true,
+      source: 'onboarding',
+      confidence: 'high',
+      created_at: '2026-04-30T18:00:00.000Z',
+      updated_at: '2026-04-30T18:00:00.000Z',
+    },
+  ],
+  goals: [
+    {
+      id: 'goal-save-money',
+      goal: 'save_money',
+      priority: 1,
+      active: true,
+      timeframe: 'default',
+      source: 'onboarding',
+      confidence: 'high',
+      created_at: '2026-04-30T18:00:00.000Z',
+      updated_at: '2026-04-30T18:00:00.000Z',
+    },
+  ],
+  pantry_staples: [
+    {
+      ingredient_id: 'ingredient-rice',
+      canonical_name: 'rice',
+      source: 'onboarding',
+      confidence: 'high',
+      created_at: '2026-04-30T18:00:00.000Z',
+      updated_at: '2026-04-30T18:00:00.000Z',
+    },
+  ],
+  summary: {
+    household: { label: 'three_to_four_people', detail: 'no_kids' },
+    taste: {
+      cuisine_count: 2,
+      favorite_proteins: ['chicken', 'salmon'],
+      favorite_flavors: ['spicy', 'savory_umami'],
+      spice_level: 'medium',
+    },
+    rules: {
+      hard_rule_count: 1,
+      soft_rule_count: 1,
+      labels: ['Vegan', 'Mushrooms'],
+    },
+    kitchen: {
+      skill_level: 'intermediate',
+      appliance_count: 3,
+      preferred_time: '15_to_30_min',
+    },
+    pantry: {
+      staple_count: 1,
+      labels: ['rice'],
+    },
+    goals: [{ goal: 'save_money', priority: 1, timeframe: 'default' }],
+    shopping: {
+      preferred_store_count: 2,
+      shopping_mode: 'in_store',
+      location_label: 'Chicago, IL',
+    },
+    completion: {
+      has_household: true,
+      has_taste: true,
+      has_rules: true,
+      has_kitchen: true,
+      has_pantry: true,
+      has_goals: true,
+      has_shopping: true,
+      has_location: true,
+    },
+  },
+};
+
+export const updateProfileMemoryRequestExample = {
+  preferences: {
+    household_size: 'three_to_four_people',
+    favorite_proteins: ['chicken', 'salmon'],
+    preferred_stores: ['kroger'],
+    shopping_location: {
+      zip_code: '60611',
+      label: 'Chicago, IL',
+      kroger_location_id: '01600479',
+    },
+  },
+  food_rules: [
+    {
+      kind: 'ingredient_preference',
+      label: 'Mushrooms',
+      ingredient_id: 'ingredient-mushroom',
+      action: 'avoid',
+      strictness: 'soft',
+      active: true,
+      source: 'onboarding',
+      confidence: 'high',
+    },
+  ],
+  goals: [
+    {
+      goal: 'save_money',
+      priority: 1,
+      timeframe: 'default',
+      active: true,
+    },
+  ],
+  pantry_staple_ingredient_ids: ['ingredient-rice', 'ingredient-olive-oil'],
+};
+
 export const createRecipeRequestExample = {
   name: 'Arroz con pollo casero',
   cuisine_id: 'cuisine-peruvian',

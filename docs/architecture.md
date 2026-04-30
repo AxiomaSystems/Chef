@@ -411,6 +411,7 @@ Implemented mapping:
 - `GET|PUT /api/v1/meal-plans?week_start=YYYY-MM-DD` manages one weekly meal plan per user
 - Instacart shopping-cart generation can persist an `external_url` for a hosted Instacart shopping-list handoff
 - `/api/v1/me/checkout-profile` stores saved addresses and payment cards for checkout-oriented UI work
+- `/api/v1/me/profile-memory` exposes Profile Memory v2: structured food rules, weighted goals, rough pantry staples, and a derived Chef memory summary
 - `/api/v1/ai/*` now exposes the first integrated AI contract instead of leaving AI entirely out-of-band
 - `GET /api/v1/retailers/capabilities` reports which retailer paths currently support product search, location lookup, cart handoff, native checkout, and demo priority
 - `/api/v1/vision/*` exposes a detection-only computer-vision contract for inventory experiments without mutating inventory automatically
@@ -423,6 +424,9 @@ Persistent state today:
 
 - users
 - checkout profiles
+- profile memory food rules
+- profile memory goals
+- profile memory pantry staples
 - base recipes
 - dish ingredients
 - recipe steps
@@ -543,6 +547,7 @@ Current status:
 - `PATCH /me` is implemented
 - `/me/preferences` is implemented for cuisine and system-tag preferences
 - `/me/preferences` now also stores a neutral `shopping_location` block, including optional `kroger_location_id` for future store reuse
+- `/me/profile-memory` is implemented for v2 food rules, prioritized goals, pantry staples, and derived onboarding/agent summaries
 - `/me/onboarding/complete` is implemented
 - the web app now uses bearer-token auth for its dashboard flow
 - the temporary `x-user-id` fallback has now been removed from normal backend flows and Swagger guidance

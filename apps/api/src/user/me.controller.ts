@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Patch,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -6,6 +15,7 @@ import {
   ApiChangePassword,
   ApiGetMe,
   ApiGetMePreferences,
+  ApiGetProfileMemory,
   ApiGetCheckoutProfile,
   ApiGetMeStats,
   ApiMeController,
@@ -14,19 +24,25 @@ import {
   ApiUpdateMe,
   ApiUpdateCheckoutProfile,
   ApiUpdateMePreferences,
+  ApiUpdateProfileMemory,
 } from './user.swagger';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { UpdateCheckoutProfileDto } from './dto/update-checkout-profile.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateMePreferencesDto } from './dto/update-me-preferences.dto';
+import { UpdateProfileMemoryDto } from './dto/update-profile-memory.dto';
 import { MeService } from './me.service';
+import { ProfileMemoryService } from './profile-memory.service';
 
 @ApiMeController()
 @Controller('api/v1/me')
 @UseGuards(JwtAuthGuard)
 export class MeController {
-  constructor(private readonly meService: MeService) {}
+  constructor(
+    private readonly meService: MeService,
+    private readonly profileMemoryService: ProfileMemoryService,
+  ) {}
 
   @Get()
   @ApiGetMe()
@@ -66,6 +82,12 @@ export class MeController {
     return this.meService.getPreferences(user.sub);
   }
 
+  @Get('profile-memory')
+  @ApiGetProfileMemory()
+  getProfileMemory(@CurrentUser() user: AuthenticatedUser) {
+    return this.profileMemoryService.getProfileMemory(user.sub);
+  }
+
   @Get('checkout-profile')
   @ApiGetCheckoutProfile()
   getCheckoutProfile(@CurrentUser() user: AuthenticatedUser) {
@@ -81,10 +103,7 @@ export class MeController {
 
   @Patch()
   @ApiUpdateMe()
-  updateMe(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() input: UpdateMeDto,
-  ) {
+  updateMe(@CurrentUser() user: AuthenticatedUser, @Body() input: UpdateMeDto) {
     return this.meService.updateProfile(user.sub, input);
   }
 
@@ -95,6 +114,15 @@ export class MeController {
     @Body() input: UpdateMePreferencesDto,
   ) {
     return this.meService.updatePreferences(user.sub, input);
+  }
+
+  @Patch('profile-memory')
+  @ApiUpdateProfileMemory()
+  updateProfileMemory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() input: UpdateProfileMemoryDto,
+  ) {
+    return this.profileMemoryService.updateProfileMemory(user.sub, input);
   }
 
   @Put('checkout-profile')

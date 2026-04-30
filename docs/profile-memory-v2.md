@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft for post-demo implementation.
+Backend foundation implemented on the Profile Memory v2 branch.
 
 This spec should not block the immediate demo branch. It defines the next profile/onboarding architecture for making Chef more agentic without turning onboarding into a flat form dump.
 
@@ -188,6 +188,8 @@ model UserFoodRule {
   userId       String
   kind         UserFoodRuleKind
   label        String
+  normalizedLabel String
+  dedupeKey    String
   ingredientId String?
   tagId        String?
   action       UserFoodRuleAction
@@ -204,6 +206,7 @@ model UserFoodRule {
   ingredient   Ingredient?          @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
   tag          Tag?                 @relation(fields: [tagId], references: [id], onDelete: SetNull)
 
+  @@unique([userId, dedupeKey])
   @@index([userId, kind])
   @@index([userId, strictness])
   @@index([userId, active, startsAt, expiresAt])
@@ -254,7 +257,7 @@ enum UserGoalKind {
 }
 
 enum UserGoalTimeframe {
-  default
+  default_timeframe
   this_week
   long_term
 }
@@ -267,7 +270,7 @@ model UserGoal {
   active     Boolean           @default(true)
   startsAt   DateTime?
   expiresAt  DateTime?
-  timeframe  UserGoalTimeframe @default(default)
+  timeframe  UserGoalTimeframe @default(default_timeframe)
   source     UserMemorySource  @default(onboarding)
   confidence UserMemoryConfidence @default(high)
   createdAt  DateTime          @default(now())
@@ -328,6 +331,8 @@ Add one richer endpoint for v2 memory:
 GET /api/v1/me/profile-memory
 PATCH /api/v1/me/profile-memory
 ```
+
+Public API payloads use `timeframe: "default"`. Prisma stores that value as `default_timeframe` because `default` is not a safe Prisma enum value.
 
 Alternative:
 

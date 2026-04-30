@@ -58,6 +58,56 @@ enum MealType {
   dinner
 }
 
+enum UserFoodRuleKind {
+  dietary_constraint
+  ingredient_preference
+  texture_preference
+}
+
+enum UserFoodRuleAction {
+  prefer
+  dislike
+  avoid
+  require
+}
+
+enum UserRuleStrictness {
+  soft
+  hard
+}
+
+enum UserMemorySource {
+  onboarding
+  manual
+  behavior
+  inferred
+  import
+}
+
+enum UserMemoryConfidence {
+  low
+  medium
+  high
+}
+
+enum UserGoalKind {
+  save_money
+  save_time
+  eat_healthier
+  hit_protein
+  reduce_waste
+  try_new_foods
+  cook_more_at_home
+  meal_prep
+  spend_less_on_takeout
+}
+
+enum UserGoalTimeframe {
+  default_timeframe
+  this_week
+  long_term
+}
+
 model User {
   id                        String                 @id @default(cuid())
   email                     String                 @unique
@@ -102,6 +152,9 @@ model User {
   preferredTags             UserPreferredTag[]
   kitchenInventoryItems     KitchenInventoryItem[]
   mealPlans                 MealPlan[]
+  foodRules                 UserFoodRule[]
+  goals                     UserGoal[]
+  pantryStaples             UserPantryStaple[]
 }
 
 model AuthIdentity {
@@ -189,6 +242,7 @@ model Tag {
   owner            User?              @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   recipeTags       RecipeTag[]
   preferredByUsers UserPreferredTag[]
+  foodRules        UserFoodRule[]
 
   @@index([scope, name])
   @@index([scope, kind, name])
@@ -216,6 +270,71 @@ model UserPreferredTag {
 
   @@id([userId, tagId])
   @@index([tagId])
+}
+
+model UserFoodRule {
+  id              String               @id @default(cuid())
+  userId          String
+  kind            UserFoodRuleKind
+  label           String
+  normalizedLabel String
+  dedupeKey       String
+  ingredientId    String?
+  tagId           String?
+  action          UserFoodRuleAction
+  strictness      UserRuleStrictness
+  active          Boolean              @default(true)
+  startsAt        DateTime?
+  expiresAt       DateTime?
+  source          UserMemorySource
+  confidence      UserMemoryConfidence @default(high)
+  notes           String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingredient      Ingredient?          @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
+  tag             Tag?                 @relation(fields: [tagId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, kind])
+  @@index([userId, strictness])
+  @@index([userId, active, startsAt, expiresAt])
+  @@index([ingredientId])
+  @@index([tagId])
+}
+
+model UserGoal {
+  id         String               @id @default(cuid())
+  userId     String
+  goal       UserGoalKind
+  priority   Int
+  active     Boolean              @default(true)
+  startsAt   DateTime?
+  expiresAt  DateTime?
+  timeframe  UserGoalTimeframe    @default(default_timeframe)
+  source     UserMemorySource     @default(onboarding)
+  confidence UserMemoryConfidence @default(high)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, goal, timeframe])
+  @@index([userId, active, priority])
+  @@index([userId, active, startsAt, expiresAt])
+}
+
+model UserPantryStaple {
+  userId       String
+  ingredientId String
+  source       UserMemorySource     @default(onboarding)
+  confidence   UserMemoryConfidence @default(high)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient           @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@id([userId, ingredientId])
+  @@index([ingredientId])
 }
 
 model RecipeTag {
@@ -255,6 +374,8 @@ model Ingredient {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   kitchenInventoryItems KitchenInventoryItem[]
+  foodRules             UserFoodRule[]
+  pantryStaples         UserPantryStaple[]
 
   @@index([canonicalName])
   @@index([category, canonicalName])
