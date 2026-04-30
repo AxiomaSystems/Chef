@@ -20,6 +20,10 @@ describe('VisionService', () => {
           id: 'olive_oil_bottle',
           inventory_policy: 'track',
         }),
+        expect.objectContaining({
+          id: 'spice_bottle',
+          inventory_policy: 'track',
+        }),
       ]),
     );
   });
@@ -30,7 +34,7 @@ describe('VisionService', () => {
       frames: [
         {
           frame_id: 1,
-          frame_ref: 'pantry shelf olive oil bottle egg carton',
+          frame_ref: 'closet left top olive oil bottle spice bottle',
         },
         {
           frame_id: 2,
@@ -48,9 +52,9 @@ describe('VisionService', () => {
       }),
     );
     expect(result.summary.detected_labels).toEqual([
-      'egg carton',
       'jar',
       'olive oil bottle',
+      'spice bottle',
     ]);
   });
 
@@ -85,5 +89,26 @@ describe('VisionService', () => {
         ignored_detection_count: 1,
       }),
     );
+  });
+
+  it('keeps unknown and generic labels in review instead of tracking them', async () => {
+    const result = await service.analyzeScan({
+      scan_session_id: 'scan-2',
+      frames: [
+        {
+          frame_id: 1,
+          debug_objects: [
+            { label: 'mystery thing', confidence: 0.51 },
+            { label: 'bottle', confidence: 0.72 },
+          ],
+        },
+      ],
+    });
+
+    expect(result.summary.review_candidate_count).toBe(2);
+    expect(result.frames[0].detections.map((detection) => detection.label)).toEqual([
+      'unknown kitchen item',
+      'bottle',
+    ]);
   });
 });

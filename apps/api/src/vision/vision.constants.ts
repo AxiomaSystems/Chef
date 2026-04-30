@@ -1,9 +1,6 @@
 import type {
   VisionBoundingBox,
-  VisionClassCategory,
   VisionClassDefinition,
-  VisionInventoryPolicy,
-  VisionLabelGranularity,
   VisionPipelineConfig,
 } from '@cart/shared';
 
@@ -11,99 +8,222 @@ export type VisionOntologyEntry = VisionClassDefinition & {
   aliases: string[];
 };
 
-export const VISION_ONTOLOGY: VisionOntologyEntry[] = [
-  track('onion', 'onion', 'produce', ['onion', 'yellow onion', 'red onion']),
-  track('banana', 'banana', 'produce', ['banana', 'bananas']),
-  track('egg_carton', 'egg carton', 'packaged_food', ['egg carton', 'eggs']),
-  track('milk_carton', 'milk carton', 'packaged_food', ['milk carton', 'milk']),
-  track('olive_oil_bottle', 'olive oil bottle', 'container', [
-    'olive oil bottle',
-    'olive oil',
-    'oil bottle',
-  ]),
-  review('bottle', 'bottle', 'container', ['bottle']),
-  review('jar', 'jar', 'container', ['jar']),
-  review('container', 'container', 'container', ['container']),
-  review('leftovers_container', 'leftovers container', 'prepared_food', [
-    'leftovers',
-    'leftovers container',
-  ]),
-  ignore('plate', 'plate', 'kitchenware', ['plate']),
-  ignore('mug', 'mug', 'kitchenware', ['mug']),
-  ignore('utensil', 'utensil', 'kitchenware', ['utensil', 'fork', 'spoon']),
-  review('unknown_kitchen_item', 'unknown kitchen item', 'unknown', ['unknown']),
-];
-
 export const DEFAULT_VISION_BOXES: VisionBoundingBox[] = [
-  { x: 0.14, y: 0.18, width: 0.22, height: 0.38 },
-  { x: 0.42, y: 0.2, width: 0.2, height: 0.34 },
-  { x: 0.66, y: 0.24, width: 0.18, height: 0.28 },
-  { x: 0.22, y: 0.58, width: 0.26, height: 0.24 },
-  { x: 0.56, y: 0.56, width: 0.24, height: 0.3 },
+  { x: 0.08, y: 0.12, width: 0.22, height: 0.48 },
+  { x: 0.36, y: 0.1, width: 0.2, height: 0.5 },
+  { x: 0.62, y: 0.16, width: 0.24, height: 0.42 },
+  { x: 0.18, y: 0.58, width: 0.26, height: 0.26 },
+  { x: 0.56, y: 0.6, width: 0.24, height: 0.24 },
 ];
 
-export function buildVisionPipelineConfig(provider: string): VisionPipelineConfig {
-  return {
-    provider,
-    stage: 'detection_only',
-    tracking_enabled: false,
-    embeddings_enabled: false,
-    open_vocabulary_enabled: false,
-    packaged_food_enrichment_enabled: false,
-    segmentation_enabled: false,
-    supported_classes: VISION_ONTOLOGY.filter(
-      (entry) => entry.stage_1_enabled,
-    ).map(({ aliases: _aliases, ...entry }) => entry),
-    notes: [
-      'Stage 1 is closed-set detection only.',
-      'Tracking, embeddings, OCR, and open-vocabulary fallback are intentionally outside this API contract.',
-      'Use inventory_policy to route detections into track, review, or ignore workflows.',
-    ],
-  };
-}
-
-function track(
-  id: string,
-  label: string,
-  category: VisionClassCategory,
-  aliases: string[],
-): VisionOntologyEntry {
-  return entry(id, label, category, 'exact', 'track', aliases);
-}
-
-function review(
-  id: string,
-  label: string,
-  category: VisionClassCategory,
-  aliases: string[],
-): VisionOntologyEntry {
-  return entry(id, label, category, 'generic', 'review', aliases);
-}
-
-function ignore(
-  id: string,
-  label: string,
-  category: VisionClassCategory,
-  aliases: string[],
-): VisionOntologyEntry {
-  return entry(id, label, category, 'generic', 'ignore', aliases);
-}
-
-function entry(
-  id: string,
-  label: string,
-  category: VisionClassCategory,
-  granularity: VisionLabelGranularity,
-  inventoryPolicy: VisionInventoryPolicy,
-  aliases: string[],
-): VisionOntologyEntry {
-  return {
-    id,
-    label,
-    category,
-    granularity,
-    inventory_policy: inventoryPolicy,
+export const VISION_ONTOLOGY: VisionOntologyEntry[] = [
+  {
+    id: 'onion',
+    label: 'onion',
+    aliases: ['onion', 'red onion', 'yellow onion'],
+    category: 'produce',
+    granularity: 'exact',
+    inventory_policy: 'track',
     stage_1_enabled: true,
-    aliases,
-  };
-}
+  },
+  {
+    id: 'carrot',
+    label: 'carrot',
+    aliases: ['carrot', 'carrots'],
+    category: 'produce',
+    granularity: 'exact',
+    inventory_policy: 'track',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'banana',
+    label: 'banana',
+    aliases: ['banana', 'bananas'],
+    category: 'produce',
+    granularity: 'exact',
+    inventory_policy: 'track',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'apple',
+    label: 'apple',
+    aliases: ['apple', 'apples'],
+    category: 'produce',
+    granularity: 'exact',
+    inventory_policy: 'track',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'tomato',
+    label: 'tomato',
+    aliases: ['tomato', 'tomatoes'],
+    category: 'produce',
+    granularity: 'exact',
+    inventory_policy: 'track',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'milk_carton',
+    label: 'milk carton',
+    aliases: ['milk carton', 'milk jug', 'milk'],
+    category: 'packaged_food',
+    granularity: 'exact',
+    inventory_policy: 'track',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'egg_carton',
+    label: 'egg carton',
+    aliases: ['egg carton', 'egg tray', 'eggs'],
+    category: 'packaged_food',
+    granularity: 'exact',
+    inventory_policy: 'track',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'cereal_box',
+    label: 'cereal box',
+    aliases: ['cereal box', 'cereal'],
+    category: 'packaged_food',
+    granularity: 'exact',
+    inventory_policy: 'track',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'rice_bag',
+    label: 'rice bag',
+    aliases: ['rice bag', 'bag of rice', 'rice'],
+    category: 'packaged_food',
+    granularity: 'exact',
+    inventory_policy: 'track',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'flour_bag',
+    label: 'flour bag',
+    aliases: ['flour bag', 'bag of flour', 'flour'],
+    category: 'packaged_food',
+    granularity: 'exact',
+    inventory_policy: 'track',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'spice_bottle',
+    label: 'spice bottle',
+    aliases: ['spice bottle', 'spice jar', 'seasoning bottle'],
+    category: 'container',
+    granularity: 'exact',
+    inventory_policy: 'track',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'olive_oil_bottle',
+    label: 'olive oil bottle',
+    aliases: ['olive oil bottle', 'oil bottle', 'olive oil'],
+    category: 'container',
+    granularity: 'exact',
+    inventory_policy: 'track',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'soda_can',
+    label: 'soda can',
+    aliases: ['soda can', 'can of soda', 'soft drink can'],
+    category: 'packaged_food',
+    granularity: 'exact',
+    inventory_policy: 'track',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'leftovers_container',
+    label: 'leftovers container',
+    aliases: ['leftovers container', 'meal prep container', 'food container'],
+    category: 'prepared_food',
+    granularity: 'exact',
+    inventory_policy: 'review',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'bottle',
+    label: 'bottle',
+    aliases: ['bottle', 'water bottle'],
+    category: 'container',
+    granularity: 'generic',
+    inventory_policy: 'review',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'jar',
+    label: 'jar',
+    aliases: ['jar', 'glass jar'],
+    category: 'container',
+    granularity: 'generic',
+    inventory_policy: 'review',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'container',
+    label: 'container',
+    aliases: ['container', 'plastic container'],
+    category: 'container',
+    granularity: 'generic',
+    inventory_policy: 'review',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'plate',
+    label: 'plate',
+    aliases: ['plate', 'dish'],
+    category: 'kitchenware',
+    granularity: 'generic',
+    inventory_policy: 'ignore',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'mug',
+    label: 'mug',
+    aliases: ['mug', 'cup'],
+    category: 'kitchenware',
+    granularity: 'generic',
+    inventory_policy: 'ignore',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'utensil',
+    label: 'utensil',
+    aliases: ['utensil', 'fork', 'knife', 'spoon'],
+    category: 'kitchenware',
+    granularity: 'generic',
+    inventory_policy: 'ignore',
+    stage_1_enabled: true,
+  },
+  {
+    id: 'unknown_kitchen_item',
+    label: 'unknown kitchen item',
+    aliases: ['unknown', 'unknown kitchen item'],
+    category: 'unknown',
+    granularity: 'generic',
+    inventory_policy: 'review',
+    stage_1_enabled: true,
+  },
+];
+
+export const VISION_PIPELINE_NOTES = [
+  'Stage 1 is closed-set detection only. Tracking, embeddings, OCR, and DINO-style fallback are intentionally off.',
+  'The current mock detector is a development harness that accepts debug objects or parses frame_ref text so the API contract can stabilize before YOLO is wired in.',
+  'Inventory-facing logic should treat track vs review vs ignore as separate downstream actions instead of using raw class labels alone.',
+];
+
+export const buildVisionPipelineConfig = (
+  provider: string,
+): VisionPipelineConfig => ({
+  provider,
+  stage: 'detection_only',
+  tracking_enabled: false,
+  embeddings_enabled: false,
+  open_vocabulary_enabled: false,
+  packaged_food_enrichment_enabled: false,
+  segmentation_enabled: false,
+  supported_classes: VISION_ONTOLOGY.map(({ aliases, ...entry }) => entry),
+  notes: VISION_PIPELINE_NOTES,
+});

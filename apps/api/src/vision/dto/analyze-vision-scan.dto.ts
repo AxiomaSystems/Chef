@@ -66,13 +66,13 @@ export class VisionFrameInputDto {
   frame_id!: number;
 
   @ApiPropertyOptional({
-    example: 'pantry left shelf olive oil bottle egg carton plate',
+    example: 'closet_left_top olive oil bottle spice bottle plate',
   })
   @IsOptional()
   @IsString()
   frame_ref?: string;
 
-  @ApiPropertyOptional({ example: 'pantry_left_shelf' })
+  @ApiPropertyOptional({ example: 'closet_left_top' })
   @IsOptional()
   @IsString()
   zone_id?: string;
