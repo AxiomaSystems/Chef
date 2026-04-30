@@ -8,3 +8,4 @@ export * from "./src/tag";
 export * from "./src/user";
 export * from "./src/ingredient";
 export * from "./src/meal-plan";
+export * from "./src/vision";
