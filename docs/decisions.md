@@ -1060,3 +1060,21 @@ Implications:
 - `/api/v1/ai` can generate recipes, structure imports, propose swaps, and chat
 - generated outputs should require explicit user confirmation before becoming durable recipes or carts
 - deployment/readiness should treat AI as partially integrated product functionality, not as a finished autonomous workflow
+
+## 55. Supabase Is The Shared Demo Database
+
+Decision:
+- use Supabase Postgres as the shared database for the demo branch
+- keep local Docker Postgres available for isolated development
+
+Why:
+- the team is small enough that a shared database improves coordination more than it increases operational risk
+- product and non-technical demo work benefit from shared seed data and a shared runtime state
+- Supabase gives the team a simple dashboard for inspecting data without requiring everyone to run local database tooling
+
+Implications:
+- root `.env` may define `SUPABASE_DATABASE_URL` and `SUPABASE_DIRECT_URL`
+- when those variables exist, the API and Prisma CLI prefer them over local `DATABASE_URL`
+- Prisma migrations should be created and reviewed locally, then applied to Supabase with `migrate deploy`
+- destructive reset commands should not be run against Supabase
+- the longer-term Postgres schema hardening work remains separate from this infrastructure move
