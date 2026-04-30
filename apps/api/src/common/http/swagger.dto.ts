@@ -11,6 +11,162 @@ export class ErrorResponseDto {
   error!: string;
 }
 
+export class VisionClassDefinitionResponseDto {
+  @ApiProperty({ example: 'olive_oil_bottle' })
+  id!: string;
+
+  @ApiProperty({ example: 'olive oil bottle' })
+  label!: string;
+
+  @ApiProperty({ example: 'container' })
+  category!:
+    | 'produce'
+    | 'container'
+    | 'packaged_food'
+    | 'prepared_food'
+    | 'kitchenware'
+    | 'unknown';
+
+  @ApiProperty({ example: 'exact' })
+  granularity!: 'exact' | 'generic';
+
+  @ApiProperty({ example: 'track' })
+  inventory_policy!: 'track' | 'review' | 'ignore';
+
+  @ApiProperty({ example: true })
+  stage_1_enabled!: boolean;
+}
+
+export class VisionBoundingBoxResponseDto {
+  @ApiProperty({ example: 0.18 })
+  x!: number;
+
+  @ApiProperty({ example: 0.12 })
+  y!: number;
+
+  @ApiProperty({ example: 0.24 })
+  width!: number;
+
+  @ApiProperty({ example: 0.46 })
+  height!: number;
+}
+
+export class VisionDetectionResponseDto {
+  @ApiProperty({ example: 'obs_1_1_ab12cd34' })
+  observation_id!: string;
+
+  @ApiProperty({ example: 'olive_oil_bottle' })
+  class_id!: string;
+
+  @ApiProperty({ example: 'olive oil bottle' })
+  label!: string;
+
+  @ApiProperty({ example: 'container' })
+  category!:
+    | 'produce'
+    | 'container'
+    | 'packaged_food'
+    | 'prepared_food'
+    | 'kitchenware'
+    | 'unknown';
+
+  @ApiProperty({ example: 'exact' })
+  granularity!: 'exact' | 'generic';
+
+  @ApiProperty({ example: 'track' })
+  inventory_policy!: 'track' | 'review' | 'ignore';
+
+  @ApiProperty({ type: () => VisionBoundingBoxResponseDto })
+  bbox!: VisionBoundingBoxResponseDto;
+
+  @ApiProperty({ example: 0.94 })
+  confidence!: number;
+}
+
+export class VisionFrameResultResponseDto {
+  @ApiProperty({ example: 1 })
+  frame_id!: number;
+
+  @ApiPropertyOptional({
+    example: 'pantry left shelf olive oil bottle egg carton plate',
+  })
+  frame_ref?: string;
+
+  @ApiPropertyOptional({ example: 'pantry_left_shelf' })
+  zone_id?: string;
+
+  @ApiPropertyOptional({ example: 1333 })
+  timestamp_ms?: number;
+
+  @ApiProperty({ type: () => [VisionDetectionResponseDto] })
+  detections!: VisionDetectionResponseDto[];
+}
+
+export class VisionScanSummaryResponseDto {
+  @ApiProperty({ example: 2 })
+  frame_count!: number;
+
+  @ApiProperty({ example: 4 })
+  detection_count!: number;
+
+  @ApiProperty({ example: 3 })
+  track_candidate_count!: number;
+
+  @ApiProperty({ example: 1 })
+  review_candidate_count!: number;
+
+  @ApiProperty({ example: 0 })
+  ignored_detection_count!: number;
+
+  @ApiProperty({ example: ['egg carton', 'milk carton', 'olive oil bottle'] })
+  detected_labels!: string[];
+}
+
+export class VisionPipelineConfigResponseDto {
+  @ApiProperty({ example: 'mock-stage1-detector' })
+  provider!: string;
+
+  @ApiProperty({ example: 'detection_only' })
+  stage!: 'detection_only';
+
+  @ApiProperty({ example: false })
+  tracking_enabled!: boolean;
+
+  @ApiProperty({ example: false })
+  embeddings_enabled!: boolean;
+
+  @ApiProperty({ example: false })
+  open_vocabulary_enabled!: boolean;
+
+  @ApiProperty({ example: false })
+  packaged_food_enrichment_enabled!: boolean;
+
+  @ApiProperty({ example: false })
+  segmentation_enabled!: boolean;
+
+  @ApiProperty({ type: () => [VisionClassDefinitionResponseDto] })
+  supported_classes!: VisionClassDefinitionResponseDto[];
+
+  @ApiProperty({
+    example: ['Stage 1 is closed-set detection only.'],
+  })
+  notes!: string[];
+}
+
+export class VisionScanResponseDto {
+  @ApiProperty({ example: 'scan_demo_001' })
+  scan_session_id!: string;
+
+  @ApiProperty({ type: () => VisionPipelineConfigResponseDto })
+  pipeline!: VisionPipelineConfigResponseDto;
+
+  @ApiProperty({ type: () => [VisionFrameResultResponseDto] })
+  frames!: VisionFrameResultResponseDto[];
+
+  @ApiProperty({ type: () => VisionScanSummaryResponseDto })
+  summary!: VisionScanSummaryResponseDto;
+}
+
 export class RecipeStepResponseDto {
   @ApiProperty({ example: 1 })
   step!: number;
@@ -250,6 +406,251 @@ export class UserPreferencesResponseDto {
   biggest_cooking_frustration?: string;
 }
 
+export class UserFoodRuleResponseDto {
+  @ApiProperty({ example: 'rule-1' })
+  id!: string;
+
+  @ApiProperty({
+    enum: ['dietary_constraint', 'ingredient_preference', 'texture_preference'],
+    example: 'ingredient_preference',
+  })
+  kind!: string;
+
+  @ApiProperty({ example: 'Mushrooms' })
+  label!: string;
+
+  @ApiProperty({ example: 'mushrooms' })
+  normalized_label!: string;
+
+  @ApiPropertyOptional({ example: 'ingredient-mushroom' })
+  ingredient_id?: string;
+
+  @ApiPropertyOptional({ example: 'tag-system-vegan' })
+  tag_id?: string;
+
+  @ApiProperty({
+    enum: ['prefer', 'dislike', 'avoid', 'require'],
+    example: 'avoid',
+  })
+  action!: string;
+
+  @ApiProperty({ enum: ['soft', 'hard'], example: 'soft' })
+  strictness!: string;
+
+  @ApiProperty({ example: true })
+  active!: boolean;
+
+  @ApiPropertyOptional({ example: '2026-04-30T00:00:00.000Z' })
+  starts_at?: string;
+
+  @ApiPropertyOptional({ example: '2026-05-07T00:00:00.000Z' })
+  expires_at?: string;
+
+  @ApiProperty({
+    enum: ['onboarding', 'manual', 'behavior', 'inferred', 'import'],
+    example: 'onboarding',
+  })
+  source!: string;
+
+  @ApiProperty({ enum: ['low', 'medium', 'high'], example: 'high' })
+  confidence!: string;
+
+  @ApiPropertyOptional({ example: 'User marked this during onboarding.' })
+  notes?: string;
+
+  @ApiProperty({ example: '2026-04-30T18:00:00.000Z' })
+  created_at!: string;
+
+  @ApiProperty({ example: '2026-04-30T18:00:00.000Z' })
+  updated_at!: string;
+}
+
+export class UserGoalResponseDto {
+  @ApiProperty({ example: 'goal-1' })
+  id!: string;
+
+  @ApiProperty({ example: 'save_money' })
+  goal!: string;
+
+  @ApiProperty({ example: 1 })
+  priority!: number;
+
+  @ApiProperty({ example: true })
+  active!: boolean;
+
+  @ApiPropertyOptional({ example: '2026-04-30T00:00:00.000Z' })
+  starts_at?: string;
+
+  @ApiPropertyOptional({ example: '2026-05-31T00:00:00.000Z' })
+  expires_at?: string;
+
+  @ApiProperty({
+    enum: ['default', 'this_week', 'long_term'],
+    example: 'default',
+  })
+  timeframe!: string;
+
+  @ApiProperty({
+    enum: ['onboarding', 'manual', 'behavior', 'inferred', 'import'],
+    example: 'onboarding',
+  })
+  source!: string;
+
+  @ApiProperty({ enum: ['low', 'medium', 'high'], example: 'high' })
+  confidence!: string;
+
+  @ApiProperty({ example: '2026-04-30T18:00:00.000Z' })
+  created_at!: string;
+
+  @ApiProperty({ example: '2026-04-30T18:00:00.000Z' })
+  updated_at!: string;
+}
+
+export class UserPantryStapleResponseDto {
+  @ApiProperty({ example: 'ingredient-rice' })
+  ingredient_id!: string;
+
+  @ApiProperty({ example: 'rice' })
+  canonical_name!: string;
+
+  @ApiProperty({ example: 'onboarding' })
+  source!: string;
+
+  @ApiProperty({ example: 'high' })
+  confidence!: string;
+
+  @ApiProperty({ example: '2026-04-30T18:00:00.000Z' })
+  created_at!: string;
+
+  @ApiProperty({ example: '2026-04-30T18:00:00.000Z' })
+  updated_at!: string;
+}
+
+export class ChefMemorySummaryResponseDto {
+  @ApiProperty({
+    example: {
+      household: { label: 'two_people', detail: 'no_kids' },
+      taste: {
+        cuisine_count: 2,
+        favorite_proteins: ['chicken', 'salmon'],
+        favorite_flavors: ['savory_umami'],
+        spice_level: 'medium',
+      },
+      rules: {
+        hard_rule_count: 1,
+        soft_rule_count: 2,
+        labels: ['Vegan', 'Mushrooms'],
+      },
+      kitchen: {
+        skill_level: 'intermediate',
+        appliance_count: 3,
+        preferred_time: '15_to_30_min',
+      },
+      pantry: { staple_count: 2, labels: ['rice', 'olive oil'] },
+      goals: [{ goal: 'save_money', priority: 1, timeframe: 'default' }],
+      shopping: {
+        preferred_store_count: 1,
+        shopping_mode: 'pickup',
+        location_label: 'ZIP 60201',
+      },
+      completion: {
+        has_household: true,
+        has_taste: true,
+        has_rules: true,
+        has_kitchen: true,
+        has_pantry: true,
+        has_goals: true,
+        has_shopping: true,
+        has_location: true,
+      },
+    },
+  })
+  summary!: Record<string, unknown>;
+}
+
+export class MeResponseDto {
+  @ApiProperty({ example: 'user-1' })
+  id!: string;
+
+  @ApiProperty({ example: 'postigodev@cart-generator.local' })
+  email!: string;
+
+  @ApiProperty({ example: 'Postigo Dev' })
+  name!: string;
+
+  @ApiProperty({ example: 'user' })
+  role!: 'admin' | 'user';
+
+  @ApiProperty({ example: ['password'] })
+  auth_providers!: Array<'google' | 'password'>;
+
+  @ApiPropertyOptional({ example: '2026-03-20T18:45:00.000Z' })
+  onboarding_completed_at?: string;
+
+  @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
+  created_at!: string;
+
+  @ApiProperty({ example: '2026-03-20T18:45:00.000Z' })
+  updated_at!: string;
+}
+
+export class UserProfileMemoryResponseDto {
+  @ApiProperty({ type: () => MeResponseDto })
+  user!: MeResponseDto;
+
+  @ApiProperty({ type: () => UserPreferencesResponseDto })
+  preferences!: UserPreferencesResponseDto;
+
+  @ApiProperty({ type: () => [UserFoodRuleResponseDto] })
+  food_rules!: UserFoodRuleResponseDto[];
+
+  @ApiProperty({ type: () => [UserGoalResponseDto] })
+  goals!: UserGoalResponseDto[];
+
+  @ApiProperty({ type: () => [UserPantryStapleResponseDto] })
+  pantry_staples!: UserPantryStapleResponseDto[];
+
+  @ApiProperty({
+    example: {
+      household: { label: 'two_people', detail: 'no_kids' },
+      taste: {
+        cuisine_count: 2,
+        favorite_proteins: ['chicken', 'salmon'],
+        favorite_flavors: ['savory_umami'],
+        spice_level: 'medium',
+      },
+      rules: {
+        hard_rule_count: 1,
+        soft_rule_count: 2,
+        labels: ['Vegan', 'Mushrooms'],
+      },
+      kitchen: {
+        skill_level: 'intermediate',
+        appliance_count: 3,
+        preferred_time: '15_to_30_min',
+      },
+      pantry: { staple_count: 2, labels: ['rice', 'olive oil'] },
+      goals: [{ goal: 'save_money', priority: 1, timeframe: 'default' }],
+      shopping: {
+        preferred_store_count: 1,
+        shopping_mode: 'pickup',
+        location_label: 'ZIP 60201',
+      },
+      completion: {
+        has_household: true,
+        has_taste: true,
+        has_rules: true,
+        has_kitchen: true,
+        has_pantry: true,
+        has_goals: true,
+        has_shopping: true,
+        has_location: true,
+      },
+    },
+  })
+  summary!: Record<string, unknown>;
+}
+
 export class SavedAddressResponseDto {
   @ApiProperty({ example: 'address-1' })
   id!: string;
@@ -321,32 +722,6 @@ export class UserStatsResponseDto {
   preferred_tag_count!: number;
 }
 
-export class MeResponseDto {
-  @ApiProperty({ example: 'user-1' })
-  id!: string;
-
-  @ApiProperty({ example: 'postigodev@cart-generator.local' })
-  email!: string;
-
-  @ApiProperty({ example: 'Postigo Dev' })
-  name!: string;
-
-  @ApiProperty({ example: 'user' })
-  role!: 'admin' | 'user';
-
-  @ApiProperty({ example: ['password'] })
-  auth_providers!: Array<'google' | 'password'>;
-
-  @ApiPropertyOptional({ example: '2026-03-20T18:45:00.000Z' })
-  onboarding_completed_at?: string;
-
-  @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
-  created_at!: string;
-
-  @ApiProperty({ example: '2026-03-20T18:45:00.000Z' })
-  updated_at!: string;
-}
-
 export class DishResponseDto {
   @ApiPropertyOptional({ example: 'recipe-1' })
   id?: string;
@@ -402,6 +777,58 @@ export class AggregatedIngredientResponseDto {
 
   @ApiPropertyOptional({ example: true })
   in_kitchen?: boolean;
+
+  @ApiPropertyOptional({
+    enum: ['buy', 'already_have', 'skip', 'adjust'],
+    example: 'adjust',
+  })
+  review_action?: string;
+
+  @ApiPropertyOptional({ example: 1.5 })
+  reviewed_amount?: number;
+
+  @ApiPropertyOptional({ example: 'cup' })
+  reviewed_unit?: string;
+}
+
+export class IngredientReviewItemResponseDto {
+  @ApiProperty({ example: 'rice' })
+  canonical_ingredient!: string;
+
+  @ApiProperty({ example: 2 })
+  total_amount!: number;
+
+  @ApiProperty({ example: 'cup' })
+  unit!: string;
+
+  @ApiProperty({ type: () => [AggregatedIngredientSourceResponseDto] })
+  source_dishes!: AggregatedIngredientSourceResponseDto[];
+
+  @ApiProperty({
+    enum: ['buy', 'already_have', 'skip', 'adjust'],
+    example: 'adjust',
+  })
+  action!: string;
+
+  @ApiPropertyOptional({ example: 1.5 })
+  adjusted_amount?: number;
+
+  @ApiPropertyOptional({ example: 'cup' })
+  adjusted_unit?: string;
+}
+
+export class IngredientReviewResponseDto {
+  @ApiProperty({ example: 'cart-1' })
+  cart_id!: string;
+
+  @ApiProperty({ type: () => [IngredientReviewItemResponseDto] })
+  items!: IngredientReviewItemResponseDto[];
+
+  @ApiPropertyOptional({ example: '2026-04-29T19:30:00.000Z' })
+  created_at?: string;
+
+  @ApiPropertyOptional({ example: '2026-04-29T19:35:00.000Z' })
+  updated_at?: string;
 }
 
 export class ProductCandidateResponseDto {

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   mapPersistedCart,
   mapPersistedCartDraft,
+  mapPersistedIngredientReview,
   mapPersistedShoppingCart,
   mapShoppingCartHistorySummary,
 } from './persistence/cart.persistence.mapper';
@@ -12,8 +13,10 @@ import type {
   CreateShoppingCartPersistenceInput,
   PersistedCart,
   PersistedCartDraft,
+  PersistedIngredientReview,
   PersistedShoppingCart,
   PersistedShoppingCartHistorySummary,
+  UpsertIngredientReviewPersistenceInput,
   UpdateCartDraftPersistenceInput,
   UpdateCartPersistenceInput,
   UpdateShoppingCartPersistenceInput,
@@ -51,6 +54,14 @@ export class CartPersistenceService {
 
   deleteCart(userId: string, id: string) {
     return this.cartPersistenceRepository.deleteCart(userId, id);
+  }
+
+  async upsertIngredientReview(
+    input: UpsertIngredientReviewPersistenceInput,
+  ): Promise<PersistedIngredientReview> {
+    const review =
+      await this.cartPersistenceRepository.upsertIngredientReview(input);
+    return mapPersistedIngredientReview(review);
   }
 
   async createShoppingCart(
@@ -95,6 +106,18 @@ export class CartPersistenceService {
   async findCartById(userId: string, id: string): Promise<PersistedCart | null> {
     const cart = await this.cartPersistenceRepository.findCartById(userId, id);
     return cart ? mapPersistedCart(cart) : null;
+  }
+
+  async findIngredientReviewByCartId(
+    userId: string,
+    cartId: string,
+  ): Promise<PersistedIngredientReview | null> {
+    const review =
+      await this.cartPersistenceRepository.findIngredientReviewByCartId(
+        userId,
+        cartId,
+      );
+    return review ? mapPersistedIngredientReview(review) : null;
   }
 
   async findShoppingCartsByUser(

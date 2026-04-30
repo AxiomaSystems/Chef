@@ -394,9 +394,7 @@ Current UI note:
 - compact recipe cards should show dietary badges, not `nutrition_data`
 - `nutrition_data` belongs primarily to recipe detail surfaces
 
-## 4. Aggregation Models
-
-## 3.5. Planned Ingredient Review Models
+## 3.5. Ingredient Review Models
 
 Ingredient review is the MVP-friendly bridge between "shopping cart from recipe" and full inventory.
 
@@ -409,7 +407,6 @@ type IngredientReviewItem = {
   canonical_ingredient: string;
   total_amount: number;
   unit: string;
-  display_ingredient?: string;
   source_dishes: AggregatedIngredientSource[];
   action: "buy" | "already_have" | "skip" | "adjust";
   adjusted_amount?: number;
@@ -421,10 +418,10 @@ type IngredientReviewItem = {
 
 ```ts
 type IngredientReview = {
-  cart_id?: string;
+  cart_id: string;
   items: IngredientReviewItem[];
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 };
 ```
 
@@ -433,6 +430,13 @@ Interpretation:
 - `IngredientReview` is not the same as inventory
 - it is a per-cart decision surface before retailer matching
 - it lets the MVP solve "I already have this" without requiring full pantry automation
+- it is implemented as a one-to-one persisted review for a `Cart`
+- shopping-cart generation applies review decisions before retailer matching
+
+Implemented API shape:
+
+- `GET /api/v1/carts/:id/ingredient-review`
+- `PUT /api/v1/carts/:id/ingredient-review`
 
 ## 4. Aggregation Models
 
@@ -664,8 +668,8 @@ type Ingredient = {
 Interpretation:
 
 - `Ingredient` is a shared global catalog
-- it deduplicates ingredient names across users, recipes, future nutrition, future retailer search, and future computer vision
-- `vision_labels` is reserved for future object-detection labels, not used in the current demo
+- it deduplicates ingredient names across users, recipes, future nutrition, retailer search, and computer vision mapping
+- `vision_labels` is reserved for mapping object-detection labels into the ingredient catalog
 
 ### KitchenInventoryItem
 
@@ -692,6 +696,7 @@ Interpretation:
 - exact quantity tracking is a later capability
 - "things I usually have" is valuable before object detection is reliable
 - shopping-cart generation can skip ingredients marked in kitchen
+- future vision detections should flow through review or inventory candidate states before becoming trusted pantry state
 
 ### MealLog
 
@@ -730,6 +735,7 @@ type User = {
   email: string;
   name: string;
   role: UserRole;
+  auth_providers?: Array<"google" | "password">;
   onboarding_completed_at?: string;
   created_at: string;
   updated_at: string;
@@ -758,6 +764,52 @@ type UserPreferences = {
     longitude?: number;
     kroger_location_id?: string;
   };
+  household_size?: "just_me" | "two_people" | "three_to_four_people" | "five_plus_people";
+  kids_profile?: "no_kids" | "toddlers" | "kids_5_to_12" | "teenagers";
+  favorite_proteins?: Array<
+    | "chicken"
+    | "beef"
+    | "pork"
+    | "salmon"
+    | "shrimp"
+    | "tuna"
+    | "lamb"
+    | "turkey"
+    | "tofu"
+    | "tempeh"
+    | "eggs"
+    | "legumes"
+  >;
+  favorite_flavors?: Array<
+    | "spicy"
+    | "savory_umami"
+    | "sweet"
+    | "tangy_citrusy"
+    | "smoky"
+    | "herby_fresh"
+    | "rich_creamy"
+    | "nutty"
+    | "garlicky"
+  >;
+  spice_level?: "none" | "mild" | "medium" | "hot" | "very_hot";
+  disliked_ingredients?: string[];
+  disliked_textures?: Array<"chewy" | "mushy" | "slimy" | "gritty" | "sticky">;
+  cooking_skill_level?: "beginner" | "intermediate" | "confident" | "advanced";
+  available_appliances?: string[];
+  preferred_cooking_time?:
+    | "under_15_min"
+    | "15_to_30_min"
+    | "30_to_45_min"
+    | "up_to_1_hour"
+    | "over_1_hour";
+  typical_meal_times?: Array<"breakfast" | "lunch" | "dinner" | "snacks" | "late_night" | "meal_prep">;
+  goal_priorities?: string[];
+  calorie_tracking_mode?: "none" | "casual" | "calories" | "full_macros";
+  weekly_budget?: "under_50" | "50_to_100" | "100_to_150" | "150_to_200" | "no_budget_limit";
+  preferred_stores?: string[];
+  shopping_mode?: "in_store" | "pickup" | "delivery" | "mixed";
+  recipe_discovery_sources?: string[];
+  biggest_cooking_frustration?: string;
 };
 ```
 
@@ -771,6 +823,121 @@ Interpretation:
 - `latitude` and `longitude` are optional now so the same shape can absorb GPS later without another contract rewrite
 - `kroger_location_id` is optional retailer-specific cache data, not a replacement for the neutral location fields
 - empty arrays are valid and do not imply incomplete onboarding
+- onboarding profile fields are intentionally coded values, not display-copy strings
+- cuisines and dietary tags remain relational; broader onboarding answers are split between legacy `User` profile fields and Profile Memory v2 records
+
+### UserProfileMemory
+
+Profile Memory v2 is the richer user-memory surface for onboarding and future agent context.
+
+```ts
+type UserProfileMemory = {
+  user: User;
+  preferences: UserPreferences;
+  food_rules: UserFoodRule[];
+  goals: UserGoal[];
+  pantry_staples: UserPantryStaple[];
+  summary: ChefMemorySummary;
+};
+```
+
+API:
+
+- `GET /api/v1/me/profile-memory`
+- `PATCH /api/v1/me/profile-memory`
+
+Interpretation:
+
+- `/me/preferences` remains the compatibility source for cuisines, tags, shopping location, and simple profile defaults
+- `/me/profile-memory` is source of truth for v2 food rules, weighted goals, and rough pantry staples
+- reads return both legacy preferences and v2 records so old and new clients can coexist
+- `summary` is derived on read for onboarding UI and agent prompt context; it is not persisted as primary state
+
+### UserFoodRule
+
+```ts
+type UserFoodRule = {
+  id: string;
+  kind: "dietary_constraint" | "ingredient_preference" | "texture_preference";
+  label: string;
+  normalized_label: string;
+  ingredient_id?: string;
+  tag_id?: string;
+  action: "prefer" | "dislike" | "avoid" | "require";
+  strictness: "soft" | "hard";
+  active: boolean;
+  starts_at?: string;
+  expires_at?: string;
+  source: "onboarding" | "manual" | "behavior" | "inferred" | "import";
+  confidence: "low" | "medium" | "high";
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+};
+```
+
+Interpretation:
+
+- `require` supports positive constraints such as vegan, halal, kosher, or gluten-free
+- hard rules represent user-confirmed safety or identity constraints
+- soft rules represent ranking, down-ranking, or review-before-use behavior
+- `active`, `starts_at`, and `expires_at` allow temporary memory such as "avoid seafood this week"
+- writes upsert by a service-level dedupe key built from user, kind, ingredient/tag/normalized label, and action
+- inferred or behavior-derived memory cannot create hard rules or `require` constraints
+- inferred dietary, medical, allergy, or religious constraints require explicit user confirmation before persistence
+
+### UserGoal
+
+```ts
+type UserGoal = {
+  id: string;
+  goal:
+    | "save_money"
+    | "save_time"
+    | "eat_healthier"
+    | "hit_protein"
+    | "reduce_waste"
+    | "try_new_foods"
+    | "cook_more_at_home"
+    | "meal_prep"
+    | "spend_less_on_takeout";
+  priority: number;
+  active: boolean;
+  starts_at?: string;
+  expires_at?: string;
+  timeframe: "default" | "this_week" | "long_term";
+  source: "onboarding" | "manual" | "behavior" | "inferred" | "import";
+  confidence: "low" | "medium" | "high";
+  created_at: string;
+  updated_at: string;
+};
+```
+
+Interpretation:
+
+- `priority` is constrained to `1..5`
+- goals model tradeoffs rather than flat preference lists
+- public API uses `timeframe = "default"`; Prisma stores that enum as `default_timeframe`
+- temporary goals such as budget mode this month use `starts_at` / `expires_at`
+
+### UserPantryStaple
+
+```ts
+type UserPantryStaple = {
+  ingredient_id: string;
+  canonical_name: string;
+  source: "onboarding" | "manual" | "behavior" | "inferred" | "import";
+  confidence: "low" | "medium" | "high";
+  created_at: string;
+  updated_at: string;
+};
+```
+
+Interpretation:
+
+- pantry staples mean "usually have", not exact inventory quantity
+- staples should bias ingredient review and cart generation, not silently delete expensive or specific items
+- exact pantry state remains the responsibility of `KitchenInventoryItem`
 
 ### CheckoutProfile
 
@@ -924,6 +1091,71 @@ Current status:
 - `ShoppingCart.external_reference_id` stores Chef's reference id for the external handoff
 - Kroger remains the stronger line-by-line matching path; Instacart is the smoother demo/user handoff path
 
+### VisionDetectionProvider
+
+Current role:
+
+- expose a safe computer-vision contract for object-detection experiments
+- return structured detections without mutating inventory automatically
+- separate detection classes from ingredient and inventory truth
+
+Implemented API shape:
+
+- `GET /api/v1/vision/pipeline`
+- `POST /api/v1/vision/detect`
+
+Current status:
+
+- the API contract and mock detector provider are implemented
+- this is detection-only and review-oriented
+- packaged-food enrichment, embeddings, segmentation, and automatic inventory mutation are not implemented
+
+### VisionScanRequest
+
+```ts
+type VisionScanRequest = {
+  scan_session_id: string;
+  frames: Array<{
+    frame_id: number;
+    frame_ref?: string;
+    zone_id?: string;
+    timestamp_ms?: number;
+    debug_objects?: Array<{
+      label: string;
+      bbox?: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      };
+      confidence?: number;
+    }>;
+  }>;
+  options?: {
+    include_ignored?: boolean;
+    max_detections_per_frame?: number;
+  };
+};
+```
+
+### VisionScanResponse
+
+```ts
+type VisionScanResponse = {
+  scan_session_id: string;
+  pipeline: VisionPipelineConfig;
+  frames: VisionFrameResult[];
+  summary: {
+    frame_count: number;
+    detection_count: number;
+    track_candidate_count: number;
+    review_candidate_count: number;
+    ignored_detection_count: number;
+    detected_labels: string[];
+  };
+};
+```
+
 ### CookingAssistantContext
 
 Planned role:
@@ -1012,18 +1244,22 @@ Interpretation:
 - auth can attach multiple identities to one user account
 - cuisines are stored relationally as a global catalog
 - tags are stored relationally as `Tag` + `RecipeTag`
-- user preferences are stored relationally through join tables, not JSON blobs
+- core cuisine/tag preferences are stored relationally through join tables
+- broader onboarding/profile preferences are a transitional mix: stable simple defaults remain on `User`, while Profile Memory v2 stores food rules, agent goals, and pantry staples in dedicated relational tables
 - recipe HTTP payloads now use explicit tag references instead of `tags: string[]`
 - specialty ingredients should prefer honest no-match over forced substitution when the active retailer catalog has no reasonable candidate
+- ingredient review is the per-cart override layer before shopping-cart generation
+- vision detections are candidates, not trusted pantry facts
 
 ## Known Future Changes
 
 - `RecipeVariant` and adaptation models still need runtime implementation
-- AI recipe generation and editing need structured backend contracts
+- AI preview flows exist, but generated/imported recipe previews still need explicit persistence workflows
 - nutrition providers need integration before `nutrition_data` can be reliably computed
 - contextual cooking assistant models still need design and runtime implementation
-- cart export/share models still need design
+- cart export exists for Instacart handoff, but broader share/export flows still need design
 - the web app and backend now both use bearer-token auth as the normal path
 - onboarding completion is now tracked separately from preference contents
 - retailer support now includes `"kroger"` and will likely expand further
 - cuisine curation will likely expand, but the field is no longer free text
+- Supabase is now the shared demo database, while Docker Postgres remains the local isolated development path

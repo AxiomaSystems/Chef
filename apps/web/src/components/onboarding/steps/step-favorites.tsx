@@ -1,15 +1,7 @@
 "use client";
 
-import type {
-  DislikedIngredient,
-  DislikedTexture,
-  FavoriteFlavor,
-  FavoriteProtein,
-  SpiceLevel,
-} from "@cart/shared";
+import type { FavoriteFlavor, FavoriteProtein, SpiceLevel } from "@cart/shared";
 import {
-  DISLIKED_INGREDIENT_VALUES,
-  DISLIKED_TEXTURE_VALUES,
   FAVORITE_FLAVOR_VALUES,
   FAVORITE_PROTEIN_VALUES,
   SPICE_LEVEL_VALUES,
@@ -17,8 +9,6 @@ import {
 import { ChipMultiSelect } from "@/components/onboarding/ui/chip-multi-select";
 import { ChipSingleSelect } from "@/components/onboarding/ui/chip-single-select";
 import {
-  DISLIKED_INGREDIENT_LABELS,
-  DISLIKED_TEXTURE_LABELS,
   FAVORITE_FLAVOR_LABELS,
   FAVORITE_PROTEIN_LABELS,
   SPICE_LEVEL_LABELS,
@@ -28,32 +18,24 @@ type Props = {
   favoriteProteins: FavoriteProtein[];
   favoriteFlavors: FavoriteFlavor[];
   spiceLevel: SpiceLevel | null;
-  dislikedIngredients: DislikedIngredient[];
-  dislikedTextures: DislikedTexture[];
   onFavoriteProteinsChange: (v: FavoriteProtein[]) => void;
   onFavoriteFlavorsChange: (v: FavoriteFlavor[]) => void;
   onSpiceLevelChange: (v: SpiceLevel) => void;
-  onDislikedIngredientsChange: (v: DislikedIngredient[]) => void;
-  onDislikedTexturesChange: (v: DislikedTexture[]) => void;
 };
 
-export function StepTasteDislikes({
+export function StepFavorites({
   favoriteProteins,
   favoriteFlavors,
   spiceLevel,
-  dislikedIngredients,
-  dislikedTextures,
   onFavoriteProteinsChange,
   onFavoriteFlavorsChange,
   onSpiceLevelChange,
-  onDislikedIngredientsChange,
-  onDislikedTexturesChange,
 }: Props) {
   return (
-    <div className="grid gap-8">
+    <div className="grid gap-7">
       <div className="grid gap-3">
         <p className="text-label-lg font-semibold text-[#52443d]">
-          Favourite proteins
+          Go-to proteins
         </p>
         <ChipMultiSelect
           options={FAVORITE_PROTEIN_VALUES}
@@ -65,7 +47,7 @@ export function StepTasteDislikes({
 
       <div className="grid gap-3">
         <p className="text-label-lg font-semibold text-[#52443d]">
-          Favourite flavour profiles
+          Flavors you want more often
         </p>
         <ChipMultiSelect
           options={FAVORITE_FLAVOR_VALUES}
@@ -84,33 +66,6 @@ export function StepTasteDislikes({
           selected={spiceLevel}
           onChange={onSpiceLevelChange}
           getLabel={(v) => SPICE_LEVEL_LABELS[v]}
-        />
-      </div>
-
-      <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
-          Ingredients you avoid
-        </p>
-        <p className="text-body-sm text-[#85736c]">
-          Pick anything you dislike or can&apos;t eat.
-        </p>
-        <ChipMultiSelect
-          options={DISLIKED_INGREDIENT_VALUES}
-          selected={dislikedIngredients}
-          onChange={onDislikedIngredientsChange}
-          getLabel={(v) => DISLIKED_INGREDIENT_LABELS[v]}
-        />
-      </div>
-
-      <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
-          Textures you dislike
-        </p>
-        <ChipMultiSelect
-          options={DISLIKED_TEXTURE_VALUES}
-          selected={dislikedTextures}
-          onChange={onDislikedTexturesChange}
-          getLabel={(v) => DISLIKED_TEXTURE_LABELS[v]}
         />
       </div>
     </div>

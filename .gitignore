@@ -24,5 +24,6 @@ yarn-error.log*
 !/.env.example
 .claude/
 .vercel/
+docs-private/
 
 .vercel

@@ -1,0 +1,29 @@
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import type { VisionPipelineConfig, VisionScanResponse } from '@cart/shared';
+import { RequestActorGuard } from '../auth/request-actor.guard';
+import { AnalyzeVisionScanDto } from './dto/analyze-vision-scan.dto';
+import {
+  ApiAnalyzeVisionScan,
+  ApiDescribeVisionPipeline,
+  ApiVisionController,
+} from './vision.swagger';
+import { VisionService } from './vision.service';
+
+@Controller('api/v1/vision')
+@UseGuards(RequestActorGuard)
+@ApiVisionController()
+export class VisionController {
+  constructor(private readonly visionService: VisionService) {}
+
+  @Get('pipeline')
+  @ApiDescribeVisionPipeline()
+  describePipeline(): VisionPipelineConfig {
+    return this.visionService.describePipeline();
+  }
+
+  @Post('detect')
+  @ApiAnalyzeVisionScan()
+  analyzeScan(@Body() input: AnalyzeVisionScanDto): Promise<VisionScanResponse> {
+    return this.visionService.analyzeScan(input);
+  }
+}

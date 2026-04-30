@@ -108,7 +108,12 @@ export function RecipePreparationClient({
     startPrepTransition(async () => {
       const result = await getIngredientPrepAction({
         recipeName: recipe.name,
-        ingredients: recipe.ingredients,
+        ingredients: recipe.ingredients.map((ingredient) => ({
+          canonical_ingredient: ingredient.canonical_ingredient,
+          display_ingredient: ingredient.display_ingredient ?? null,
+          amount: ingredient.amount,
+          unit: ingredient.unit,
+        })),
       });
       if (result.error) {
         setPrepError(result.error);

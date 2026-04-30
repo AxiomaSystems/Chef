@@ -14,6 +14,9 @@ export type AggregatedIngredient = {
   purchase_unit_hint?: string;
   ingredient_id?: string;
   in_kitchen?: boolean;
+  review_action?: "buy" | "already_have" | "skip" | "adjust";
+  reviewed_amount?: number;
+  reviewed_unit?: string;
 };
 
 export type RecipeBundleOverviewItem = {
