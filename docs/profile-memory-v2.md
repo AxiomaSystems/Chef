@@ -157,10 +157,11 @@ enum UserFoodRuleKind {
   texture_preference
 }
 
-enum UserFoodRulePolarity {
-  like
+enum UserFoodRuleAction {
+  prefer
   dislike
   avoid
+  require
 }
 
 enum UserRuleStrictness {
@@ -189,8 +190,11 @@ model UserFoodRule {
   label        String
   ingredientId String?
   tagId        String?
-  polarity     UserFoodRulePolarity
+  action       UserFoodRuleAction
   strictness   UserRuleStrictness
+  active       Boolean              @default(true)
+  startsAt     DateTime?
+  expiresAt    DateTime?
   source       UserMemorySource
   confidence   UserMemoryConfidence @default(high)
   notes        String?
@@ -202,6 +206,7 @@ model UserFoodRule {
 
   @@index([userId, kind])
   @@index([userId, strictness])
+  @@index([userId, active, startsAt, expiresAt])
   @@index([ingredientId])
   @@index([tagId])
 }
@@ -211,8 +216,21 @@ Interpretation:
 
 - allergies, medical restrictions, and religious constraints are `hard`
 - ordinary dislikes are `soft`
-- likes should rank recipes but not force inclusion
+- `prefer` should rank recipes but not force inclusion
+- `require` represents positive constraints such as halal, kosher, vegan, vegetarian, or gluten-free
+- `avoid` means Chef should normally exclude or route around the item/rule
+- `dislike` means Chef should down-rank or ask before using it
+- `active`, `startsAt`, and `expiresAt` support temporary memory such as "avoid seafood this week"
 - inferred behavior should start lower-confidence than explicit onboarding answers
+
+Keep both `action` and `strictness`.
+
+Examples:
+
+- `require vegan` + `hard` means never suggest animal products.
+- `prefer high_protein` + `soft` means rank high-protein options higher.
+- `avoid seafood` + `soft` + `expiresAt` means avoid seafood temporarily.
+- `avoid peanuts` + `hard` means a safety-critical restriction.
 
 ### 3. Goals And Tradeoffs
 
@@ -247,6 +265,8 @@ model UserGoal {
   goal       UserGoalKind
   priority   Int
   active     Boolean           @default(true)
+  startsAt   DateTime?
+  expiresAt  DateTime?
   timeframe  UserGoalTimeframe @default(default)
   source     UserMemorySource  @default(onboarding)
   confidence UserMemoryConfidence @default(high)
@@ -256,6 +276,7 @@ model UserGoal {
 
   @@unique([userId, goal, timeframe])
   @@index([userId, active, priority])
+  @@index([userId, active, startsAt, expiresAt])
 }
 ```
 
@@ -264,6 +285,7 @@ Rules:
 - `priority` should be constrained in service/DTO to `1..5`.
 - Onboarding should probably ask users to pick up to 3 main goals.
 - Later behavior may produce inferred goals with lower confidence.
+- `active`, `startsAt`, and `expiresAt` allow temporary modes such as "budget mode this month".
 
 ### 4. Pantry Staples
 
@@ -304,14 +326,14 @@ Add one richer endpoint for v2 memory:
 
 ```text
 GET /api/v1/me/profile-memory
-PUT /api/v1/me/profile-memory
+PATCH /api/v1/me/profile-memory
 ```
 
 Alternative:
 
 ```text
 GET /api/v1/me/preferences-v2
-PUT /api/v1/me/preferences-v2
+PATCH /api/v1/me/preferences-v2
 ```
 
 Recommendation:
@@ -331,7 +353,72 @@ type UserProfileMemory = {
 };
 ```
 
-### PUT Request
+### ChefMemorySummary
+
+The onboarding UI needs a compact summary for the "what Chef has learned" sidebar.
+
+The summary should be derived on read, not stored as primary state.
+
+```ts
+type ChefMemorySummary = {
+  household?: {
+    label: string;
+    detail?: string;
+  };
+  taste: {
+    cuisine_count: number;
+    favorite_proteins: string[];
+    favorite_flavors: string[];
+    spice_level?: string;
+  };
+  rules: {
+    hard_rule_count: number;
+    soft_rule_count: number;
+    labels: string[];
+  };
+  kitchen: {
+    skill_level?: string;
+    appliance_count: number;
+    preferred_time?: string;
+  };
+  pantry: {
+    staple_count: number;
+    labels: string[];
+  };
+  goals: Array<{
+    goal: string;
+    priority: number;
+    timeframe: string;
+  }>;
+  shopping: {
+    preferred_store_count: number;
+    shopping_mode?: string;
+    location_label?: string;
+  };
+  completion: {
+    has_household: boolean;
+    has_taste: boolean;
+    has_rules: boolean;
+    has_kitchen: boolean;
+    has_pantry: boolean;
+    has_goals: boolean;
+    has_shopping: boolean;
+    has_location: boolean;
+  };
+};
+```
+
+Use this for UI affordances such as:
+
+```text
+Chef knows:
+- Planning for 2 people
+- Likes Peruvian and Tex-Mex
+- Avoids mushrooms
+- Shops near ZIP 60201
+```
+
+### PATCH Request
 
 ```ts
 type UpdateUserProfileMemoryRequest = {
@@ -348,10 +435,7 @@ Write semantics:
 - food rules should replace by category or use stable ids
 - goals can replace the current active default goals
 - pantry staple ids can replace the user's staple set
-
-Open question:
-
-- Decide whether `PUT` replaces the full memory document or whether `PATCH` partial updates are safer.
+- because the endpoint supports partial updates, use `PATCH` instead of `PUT`
 
 ## Agent Context Direction
 
@@ -373,7 +457,7 @@ type ChefMemoryContext = {
   }>;
   soft_preferences: Array<{
     label: string;
-    polarity: "like" | "dislike";
+    action: "prefer" | "dislike" | "avoid";
     confidence: "low" | "medium" | "high";
   }>;
   goals: Array<{
@@ -401,6 +485,86 @@ This context should be used by:
 - ingredient swaps
 - future cooking assistant
 - future meal-plan generation
+
+## Service-Level Safety Rules
+
+The service layer must enforce safety rules before writing profile memory.
+
+Rules:
+
+- inferred rules cannot be `hard`
+- inferred rules cannot use `action = require`
+- inferred dietary, allergy, medical, or religious constraints must require explicit user confirmation
+- behavior inference can create low-confidence soft preferences only
+- behavior inference can suggest `prefer`, `dislike`, or temporary soft `avoid`
+- behavior inference must not create allergies, medical restrictions, religious restrictions, or other safety-critical constraints
+- hard rules must come from `onboarding`, `manual`, or another explicit user-confirmed source
+- hard rules should default to `confidence = high`
+- expired rules should not be included in active agent context
+- inactive rules should remain auditable but should not affect generation, matching, or cooking guidance
+
+Examples:
+
+- allowed inferred memory: "user often chooses chicken" -> `prefer chicken`, `soft`, `low`
+- allowed inferred memory: "user skipped mushrooms 3 times" -> `dislike mushrooms`, `soft`, `medium`
+- not allowed inferred memory: "user never chooses pork" -> `require halal`, `hard`
+- not allowed inferred memory: "user removed peanuts once" -> `avoid peanuts`, `hard`
+
+## Deduplication And Upsert Rules
+
+Revisiting onboarding must not create duplicate rules.
+
+Recommended natural key:
+
+```text
+user_id + kind + ingredient_id/tag_id/normalized_label + action
+```
+
+Rules:
+
+- prefer `ingredientId` when the rule maps to a known ingredient
+- prefer `tagId` when the rule maps to a known dietary tag
+- use a normalized `label` only when no catalog entity exists yet
+- normalized labels should be lowercase, trimmed, whitespace-collapsed, and punctuation-normalized
+- if an incoming rule matches an existing rule, update the existing row instead of inserting
+- updating should refresh `strictness`, `active`, `startsAt`, `expiresAt`, `source`, `confidence`, and `notes`
+- explicit user edits should be allowed to upgrade an inferred low-confidence rule
+- inferred writes should not downgrade explicit hard rules
+- if a user removes a rule in onboarding, prefer `active = false` over hard delete unless the rule was created in the same draft/session
+
+Potential Prisma constraint:
+
+```prisma
+@@unique([userId, kind, ingredientId, tagId, action])
+```
+
+Open concern:
+
+- Postgres unique constraints with nullable columns allow duplicate `NULL` combinations. If this model needs strong database-level deduplication for label-only rules, use service-level upsert first or add generated normalized-key columns later.
+
+## Legacy Source Of Truth
+
+During migration, Profile Memory v2 and legacy `/me/preferences` must coexist without ambiguous writes.
+
+Rules:
+
+- `/api/v1/me/preferences` remains source of truth for current cuisine/tag preferences and shopping location until consumers migrate
+- `/api/v1/me/profile-memory` becomes source of truth for v2 food rules, goals, and pantry staples
+- legacy flat `User` fields remain readable during the transition
+- profile-memory reads may map legacy fields into summary output when no v2 records exist
+- profile-memory writes should write v2 tables and may also update compatible legacy fields for old clients
+- new onboarding should write profile-memory first once the endpoint exists
+- account settings can continue using `/me/preferences` until it is intentionally migrated
+- do not delete legacy fields until frontend, AI, and account settings no longer read them
+
+Migration behavior:
+
+- existing `preferred_cuisine_ids` and `preferred_tag_ids` stay relational and are not duplicated into `UserFoodRule`
+- existing `dislikedIngredients` can backfill soft `ingredient_preference` rules with `action = dislike`
+- existing `dislikedTextures` can backfill soft `texture_preference` rules with `action = dislike`
+- existing `goalPriorities` can backfill active default `UserGoal` rows with inferred priority order
+- existing `availableAppliances`, `cookingSkillLevel`, `preferredCookingTime`, and shopping profile fields can remain stable profile attributes
+- backfill should be idempotent
 
 ## Onboarding UX Direction
 
@@ -551,7 +715,7 @@ Data:
 Persistence:
 
 - `UserFoodRule.kind = ingredient_preference | texture_preference`
-- `polarity = dislike | avoid`
+- `action = dislike | avoid`
 - `strictness = soft` unless user explicitly marks hard
 
 #### Kitchen
@@ -726,7 +890,10 @@ Phase 5:
 7. Add controller routes under `/api/v1/me/profile-memory`.
 8. Add tests:
    - hard rule persistence
+   - inferred memory safety rules
+   - rule deduplication/upsert behavior
    - goal replacement/ranking
+   - temporary goal/rule expiry behavior
    - pantry staple replacement
    - old preferences still work
 9. Update Swagger.
@@ -782,7 +949,7 @@ Later improvement:
 - Should `Chef Mode` become `UserGoal`, a separate enum, or profile JSON?
 - Should goals support drag-to-rank in v1 or only "pick up to 3"?
 - Should `UserFoodRule.label` support free text before ingredient matching?
-- Should the first implementation use `PUT /profile-memory` or smaller category endpoints?
+- Should the first implementation use one `PATCH /profile-memory` endpoint or smaller category endpoints?
 
 ## Recommended First PR
 
