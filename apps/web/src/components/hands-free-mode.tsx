@@ -63,7 +63,7 @@ type ElevenLabsMessage = {
   type?: string;
   audio_event?: { audio_base64?: string; audio_base_64?: string };
   agent_response_event?: { agent_response?: string };
-  ping_event?: { event_id?: string };
+  ping_event?: { event_id?: string; ping_ms?: number };
   client_tool_call?: ElevenLabsToolCall;
 };
 
