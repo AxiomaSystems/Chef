@@ -18,6 +18,7 @@ type Props = {
   currentStep: number;
   title: string;
   subtitle: string;
+  memoryItems: string[];
   onBack: (() => void) | null;
   onSkip: () => void;
   onNext: () => void;
@@ -31,6 +32,7 @@ export function OnboardingShell({
   currentStep,
   title,
   subtitle,
+  memoryItems,
   onBack,
   onSkip,
   onNext,
@@ -52,13 +54,14 @@ export function OnboardingShell({
               Chef
             </p>
             <h1 className="mt-4 text-[48px] font-black leading-[0.98] text-[#1a1c1a]">
-              Build your cooking profile.
+              Build your Chef memory.
             </h1>
             <p className="mt-5 max-w-xs text-body-md text-[#52443d]">
-              Set the defaults Chef should remember before it plans for you.
+              Teach Chef how to plan meals, groceries, and cooking help around
+              you.
             </p>
 
-            <div className="mt-8 grid gap-3">
+            <div className="mt-8 grid gap-2.5">
               {STEP_META.map((item, index) => {
                 const stepNumber = index + 1;
                 const isActive = stepNumber === currentStep;
@@ -95,16 +98,44 @@ export function OnboardingShell({
                 );
               })}
             </div>
+
+            <div className="mt-6 overflow-hidden rounded-[1.6rem] border border-[#eadbd1] bg-white/70 p-4 shadow-[0_24px_70px_-48px_rgba(61,30,8,0.75)]">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#895032]">
+                  Chef knows
+                </p>
+                <span className="material-symbols-outlined text-[18px] text-[#895032]">
+                  auto_awesome
+                </span>
+              </div>
+              {memoryItems.length > 0 ? (
+                <ul className="mt-3 grid gap-2">
+                  {memoryItems.slice(0, 5).map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-start gap-2 text-body-sm text-[#52443d]"
+                    >
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#895032]" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-body-sm text-[#85736c]">
+                  Your answers will appear here as Chef learns your defaults.
+                </p>
+              )}
+            </div>
           </div>
         </aside>
 
         <div className="w-full">
           <div className="mb-6 text-center lg:hidden">
             <p className="font-black tracking-tight text-headline-sm text-[#895032]">
-              Chef
+              Chef memory
             </p>
             <p className="mt-1 text-body-md text-[#52443d]">
-              Let&apos;s set up your experience
+              Teach Chef your defaults
             </p>
           </div>
 
@@ -118,7 +149,7 @@ export function OnboardingShell({
               </p>
             </div>
             <p className="text-[11px] text-[#85736c]">
-              Step {currentStep} of {total}
+              Profile setup · about 2 min
             </p>
           </div>
 
@@ -175,7 +206,7 @@ export function OnboardingShell({
                   disabled={isPending}
                   className="min-h-10 rounded-full px-3 text-label-md text-[#85736c] transition-all hover:bg-[#f4f3f1] hover:text-[#52443d] active:scale-[0.98] disabled:opacity-50"
                 >
-                  Skip
+                  Not sure yet
                 </button>
                 <button
                   type="button"
