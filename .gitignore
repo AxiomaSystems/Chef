@@ -23,6 +23,12 @@ yarn-error.log*
 .env.*
 !/.env.example
 docs/superpowers/
+apps/vision-lab/data/hf_food_ingredient*/
+apps/vision-lab/data/first_object_runs/
+apps/vision-lab/data/ingredient_training_dataset*/
+apps/vision-lab/data/ingredient_classifier_runs/
+apps/vision-lab/data/ingredient_detection_dataset*/
+apps/vision-lab/data/ingredient_detector_runs/
 .claude/
 .vercel/
 

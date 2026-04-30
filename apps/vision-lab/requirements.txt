@@ -1,7 +1,13 @@
 fastapi>=0.116,<1.0
+datasets>=4.4,<5.0
+huggingface-hub>=1.2,<2.0
+modal>=1.4,<2.0
 opencv-python-headless>=4.10,<5.0
 pillow>=11.3,<12.0
 pydantic>=2.11,<3.0
 streamlit>=1.45,<2.0
+torch>=2.5,<3.0
+torchvision>=0.20,<1.0
+tqdm>=4.66,<5.0
 ultralytics>=8.3,<9.0
 uvicorn>=0.35,<1.0

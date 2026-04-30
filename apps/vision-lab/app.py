@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
-from PIL import Image
+from PIL import Image, ImageColor, ImageDraw
 
 from chef_vision.contracts import DebugObjectInput, FrameInput, ScanOptions
 from chef_vision.inventory import clear_inventory, ensure_inventory_store, load_inventory
@@ -28,6 +28,8 @@ from sample_frames import SAMPLE_FRAME_REFS, SAMPLE_SCENARIOS
 
 APP_DIR = Path(__file__).resolve().parent
 INVENTORY_PATH = ensure_inventory_store(APP_DIR / "data" / "runtime_inventory.json")
+CLASSIFIER_RUNS_DIR = APP_DIR / "data" / "ingredient_classifier_runs"
+DEFAULT_CLASSIFIER_RUN = "resnet18_ingredient_crops_5000_modal_frozen"
 
 st.set_page_config(page_title="Chef Vision Lab", layout="wide")
 
@@ -41,6 +43,171 @@ if "live_session_buffer" not in st.session_state:
     st.session_state.live_session_buffer = LiveSessionBuffer()
 if "live_session_started_at" not in st.session_state:
     st.session_state.live_session_started_at = None
+
+
+def available_classifier_runs() -> list[Path]:
+    if not CLASSIFIER_RUNS_DIR.exists():
+        return []
+    return [
+        path
+        for path in sorted(CLASSIFIER_RUNS_DIR.iterdir())
+        if path.is_dir() and (path / "best_model.pt").exists()
+    ]
+
+
+def crop_detection(image: Image.Image, detection) -> Image.Image:
+    width, height = image.size
+    left = max(0, int(detection.bbox.x * width))
+    top = max(0, int(detection.bbox.y * height))
+    right = min(width, int((detection.bbox.x + detection.bbox.width) * width))
+    bottom = min(height, int((detection.bbox.y + detection.bbox.height) * height))
+    return image.crop((left, top, right, bottom))
+
+
+def generate_grid_crops(
+    image: Image.Image,
+    crop_fraction: float,
+    stride_fraction: float,
+    max_crops: int,
+) -> list[dict]:
+    width, height = image.size
+    crop_size = max(64, int(min(width, height) * crop_fraction))
+    stride = max(32, int(crop_size * stride_fraction))
+    boxes = []
+
+    y = 0
+    while y + crop_size <= height:
+        x = 0
+        while x + crop_size <= width:
+            boxes.append((x, y, x + crop_size, y + crop_size))
+            x += stride
+        y += stride
+
+    if width > crop_size and all(box[2] < width for box in boxes):
+        for y1 in range(0, max(1, height - crop_size + 1), stride):
+            boxes.append((width - crop_size, y1, width, y1 + crop_size))
+    if height > crop_size and all(box[3] < height for box in boxes):
+        for x1 in range(0, max(1, width - crop_size + 1), stride):
+            boxes.append((x1, height - crop_size, x1 + crop_size, height))
+
+    center_box = (
+        max(0, (width - crop_size) // 2),
+        max(0, (height - crop_size) // 2),
+        min(width, (width + crop_size) // 2),
+        min(height, (height + crop_size) // 2),
+    )
+    boxes.append(center_box)
+
+    unique_boxes = list(dict.fromkeys(boxes))
+    return [
+        {
+            "box": box,
+            "crop": image.crop(box),
+        }
+        for box in unique_boxes[:max_crops]
+    ]
+
+
+def draw_classifier_result(
+    image: Image.Image,
+    detection,
+    prediction: dict[str, float | str],
+) -> Image.Image:
+    rendered = image.copy()
+    draw = ImageDraw.Draw(rendered)
+    width, height = rendered.size
+    left = max(0, int(detection.bbox.x * width))
+    top = max(0, int(detection.bbox.y * height))
+    right = min(width, int((detection.bbox.x + detection.bbox.width) * width))
+    bottom = min(height, int((detection.bbox.y + detection.bbox.height) * height))
+    color = ImageColor.getrgb("#16a34a")
+    label = f"{prediction['label']} {prediction['probability']:.2f}"
+
+    draw.rectangle((left, top, right, bottom), outline=color, width=5)
+    text_top = max(0, top - 26)
+    draw.rectangle((left, text_top, min(width, left + 320), top), fill=color)
+    draw.text((left + 6, text_top + 5), label, fill=(255, 255, 255))
+    return rendered
+
+
+def draw_classifier_results(
+    image: Image.Image,
+    crop_results: list[dict],
+) -> Image.Image:
+    rendered = image.copy()
+    draw = ImageDraw.Draw(rendered)
+    width, height = rendered.size
+    colors = ["#16a34a", "#2563eb", "#ca8a04", "#dc2626", "#7c3aed", "#0891b2"]
+
+    for index, item in enumerate(crop_results, start=1):
+        detection = item.get("detection")
+        grid_box = item.get("grid_box")
+        predictions = item.get("predictions") or []
+        if detection is None or not predictions:
+            if grid_box is None or not predictions:
+                continue
+            left, top, right, bottom = grid_box
+        else:
+            left = max(0, int(detection.bbox.x * width))
+            top = max(0, int(detection.bbox.y * height))
+            right = min(width, int((detection.bbox.x + detection.bbox.width) * width))
+            bottom = min(height, int((detection.bbox.y + detection.bbox.height) * height))
+
+        color = ImageColor.getrgb(colors[(index - 1) % len(colors)])
+        top_prediction = predictions[0]
+        label = f"{index}. {top_prediction['label']} {top_prediction['probability']:.2f}"
+
+        draw.rectangle((left, top, right, bottom), outline=color, width=5)
+        text_top = max(0, top - 26)
+        draw.rectangle((left, text_top, min(width, left + 340), top), fill=color)
+        draw.text((left + 6, text_top + 5), label, fill=(255, 255, 255))
+
+    return rendered
+
+
+@st.cache_resource(show_spinner=False)
+def load_ingredient_classifier(checkpoint_path: str):
+    import torch
+    from torchvision import transforms
+    from torchvision.models import resnet18
+
+    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    class_names = checkpoint["class_names"]
+    model = resnet18(weights=None)
+    model.fc = torch.nn.Linear(model.fc.in_features, len(class_names))
+    model.load_state_dict(checkpoint["model_state_dict"])
+    model.eval()
+    transform = transforms.Compose(
+        [
+            transforms.Resize((256, 256)),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+    return model, class_names, transform
+
+
+def classify_ingredient_image(
+    image: Image.Image,
+    checkpoint_path: Path,
+    top_k: int,
+) -> list[dict[str, float | str]]:
+    import torch
+
+    model, class_names, transform = load_ingredient_classifier(str(checkpoint_path))
+    tensor = transform(image.convert("RGB")).unsqueeze(0)
+    with torch.no_grad():
+        probabilities = torch.softmax(model(tensor), dim=1).squeeze(0)
+        values, indices = probabilities.topk(min(top_k, len(class_names)))
+
+    return [
+        {
+            "label": class_names[class_index],
+            "probability": round(float(probability), 6),
+        }
+        for probability, class_index in zip(values.tolist(), indices.tolist())
+    ]
 
 with st.sidebar:
     st.subheader("Pipeline")
@@ -102,8 +269,8 @@ with st.sidebar:
         st.caption("Inventory is empty.")
 
 
-tab_single, tab_live, tab_video, tab_batch = st.tabs(
-    ["Single Frame", "Live Camera", "Video Scan", "Scenario Scan"]
+tab_single, tab_classifier, tab_live, tab_video, tab_batch = st.tabs(
+    ["Single Frame", "Ingredient Classifier", "Live Camera", "Video Scan", "Scenario Scan"]
 )
 
 with tab_single:
@@ -248,6 +415,356 @@ with tab_single:
 
             st.subheader("Response JSON")
             st.json(result.to_dict(), expanded=2)
+
+with tab_classifier:
+    runs = available_classifier_runs()
+    if not runs:
+        st.info(
+            "No local classifier checkpoints found. Train or download a run into "
+            "`apps/vision-lab/data/ingredient_classifier_runs/<run-name>/best_model.pt`."
+        )
+    else:
+        left, right = st.columns([1, 1.2])
+
+        with left:
+            default_run_index = next(
+                (
+                    index
+                    for index, run in enumerate(runs)
+                    if run.name == DEFAULT_CLASSIFIER_RUN
+                ),
+                0,
+            )
+            selected_run = st.selectbox(
+                "Classifier checkpoint",
+                options=runs,
+                index=default_run_index,
+                format_func=lambda path: path.name,
+                help="Local checkpoint folder. This does not call Modal.",
+            )
+            checkpoint_path = selected_run / "best_model.pt"
+            metrics_path = selected_run / "metrics.json"
+
+            if metrics_path.exists():
+                metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+                metric_col_a, metric_col_b, metric_col_c = st.columns(3)
+                metric_col_a.metric(
+                    "Test top-1",
+                    f"{metrics.get('test', {}).get('accuracy', 0):.1%}",
+                )
+                metric_col_b.metric(
+                    "Test top-5",
+                    f"{metrics.get('test', {}).get('top5_accuracy', 0):.1%}",
+                )
+                metric_col_c.metric("Classes", metrics.get("class_count", 0))
+
+            classifier_image = st.file_uploader(
+                "Ingredient test image",
+                type=["png", "jpg", "jpeg", "webp"],
+                key="ingredient_classifier_image",
+            )
+            source_mode = st.radio(
+                "Classification input",
+                options=[
+                    "YOLO all object crops",
+                    "YOLO all + grid fallback",
+                    "Grid fallback crops",
+                    "YOLO first object crop",
+                    "Full image",
+                ],
+                horizontal=False,
+                help="Use grid fallback to diagnose detector misses. Full image tests only the classifier.",
+            )
+            classifier_top_k = st.slider("Top predictions", 1, 10, 5)
+            classifier_max_crops = st.slider(
+                "Max YOLO crops to classify",
+                1,
+                30,
+                12,
+                disabled=source_mode in {"Full image", "Grid fallback crops"},
+            )
+            classifier_max_grid_crops = st.slider(
+                "Max grid fallback crops",
+                1,
+                80,
+                24,
+                disabled=source_mode not in {"YOLO all + grid fallback", "Grid fallback crops"},
+            )
+            classifier_grid_fraction = st.slider(
+                "Grid crop size",
+                0.15,
+                0.75,
+                0.35,
+                0.05,
+                disabled=source_mode not in {"YOLO all + grid fallback", "Grid fallback crops"},
+                help="Fraction of the smaller image dimension. Smaller crops can find small foods but create more noise.",
+            )
+            classifier_grid_stride = st.slider(
+                "Grid overlap",
+                0.25,
+                1.0,
+                0.5,
+                0.05,
+                disabled=source_mode not in {"YOLO all + grid fallback", "Grid fallback crops"},
+                help="Lower values create more overlap and more crops.",
+            )
+            classifier_min_probability = st.slider(
+                "Minimum displayed probability",
+                0.0,
+                1.0,
+                0.0,
+                0.05,
+                help="Hide low-confidence crop results from the table and overlay.",
+            )
+            classifier_confidence_threshold = st.slider(
+                "YOLO crop confidence threshold",
+                0.05,
+                0.95,
+                0.20,
+                0.05,
+                disabled=source_mode in {"Full image", "Grid fallback crops"},
+            )
+            classifier_nms_iou = st.slider(
+                "YOLO crop NMS IoU threshold",
+                0.1,
+                0.95,
+                0.7,
+                0.05,
+                disabled=source_mode in {"Full image", "Grid fallback crops"},
+            )
+            run_classifier = st.button("Test Ingredient Classifier", use_container_width=True)
+
+        with right:
+            if run_classifier:
+                if classifier_image is None:
+                    st.error("Upload an image first.")
+                    st.stop()
+
+                image_bytes = classifier_image.getvalue()
+                image = load_image_from_bytes(image_bytes)
+                detection_result = None
+                crop_results = []
+
+                if source_mode in {"YOLO all object crops", "YOLO all + grid fallback", "YOLO first object crop"}:
+                    suffix = Path(classifier_image.name).suffix or ".jpg"
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as handle:
+                        handle.write(image_bytes)
+                        image_path = handle.name
+
+                    try:
+                        classifier_pipeline = VisionPipeline(
+                            detector_name="yolo",
+                            model_name=model_name,
+                        )
+                        detection_result = classifier_pipeline.analyze_scan(
+                            scan_session_id=f"ingredient_classifier_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                            frames=[
+                                FrameInput(
+                                    frame_id=1,
+                                    frame_ref=classifier_image.name,
+                                    image_path=image_path,
+                                )
+                            ],
+                            options=ScanOptions(
+                                include_ignored=True,
+                                confidence_threshold=classifier_confidence_threshold,
+                                nms_iou_threshold=classifier_nms_iou,
+                                max_detections_per_frame=20,
+                            ),
+                        )
+                    except Exception as exc:
+                        st.error(str(exc))
+                        st.stop()
+
+                    detections = sorted(
+                        detection_result.frames[0].detections,
+                        key=lambda detection: detection.confidence,
+                        reverse=True,
+                    )
+                    if not detections:
+                        st.warning("YOLO did not find an object. Falling back to full-image classification.")
+                        predictions = classify_ingredient_image(
+                            image,
+                            checkpoint_path=checkpoint_path,
+                            top_k=classifier_top_k,
+                        )
+                        crop_results.append(
+                            {
+                                "crop_id": 1,
+                                "crop": image,
+                                "detection": None,
+                                "detector_label": "full_image_fallback",
+                                "detector_confidence": None,
+                                "predictions": predictions,
+                            }
+                        )
+                    else:
+                        selected_detections = detections[:1] if source_mode == "YOLO first object crop" else detections[:classifier_max_crops]
+                        for crop_index, detection in enumerate(selected_detections, start=1):
+                            crop = crop_detection(image, detection)
+                            try:
+                                predictions = classify_ingredient_image(
+                                    crop,
+                                    checkpoint_path=checkpoint_path,
+                                    top_k=classifier_top_k,
+                                )
+                            except Exception as exc:
+                                st.error(str(exc))
+                                st.stop()
+                            crop_results.append(
+                                {
+                                    "crop_id": crop_index,
+                                    "crop": crop,
+                                    "detection": detection,
+                                    "detector_label": detection.label,
+                                    "detector_confidence": detection.confidence,
+                                    "proposal_source": "yolo",
+                                    "predictions": predictions,
+                                }
+                            )
+
+                if source_mode in {"YOLO all + grid fallback", "Grid fallback crops"}:
+                    grid_crops = generate_grid_crops(
+                        image,
+                        crop_fraction=classifier_grid_fraction,
+                        stride_fraction=classifier_grid_stride,
+                        max_crops=classifier_max_grid_crops,
+                    )
+                    start_index = len(crop_results) + 1
+                    for offset, grid_item in enumerate(grid_crops, start=0):
+                        try:
+                            predictions = classify_ingredient_image(
+                                grid_item["crop"],
+                                checkpoint_path=checkpoint_path,
+                                top_k=classifier_top_k,
+                            )
+                        except Exception as exc:
+                            st.error(str(exc))
+                            st.stop()
+                        crop_results.append(
+                            {
+                                "crop_id": start_index + offset,
+                                "crop": grid_item["crop"],
+                                "detection": None,
+                                "grid_box": grid_item["box"],
+                                "detector_label": "grid_crop",
+                                "detector_confidence": None,
+                                "proposal_source": "grid",
+                                "predictions": predictions,
+                            }
+                        )
+
+                if source_mode == "Full image":
+                    try:
+                        predictions = classify_ingredient_image(
+                            image,
+                            checkpoint_path=checkpoint_path,
+                            top_k=classifier_top_k,
+                        )
+                    except Exception as exc:
+                        st.error(str(exc))
+                        st.stop()
+                    crop_results.append(
+                            {
+                                "crop_id": 1,
+                                "crop": image,
+                                "detection": None,
+                                "detector_label": "full_image",
+                                "detector_confidence": None,
+                                "proposal_source": "full_image",
+                                "predictions": predictions,
+                            }
+                        )
+
+                display_results = [
+                    item
+                    for item in crop_results
+                    if item["predictions"][0]["probability"] >= classifier_min_probability
+                ]
+
+                if any(item.get("detection") is not None or item.get("grid_box") is not None for item in display_results):
+                    st.image(
+                        draw_classifier_results(image, display_results),
+                        caption="Crop proposals with classifier top predictions",
+                        use_container_width=True,
+                    )
+                else:
+                    st.image(image, caption="Classifier input image", use_container_width=True)
+
+                summary_rows = []
+                for item in display_results:
+                    predictions = item["predictions"]
+                    top_prediction = predictions[0]
+                    summary_rows.append(
+                        {
+                            "crop": item["crop_id"],
+                            "source": item.get("proposal_source"),
+                            "detector_label": item["detector_label"],
+                            "detector_confidence": item["detector_confidence"],
+                            "top_prediction": top_prediction["label"],
+                            "top_probability": top_prediction["probability"],
+                            "top_k": ", ".join(prediction["label"] for prediction in predictions),
+                        }
+                    )
+
+                st.subheader("Crop Predictions")
+                if summary_rows:
+                    st.dataframe(summary_rows, use_container_width=True, hide_index=True)
+                else:
+                    st.warning("No crop predictions met the minimum displayed probability.")
+
+                for item in display_results:
+                    with st.expander(
+                        f"Crop {item['crop_id']}: {item['detector_label']} -> {item['predictions'][0]['label']} ({item['predictions'][0]['probability']:.2f})",
+                        expanded=item["crop_id"] <= 3,
+                    ):
+                        preview_col_a, preview_col_b = st.columns(2)
+                        with preview_col_a:
+                            st.image(
+                                item["crop"],
+                                caption="Image sent to classifier",
+                                use_container_width=True,
+                            )
+                        with preview_col_b:
+                            st.dataframe(item["predictions"], use_container_width=True, hide_index=True)
+
+                st.subheader("Prediction JSON")
+                result_payload = {
+                    "checkpoint": str(checkpoint_path),
+                    "source_mode": source_mode,
+                    "crop_count": len(display_results),
+                    "raw_crop_count": len(crop_results),
+                    "minimum_displayed_probability": classifier_min_probability,
+                    "crops": [
+                        {
+                            "crop_id": item["crop_id"],
+                            "proposal_source": item.get("proposal_source"),
+                            "detector_label": item["detector_label"],
+                            "detector_confidence": item["detector_confidence"],
+                            "top_prediction": item["predictions"][0],
+                            "predictions": item["predictions"],
+                            "bbox": {
+                                "x": item["detection"].bbox.x,
+                                "y": item["detection"].bbox.y,
+                                "width": item["detection"].bbox.width,
+                                "height": item["detection"].bbox.height,
+                            }
+                            if item.get("detection") is not None
+                            else {
+                                "left": item["grid_box"][0],
+                                "top": item["grid_box"][1],
+                                "right": item["grid_box"][2],
+                                "bottom": item["grid_box"][3],
+                            }
+                            if item.get("grid_box") is not None
+                            else None,
+                        }
+                        for item in display_results
+                    ],
+                }
+                if detection_result is not None:
+                    result_payload["yolo_detection_count"] = detection_result.summary.detection_count
+                st.json(result_payload, expanded=2)
 
 with tab_video:
     if detector_name != "yolo":
