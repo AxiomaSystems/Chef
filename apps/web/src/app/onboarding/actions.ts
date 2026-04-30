@@ -21,8 +21,14 @@ import type {
   ShoppingMode,
   SpiceLevel,
   TypicalMealTime,
+  UpdateUserProfileMemoryRequest,
+  UserGoalKind,
   WeeklyBudget,
 } from "@cart/shared";
+import {
+  DISLIKED_INGREDIENT_LABELS,
+  DISLIKED_TEXTURE_LABELS,
+} from "@/components/onboarding/labels";
 
 export type OnboardingActionState = {
   error?: string;
@@ -72,60 +78,95 @@ async function callAuthedJson(path: string, init?: RequestInit) {
   });
 }
 
+const LEGACY_GOAL_TO_MEMORY_GOAL: Record<GoalPriority, UserGoalKind> = {
+  save_money: "save_money",
+  eat_healthier: "eat_healthier",
+  lose_weight: "eat_healthier",
+  build_muscle: "hit_protein",
+  reduce_food_waste: "reduce_waste",
+  try_new_cuisines: "try_new_foods",
+  cook_faster: "save_time",
+  eat_more_plant_based: "eat_healthier",
+};
+
+function buildProfileMemoryRequest(
+  input: SavePreferencesInput,
+): UpdateUserProfileMemoryRequest {
+  const uniqueGoals = Array.from(
+    new Set(
+      input.goal_priorities.map((goal) => LEGACY_GOAL_TO_MEMORY_GOAL[goal]),
+    ),
+  );
+
+  return {
+    preferences: {
+      preferred_cuisine_ids: input.preferred_cuisine_ids,
+      preferred_tag_ids: input.preferred_tag_ids,
+      shopping_location: {
+        zip_code: input.shopping_location_zip || undefined,
+        label: input.shopping_location_label || undefined,
+        kroger_location_id:
+          input.shopping_location_kroger_location_id || undefined,
+      },
+      household_size: input.household_size ?? undefined,
+      kids_profile: input.kids_profile ?? undefined,
+      favorite_proteins: input.favorite_proteins,
+      favorite_flavors: input.favorite_flavors,
+      spice_level: input.spice_level ?? undefined,
+      cooking_skill_level: input.cooking_skill_level ?? undefined,
+      available_appliances: input.available_appliances,
+      preferred_cooking_time: input.preferred_cooking_time ?? undefined,
+      typical_meal_times: input.typical_meal_times,
+      calorie_tracking_mode: input.calorie_tracking_mode ?? undefined,
+      weekly_budget: input.weekly_budget ?? undefined,
+      preferred_stores: input.preferred_stores,
+      shopping_mode: input.shopping_mode ?? undefined,
+      recipe_discovery_sources: input.recipe_discovery_sources,
+      biggest_cooking_frustration:
+        input.biggest_cooking_frustration ?? undefined,
+    },
+    food_rules: [
+      ...input.disliked_ingredients.map((ingredient) => ({
+        kind: "ingredient_preference" as const,
+        label: DISLIKED_INGREDIENT_LABELS[ingredient],
+        action: "dislike" as const,
+        strictness: "soft" as const,
+        active: true,
+        source: "onboarding" as const,
+        confidence: "high" as const,
+      })),
+      ...input.disliked_textures.map((texture) => ({
+        kind: "texture_preference" as const,
+        label: DISLIKED_TEXTURE_LABELS[texture],
+        action: "dislike" as const,
+        strictness: "soft" as const,
+        active: true,
+        source: "onboarding" as const,
+        confidence: "high" as const,
+      })),
+    ],
+    goals: uniqueGoals.map((goal, index) => ({
+      goal,
+      priority: Math.min(index + 1, 5),
+      active: true,
+      timeframe: "default",
+      source: "onboarding",
+      confidence: "high",
+    })),
+  };
+}
+
 export async function savePreferencesAndCompleteAction(
   input: SavePreferencesInput,
 ): Promise<OnboardingActionState> {
-  const body: Record<string, unknown> = {
-    preferred_cuisine_ids: input.preferred_cuisine_ids,
-    preferred_tag_ids: input.preferred_tag_ids,
-    shopping_location: {
-      zip_code: input.shopping_location_zip || undefined,
-      label: input.shopping_location_label || undefined,
-      kroger_location_id:
-        input.shopping_location_kroger_location_id || undefined,
-    },
-  };
-
-  if (input.household_size) body.household_size = input.household_size;
-  if (input.kids_profile) body.kids_profile = input.kids_profile;
-  if (input.favorite_proteins.length)
-    body.favorite_proteins = input.favorite_proteins;
-  if (input.favorite_flavors.length)
-    body.favorite_flavors = input.favorite_flavors;
-  if (input.spice_level) body.spice_level = input.spice_level;
-  if (input.disliked_ingredients.length)
-    body.disliked_ingredients = input.disliked_ingredients;
-  if (input.disliked_textures.length)
-    body.disliked_textures = input.disliked_textures;
-  if (input.cooking_skill_level)
-    body.cooking_skill_level = input.cooking_skill_level;
-  if (input.available_appliances.length)
-    body.available_appliances = input.available_appliances;
-  if (input.preferred_cooking_time)
-    body.preferred_cooking_time = input.preferred_cooking_time;
-  if (input.typical_meal_times.length)
-    body.typical_meal_times = input.typical_meal_times;
-  if (input.goal_priorities.length)
-    body.goal_priorities = input.goal_priorities;
-  if (input.calorie_tracking_mode)
-    body.calorie_tracking_mode = input.calorie_tracking_mode;
-  if (input.weekly_budget) body.weekly_budget = input.weekly_budget;
-  if (input.preferred_stores.length)
-    body.preferred_stores = input.preferred_stores;
-  if (input.shopping_mode) body.shopping_mode = input.shopping_mode;
-  if (input.recipe_discovery_sources.length)
-    body.recipe_discovery_sources = input.recipe_discovery_sources;
-  if (input.biggest_cooking_frustration)
-    body.biggest_cooking_frustration = input.biggest_cooking_frustration;
-
-  const preferencesResponse = await callAuthedJson("/me/preferences", {
-    method: "PUT",
+  const profileMemoryResponse = await callAuthedJson("/me/profile-memory", {
+    method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(buildProfileMemoryRequest(input)),
   }).catch(() => null);
 
-  if (!preferencesResponse?.ok) {
-    return { error: "Unable to save your preferences right now." };
+  if (!profileMemoryResponse?.ok) {
+    return { error: "Unable to save your Chef memory right now." };
   }
 
   const completionResponse = await callAuthedJson("/me/onboarding/complete", {

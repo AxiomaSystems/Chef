@@ -132,6 +132,7 @@ The API uses Prisma + PostgreSQL.
 - Migrations: [apps/api/prisma/migrations](/C:/Users/akuma/repos/cart-generator/apps/api/prisma/migrations)
 - Seed data: [apps/api/prisma/seed](/C:/Users/akuma/repos/cart-generator/apps/api/prisma/seed)
 - Local Docker stack: [infra/docker/docker-compose.yml](/C:/Users/akuma/repos/cart-generator/infra/docker/docker-compose.yml)
+- Shared Supabase setup: [docs/supabase-database.md](/C:/Users/akuma/repos/cart-generator/docs/supabase-database.md)
 
 ### Documentation
 
