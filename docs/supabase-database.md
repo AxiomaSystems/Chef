@@ -75,3 +75,17 @@ As of April 30, 2026:
 - All existing Prisma migrations have been applied.
 - Seed data has been loaded.
 - Local Docker Postgres remains available for isolated development.
+
+## Row Level Security
+
+Supabase warns when tables in the exposed `public` schema do not have Row Level Security enabled.
+
+Chef does not use Supabase's generated PostgREST API as the application backend. The NestJS API is the only intended public application API, and Prisma owns database access.
+
+For that reason, public tables have RLS enabled without permissive anon/auth policies:
+
+- Supabase anonymous/browser clients should not read or mutate Chef tables directly.
+- The backend connects through the database URL and remains responsible for auth, ownership, and authorization.
+- If the app later uses Supabase Auth or direct browser reads, policies must be designed explicitly for that surface before exposing any table.
+
+Do not add broad policies such as `USING (true)` just to quiet dashboard warnings.

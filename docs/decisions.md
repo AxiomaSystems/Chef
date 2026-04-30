@@ -1078,3 +1078,4 @@ Implications:
 - Prisma migrations should be created and reviewed locally, then applied to Supabase with `migrate deploy`
 - destructive reset commands should not be run against Supabase
 - the longer-term Postgres schema hardening work remains separate from this infrastructure move
+- public tables should have RLS enabled without broad anon/auth policies because NestJS remains the public application API
