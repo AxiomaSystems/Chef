@@ -6,24 +6,10 @@ from uuid import uuid4
 
 from chef_vision.contracts import BoundingBox, Detection, FrameInput, FrameResult, ScanOptions
 from chef_vision.detectors.base import DetectorProvider
-from chef_vision.ontology import DEFAULT_BOXES, ONTOLOGY
+from chef_vision.ontology import MODEL_MAPPINGS, ONTOLOGY
 
 
-COCO_TO_ONTOLOGY = {
-    "apple": "apple",
-    "banana": "banana",
-    "bottle": "bottle",
-    "bowl": "container",
-    "carrot": "carrot",
-    "cup": "mug",
-    "orange": "unknown_kitchen_item",
-    "plate": "plate",
-    "sandwich": "unknown_kitchen_item",
-    "spoon": "utensil",
-    "fork": "utensil",
-    "knife": "utensil",
-    "wine glass": "ignore",
-}
+COCO_TO_ONTOLOGY = MODEL_MAPPINGS["coco"]
 
 
 class YoloDetector(DetectorProvider):
@@ -143,6 +129,8 @@ class YoloDetector(DetectorProvider):
                             height=round(max(0.0, min(1.0, (y2 - y1) / image_height)), 4),
                         ),
                         confidence=confidence,
+                        detector_label=raw_label,
+                        detector_confidence=confidence,
                     )
                 )
 

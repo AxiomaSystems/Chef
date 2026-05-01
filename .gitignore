@@ -29,6 +29,7 @@ apps/vision-lab/data/ingredient_training_dataset*/
 apps/vision-lab/data/ingredient_classifier_runs/
 apps/vision-lab/data/ingredient_detection_dataset*/
 apps/vision-lab/data/ingredient_detector_runs/
+apps/vision-lab/*.pt
 .claude/
 .vercel/
 docs-private/

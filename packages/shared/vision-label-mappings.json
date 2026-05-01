@@ -1,0 +1,285 @@
+{
+  "version": 1,
+  "notes": [
+    "Development mapping file for shared Chef vision labels.",
+    "Long-term canonical ingredients should live in the database; this file keeps the vision adapter, API, and UI contract aligned while the model pipeline is still evolving."
+  ],
+  "default_boxes": [
+    {
+      "x": 0.14,
+      "y": 0.18,
+      "width": 0.22,
+      "height": 0.38
+    },
+    {
+      "x": 0.42,
+      "y": 0.2,
+      "width": 0.2,
+      "height": 0.34
+    },
+    {
+      "x": 0.66,
+      "y": 0.24,
+      "width": 0.18,
+      "height": 0.28
+    },
+    {
+      "x": 0.22,
+      "y": 0.58,
+      "width": 0.26,
+      "height": 0.24
+    },
+    {
+      "x": 0.56,
+      "y": 0.56,
+      "width": 0.24,
+      "height": 0.3
+    }
+  ],
+  "classes": [
+    {
+      "id": "onion",
+      "label": "onion",
+      "aliases": ["onion", "yellow onion", "red onion"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "carrot",
+      "label": "carrot",
+      "aliases": ["carrot", "carrots"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "banana",
+      "label": "banana",
+      "aliases": ["banana", "bananas"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "apple",
+      "label": "apple",
+      "aliases": ["apple", "apples"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "tomato",
+      "label": "tomato",
+      "aliases": ["tomato", "tomatoes"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "broccoli",
+      "label": "broccoli",
+      "aliases": ["broccoli"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "cabbage",
+      "label": "cabbage",
+      "aliases": ["cabbage"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "orange",
+      "label": "orange",
+      "aliases": ["orange", "oranges"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "egg_carton",
+      "label": "egg carton",
+      "aliases": ["egg carton", "egg tray", "eggs"],
+      "category": "packaged_food",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "milk_carton",
+      "label": "milk carton",
+      "aliases": ["milk carton", "milk jug", "milk"],
+      "category": "packaged_food",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "cereal_box",
+      "label": "cereal box",
+      "aliases": ["cereal box", "cereal"],
+      "category": "packaged_food",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "rice_bag",
+      "label": "rice bag",
+      "aliases": ["rice bag", "bag of rice", "rice"],
+      "category": "packaged_food",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "flour_bag",
+      "label": "flour bag",
+      "aliases": ["flour bag", "bag of flour", "flour"],
+      "category": "packaged_food",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "spice_bottle",
+      "label": "spice bottle",
+      "aliases": ["spice bottle", "spice jar", "seasoning bottle"],
+      "category": "container",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "olive_oil_bottle",
+      "label": "olive oil bottle",
+      "aliases": ["olive oil bottle", "olive oil", "oil bottle"],
+      "category": "container",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "soda_can",
+      "label": "soda can",
+      "aliases": ["soda can", "can of soda", "soft drink can"],
+      "category": "packaged_food",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "bottle",
+      "label": "bottle",
+      "aliases": ["bottle", "water bottle"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "jar",
+      "label": "jar",
+      "aliases": ["jar", "glass jar"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "container",
+      "label": "container",
+      "aliases": ["container", "plastic container"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "leftovers_container",
+      "label": "leftovers container",
+      "aliases": [
+        "leftovers",
+        "leftovers container",
+        "meal prep container",
+        "food container"
+      ],
+      "category": "prepared_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "plate",
+      "label": "plate",
+      "aliases": ["plate", "dish"],
+      "category": "kitchenware",
+      "granularity": "generic",
+      "inventory_policy": "ignore",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "mug",
+      "label": "mug",
+      "aliases": ["mug", "cup"],
+      "category": "kitchenware",
+      "granularity": "generic",
+      "inventory_policy": "ignore",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "utensil",
+      "label": "utensil",
+      "aliases": ["utensil", "fork", "knife", "spoon"],
+      "category": "kitchenware",
+      "granularity": "generic",
+      "inventory_policy": "ignore",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "unknown_kitchen_item",
+      "label": "unknown kitchen item",
+      "aliases": ["unknown", "unknown kitchen item"],
+      "category": "unknown",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    }
+  ],
+  "model_mappings": {
+    "coco": {
+      "apple": "apple",
+      "banana": "banana",
+      "bottle": "bottle",
+      "broccoli": "broccoli",
+      "bowl": "container",
+      "carrot": "carrot",
+      "cup": "mug",
+      "fork": "utensil",
+      "knife": "utensil",
+      "orange": "orange",
+      "plate": "plate",
+      "sandwich": "unknown_kitchen_item",
+      "spoon": "utensil",
+      "wine glass": "ignore"
+    }
+  },
+  "pipeline_notes": [
+    "Stage 1 is detection only.",
+    "Use inventory_policy to route detections into add, review, or ignore workflows.",
+    "The shared mapping file is a transitional source of truth until the database owns the canonical ingredient ontology."
+  ]
+}

@@ -1,14 +1,14 @@
-export type VisionInventoryPolicy = 'track' | 'review' | 'ignore';
+export type VisionInventoryPolicy = "track" | "review" | "ignore";
 
-export type VisionLabelGranularity = 'exact' | 'generic';
+export type VisionLabelGranularity = "exact" | "generic";
 
 export type VisionClassCategory =
-  | 'produce'
-  | 'container'
-  | 'packaged_food'
-  | 'prepared_food'
-  | 'kitchenware'
-  | 'unknown';
+  | "produce"
+  | "container"
+  | "packaged_food"
+  | "prepared_food"
+  | "kitchenware"
+  | "unknown";
 
 export type VisionBoundingBox = {
   x: number;
@@ -26,7 +26,7 @@ export type VisionClassDefinition = {
   stage_1_enabled: boolean;
 };
 
-export type VisionPipelineStage = 'detection_only';
+export type VisionPipelineStage = "detection_only";
 
 export type VisionPipelineConfig = {
   provider: string;
@@ -68,6 +68,13 @@ export type VisionDetection = {
   inventory_policy: VisionInventoryPolicy;
   bbox: VisionBoundingBox;
   confidence: number;
+  detector_label?: string;
+  detector_confidence?: number;
+  classification_predictions?: {
+    label: string;
+    probability: number;
+  }[];
+  thumbnail_data_url?: string;
 };
 
 export type VisionFrameResult = {
@@ -75,6 +82,8 @@ export type VisionFrameResult = {
   frame_ref?: string;
   zone_id?: string;
   timestamp_ms?: number;
+  frame_image_data_url?: string;
+  annotated_image_data_url?: string;
   detections: VisionDetection[];
 };
 
@@ -98,4 +107,16 @@ export type VisionScanResponse = {
   pipeline: VisionPipelineConfig;
   frames: VisionFrameResult[];
   summary: VisionScanSummary;
+  classification?: {
+    enabled: boolean;
+    checkpoint?: string;
+    top_k?: number;
+    min_confidence?: number;
+    classified_detection_count?: number;
+    full_image_fallback_enabled?: boolean;
+    full_image_added_count?: number;
+    grid_fallback_enabled?: boolean;
+    grid_added_count?: number;
+    reason?: string;
+  };
 };

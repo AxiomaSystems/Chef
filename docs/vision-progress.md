@@ -15,6 +15,24 @@ That lab currently supports:
 - local runtime inventory persistence
 - provisional session tracking and distinct-instance estimation
 
+The product inventory page now has a first integrated test path for vision media:
+
+- live scan
+- photo upload
+- video upload
+- barcode as a separate action
+
+Photo/video/live scan are routed through the web API, Nest vision endpoint, and Python FastAPI sidecar. Results are grouped by item name, show crop thumbnails, show an annotated frame with boxes, expose top-k classifier choices, and require user review before adding to inventory.
+
+Current product scan policy:
+
+- Use YOLO object boxes as crop proposals.
+- Classify each crop with `resnet18_ingredient_crops_5000_modal_frozen_v2`.
+- Show top-k choices in a dropdown plus `Other`.
+- Keep grid fallback and full-image fallback disabled in the product app.
+
+Grid and full-image fallback are still useful in Streamlit, but they are lab diagnostics. They can hallucinate ingredients from arbitrary crop regions, so they should not create product inventory candidates right now.
+
 ## Current User Flows
 
 ### 1. Image Upload
@@ -116,6 +134,9 @@ The current lab now includes:
 - distinct-instance estimates
 - scan resolution into inventory statuses
 - one-time live-session inventory apply
+- Streamlit classifier testing with top-k crop predictions
+- product inventory modal with top-k correction dropdowns
+- development scan payload debugging through `window.__chefLastVisionScan`
 
 ## What Is Still Weak
 
@@ -146,6 +167,8 @@ The system is now a usable prototype for inventory-aware computer vision workflo
 1. Persist scan sessions as first-class saved artifacts instead of only ephemeral UI state.
 2. Add a scan history panel so past image/video/live sessions can be reopened and reviewed.
 3. Make the live scan review surface match the video review surface more closely.
+4. Store user label corrections as evaluation/training feedback instead of only one-off UI choices.
+5. Disable add buttons for non-inventory detections unless the user manually maps them to a food item.
 
 ### Near-Term Vision Steps
 
@@ -153,6 +176,7 @@ The system is now a usable prototype for inventory-aware computer vision workflo
 2. Improve same-class nearby object handling for crowded frames.
 3. Tune track heuristics for short kitchen scans.
 4. Add per-track thumbnails or best-frame previews.
+5. Keep product fallback policy conservative: YOLO boxes only until ingredient-aware detection is stronger.
 
 ### Medium-Term Model Steps
 
@@ -160,9 +184,12 @@ The system is now a usable prototype for inventory-aware computer vision workflo
 2. Fine-tune detection on the highest-value kitchen classes.
 3. Add stronger packaged-food recognition later through OCR/barcode.
 4. Add embedding-based re-identification for duplicate resolution across larger time gaps.
+5. Expand training images to cover jars, half-cut items, overhead views, cluttered counters, fridge shelves, repeated items, and weak herb/leafy classes.
+6. Compare generic `yolo11n.pt` against the Modal-trained ingredient detector before promoting a detector checkpoint to the product app.
 
 ### Integration Steps
 
-1. Decide when the product should call a Python FastAPI vision service instead of the current mock Nest vision boundary.
+1. Keep hardening the product-to-Python FastAPI media path behind the Nest vision boundary.
 2. Replace local JSON inventory with a product-facing persistence path.
 3. Define scan session contracts that the main backend can own.
+4. Move the canonical ontology into the database when ingredient mapping stabilizes; keep `packages/shared/vision-label-mappings.json` as the shared development bridge for now.

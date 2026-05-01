@@ -60,6 +60,12 @@ class ScanOptions:
 
 
 @dataclass(slots=True)
+class ClassificationPrediction:
+    label: str
+    probability: float
+
+
+@dataclass(slots=True)
 class Detection:
     observation_id: str
     class_id: str
@@ -69,6 +75,9 @@ class Detection:
     inventory_policy: VisionInventoryPolicy
     bbox: BoundingBox
     confidence: float
+    detector_label: str | None = None
+    detector_confidence: float | None = None
+    classification_predictions: list[ClassificationPrediction] = field(default_factory=list)
 
 
 @dataclass(slots=True)

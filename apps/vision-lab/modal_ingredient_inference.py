@@ -11,7 +11,7 @@ import modal
 APP_NAME = "chef-ingredient-inference"
 VOLUME_NAME = "chef-ingredient-vision-data"
 VOL_MOUNT = PurePosixPath("/mnt/chef-vision")
-DEFAULT_RUN_NAME = "resnet18_ingredient_crops_5000_modal_frozen"
+DEFAULT_RUN_NAME = "resnet18_ingredient_crops_5000_modal_frozen_v2"
 
 
 volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)

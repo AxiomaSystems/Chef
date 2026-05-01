@@ -64,6 +64,22 @@ The Nest side is still a contract-first boundary. Its current provider is a mock
 
 That means the response shape, ontology, and summary logic are already usable by frontend and resolver work even before the product starts calling a real Python vision service.
 
+The product path can now also proxy real media scans:
+
+```text
+Next inventory UI
+  -> /api/vision/analyze
+  -> Nest /api/v1/vision/detect/media
+  -> Python FastAPI sidecar
+  -> YOLO object crop proposals
+  -> crop classifier top-k predictions
+  -> grouped detections, crop thumbnails, top-k picker, and annotated frame
+```
+
+The UI remains a review workflow. It shows the user what was found and lets them add selected items instead of automatically writing raw detections into inventory.
+
+The product app currently disables grid fallback and full-image fallback. Those modes remain in Streamlit for diagnosis, but they produced false inventory candidates in product testing because arbitrary image regions can be classified as plausible food labels.
+
 The Python vision lab mirrors that same stage-1 shape and then extends it with actual local detection/review flows so we can prototype in Python first and then either:
 
 - keep Nest as a thin proxy/integration layer, or
@@ -84,6 +100,7 @@ The Python lab currently extends that basic detection-only path with:
 ```text
 image | video | live stream
   -> YOLO detections
+  -> optional classifier crop ranking
   -> provisional tracks
   -> distinct-instance estimates
   -> resolved items
@@ -111,6 +128,14 @@ Stage 1 uses three action classes instead of treating every label the same:
 
 This keeps the detection layer simple while still giving downstream services the signal they need.
 
+The shared development mapping lives at:
+
+```text
+packages/shared/vision-label-mappings.json
+```
+
+That file currently keeps the API and Python adapter aligned for stage-1 classes, aliases, inventory policy, default mock boxes, and COCO-to-Chef label mappings. The long-term source of truth should be the database; the JSON file is the current bridge while the detector and UI are still changing.
+
 ## Current Overlay Semantics
 
 The Python lab currently uses inventory-aware overlay colors:
@@ -131,3 +156,23 @@ The most important current limitation is that inventory matching is still mostly
 - video scans do better than live because they also use provisional tracks and distinct-instance estimation
 
 This is useful for product iteration, but it is not yet the final object identity system.
+
+Another important caveat: classification is only as good as the crop proposal. If generic YOLO returns `container`, the classifier may still identify the crop as `basmati rice`, but if YOLO misses parsley entirely then the classifier never sees parsley. The next architecture improvement is an ingredient-aware detector trained from the imported XML boxes and evaluated against the current generic `yolo11n.pt` baseline.
+
+## Current Local Dev Stack
+
+Preferred local command:
+
+```powershell
+pnpm dev
+```
+
+Expected services:
+
+```text
+web: http://localhost:3000
+api: http://localhost:3001
+vision sidecar: http://localhost:8000
+```
+
+If a scan response is stale or missing `classification`, check for duplicate Python sidecars on port `8000`. If the backend reports `EADDRINUSE` on `3001`, an older API process is already running.

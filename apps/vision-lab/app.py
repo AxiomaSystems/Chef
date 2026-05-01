@@ -29,7 +29,7 @@ from sample_frames import SAMPLE_FRAME_REFS, SAMPLE_SCENARIOS
 APP_DIR = Path(__file__).resolve().parent
 INVENTORY_PATH = ensure_inventory_store(APP_DIR / "data" / "runtime_inventory.json")
 CLASSIFIER_RUNS_DIR = APP_DIR / "data" / "ingredient_classifier_runs"
-DEFAULT_CLASSIFIER_RUN = "resnet18_ingredient_crops_5000_modal_frozen"
+DEFAULT_CLASSIFIER_RUN = "resnet18_ingredient_crops_5000_modal_frozen_v2"
 
 st.set_page_config(page_title="Chef Vision Lab", layout="wide")
 
