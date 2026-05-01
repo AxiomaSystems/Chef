@@ -88,11 +88,11 @@ export class VisionFrameResultResponseDto {
   frame_id!: number;
 
   @ApiPropertyOptional({
-    example: 'closet_left_top olive oil bottle spice bottle plate',
+    example: 'pantry left shelf olive oil bottle egg carton plate',
   })
   frame_ref?: string;
 
-  @ApiPropertyOptional({ example: 'closet_left_top' })
+  @ApiPropertyOptional({ example: 'pantry_left_shelf' })
   zone_id?: string;
 
   @ApiPropertyOptional({ example: 1333 })
@@ -148,9 +148,7 @@ export class VisionPipelineConfigResponseDto {
   supported_classes!: VisionClassDefinitionResponseDto[];
 
   @ApiProperty({
-    example: [
-      'Stage 1 is closed-set detection only. Tracking, embeddings, OCR, and DINO-style fallback are intentionally off.',
-    ],
+    example: ['Stage 1 is closed-set detection only.'],
   })
   notes!: string[];
 }
