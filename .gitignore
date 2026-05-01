@@ -31,5 +31,6 @@ apps/vision-lab/data/ingredient_detection_dataset*/
 apps/vision-lab/data/ingredient_detector_runs/
 .claude/
 .vercel/
+docs-private/
 
 .vercel

@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -24,6 +25,7 @@ import {
   ApiDeleteShoppingCart,
   ApiGetCart,
   ApiGetCartDraft,
+  ApiGetIngredientReview,
   ApiGetShoppingCart,
   ApiListCartDrafts,
   ApiListCarts,
@@ -32,6 +34,7 @@ import {
   ApiSearchRetailerProducts,
   ApiUpdateCart,
   ApiUpdateCartDraft,
+  ApiUpdateIngredientReview,
   ApiUpdateShoppingCart,
 } from './cart.swagger';
 import { CartService } from './cart.service';
@@ -39,6 +42,7 @@ import { CreateCartDraftDto } from './dto/create-cart-draft.dto';
 import { CreateCartDto } from './dto/create-cart.dto';
 import { CreateRestockCartDto } from './dto/create-restock-cart.dto';
 import { CreateShoppingCartDto } from './dto/create-shopping-cart.dto';
+import { UpdateIngredientReviewDto } from './dto/update-ingredient-review.dto';
 import { UpdateCartDraftDto } from './dto/update-cart-draft.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
 import { UpdateShoppingCartDto } from './dto/update-shopping-cart.dto';
@@ -163,6 +167,29 @@ export class CartController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.cartService.findCart(id, user.sub);
+  }
+
+  @Get('carts/:id/ingredient-review')
+  @UseGuards(RequestActorGuard)
+  @ApiCartController('carts')
+  @ApiGetIngredientReview()
+  getIngredientReview(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.cartService.getIngredientReview(id, user.sub);
+  }
+
+  @Put('carts/:id/ingredient-review')
+  @UseGuards(RequestActorGuard)
+  @ApiCartController('carts')
+  @ApiUpdateIngredientReview()
+  updateIngredientReview(
+    @Param('id') id: string,
+    @Body() input: UpdateIngredientReviewDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.cartService.updateIngredientReview(id, input, user.sub);
   }
 
   @Post('carts/:cartId/shopping-carts')

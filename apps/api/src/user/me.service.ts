@@ -6,12 +6,31 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type {
+  AvailableAppliance,
+  BiggestCookingFrustration,
+  CalorieTrackingMode,
   CheckoutProfile,
+  CookingSkillLevel,
+  DislikedIngredient,
+  DislikedTexture,
+  FavoriteFlavor,
+  FavoriteProtein,
+  GoalPriority,
+  HouseholdSize,
+  KidsProfile,
   PaymentCard,
+  PreferredCookingTime,
+  PreferredStore,
+  RecipeDiscoverySource,
   SavedAddress,
+  ShoppingMode,
+  SpiceLevel,
+  TypicalMealTime,
   UserPreferences,
   UserStats,
+  WeeklyBudget,
 } from '@cart/shared';
+import { Prisma } from '../../generated/prisma/index.js';
 import { PasswordHasherService } from '../auth/password-hasher.service';
 import { mapCuisine } from '../cuisines/cuisines.mapper';
 import { PrismaService } from '../prisma/prisma.service';
@@ -48,6 +67,30 @@ export class MeService {
     }
   }
 
+  private normalizeJsonStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value
+      .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+      .filter(Boolean);
+  }
+
+  private normalizeControlledArray(values?: string[]): string[] {
+    if (!values) {
+      return [];
+    }
+
+    return Array.from(
+      new Set(values.map((value) => value.trim()).filter(Boolean)),
+    );
+  }
+
+  private buildJsonArrayInput(values?: string[]): Prisma.InputJsonValue {
+    return this.normalizeControlledArray(values);
+  }
+
   private mapPreferences(input: {
     user: {
       preferredZipCode: string | null;
@@ -55,6 +98,24 @@ export class MeService {
       preferredLatitude: number | null;
       preferredLongitude: number | null;
       preferredKrogerLocationId: string | null;
+      householdSize: string | null;
+      kidsProfile: string | null;
+      favoriteProteins: unknown;
+      favoriteFlavors: unknown;
+      spiceLevel: string | null;
+      dislikedIngredients: unknown;
+      dislikedTextures: unknown;
+      cookingSkillLevel: string | null;
+      availableAppliances: unknown;
+      preferredCookingTime: string | null;
+      typicalMealTimes: unknown;
+      goalPriorities: unknown;
+      calorieTrackingMode: string | null;
+      weeklyBudget: string | null;
+      preferredStores: unknown;
+      shoppingMode: string | null;
+      recipeDiscoverySources: unknown;
+      biggestCookingFrustration: string | null;
     };
     preferredCuisines: Array<{
       cuisine: Parameters<typeof mapCuisine>[0];
@@ -90,6 +151,59 @@ export class MeService {
                 input.user.preferredKrogerLocationId ?? undefined,
             }
           : undefined,
+      household_size: (input.user.householdSize ?? undefined) as
+        | HouseholdSize
+        | undefined,
+      kids_profile: (input.user.kidsProfile ?? undefined) as
+        | KidsProfile
+        | undefined,
+      favorite_proteins: this.normalizeJsonStringArray(
+        input.user.favoriteProteins,
+      ) as FavoriteProtein[],
+      favorite_flavors: this.normalizeJsonStringArray(
+        input.user.favoriteFlavors,
+      ) as FavoriteFlavor[],
+      spice_level: (input.user.spiceLevel ?? undefined) as
+        | SpiceLevel
+        | undefined,
+      disliked_ingredients: this.normalizeJsonStringArray(
+        input.user.dislikedIngredients,
+      ) as DislikedIngredient[],
+      disliked_textures: this.normalizeJsonStringArray(
+        input.user.dislikedTextures,
+      ) as DislikedTexture[],
+      cooking_skill_level: (input.user.cookingSkillLevel ?? undefined) as
+        | CookingSkillLevel
+        | undefined,
+      available_appliances: this.normalizeJsonStringArray(
+        input.user.availableAppliances,
+      ) as AvailableAppliance[],
+      preferred_cooking_time: (input.user.preferredCookingTime ?? undefined) as
+        | PreferredCookingTime
+        | undefined,
+      typical_meal_times: this.normalizeJsonStringArray(
+        input.user.typicalMealTimes,
+      ) as TypicalMealTime[],
+      goal_priorities: this.normalizeJsonStringArray(
+        input.user.goalPriorities,
+      ) as GoalPriority[],
+      calorie_tracking_mode: (input.user.calorieTrackingMode ?? undefined) as
+        | CalorieTrackingMode
+        | undefined,
+      weekly_budget: (input.user.weeklyBudget ?? undefined) as
+        | WeeklyBudget
+        | undefined,
+      preferred_stores: this.normalizeJsonStringArray(
+        input.user.preferredStores,
+      ) as PreferredStore[],
+      shopping_mode: (input.user.shoppingMode ?? undefined) as
+        | ShoppingMode
+        | undefined,
+      recipe_discovery_sources: this.normalizeJsonStringArray(
+        input.user.recipeDiscoverySources,
+      ) as RecipeDiscoverySource[],
+      biggest_cooking_frustration: (input.user.biggestCookingFrustration ??
+        undefined) as BiggestCookingFrustration | undefined,
     };
   }
 
@@ -113,7 +227,10 @@ export class MeService {
       label: String(address.label).trim(),
       street: String(address.street).trim(),
       city: String(address.city).trim(),
-      state: String(address.state ?? '').trim().toUpperCase().slice(0, 2),
+      state: String(address.state ?? '')
+        .trim()
+        .toUpperCase()
+        .slice(0, 2),
       zip: String(address.zip).trim(),
       isDefault: Boolean(address.isDefault),
     }));
@@ -334,6 +451,24 @@ export class MeService {
           preferredLatitude: true,
           preferredLongitude: true,
           preferredKrogerLocationId: true,
+          householdSize: true,
+          kidsProfile: true,
+          favoriteProteins: true,
+          favoriteFlavors: true,
+          spiceLevel: true,
+          dislikedIngredients: true,
+          dislikedTextures: true,
+          cookingSkillLevel: true,
+          availableAppliances: true,
+          preferredCookingTime: true,
+          typicalMealTimes: true,
+          goalPriorities: true,
+          calorieTrackingMode: true,
+          weeklyBudget: true,
+          preferredStores: true,
+          shoppingMode: true,
+          recipeDiscoverySources: true,
+          biggestCookingFrustration: true,
         },
       }),
       this.prisma.userPreferredCuisine.findMany({
@@ -353,7 +488,10 @@ export class MeService {
     await this.findUserOrThrow(userId);
 
     const rows = await this.prisma.$queryRawUnsafe<
-      Array<{ savedAddressesJson: string | null; paymentCardsJson: string | null }>
+      Array<{
+        savedAddressesJson: string | null;
+        paymentCardsJson: string | null;
+      }>
     >(
       `
         SELECT
@@ -398,7 +536,9 @@ export class MeService {
     }
 
     if (tags.length !== input.preferred_tag_ids.length) {
-      throw new BadRequestException('One or more preferred_tag_ids are invalid');
+      throw new BadRequestException(
+        'One or more preferred_tag_ids are invalid',
+      );
     }
 
     const nonSystemTag = tags.find((tag) => tag.scope !== 'system');
@@ -426,6 +566,30 @@ export class MeService {
           preferredLatitude: normalizedLatitude,
           preferredLongitude: normalizedLongitude,
           preferredKrogerLocationId: normalizedKrogerLocationId,
+          householdSize: input.household_size ?? null,
+          kidsProfile: input.kids_profile ?? null,
+          favoriteProteins: this.buildJsonArrayInput(input.favorite_proteins),
+          favoriteFlavors: this.buildJsonArrayInput(input.favorite_flavors),
+          spiceLevel: input.spice_level ?? null,
+          dislikedIngredients: this.buildJsonArrayInput(
+            input.disliked_ingredients,
+          ),
+          dislikedTextures: this.buildJsonArrayInput(input.disliked_textures),
+          cookingSkillLevel: input.cooking_skill_level ?? null,
+          availableAppliances: this.buildJsonArrayInput(
+            input.available_appliances,
+          ),
+          preferredCookingTime: input.preferred_cooking_time ?? null,
+          typicalMealTimes: this.buildJsonArrayInput(input.typical_meal_times),
+          goalPriorities: this.buildJsonArrayInput(input.goal_priorities),
+          calorieTrackingMode: input.calorie_tracking_mode ?? null,
+          weeklyBudget: input.weekly_budget ?? null,
+          preferredStores: this.buildJsonArrayInput(input.preferred_stores),
+          shoppingMode: input.shopping_mode ?? null,
+          recipeDiscoverySources: this.buildJsonArrayInput(
+            input.recipe_discovery_sources,
+          ),
+          biggestCookingFrustration: input.biggest_cooking_frustration ?? null,
         },
       }),
       this.prisma.userPreferredCuisine.deleteMany({

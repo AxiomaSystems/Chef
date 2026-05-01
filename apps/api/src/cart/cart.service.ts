@@ -7,10 +7,12 @@ import {
 import type {
   Cart,
   AggregatedIngredient,
+  IngredientReview,
   MatchedIngredientProduct,
   Retailer,
   RetailerProductSearchResponse,
   ShoppingCart,
+  UpdateIngredientReviewItemRequest,
 } from '@cart/shared';
 import { AggregationService } from '../aggregation/aggregation.service';
 import { CartExportService } from '../cart-export/cart-export.service';
@@ -28,6 +30,7 @@ import {
 import { CreateCartDraftDto } from './dto/create-cart-draft.dto';
 import { CreateCartDto } from './dto/create-cart.dto';
 import { CreateShoppingCartDto } from './dto/create-shopping-cart.dto';
+import { UpdateIngredientReviewDto } from './dto/update-ingredient-review.dto';
 import { UpdateCartDraftDto } from './dto/update-cart-draft.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
 import { UpdateShoppingCartDto } from './dto/update-shopping-cart.dto';
@@ -205,6 +208,114 @@ export class CartService {
     return this.withCartOverview(cart);
   }
 
+  async getIngredientReview(
+    cartId: string,
+    actorUserId?: string,
+  ): Promise<IngredientReview> {
+    const actor = await this.userContextService.resolveActorUser(actorUserId);
+    const cart = await this.cartPersistenceService.findCartById(actor.id, cartId);
+
+    if (!cart) {
+      throw new NotFoundException(`Cart ${cartId} not found`);
+    }
+
+    const persisted =
+      await this.cartPersistenceService.findIngredientReviewByCartId(
+        actor.id,
+        cartId,
+      );
+    const overview = await this.withKitchenInventory(
+      actor.id,
+      this.aggregationService.compute(cart.dishes).overview,
+    );
+
+    return {
+      cart_id: cartId,
+      items: this.applyIngredientReview(overview, persisted?.items ?? []).map(
+        (ingredient) => ({
+          canonical_ingredient: ingredient.canonical_ingredient,
+          total_amount: ingredient.reviewed_amount ?? ingredient.total_amount,
+          unit: ingredient.reviewed_unit ?? ingredient.unit,
+          source_dishes: ingredient.source_dishes,
+          action: ingredient.review_action ?? 'buy',
+          adjusted_amount: ingredient.reviewed_amount,
+          adjusted_unit: ingredient.reviewed_unit,
+        }),
+      ),
+      created_at: persisted?.created_at,
+      updated_at: persisted?.updated_at,
+    };
+  }
+
+  async updateIngredientReview(
+    cartId: string,
+    input: UpdateIngredientReviewDto,
+    actorUserId?: string,
+  ): Promise<IngredientReview> {
+    const actor = await this.userContextService.resolveActorUser(actorUserId);
+    const cart = await this.cartPersistenceService.findCartById(actor.id, cartId);
+
+    if (!cart) {
+      throw new NotFoundException(`Cart ${cartId} not found`);
+    }
+
+    const overview = await this.withKitchenInventory(
+      actor.id,
+      this.aggregationService.compute(cart.dishes).overview,
+    );
+    const reviewInputs = new Map(
+      input.items.map((item) => [this.buildIngredientReviewKey(item), item]),
+    );
+
+    for (const item of input.items) {
+      if (item.action === 'adjust' && item.adjusted_amount === undefined) {
+        throw new BadRequestException(
+          'adjusted_amount is required when action is adjust.',
+        );
+      }
+    }
+
+    const items = overview.map((ingredient) => {
+      const reviewInput = reviewInputs.get(
+        this.buildIngredientReviewKey(ingredient),
+      );
+      const action = reviewInput?.action ?? 'buy';
+      const item: IngredientReview['items'][number] = {
+        canonical_ingredient: ingredient.canonical_ingredient,
+        total_amount: ingredient.total_amount,
+        unit: ingredient.unit,
+        source_dishes: ingredient.source_dishes,
+        action,
+      };
+
+      if (action === 'adjust') {
+        item.adjusted_amount = reviewInput?.adjusted_amount;
+        if (reviewInput?.adjusted_unit) {
+          item.adjusted_unit = reviewInput.adjusted_unit;
+        }
+      }
+
+      return item;
+    });
+    const knownKeys = new Set(
+      overview.map((item) => this.buildIngredientReviewKey(item)),
+    );
+    const unknownItem = input.items.find(
+      (item) => !knownKeys.has(this.buildIngredientReviewKey(item)),
+    );
+
+    if (unknownItem) {
+      throw new BadRequestException(
+        `Ingredient ${unknownItem.canonical_ingredient} (${unknownItem.unit}) is not in cart ${cartId}.`,
+      );
+    }
+
+    return this.cartPersistenceService.upsertIngredientReview({
+      cartId,
+      items,
+    });
+  }
+
   async createShoppingCart(
     cartId: string,
     input: CreateShoppingCartDto,
@@ -222,7 +333,21 @@ export class CartService {
       actor.id,
       this.aggregationService.compute(cart.dishes).overview,
     );
-    const ingredientsToBuy = computation.filter((ingredient) => !ingredient.in_kitchen);
+    const persistedReview =
+      await this.cartPersistenceService.findIngredientReviewByCartId(
+        actor.id,
+        cartId,
+      );
+    const reviewedComputation = this.applyIngredientReview(
+      computation,
+      persistedReview?.items ?? [],
+    );
+    const ingredientsToBuy = reviewedComputation.filter(
+      (ingredient) =>
+        !ingredient.in_kitchen &&
+        ingredient.review_action !== 'already_have' &&
+        ingredient.review_action !== 'skip',
+    );
     const searchContext = this.buildRetailerSearchContext(
       input.retailer,
       actor.preferredZipCode,
@@ -254,7 +379,7 @@ export class CartService {
       cartId,
       shoppingCart: buildShoppingCartResponse({
         cartId,
-        overview: computation,
+        overview: reviewedComputation,
         matchedItems,
         estimatedSubtotal,
         retailer: input.retailer,
@@ -397,6 +522,64 @@ export class CartService {
         this.ingredientsService.normalizeSlug(ingredient.canonical_ingredient),
       ),
     }));
+  }
+
+  private applyIngredientReview(
+    overview: AggregatedIngredient[],
+    reviewItems: IngredientReview['items'],
+  ): AggregatedIngredient[] {
+    const reviewByIngredient = new Map(
+      reviewItems.map((item) => [this.buildIngredientReviewKey(item), item]),
+    );
+
+    return overview.map((ingredient) => {
+      const review = reviewByIngredient.get(
+        this.buildIngredientReviewKey(ingredient),
+      );
+      if (!review) {
+        return {
+          ...ingredient,
+          review_action: 'buy',
+        };
+      }
+
+      if (review.action === 'already_have') {
+        return {
+          ...ingredient,
+          in_kitchen: true,
+          review_action: review.action,
+        };
+      }
+
+      if (review.action === 'adjust') {
+        const reviewedAmount = review.adjusted_amount ?? ingredient.total_amount;
+        const reviewedUnit = review.adjusted_unit?.trim() || ingredient.unit;
+
+        return {
+          ...ingredient,
+          total_amount: reviewedAmount,
+          unit: reviewedUnit,
+          review_action: review.action,
+          reviewed_amount: reviewedAmount,
+          reviewed_unit: reviewedUnit,
+        };
+      }
+
+      return {
+        ...ingredient,
+        review_action: review.action,
+      };
+    });
+  }
+
+  private buildIngredientReviewKey(
+    item:
+      | Pick<AggregatedIngredient, 'canonical_ingredient' | 'unit'>
+      | Pick<UpdateIngredientReviewItemRequest, 'canonical_ingredient' | 'unit'>,
+  ): string {
+    return `${item.canonical_ingredient.trim().toLowerCase()}::${item.unit
+      .trim()
+      .toLowerCase()}`;
   }
 
   private buildRetailerSearchContext(

@@ -1,5 +1,6 @@
 import type {
   Cart,
+  IngredientReview,
   CartSelection,
   ShoppingCart,
   ShoppingCartHistorySummary,
@@ -19,6 +20,8 @@ export type PersistedCart = Cart & {
   id: string;
   user_id: string;
 };
+
+export type PersistedIngredientReview = IngredientReview;
 
 export type CreateCartDraftPersistenceInput = {
   userId: string;
@@ -46,6 +49,11 @@ export type UpdateCartPersistenceInput = {
   retailer?: string;
   selections?: CartSelection[];
   dishes?: Cart['dishes'];
+};
+
+export type UpsertIngredientReviewPersistenceInput = {
+  cartId: string;
+  items: IngredientReview['items'];
 };
 
 export type PersistedShoppingCart = ShoppingCart & {

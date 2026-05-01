@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { VisionPipelineConfig, VisionScanRequest, VisionScanResponse } from '@cart/shared';
+import type {
+  VisionPipelineConfig,
+  VisionScanRequest,
+  VisionScanResponse,
+} from '@cart/shared';
 import { buildVisionPipelineConfig } from './vision.constants';
 import { MockVisionDetectorProvider } from './mock-vision-detector.provider';
 
@@ -40,7 +44,7 @@ export class VisionService {
         ignored_detection_count: detections.filter(
           (detection) => detection.inventory_policy === 'ignore',
         ).length,
-        detected_labels,
+        detected_labels: detectedLabels,
       },
     };
   }

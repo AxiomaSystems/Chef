@@ -1,11 +1,12 @@
-import { fetchAuthedCollection, fetchCollection } from "@/lib/api";
-import type { Cuisine, Tag } from "@cart/shared";
+import { fetchAuthedCollection, fetchAuthedResource, fetchCollection } from "@/lib/api";
+import type { Cuisine, Tag, UserPreferences } from "@cart/shared";
 import { OnboardingClient } from "./onboarding-client";
 
 export default async function OnboardingPage() {
-  const [cuisinesResult, tagsResult] = await Promise.all([
+  const [cuisinesResult, tagsResult, preferencesResult] = await Promise.all([
     fetchCollection<Cuisine>("/cuisines"),
     fetchAuthedCollection<Tag>("/tags"),
+    fetchAuthedResource<UserPreferences>("/me/preferences"),
   ]);
 
   const dietaryTags = tagsResult.data.filter(
@@ -16,6 +17,7 @@ export default async function OnboardingPage() {
     <OnboardingClient
       cuisines={cuisinesResult.data}
       dietaryTags={dietaryTags}
+      existingPreferences={preferencesResult.data}
     />
   );
 }

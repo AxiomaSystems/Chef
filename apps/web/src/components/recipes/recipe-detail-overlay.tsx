@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { BaseRecipe } from "@cart/shared";
 import { RecipeImage } from "../ui/recipe-image";
@@ -8,12 +8,6 @@ import { deleteRecipeAction } from "@/app/home-actions";
 
 function getDietaryBadges(recipe: BaseRecipe) {
   return recipe.tags.filter((tag) => tag.kind === "dietary_badge").slice(0, 4);
-}
-
-function formatElapsed(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
 }
 
 function splitStepCopy(copy: string) {
@@ -69,48 +63,12 @@ function RecipeDetailOverlayContent({
   const [deleteError, setDeleteError] = useState<string | undefined>();
   const [, startDelete] = useTransition();
   const [deleting, setDeleting] = useState(false);
-  const [prepStarted] = useState(false);
-  const [activeStep, setActiveStep] = useState(0);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-
-  useEffect(() => {
-    if (!prepStarted) return;
-
-    const interval = window.setInterval(() => {
-      setElapsedSeconds((current) => current + 1);
-    }, 1000);
-
-    return () => window.clearInterval(interval);
-  }, [prepStarted]);
 
   const currentRecipe = recipe;
   const badges = getDietaryBadges(currentRecipe);
   const nutrition = currentRecipe.nutrition_data ?? {};
   const canEdit = !!currentRecipe.owner_user_id && !currentRecipe.is_system_recipe;
   const hasSteps = currentRecipe.steps.length > 0;
-  const currentStep = currentRecipe.steps[activeStep] ?? null;
-  const statCards = [
-    {
-      label: "Calories",
-      value: nutrition.calories ? `${nutrition.calories}` : "--",
-      eyebrow: "Energy",
-    },
-    {
-      label: "Protein",
-      value: nutrition.protein_g ? `${nutrition.protein_g}g` : "--",
-      eyebrow: "Balance",
-    },
-    {
-      label: "Servings",
-      value: `${currentRecipe.servings}`,
-      eyebrow: "Yield",
-    },
-    {
-      label: "Carbs",
-      value: nutrition.carbs_g ? `${nutrition.carbs_g}g` : "--",
-      eyebrow: "Fuel",
-    },
-  ];
 
   function handleDelete() {
     setDeleteError(undefined);
@@ -186,22 +144,31 @@ function RecipeDetailOverlayContent({
           </div>
         </div>
 
-        <div className="border-b border-[#ecdfd2] bg-white px-4 py-4 sm:px-6">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {statCards.map((card) => (
-              <div
-                key={card.label}
-                className="rounded-[1.35rem] border border-[#efdfd2] bg-[#fffaf5] px-4 py-4 shadow-[0_8px_24px_rgba(97,58,29,0.04)]"
-              >
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-outline">
-                  {card.eyebrow}
-                </p>
-                <p className="mt-2 text-[2rem] font-black leading-none text-on-surface">
-                  {card.value}
-                </p>
-                <p className="mt-1 text-sm text-on-surface-variant">{card.label}</p>
-              </div>
-            ))}
+        <div className="border-b border-[#ecdfd2] bg-white px-6 py-3">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            {nutrition.calories && (
+              <span className="text-sm text-on-surface-variant">
+                <span className="font-semibold text-on-surface">{nutrition.calories}</span> kcal
+              </span>
+            )}
+            {nutrition.protein_g && (
+              <span className="text-sm text-on-surface-variant">
+                <span className="font-semibold text-on-surface">{nutrition.protein_g}g</span> protein
+              </span>
+            )}
+            {nutrition.carbs_g && (
+              <span className="text-sm text-on-surface-variant">
+                <span className="font-semibold text-on-surface">{nutrition.carbs_g}g</span> carbs
+              </span>
+            )}
+            {nutrition.fat_g && (
+              <span className="text-sm text-on-surface-variant">
+                <span className="font-semibold text-on-surface">{nutrition.fat_g}g</span> fat
+              </span>
+            )}
+            <span className="text-sm text-on-surface-variant">
+              <span className="font-semibold text-on-surface">{currentRecipe.servings}</span> servings
+            </span>
           </div>
         </div>
 
@@ -209,14 +176,9 @@ function RecipeDetailOverlayContent({
           <div className="grid min-h-0 grid-cols-1 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)]">
             <div className="space-y-6 border-b border-[#ecdfd2] bg-[#fffdfa] p-6 sm:p-8 xl:border-b-0 xl:border-r">
               <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-[2rem] font-bold tracking-tight text-on-surface">
-                    Ingredients
-                  </h3>
-                  <p className="mt-1 text-sm text-outline">
-                    Everything you need for the full dish.
-                  </p>
-                </div>
+                <h3 className="text-[1.6rem] font-bold tracking-tight text-on-surface">
+                  Ingredients
+                </h3>
                 <span className="rounded-full bg-[#fff1e4] px-3 py-1.5 text-label-sm font-semibold text-primary">
                   {currentRecipe.ingredients.length} items
                 </span>
@@ -228,7 +190,7 @@ function RecipeDetailOverlayContent({
                     key={`${ingredient.canonical_ingredient}-${index}`}
                     className="flex items-start gap-3 rounded-[1.4rem] border border-[#efe2d6] bg-white px-4 py-3.5 shadow-[0_10px_30px_rgba(137,80,50,0.04)]"
                   >
-                    <span className="mt-2 h-2.5 w-2.5 flex-shrink-0 rounded-full bg-[#e2cbbd]" />
+                    <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-[#e2cbbd]" />
 
                     <div className="min-w-0 flex-1">
                       <p className="text-body-sm font-medium text-on-surface">
@@ -247,176 +209,40 @@ function RecipeDetailOverlayContent({
                 ))}
               </div>
 
-              {Object.values(nutrition).some(Boolean) && (
-                <div className="rounded-[1.75rem] border border-[#efdfd2] bg-white p-5 shadow-sm">
-                  <div className="mb-4">
-                    <h4 className="text-lg font-bold text-on-surface">Nutrition</h4>
-                    <p className="mt-1 text-sm text-outline">
-                      Estimated per serving.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {[
-                      ["Calories", nutrition.calories, ""],
-                      ["Protein", nutrition.protein_g, "g"],
-                      ["Carbs", nutrition.carbs_g, "g"],
-                      ["Fat", nutrition.fat_g, "g"],
-                      ["Fiber", nutrition.fiber_g, "g"],
-                      ["Sodium", nutrition.sodium_mg, "mg"],
-                    ]
-                      .filter(([, value]) => value !== undefined && value !== null)
-                      .map(([label, value, unit]) => (
-                        <div key={String(label)} className="rounded-[1rem] bg-[#fffaf5] p-3">
-                          <p className="text-[10px] uppercase tracking-[0.14em] text-outline">
-                            {String(label)}
-                          </p>
-                          <p className="mt-1 text-lg font-bold text-on-surface">
-                            {String(value)}
-                            {String(unit)}
-                          </p>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="space-y-6 bg-[radial-gradient(circle_at_top_right,rgba(243,148,71,0.12),transparent_24%),linear-gradient(180deg,#fffdfa_0%,#fff8f2_100%)] p-6 sm:p-8">
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-[2rem] font-bold tracking-tight text-on-surface">
-                      Preparation
-                    </h3>
-                    {prepStarted && (
-                      <span className="rounded-full bg-primary-fixed-dim/15 px-3 py-1.5 text-label-sm font-semibold text-primary">
-                        In progress
-                      </span>
-                    )}
-                  </div>
-                  <p className="max-w-xl text-body-sm leading-7 text-on-surface-variant">
-                    Step through the recipe with a focused current action, visible
-                    progress, and a timer that feels ready for the kitchen.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 rounded-[1.75rem] border border-[#efdfd2] bg-white/90 p-4 shadow-sm">
-                  <div className="rounded-[1.25rem] bg-[#fff4e7] p-4">
-                    <p className="text-label-sm uppercase tracking-[0.14em] text-primary">
-                      Active timer
-                    </p>
-                    <p className="mt-2 text-[2rem] font-black leading-none text-on-surface">
-                      {prepStarted ? formatElapsed(elapsedSeconds) : "00:00"}
-                    </p>
-                    <p className="mt-1 text-body-sm text-on-surface-variant">
-                      {prepStarted ? "Since prep started" : "Starts when you begin"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-[1.25rem] bg-[#f7f2ed] p-4">
-                    <p className="text-label-sm uppercase tracking-[0.14em] text-outline">
-                      Progress
-                    </p>
-                    <p className="mt-2 text-[2rem] font-black leading-none text-on-surface">
-                      {hasSteps
-                        ? `${Math.min(activeStep + 1, currentRecipe.steps.length)}/${currentRecipe.steps.length}`
-                        : "0/0"}
-                    </p>
-                    <p className="mt-1 text-body-sm text-on-surface-variant">
-                      {prepStarted ? "Current step unlocked" : "Ready to cook"}
-                    </p>
-                  </div>
-                </div>
+              <div className="flex items-center gap-3">
+                <h3 className="text-[1.6rem] font-bold tracking-tight text-on-surface">
+                  Preparation
+                </h3>
+                {hasSteps && (
+                  <span className="rounded-full bg-[#fff1e4] px-3 py-1.5 text-label-sm font-semibold text-primary">
+                    {currentRecipe.steps.length} steps
+                  </span>
+                )}
               </div>
 
-              {prepStarted && currentStep && (
-                <div className="rounded-[1.75rem] border border-[#f0d4b8] bg-[linear-gradient(135deg,#fff8ee_0%,#fff1dc_100%)] p-5 shadow-[0_18px_50px_rgba(243,148,71,0.18)]">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex gap-4">
-                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary-fixed-dim text-label-lg font-black text-on-primary-fixed">
-                        {currentStep.step}
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-label-sm uppercase tracking-[0.16em] text-primary">
-                          Now cooking
-                        </p>
-                        <p className="text-xl font-black text-on-surface">
-                          {splitStepCopy(currentStep.what_to_do).title}
-                        </p>
-                        {splitStepCopy(currentStep.what_to_do).body && (
-                          <p className="text-body-sm leading-relaxed text-on-surface-variant">
-                            {splitStepCopy(currentStep.what_to_do).body}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 self-end sm:self-auto">
-                      <button
-                        onClick={() => setActiveStep((step) => Math.max(0, step - 1))}
-                        disabled={activeStep === 0}
-                        className="rounded-full border border-outline-variant bg-white px-4 py-2 text-label-md font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() =>
-                          setActiveStep((step) =>
-                            Math.min(currentRecipe.steps.length - 1, step + 1),
-                          )
-                        }
-                        disabled={activeStep >= currentRecipe.steps.length - 1}
-                        className="rounded-full bg-primary px-5 py-2 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Next step
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                {currentRecipe.steps.map((step, index) => {
+              <div className="space-y-3">
+                {currentRecipe.steps.map((step) => {
                   const { title, body } = splitStepCopy(step.what_to_do);
-                  const isActive = prepStarted && index === activeStep;
-
                   return (
-                    <button
+                    <div
                       key={step.step}
-                      type="button"
-                      onClick={() => setActiveStep(index)}
-                      className={`flex w-full gap-4 rounded-[1.5rem] border p-4 text-left transition-all ${
-                        isActive
-                          ? "border-[#f0c18f] bg-white shadow-[0_16px_40px_rgba(137,80,50,0.10)]"
-                          : "border-[#f2e5da] bg-white/76 hover:border-[#e7cfbc] hover:bg-white"
-                      }`}
+                      className="flex gap-4 rounded-[1.5rem] border border-[#f2e5da] bg-white/76 p-4"
                     >
-                      <div
-                        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-label-lg font-black ${
-                          isActive
-                            ? "bg-primary-fixed-dim text-on-primary-fixed"
-                            : "bg-primary-fixed-dim/20 text-primary"
-                        }`}
-                      >
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-fixed-dim/20 text-label-lg font-black text-primary">
                         {step.step}
                       </div>
-
-                      <div className="flex-1 space-y-1.5 pt-1">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-label-lg font-bold text-on-surface">{title}</p>
-                          {isActive && (
-                            <span className="rounded-full bg-primary-fixed-dim/15 px-2.5 py-1 text-label-sm font-semibold text-primary">
-                              Active
-                            </span>
-                          )}
-                        </div>
+                      <div className="flex-1 space-y-1 pt-1">
+                        <p className="text-label-lg font-bold text-on-surface">{title}</p>
                         {body && (
                           <p className="text-body-sm leading-relaxed text-on-surface-variant">
                             {body}
                           </p>
                         )}
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -439,10 +265,8 @@ function RecipeDetailOverlayContent({
                 onClick={handleStartPreparation}
                 className="flex items-center gap-2 rounded-full bg-[#f39447] px-5 py-2.5 text-label-lg font-bold text-on-primary shadow-sm transition-all hover:brightness-95 active:scale-[0.98]"
               >
-                <span className="material-symbols-outlined text-[18px]">
-                  {prepStarted ? "restart_alt" : "play_arrow"}
-                </span>
-                {prepStarted ? "Restart Preparation" : "Start Preparation"}
+                <span className="material-symbols-outlined text-[18px]">play_arrow</span>
+                Start Preparation
               </button>
             )}
 

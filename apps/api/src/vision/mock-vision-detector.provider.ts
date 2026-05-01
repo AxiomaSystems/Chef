@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import type {
   VisionBoundingBox,
   VisionDetection,
@@ -6,7 +7,6 @@ import type {
   VisionFrameResult,
   VisionScanOptions,
 } from '@cart/shared';
-import { randomUUID } from 'crypto';
 import {
   DEFAULT_VISION_BOXES,
   type VisionOntologyEntry,
@@ -26,12 +26,21 @@ export class MockVisionDetectorProvider implements VisionDetectorProvider {
     const maxDetectionsPerFrame = options?.max_detections_per_frame ?? 12;
     const rawDetections = frame.debug_objects?.length
       ? frame.debug_objects.map((entry, index) =>
-          this.mapDebugObject(frame.frame_id, entry.label, index, entry.bbox, entry.confidence),
+          this.mapDebugObject(
+            frame.frame_id,
+            entry.label,
+            index,
+            entry.bbox,
+            entry.confidence,
+          ),
         )
       : this.inferFromFrameRef(frame.frame_id, frame.frame_ref);
 
     const detections = rawDetections
-      .filter((detection) => includeIgnored || detection.inventory_policy !== 'ignore')
+      .filter(
+        (detection) =>
+          includeIgnored || detection.inventory_policy !== 'ignore',
+      )
       .slice(0, maxDetectionsPerFrame);
 
     return {
@@ -57,7 +66,6 @@ export class MockVisionDetectorProvider implements VisionDetectorProvider {
         entry.granularity === 'exact' &&
         entry.aliases.some((alias) => containsTerm(normalizedRef, alias)),
     );
-
     const genericMatches =
       exactMatches.length > 0
         ? []
@@ -68,10 +76,8 @@ export class MockVisionDetectorProvider implements VisionDetectorProvider {
               entry.aliases.some((alias) => containsTerm(normalizedRef, alias)),
           );
 
-    const matches = [...exactMatches, ...genericMatches];
-
-    return matches.map((entry, index) =>
-      this.createDetection(frameId, entry, index, undefined, defaultConfidenceFor(entry)),
+    return [...exactMatches, ...genericMatches].map((entry, index) =>
+      this.createDetection(frameId, entry, index),
     );
   }
 
@@ -98,7 +104,7 @@ export class MockVisionDetectorProvider implements VisionDetectorProvider {
     entry: VisionOntologyEntry,
     index: number,
     bbox?: VisionBoundingBox,
-    confidence = 0.88,
+    confidence = defaultConfidenceFor(entry),
   ): VisionDetection {
     return {
       observation_id: `obs_${frameId}_${index + 1}_${randomUUID().slice(0, 8)}`,
@@ -127,11 +133,8 @@ export class MockVisionDetectorProvider implements VisionDetectorProvider {
 const normalizeText = (value: string): string =>
   value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
-const containsTerm = (haystack: string, needle: string): boolean => {
-  const normalizedNeedle = normalizeText(needle);
-
-  return haystack.includes(normalizedNeedle);
-};
+const containsTerm = (haystack: string, needle: string): boolean =>
+  haystack.includes(normalizeText(needle));
 
 const defaultConfidenceFor = (entry: VisionOntologyEntry): number => {
   if (entry.inventory_policy === 'ignore') {

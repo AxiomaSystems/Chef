@@ -13,6 +13,7 @@ import {
 import {
   CartResponseDto,
   ErrorResponseDto,
+  IngredientReviewResponseDto,
   PersistedCartDraftResponseDto,
   RetailerProductSearchResponseDto,
   ShoppingCartHistorySummaryResponseDto,
@@ -25,14 +26,17 @@ import {
   createCartDraftRequestExample,
   createCartRequestExample,
   createShoppingCartRequestExample,
+  ingredientReviewExample,
   retailerProductSearchExample,
   shoppingCartExample,
   shoppingCartHistoryExample,
+  updateIngredientReviewRequestExample,
   updateShoppingCartRequestExample,
 } from '../common/http/swagger.examples';
 import { CreateCartDraftDto } from './dto/create-cart-draft.dto';
 import { CreateCartDto } from './dto/create-cart.dto';
 import { CreateShoppingCartDto } from './dto/create-shopping-cart.dto';
+import { UpdateIngredientReviewDto } from './dto/update-ingredient-review.dto';
 import { UpdateCartDraftDto } from './dto/update-cart-draft.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
 import { UpdateShoppingCartDto } from './dto/update-shopping-cart.dto';
@@ -263,6 +267,82 @@ export const ApiGetCart = () =>
     ApiOkResponse({
       description: 'Persisted cart',
       type: CartResponseDto,
+    }),
+    ApiNotFoundResponse({
+      description: 'Cart not found',
+      type: ErrorResponseDto,
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiGetIngredientReview = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Get the pre-shopping ingredient review for a cart',
+      description:
+        'Returns the aggregated cart ingredients plus any per-cart review decisions. Used before creating a shopping cart so users can mark ingredients as already owned, skipped, or adjusted.',
+    }),
+    ApiOkResponse({
+      description: 'Ingredient review for this cart',
+      type: IngredientReviewResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            ingredientReview: {
+              summary: 'Ingredient review',
+              value: ingredientReviewExample,
+            },
+          },
+        },
+      },
+    }),
+    ApiNotFoundResponse({
+      description: 'Cart not found',
+      type: ErrorResponseDto,
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiUpdateIngredientReview = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Save the pre-shopping ingredient review for a cart',
+      description:
+        'Persists per-cart decisions for the current aggregate ingredient list. Unknown ingredients are rejected. Adjusted amounts are applied before retailer matching when a shopping cart is generated.',
+    }),
+    ApiBody({
+      type: UpdateIngredientReviewDto,
+      required: true,
+      examples: {
+        reviewDecisions: {
+          summary: 'Review decisions',
+          value: updateIngredientReviewRequestExample,
+        },
+      },
+    }),
+    ApiOkResponse({
+      description: 'Saved ingredient review',
+      type: IngredientReviewResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            savedIngredientReview: {
+              summary: 'Saved ingredient review',
+              value: ingredientReviewExample,
+            },
+          },
+        },
+      },
+    }),
+    ApiBadRequestResponse({
+      description: 'Invalid review payload or unknown cart ingredient',
+      type: ErrorResponseDto,
     }),
     ApiNotFoundResponse({
       description: 'Cart not found',

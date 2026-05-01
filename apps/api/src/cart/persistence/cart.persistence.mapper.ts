@@ -1,16 +1,19 @@
 import type {
   Cart,
   CartSelection,
+  IngredientReview,
   ShoppingCart,
 } from '@cart/shared';
 import type {
   CartDraft as PrismaCartDraft,
   Cart as PrismaCart,
+  IngredientReview as PrismaIngredientReview,
   ShoppingCart as PrismaShoppingCart,
 } from '../../../generated/prisma/index.js';
 import type {
   PersistedCart,
   PersistedCartDraft,
+  PersistedIngredientReview,
   PersistedShoppingCart,
   PersistedShoppingCartHistorySummary,
 } from './cart.persistence.types';
@@ -37,6 +40,15 @@ export const mapPersistedCart = (cart: PrismaCart): PersistedCart => ({
   overview: [],
   created_at: cart.createdAt.toISOString(),
   updated_at: cart.updatedAt.toISOString(),
+});
+
+export const mapPersistedIngredientReview = (
+  review: PrismaIngredientReview,
+): PersistedIngredientReview => ({
+  cart_id: review.cartId,
+  items: review.items as IngredientReview['items'],
+  created_at: review.createdAt.toISOString(),
+  updated_at: review.updatedAt.toISOString(),
 });
 
 export const mapPersistedShoppingCart = (

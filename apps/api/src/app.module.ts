@@ -15,6 +15,7 @@ import { RecipeModule } from './recipe/recipe.module';
 import { RetailersModule } from './retailers/retailers.module';
 import { TagsModule } from './tags/tags.module';
 import { UserModule } from './user/user.module';
+import { VisionModule } from './vision/vision.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { UserModule } from './user/user.module';
     RetailersModule,
     CartModule,
     AiModule,
+    VisionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

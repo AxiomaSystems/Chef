@@ -16,6 +16,130 @@ export const otherCuisineExample = {
   updated_at: '2026-03-19T03:12:00.000Z',
 };
 
+export const visionPipelineExample = {
+  provider: 'mock-stage1-detector',
+  stage: 'detection_only',
+  tracking_enabled: false,
+  embeddings_enabled: false,
+  open_vocabulary_enabled: false,
+  packaged_food_enrichment_enabled: false,
+  segmentation_enabled: false,
+  supported_classes: [
+    {
+      id: 'onion',
+      label: 'onion',
+      category: 'produce',
+      granularity: 'exact',
+      inventory_policy: 'track',
+      stage_1_enabled: true,
+    },
+    {
+      id: 'olive_oil_bottle',
+      label: 'olive oil bottle',
+      category: 'container',
+      granularity: 'exact',
+      inventory_policy: 'track',
+      stage_1_enabled: true,
+    },
+    {
+      id: 'bottle',
+      label: 'bottle',
+      category: 'container',
+      granularity: 'generic',
+      inventory_policy: 'review',
+      stage_1_enabled: true,
+    },
+    {
+      id: 'plate',
+      label: 'plate',
+      category: 'kitchenware',
+      granularity: 'generic',
+      inventory_policy: 'ignore',
+      stage_1_enabled: true,
+    },
+  ],
+  notes: [
+    'Stage 1 is closed-set detection only.',
+    'Tracking, embeddings, OCR, and open-vocabulary fallback are intentionally outside this API contract.',
+    'Use inventory_policy to route detections into track, review, or ignore workflows.',
+  ],
+};
+
+export const visionScanRequestExample = {
+  scan_session_id: 'scan_demo_001',
+  frames: [
+    {
+      frame_id: 1,
+      frame_ref: 'pantry left shelf olive oil bottle egg carton plate',
+      zone_id: 'pantry_left_shelf',
+      timestamp_ms: 0,
+    },
+    {
+      frame_id: 2,
+      zone_id: 'pantry_left_shelf',
+      timestamp_ms: 1400,
+      debug_objects: [
+        {
+          label: 'milk carton',
+          confidence: 0.93,
+          bbox: { x: 0.18, y: 0.2, width: 0.22, height: 0.38 },
+        },
+        {
+          label: 'jar',
+          confidence: 0.71,
+        },
+      ],
+    },
+  ],
+  options: {
+    include_ignored: false,
+    max_detections_per_frame: 8,
+  },
+};
+
+export const visionScanResponseExample = {
+  scan_session_id: 'scan_demo_001',
+  pipeline: visionPipelineExample,
+  frames: [
+    {
+      frame_id: 1,
+      frame_ref: 'pantry left shelf olive oil bottle egg carton plate',
+      zone_id: 'pantry_left_shelf',
+      timestamp_ms: 0,
+      detections: [
+        {
+          observation_id: 'obs_1_1_ab12cd34',
+          class_id: 'egg_carton',
+          label: 'egg carton',
+          category: 'packaged_food',
+          granularity: 'exact',
+          inventory_policy: 'track',
+          bbox: { x: 0.14, y: 0.18, width: 0.22, height: 0.38 },
+          confidence: 0.91,
+        },
+        {
+          observation_id: 'obs_1_2_ef56ab78',
+          class_id: 'olive_oil_bottle',
+          label: 'olive oil bottle',
+          category: 'container',
+          granularity: 'exact',
+          inventory_policy: 'track',
+          bbox: { x: 0.42, y: 0.2, width: 0.2, height: 0.34 },
+          confidence: 0.91,
+        },
+      ],
+    },
+  ],
+  summary: {
+    frame_count: 2,
+    detection_count: 4,
+    track_candidate_count: 3,
+    review_candidate_count: 1,
+    ignored_detection_count: 0,
+    detected_labels: ['egg carton', 'jar', 'milk carton', 'olive oil bottle'],
+  },
+};
+
 export const cuisineListExample = [
   peruvianCuisineExample,
   {
@@ -141,6 +265,7 @@ export const mePreferencesExample = {
     label: 'Chicago, IL',
     latitude: 41.8925,
     longitude: -87.6262,
+    kroger_location_id: '01600479',
   },
   preferred_cuisine_ids: ['cuisine-mediterranean', 'cuisine-peruvian'],
   preferred_cuisines: [
@@ -168,6 +293,24 @@ export const mePreferencesExample = {
     },
     systemTagExample,
   ],
+  household_size: 'three_to_four_people',
+  kids_profile: 'no_kids',
+  favorite_proteins: ['chicken', 'salmon'],
+  favorite_flavors: ['spicy', 'savory_umami'],
+  spice_level: 'medium',
+  disliked_ingredients: ['olives'],
+  disliked_textures: ['chewy'],
+  cooking_skill_level: 'intermediate',
+  available_appliances: ['oven', 'air_fryer', 'blender'],
+  preferred_cooking_time: '15_to_30_min',
+  typical_meal_times: ['lunch', 'dinner'],
+  goal_priorities: ['save_money', 'eat_healthier'],
+  calorie_tracking_mode: 'casual',
+  weekly_budget: '50_to_100',
+  preferred_stores: ['kroger', 'walmart'],
+  shopping_mode: 'in_store',
+  recipe_discovery_sources: ['youtube', 'social_media'],
+  biggest_cooking_frustration: 'dont_know_what_to_make',
 };
 
 export const checkoutProfileExample = {
@@ -220,9 +363,159 @@ export const updateMePreferencesRequestExample = {
   shopping_location: {
     zip_code: '60611',
     label: 'Chicago, IL',
+    kroger_location_id: '01600479',
   },
   preferred_cuisine_ids: ['cuisine-peruvian', 'cuisine-mediterranean'],
   preferred_tag_ids: ['tag-system-weeknight', 'tag-system-comfort-food'],
+  household_size: 'three_to_four_people',
+  kids_profile: 'no_kids',
+  favorite_proteins: ['chicken', 'salmon'],
+  favorite_flavors: ['spicy', 'savory_umami'],
+  spice_level: 'medium',
+  disliked_ingredients: ['olives'],
+  disliked_textures: ['chewy'],
+  cooking_skill_level: 'intermediate',
+  available_appliances: ['oven', 'air_fryer', 'blender'],
+  preferred_cooking_time: '15_to_30_min',
+  typical_meal_times: ['lunch', 'dinner'],
+  goal_priorities: ['save_money', 'eat_healthier'],
+  calorie_tracking_mode: 'casual',
+  weekly_budget: '50_to_100',
+  preferred_stores: ['kroger', 'walmart'],
+  shopping_mode: 'in_store',
+  recipe_discovery_sources: ['youtube', 'social_media'],
+  biggest_cooking_frustration: 'dont_know_what_to_make',
+};
+
+export const profileMemoryExample = {
+  user: meProfileExample,
+  preferences: mePreferencesExample,
+  food_rules: [
+    {
+      id: 'rule-vegan',
+      kind: 'dietary_constraint',
+      label: 'Vegan',
+      normalized_label: 'vegan',
+      tag_id: 'tag-system-vegan',
+      action: 'require',
+      strictness: 'hard',
+      active: true,
+      source: 'onboarding',
+      confidence: 'high',
+      created_at: '2026-04-30T18:00:00.000Z',
+      updated_at: '2026-04-30T18:00:00.000Z',
+    },
+    {
+      id: 'rule-mushrooms',
+      kind: 'ingredient_preference',
+      label: 'Mushrooms',
+      normalized_label: 'mushrooms',
+      ingredient_id: 'ingredient-mushroom',
+      action: 'avoid',
+      strictness: 'soft',
+      active: true,
+      source: 'onboarding',
+      confidence: 'high',
+      created_at: '2026-04-30T18:00:00.000Z',
+      updated_at: '2026-04-30T18:00:00.000Z',
+    },
+  ],
+  goals: [
+    {
+      id: 'goal-save-money',
+      goal: 'save_money',
+      priority: 1,
+      active: true,
+      timeframe: 'default',
+      source: 'onboarding',
+      confidence: 'high',
+      created_at: '2026-04-30T18:00:00.000Z',
+      updated_at: '2026-04-30T18:00:00.000Z',
+    },
+  ],
+  pantry_staples: [
+    {
+      ingredient_id: 'ingredient-rice',
+      canonical_name: 'rice',
+      source: 'onboarding',
+      confidence: 'high',
+      created_at: '2026-04-30T18:00:00.000Z',
+      updated_at: '2026-04-30T18:00:00.000Z',
+    },
+  ],
+  summary: {
+    household: { label: 'three_to_four_people', detail: 'no_kids' },
+    taste: {
+      cuisine_count: 2,
+      favorite_proteins: ['chicken', 'salmon'],
+      favorite_flavors: ['spicy', 'savory_umami'],
+      spice_level: 'medium',
+    },
+    rules: {
+      hard_rule_count: 1,
+      soft_rule_count: 1,
+      labels: ['Vegan', 'Mushrooms'],
+    },
+    kitchen: {
+      skill_level: 'intermediate',
+      appliance_count: 3,
+      preferred_time: '15_to_30_min',
+    },
+    pantry: {
+      staple_count: 1,
+      labels: ['rice'],
+    },
+    goals: [{ goal: 'save_money', priority: 1, timeframe: 'default' }],
+    shopping: {
+      preferred_store_count: 2,
+      shopping_mode: 'in_store',
+      location_label: 'Chicago, IL',
+    },
+    completion: {
+      has_household: true,
+      has_taste: true,
+      has_rules: true,
+      has_kitchen: true,
+      has_pantry: true,
+      has_goals: true,
+      has_shopping: true,
+      has_location: true,
+    },
+  },
+};
+
+export const updateProfileMemoryRequestExample = {
+  preferences: {
+    household_size: 'three_to_four_people',
+    favorite_proteins: ['chicken', 'salmon'],
+    preferred_stores: ['kroger'],
+    shopping_location: {
+      zip_code: '60611',
+      label: 'Chicago, IL',
+      kroger_location_id: '01600479',
+    },
+  },
+  food_rules: [
+    {
+      kind: 'ingredient_preference',
+      label: 'Mushrooms',
+      ingredient_id: 'ingredient-mushroom',
+      action: 'avoid',
+      strictness: 'soft',
+      active: true,
+      source: 'onboarding',
+      confidence: 'high',
+    },
+  ],
+  goals: [
+    {
+      goal: 'save_money',
+      priority: 1,
+      timeframe: 'default',
+      active: true,
+    },
+  ],
+  pantry_staple_ingredient_ids: ['ingredient-rice', 'ingredient-olive-oil'],
 };
 
 export const createRecipeRequestExample = {
@@ -420,6 +713,64 @@ export const createShoppingCartRequestExample = {
   retailer: 'instacart',
 };
 
+export const ingredientReviewExample = {
+  cart_id: 'cart-1',
+  items: [
+    {
+      canonical_ingredient: 'chicken thigh',
+      total_amount: 800,
+      unit: 'g',
+      source_dishes: [
+        {
+          dish_name: 'Arroz con pollo casero',
+          amount: 800,
+          unit: 'g',
+        },
+      ],
+      action: 'adjust',
+      adjusted_amount: 400,
+      adjusted_unit: 'g',
+    },
+    {
+      canonical_ingredient: 'rice',
+      total_amount: 2,
+      unit: 'cup',
+      source_dishes: [
+        {
+          dish_name: 'Arroz con pollo casero',
+          amount: 2,
+          unit: 'cup',
+        },
+      ],
+      action: 'already_have',
+    },
+  ],
+  created_at: '2026-04-29T19:30:00.000Z',
+  updated_at: '2026-04-29T19:35:00.000Z',
+};
+
+export const updateIngredientReviewRequestExample = {
+  items: [
+    {
+      canonical_ingredient: 'chicken thigh',
+      unit: 'g',
+      action: 'adjust',
+      adjusted_amount: 400,
+      adjusted_unit: 'g',
+    },
+    {
+      canonical_ingredient: 'rice',
+      unit: 'cup',
+      action: 'already_have',
+    },
+    {
+      canonical_ingredient: 'cilantro',
+      unit: 'g',
+      action: 'skip',
+    },
+  ],
+};
+
 export const shoppingCartExample = {
   id: 'shopping-cart-1',
   user_id: 'user-1',
@@ -592,189 +943,6 @@ export const badRequestErrorExample = {
   statusCode: 400,
   message: ['servings must not be less than 1'],
   error: 'Bad Request',
-};
-
-export const visionPipelineExample = {
-  provider: 'mock-stage1-detector',
-  stage: 'detection_only',
-  tracking_enabled: false,
-  embeddings_enabled: false,
-  open_vocabulary_enabled: false,
-  packaged_food_enrichment_enabled: false,
-  segmentation_enabled: false,
-  supported_classes: [
-    {
-      id: 'onion',
-      label: 'onion',
-      category: 'produce',
-      granularity: 'exact',
-      inventory_policy: 'track',
-      stage_1_enabled: true,
-    },
-    {
-      id: 'olive_oil_bottle',
-      label: 'olive oil bottle',
-      category: 'container',
-      granularity: 'exact',
-      inventory_policy: 'track',
-      stage_1_enabled: true,
-    },
-    {
-      id: 'bottle',
-      label: 'bottle',
-      category: 'container',
-      granularity: 'generic',
-      inventory_policy: 'review',
-      stage_1_enabled: true,
-    },
-    {
-      id: 'plate',
-      label: 'plate',
-      category: 'kitchenware',
-      granularity: 'generic',
-      inventory_policy: 'ignore',
-      stage_1_enabled: true,
-    },
-  ],
-  notes: [
-    'Stage 1 is closed-set detection only. Tracking, embeddings, OCR, and DINO-style fallback are intentionally off.',
-    'The current mock detector is a development harness that accepts debug objects or parses frame_ref text so the API contract can stabilize before YOLO is wired in.',
-    'Inventory-facing logic should treat track vs review vs ignore as separate downstream actions instead of using raw class labels alone.',
-  ],
-};
-
-export const analyzeVisionScanRequestExample = {
-  scan_session_id: 'scan_demo_001',
-  frames: [
-    {
-      frame_id: 1,
-      zone_id: 'closet_left_top',
-      frame_ref: 'closet_left_top olive oil bottle spice bottle plate',
-    },
-    {
-      frame_id: 2,
-      zone_id: 'fridge_middle',
-      debug_objects: [
-        {
-          label: 'milk carton',
-          confidence: 0.97,
-          bbox: {
-            x: 0.11,
-            y: 0.08,
-            width: 0.27,
-            height: 0.62,
-          },
-        },
-        {
-          label: 'egg carton',
-          confidence: 0.93,
-          bbox: {
-            x: 0.48,
-            y: 0.5,
-            width: 0.33,
-            height: 0.22,
-          },
-        },
-      ],
-    },
-  ],
-  options: {
-    include_ignored: false,
-    max_detections_per_frame: 8,
-  },
-};
-
-export const visionScanResponseExample = {
-  scan_session_id: 'scan_demo_001',
-  pipeline: visionPipelineExample,
-  frames: [
-    {
-      frame_id: 1,
-      frame_ref: 'closet_left_top olive oil bottle spice bottle plate',
-      zone_id: 'closet_left_top',
-      detections: [
-        {
-          observation_id: 'obs_1_1_ab12cd34',
-          class_id: 'spice_bottle',
-          label: 'spice bottle',
-          category: 'container',
-          granularity: 'exact',
-          inventory_policy: 'track',
-          bbox: {
-            x: 0.08,
-            y: 0.12,
-            width: 0.22,
-            height: 0.48,
-          },
-          confidence: 0.91,
-        },
-        {
-          observation_id: 'obs_1_2_ef56gh78',
-          class_id: 'olive_oil_bottle',
-          label: 'olive oil bottle',
-          category: 'container',
-          granularity: 'exact',
-          inventory_policy: 'track',
-          bbox: {
-            x: 0.36,
-            y: 0.1,
-            width: 0.2,
-            height: 0.5,
-          },
-          confidence: 0.91,
-        },
-      ],
-    },
-    {
-      frame_id: 2,
-      zone_id: 'fridge_middle',
-      detections: [
-        {
-          observation_id: 'obs_2_1_ij90kl12',
-          class_id: 'milk_carton',
-          label: 'milk carton',
-          category: 'packaged_food',
-          granularity: 'exact',
-          inventory_policy: 'track',
-          bbox: {
-            x: 0.11,
-            y: 0.08,
-            width: 0.27,
-            height: 0.62,
-          },
-          confidence: 0.97,
-        },
-        {
-          observation_id: 'obs_2_2_mn34op56',
-          class_id: 'egg_carton',
-          label: 'egg carton',
-          category: 'packaged_food',
-          granularity: 'exact',
-          inventory_policy: 'track',
-          bbox: {
-            x: 0.48,
-            y: 0.5,
-            width: 0.33,
-            height: 0.22,
-          },
-          confidence: 0.93,
-        },
-      ],
-    },
-  ],
-  summary: {
-    frame_count: 2,
-    detection_count: 4,
-    track_candidate_count: 4,
-    review_candidate_count: 0,
-    ignored_detection_count: 0,
-    detected_labels: [
-      'egg carton',
-      'milk carton',
-      'olive oil bottle',
-      'spice bottle',
-    ],
-  },
 };
 
 export const forbiddenErrorExample = {

@@ -33,7 +33,6 @@ export function PreparationChefAssistant({
   started,
 }: PreparationChefAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [handsFreeStandby, setHandsFreeStandby] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState<ChefChatMessage[]>([
     {
@@ -98,7 +97,6 @@ export function PreparationChefAssistant({
             step_instruction: currentStepText,
           }
         : null,
-      hands_free_mode_requested: handsFreeStandby,
     };
   }
 
@@ -176,22 +174,6 @@ export function PreparationChefAssistant({
             >
               Ask Chef about this recipe
             </button>
-            <button
-              type="button"
-              onClick={() => setHandsFreeStandby((current) => !current)}
-              className={`rounded-[20px] px-4 py-3 text-label-md transition-colors ${
-                handsFreeStandby
-                  ? "bg-primary-fixed-dim text-on-primary-fixed"
-                  : "border border-[#e5cfbb] bg-white text-on-surface"
-              }`}
-            >
-              {handsFreeStandby ? "Hands-free standby on" : "Hands-free standby"}
-            </button>
-            <p className="px-1 text-[11px] leading-5 text-on-surface-variant">
-              {handsFreeStandby
-                ? "UI only for now while we decide how hands-free should behave."
-                : "Voice behavior is still being designed, so this is a placeholder control for now."}
-            </p>
           </div>
         </div>
 
@@ -259,7 +241,7 @@ export function PreparationChefAssistant({
                     </p>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="mt-4">
                     <div className="rounded-[20px] border border-[#efd8c7] bg-white px-4 py-3 shadow-sm">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-outline">
                         Ingredients
@@ -268,15 +250,6 @@ export function PreparationChefAssistant({
                         {checkedCount}/{recipe.ingredients.length}
                       </p>
                       <p className="mt-1 text-xs text-outline">Checked so far</p>
-                    </div>
-                    <div className="rounded-[20px] border border-[#efd8c7] bg-white px-4 py-3 shadow-sm">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-outline">
-                        Hands-free
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-on-surface">
-                        {handsFreeStandby ? "Standby" : "Off"}
-                      </p>
-                      <p className="mt-1 text-xs text-outline">UI only for now</p>
                     </div>
                   </div>
                 </div>
@@ -399,18 +372,6 @@ export function PreparationChefAssistant({
                       rows={3}
                       className="min-h-16 flex-1 resize-none rounded-[24px] border border-outline-variant/70 bg-white px-4 py-3 text-sm text-on-surface outline-none focus:border-primary-fixed-dim"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setHandsFreeStandby((current) => !current)}
-                      className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border ${
-                        handsFreeStandby
-                          ? "border-primary-fixed-dim bg-primary-surface text-primary-fixed-dim"
-                          : "border-outline-variant/70 bg-white text-outline"
-                      }`}
-                      aria-label="Toggle hands-free standby"
-                    >
-                      <span className="material-symbols-outlined text-[20px]">mic</span>
-                    </button>
                     <button
                       type="submit"
                       disabled={isPending || !prompt.trim()}

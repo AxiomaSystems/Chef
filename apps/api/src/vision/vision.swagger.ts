@@ -5,6 +5,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import {
   ErrorResponseDto,
@@ -12,9 +13,9 @@ import {
   VisionScanResponseDto,
 } from '../common/http/swagger.dto';
 import {
-  analyzeVisionScanRequestExample,
   badRequestErrorExample,
   visionPipelineExample,
+  visionScanRequestExample,
   visionScanResponseExample,
 } from '../common/http/swagger.examples';
 import { AnalyzeVisionScanDto } from './dto/analyze-vision-scan.dto';
@@ -24,49 +25,55 @@ export const ApiVisionController = () => applyDecorators(ApiTags('vision'));
 export const ApiDescribeVisionPipeline = () =>
   applyDecorators(
     ApiOperation({
-      summary:
-        'Describe the current stage-1 kitchen vision pipeline and supported classes',
+      summary: 'Describe the active vision detection pipeline',
+      description:
+        'Returns the product-facing vision contract and stage-1 ontology. The current implementation is a mock detector boundary designed for integration before the Python/YOLO service is wired in.',
     }),
     ApiOkResponse({
-      description: 'Current vision pipeline config',
+      description: 'Vision pipeline configuration',
       type: VisionPipelineConfigResponseDto,
       content: {
         'application/json': {
           examples: {
-            visionPipeline: {
-              summary: 'Stage-1 vision pipeline',
+            pipeline: {
+              summary: 'Stage-1 mock pipeline',
               value: visionPipelineExample,
             },
           },
         },
       },
     }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
   );
 
 export const ApiAnalyzeVisionScan = () =>
   applyDecorators(
     ApiOperation({
-      summary:
-        'Run the stage-1 detector over a scan session and return frame-level observations',
+      summary: 'Analyze a pantry or kitchen scan',
+      description:
+        'Accepts frame metadata/debug objects and returns frame-level detections plus track/review/ignore summary counts. This endpoint does not write inventory yet.',
     }),
     ApiBody({
       type: AnalyzeVisionScanDto,
       required: true,
       examples: {
-        stage1Scan: {
-          summary: 'Analyze a short pantry scan',
-          value: analyzeVisionScanRequestExample,
+        pantryScan: {
+          summary: 'Pantry scan with debug objects',
+          value: visionScanRequestExample,
         },
       },
     }),
     ApiOkResponse({
-      description: 'Frame-level detections for the scan session',
+      description: 'Vision scan response',
       type: VisionScanResponseDto,
       content: {
         'application/json': {
           examples: {
-            scanResponse: {
-              summary: 'Stage-1 detection response',
+            scan: {
+              summary: 'Vision scan response',
               value: visionScanResponseExample,
             },
           },
@@ -86,5 +93,9 @@ export const ApiAnalyzeVisionScan = () =>
           },
         },
       },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
     }),
   );
