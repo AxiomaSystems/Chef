@@ -285,6 +285,30 @@ export async function fetchUserRecipesAction(): Promise<UserRecipesActionState> 
   };
 }
 
+export async function fetchUnsplashImageAction(
+  recipeName: string,
+): Promise<string | null> {
+  const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+  if (!accessKey) return null;
+
+  try {
+    const params = new URLSearchParams({
+      query: `${recipeName} food dish`,
+      orientation: "landscape",
+      client_id: accessKey,
+    });
+    const response = await fetch(
+      `https://api.unsplash.com/photos/random?${params}`,
+      { cache: "no-store" },
+    );
+    if (!response.ok) return null;
+    const data = (await response.json()) as { urls?: { regular?: string } };
+    return data.urls?.regular ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function importRecipeFromUrlAction(input: {
   url: string;
   supplementalText?: string;

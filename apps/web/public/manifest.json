@@ -1,0 +1,26 @@
+{
+  "name": "Chef — Meal Execution Platform",
+  "short_name": "Chef",
+  "description": "Turn food ideas into meals you can actually cook.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fffdfa",
+  "theme_color": "#f39447",
+  "categories": ["food", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
