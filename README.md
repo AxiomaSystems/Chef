@@ -175,6 +175,26 @@ See [LICENSE](/C:/Users/akuma/repos/cart-generator/LICENSE) for details.
 
 ## Workspace Commands
 
+### Fresh Clone Setup
+
+Use this path when setting up the repo on a new machine or after a clean clone.
+
+On Windows PowerShell:
+
+```powershell
+pnpm install --frozen-lockfile
+Copy-Item .env.example .env -ErrorAction SilentlyContinue
+pnpm --filter api prisma:generate
+pnpm build
+```
+
+Notes:
+
+- `.env` is intentionally ignored. Copy `.env.example` locally, then fill in any real secrets or shared database URLs out of band.
+- `apps/api/generated/prisma` is intentionally ignored. Regenerate it with `pnpm --filter api prisma:generate`; do not commit the generated client.
+- `node_modules`, `.venv`, `.next`, `dist`, Python caches, local datasets, and model checkpoints are local artifacts. Do not commit them to fix another developer's machine.
+- Vision model files such as `*.pt` and datasets under `apps/vision-lab/data/` are intentionally not part of a normal app checkout. If a vision workflow needs a specific trained checkpoint, share it through an artifact store or documented download path, not by removing it from `.gitignore`.
+
 Install dependencies:
 
 ```bash
