@@ -202,6 +202,45 @@ apps/vision-lab/data/ingredient_detection_dataset/
 
 Generated data and model artifacts are ignored by git.
 
+### FoodSeg103 Segmentation Training Setup
+
+Scripts:
+
+```text
+apps/vision-lab/prepare_foodseg103_segmentation_data.py
+apps/vision-lab/train_yolo_foodseg_segmenter.py
+apps/vision-lab/modal_foodseg_segmentation_training.py
+```
+
+What they do:
+
+- Load `EduardoPacheco/FoodSeg103` from Hugging Face.
+- Convert semantic ingredient masks into Ultralytics YOLO segmentation labels.
+- Treat each connected class region as a segmentation instance.
+- Train YOLO segmentation locally only when a real CUDA GPU is available.
+- Train YOLO segmentation on Modal A10G for normal use.
+- Upload/download segmentation datasets and training artifacts through Modal.
+
+Important limitation:
+
+- FoodSeg103 is semantic segmentation, not true instance segmentation. The converter creates YOLO-style instances from connected regions. This is useful for mask/crop experiments, but it is not a perfect duplicate-counting dataset.
+- FoodSeg103 images are food/recipe scenes, not fridge shelves. It can improve food masks, but real fridge/pantry data is still required before product auto-add decisions.
+
+Output shape:
+
+```text
+apps/vision-lab/data/foodseg103_segmentation_dataset/
+  data.yaml
+  class_map.json
+  summary.json
+  images/train/*.jpg
+  images/val/*.jpg
+  labels/train/*.txt
+  labels/val/*.txt
+```
+
+Generated data and model artifacts are ignored by git.
+
 ### App Integration
 
 Files:
@@ -389,6 +428,26 @@ The frozen-backbone run is the current best classifier. It generalizes better th
 
 This is useful for a review UI, but still not reliable enough for automatic inventory mutation.
 
+### Modal FoodSeg103 Segmenter
+
+```text
+run: yolo11n_foodseg103_segmenter_modal
+device: cuda on Modal A10G
+model: yolo11n-seg.pt
+classes: 36 fridge-oriented FoodSeg103 classes
+images: 4293 train / 1838 validation
+polygons: 15146 train / 6532 validation
+epochs: 75
+best mask mAP50: 0.42195 at epoch 51
+best mask mAP50-95: 0.31869 at epoch 63
+final mask mAP50: 0.41789
+final mask mAP50-95: 0.31595
+final mask precision: 0.55768
+final mask recall: 0.41304
+```
+
+This is a useful food-aware segmentation baseline, not a product-ready fridge model. The validation numbers are modest and the dataset remains food-scene biased. Its value is in the Streamlit Segmentation tab comparison against generic `yolo11n-seg.pt` and against the current YOLO-box-plus-classifier pipeline.
+
 ## Important Limitations
 
 - Generic COCO YOLO is not ingredient-aware.
@@ -397,6 +456,7 @@ This is useful for a review UI, but still not reliable enough for automatic inve
 - Training an ingredient detector will improve crop proposals, but it will not create missing classes.
 - Grid fallback is diagnostic. It can reveal missed regions, but it is noisy and should not be treated as a production detector or product inventory source.
 - Full-image classification is also diagnostic for now. It can identify the main image subject, but it should not create extra inventory rows unless a real detector box exists.
+- FoodSeg103 segmentation improves the mask training signal, but it is still not fridge/pantry data and should not drive automatic inventory writes.
 - Accuracy on curated dataset images may be higher than accuracy on real fridge, pantry, and counter photos.
 - Use validation accuracy for tuning; use test accuracy only for final reporting.
 
@@ -556,6 +616,93 @@ Then test with:
 Ingredient Classifier -> Classification input -> YOLO all object crops
 ```
 
+Prepare a FoodSeg103 YOLO segmentation dataset:
+
+```powershell
+.\.venv\Scripts\python.exe apps\vision-lab\prepare_foodseg103_segmentation_data.py `
+  --output-dir apps\vision-lab\data\foodseg103_segmentation_dataset `
+  --preset fridge `
+  --train-limit 0 `
+  --val-limit 0 `
+  --min-mask-area-pixels 128 `
+  --min-mask-area-percent 0.05 `
+  --overwrite
+```
+
+The converter streams from Hugging Face by default so the smoke test does not need to materialize the full dataset first. Use `--no-streaming` only if you explicitly want Hugging Face `datasets` to cache/materialize the split locally.
+
+For a cheap converter smoke test before the full export:
+
+```powershell
+.\.venv\Scripts\python.exe apps\vision-lab\prepare_foodseg103_segmentation_data.py `
+  --output-dir apps\vision-lab\data\foodseg103_segmentation_dataset_smoke `
+  --preset fridge `
+  --train-limit 100 `
+  --val-limit 40 `
+  --overwrite
+```
+
+Render visual QA contact sheets for the smoke dataset:
+
+```powershell
+.\.venv\Scripts\python.exe apps\vision-lab\preview_yolo_segmentation_dataset.py `
+  --dataset-dir apps\vision-lab\data\foodseg103_segmentation_dataset_smoke `
+  --split train `
+  --limit 12
+
+.\.venv\Scripts\python.exe apps\vision-lab\preview_yolo_segmentation_dataset.py `
+  --dataset-dir apps\vision-lab\data\foodseg103_segmentation_dataset_smoke `
+  --split val `
+  --limit 12
+```
+
+Inspect:
+
+```text
+apps/vision-lab/data/segmentation_dataset_previews/foodseg103_segmentation_dataset_smoke_train_contact_sheet.jpg
+apps/vision-lab/data/segmentation_dataset_previews/foodseg103_segmentation_dataset_smoke_val_contact_sheet.jpg
+```
+
+Upload FoodSeg103 segmentation data to Modal:
+
+```powershell
+$env:PYTHONIOENCODING="utf-8"
+.\.venv\Scripts\python.exe -m modal run apps\vision-lab\modal_foodseg_segmentation_training.py `
+  --action upload `
+  --local-data-dir apps\vision-lab\data\foodseg103_segmentation_dataset
+```
+
+Train the FoodSeg103 segmenter on Modal GPU:
+
+```powershell
+$env:PYTHONIOENCODING="utf-8"
+.\.venv\Scripts\python.exe -m modal run apps\vision-lab\modal_foodseg_segmentation_training.py `
+  --action train `
+  --run-name yolo11n_foodseg103_segmenter_modal `
+  --model-name yolo11n-seg.pt `
+  --epochs 75 `
+  --imgsz 640 `
+  --batch 16 `
+  --patience 20
+```
+
+Download FoodSeg103 segmenter artifacts:
+
+```powershell
+$env:PYTHONIOENCODING="utf-8"
+.\.venv\Scripts\python.exe -m modal run apps\vision-lab\modal_foodseg_segmentation_training.py `
+  --action download `
+  --run-name yolo11n_foodseg103_segmenter_modal `
+  --local-output-dir apps\vision-lab\data\foodseg103_segmenter_runs
+```
+
+After segmentation training, test the checkpoint in Streamlit:
+
+```text
+Segmentation -> YOLO segmentation model:
+apps/vision-lab/data/foodseg103_segmenter_runs/yolo11n_foodseg103_segmenter_modal/weights/best.pt
+```
+
 ## Files To Include In Push
 
 Tracked source/docs changes should include:
@@ -574,6 +721,10 @@ apps/vision-lab/modal_ingredient_inference.py
 apps/vision-lab/prepare_ingredient_detection_data.py
 apps/vision-lab/train_yolo_ingredient_detector.py
 apps/vision-lab/modal_ingredient_detector_training.py
+apps/vision-lab/prepare_foodseg103_segmentation_data.py
+apps/vision-lab/preview_yolo_segmentation_dataset.py
+apps/vision-lab/train_yolo_foodseg_segmenter.py
+apps/vision-lab/modal_foodseg_segmentation_training.py
 apps/vision-lab/fastapi_app.py
 apps/api/src/vision/
 apps/web/src/app/api/vision/analyze/route.ts
@@ -593,6 +744,9 @@ apps/vision-lab/data/ingredient_training_dataset*/
 apps/vision-lab/data/ingredient_classifier_runs/
 apps/vision-lab/data/ingredient_detection_dataset*/
 apps/vision-lab/data/ingredient_detector_runs/
+apps/vision-lab/data/foodseg103_segmentation_dataset*/
+apps/vision-lab/data/foodseg103_segmenter_runs/
+apps/vision-lab/data/segmentation_dataset_previews/
 ```
 
 ## Verification Already Done
@@ -610,28 +764,32 @@ apps/vision-lab/data/ingredient_detector_runs/
 - Inventory UI media scan path was wired to the web API, Nest API, and Python sidecar.
 - Scan UI now shows grouped detections, crop thumbnails, annotated frames, and per-item add controls.
 - Shared label mappings were centralized in `packages/shared/vision-label-mappings.json`.
+- FoodSeg103 segmentation dataset conversion, Modal upload, Modal training, and artifact download completed.
+- Streamlit now defaults to the trained FoodSeg103 segmenter checkpoint when `best.pt` exists locally.
 - Python compile/help checks passed for the touched training and Modal helper scripts.
 
 ## Next Best Step
 
-Train the ingredient detector on Modal, download the detector checkpoint, and use that checkpoint as the Streamlit crop proposer. That directly addresses the current weak link: generic YOLO misses too many ingredient regions and produces generic labels like `container` or `unknown kitchen item`.
+Compare the trained FoodSeg103 segmenter against generic `yolo11n-seg.pt` in Streamlit using the same real fridge/pantry/counter images. Count expected objects manually and track misses, false positives, and useful masks. Do not promote segmentation into the product flow until it beats the current YOLO-box-plus-classifier review flow on real images.
 
 After that, retest real kitchen/fridge/counter images with:
 
 ```text
-YOLO all object crops
+Segmentation -> trained FoodSeg103 segmenter checkpoint
 ```
 
-If herbs or missing labels still matter, add labeled examples for those classes or evaluate an open-vocabulary detector. The model cannot recognize a class that is absent from both the detector labels and classifier labels.
+If herbs, sideways items, or fridge packaging still fail, collect real fridge/pantry data. FoodSeg103 improves food masks, but it does not remove the need for environment-matched data.
 
 ## Future Steps
 
 Highest priority:
 
-1. Train and evaluate the ingredient-aware YOLO detector on Modal.
-2. Compare generic `yolo11n.pt` vs the trained detector checkpoint in Streamlit using the same classifier run.
-3. Only promote the trained detector into the product app if it reduces missed foods without creating too many false boxes.
-4. Keep grid/full-image fallback off in the product app until there is a confidence/duplicate policy strong enough to prevent fake inventory items.
+1. Run the FoodSeg103 segmentation smoke export and inspect `summary.json`.
+2. Train and evaluate the FoodSeg103 YOLO segmenter on Modal.
+3. Compare generic `yolo11n-seg.pt` vs the trained segmenter in the Streamlit Segmentation tab.
+4. Compare trained segmentation masks against the current YOLO-box-plus-classifier path on the same fridge/pantry images.
+5. Only promote segmentation into product app flows if it improves real item recall without flooding review with false masks.
+6. Keep grid/full-image fallback off in the product app until there is a confidence/duplicate policy strong enough to prevent fake inventory items.
 
 Data expansion:
 
