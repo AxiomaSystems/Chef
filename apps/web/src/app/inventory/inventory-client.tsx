@@ -6,6 +6,7 @@ import type { KitchenInventoryItem } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { CameraModal } from "./camera-modal";
 import { AddItemModal } from "./add-item-modal";
+import { VisionScanModal } from "./vision-scan-modal";
 import { removeInventoryItemAction, createRestockCartAction } from "./actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -16,6 +17,8 @@ type DisplayItem = {
   category: string;
   quantity: string;
 };
+
+type VisionMode = "photo" | "video" | "camera";
 
 // ─── Ingredient image ─────────────────────────────────────────────────────────
 
@@ -78,7 +81,8 @@ export function InventoryClient({
   realItems: KitchenInventoryItem[];
 }) {
   const [activeCategory, setActiveCategory] = useState("All Items");
-  const [cameraMode, setCameraMode] = useState<"photo" | "scan" | null>(null);
+  const [visionMode, setVisionMode] = useState<VisionMode | null>(null);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [addItemOpen, setAddItemOpen] = useState(false);
   const [items, setItems] = useState<DisplayItem[]>(realItems.map(realToDisplay));
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -154,18 +158,32 @@ export function InventoryClient({
               </div>
               <div className="relative z-10 flex gap-3 mt-4 flex-wrap">
                 <button
-                  onClick={() => setCameraMode("photo")}
+                  onClick={() => setVisionMode("camera")}
                   className="flex items-center gap-2 bg-white text-[#1a1c1a] font-semibold text-sm px-4 py-2.5 rounded-full shadow hover:bg-white/90 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
-                  Add a photo
+                  <span className="material-symbols-outlined text-[18px]">center_focus_strong</span>
+                  Live scan
                 </button>
                 <button
-                  onClick={() => setCameraMode("scan")}
+                  onClick={() => setVisionMode("photo")}
+                  className="flex items-center gap-2 bg-white/15 text-white font-semibold text-sm px-4 py-2.5 rounded-full border border-white/30 hover:bg-white/25 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
+                  Photo
+                </button>
+                <button
+                  onClick={() => setVisionMode("video")}
+                  className="flex items-center gap-2 bg-white/15 text-white font-semibold text-sm px-4 py-2.5 rounded-full border border-white/30 hover:bg-white/25 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px]">video_camera_back</span>
+                  Video
+                </button>
+                <button
+                  onClick={() => setBarcodeOpen(true)}
                   className="flex items-center gap-2 bg-white/15 text-white font-semibold text-sm px-4 py-2.5 rounded-full border border-white/30 hover:bg-white/25 transition-colors"
                 >
                   <span className="material-symbols-outlined text-[18px]">barcode_scanner</span>
-                  Scan Items
+                  Barcode
                 </button>
               </div>
             </div>
@@ -336,10 +354,17 @@ export function InventoryClient({
       </AppShell>
 
       {/* Modals */}
-      {cameraMode && (
+      {visionMode && (
+        <VisionScanModal
+          mode={visionMode}
+          onClose={() => setVisionMode(null)}
+          onAdded={handleAdded}
+        />
+      )}
+      {barcodeOpen && (
         <CameraModal
-          mode={cameraMode}
-          onClose={() => setCameraMode(null)}
+          mode="scan"
+          onClose={() => setBarcodeOpen(false)}
           onAdded={handleAdded}
         />
       )}

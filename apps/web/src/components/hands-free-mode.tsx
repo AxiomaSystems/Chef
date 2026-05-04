@@ -444,7 +444,7 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
             </p>
           ) : null}
         </div>
-        
+
         <button
           type="button"
           onClick={() => manualNav("next")}

@@ -38,4 +38,6 @@ export type AddKitchenInventoryItemRequest = {
   ingredient_id?: string;
   canonical_name?: string;
   label?: string;
+  estimated_amount?: number;
+  unit?: string;
 };
