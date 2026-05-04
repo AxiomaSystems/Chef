@@ -3,7 +3,11 @@
 import { useRef, useState, useTransition } from "react";
 import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
 import { createRecipeAction, updateRecipeAction } from "@/app/home-actions";
-import { generateMealsAction, type AiRecipePreview } from "@/app/ai-actions";
+import {
+  fetchUnsplashImageAction,
+  generateMealsAction,
+  type AiRecipePreview,
+} from "@/app/ai-actions";
 
 type IngredientRow = {
   canonical_ingredient: string;
@@ -379,14 +383,17 @@ export function RecipeCreateModal({
     setAutofillHint(undefined);
 
     startAutofill(async () => {
-      const result = await generateMealsAction({
-        mealPrompt: normalizedName,
-        mealsNeeded: 1,
-        servingsPerMeal: getAutofillServings(),
-        mealStyle: "standard",
-        notes:
-          "Return one practical recipe preview suitable for pre-filling a manual recipe creation form.",
-      });
+      const [result, imageUrl] = await Promise.all([
+        generateMealsAction({
+          mealPrompt: normalizedName,
+          mealsNeeded: 1,
+          servingsPerMeal: getAutofillServings(),
+          mealStyle: "standard",
+          notes:
+            "Return one practical recipe preview suitable for pre-filling a manual recipe creation form.",
+        }),
+        fetchUnsplashImageAction(normalizedName),
+      ]);
 
       if (result.error) {
         setError(result.error);
@@ -400,6 +407,9 @@ export function RecipeCreateModal({
       }
 
       applyAiRecipePreview(recipe);
+      if (imageUrl && !coverImageUrl) {
+        setCoverImageUrl(imageUrl);
+      }
       setLastAutofilledName(normalizedName);
       setAutofillHint(
         trigger === "auto"
@@ -535,7 +545,7 @@ export function RecipeCreateModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-6">
       <div
         className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm"
         onClick={onClose}
@@ -590,14 +600,32 @@ export function RecipeCreateModal({
                   setName(event.target.value);
                   setAutofillHint(undefined);
                 }}
-                onBlur={() => autofillFromName("auto")}
                 placeholder="e.g. Lemon Herb Salmon"
                 className="w-full rounded-xl border border-outline-variant/50 bg-white px-4 py-2.5 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex shrink-0 items-center gap-2">
+                <label className="text-label-sm uppercase tracking-wide text-outline">
+                  Servings *
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={servings}
+                  onChange={(event) => handleServingsChange(event.target.value)}
+                  onBlur={() => {
+                    normalizeServings();
+                    autofillFromName("auto");
+                  }}
+                  className="w-16 rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-center text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
               {!isEditing && (
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <p className="text-[11px] leading-5 text-outline">
-                    Enter a recipe name and Chef can draft the rest automatically.
+                <>
+                  <p className="flex-1 text-[11px] leading-5 text-outline">
+                    Set servings, then Chef can draft the rest automatically.
                   </p>
                   <button
                     type="button"
@@ -616,7 +644,7 @@ export function RecipeCreateModal({
                     )}
                     {isAutofilling ? "Drafting..." : "Autofill with AI"}
                   </button>
-                </div>
+                </>
               )}
             </div>
 
@@ -633,62 +661,47 @@ export function RecipeCreateModal({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-label-sm uppercase tracking-wide text-outline">
-                  Cuisine *
-                </label>
-                <div className="relative">
-                  <input
-                    value={cuisineQuery}
-                    onChange={(event) =>
-                      handleCuisineQueryChange(event.target.value)
-                    }
-                    onFocus={() => setIsCuisineMenuOpen(true)}
-                    onBlur={commitCuisineQuery}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === "Escape") {
-                        event.currentTarget.blur();
-                      }
-                    }}
-                    list="recipe-cuisine-options"
-                    placeholder="Type a cuisine"
-                    className="w-full rounded-xl border border-outline-variant/50 bg-white px-4 py-2.5 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                  <datalist id="recipe-cuisine-options">
-                    {cuisines.map((cuisine) => (
-                      <option key={cuisine.id} value={cuisine.label} />
-                    ))}
-                  </datalist>
-                  {shouldShowCuisineOptions() && (
-                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-outline-variant/50 bg-white py-1 shadow-lg">
-                      {cuisineOptions.slice(0, 8).map((cuisine) => (
-                        <button
-                          key={cuisine.id}
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => chooseCuisine(cuisine)}
-                          className="block w-full px-4 py-2 text-left text-body-sm text-on-surface transition-colors hover:bg-surface-container-low"
-                        >
-                          {cuisine.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-label-sm uppercase tracking-wide text-outline">
-                  Servings *
-                </label>
+            <div className="space-y-1">
+              <label className="text-label-sm uppercase tracking-wide text-outline">
+                Cuisine *
+              </label>
+              <div className="relative">
                 <input
-                  type="number"
-                  min={1}
-                  value={servings}
-                  onChange={(event) => handleServingsChange(event.target.value)}
-                  onBlur={normalizeServings}
-                  className="w-full rounded-xl border border-outline-variant/50 bg-white px-4 py-2.5 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  value={cuisineQuery}
+                  onChange={(event) =>
+                    handleCuisineQueryChange(event.target.value)
+                  }
+                  onFocus={() => setIsCuisineMenuOpen(true)}
+                  onBlur={commitCuisineQuery}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === "Escape") {
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  list="recipe-cuisine-options"
+                  placeholder="Type a cuisine"
+                  className="w-full rounded-xl border border-outline-variant/50 bg-white px-4 py-2.5 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
+                <datalist id="recipe-cuisine-options">
+                  {cuisines.map((cuisine) => (
+                    <option key={cuisine.id} value={cuisine.label} />
+                  ))}
+                </datalist>
+                {shouldShowCuisineOptions() && (
+                  <div className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-outline-variant/50 bg-white py-1 shadow-lg">
+                    {cuisineOptions.slice(0, 8).map((cuisine) => (
+                      <button
+                        key={cuisine.id}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => chooseCuisine(cuisine)}
+                        className="block w-full px-4 py-2 text-left text-body-sm text-on-surface transition-colors hover:bg-surface-container-low"
+                      >
+                        {cuisine.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

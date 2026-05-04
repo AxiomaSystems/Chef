@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="115" fill="#f39447"/>
+  <!-- Bowl -->
+  <path fill="none" stroke="white" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"
+    d="M128 248 Q128 368 256 368 Q384 368 384 248"/>
+  <!-- Rim -->
+  <line x1="104" y1="248" x2="408" y2="248" stroke="white" stroke-width="30" stroke-linecap="round"/>
+  <!-- Steam left -->
+  <path fill="none" stroke="white" stroke-width="22" stroke-linecap="round"
+    d="M196 210 Q184 188 196 166 Q208 144 196 122"/>
+  <!-- Steam center -->
+  <path fill="none" stroke="white" stroke-width="22" stroke-linecap="round"
+    d="M256 200 Q244 178 256 156 Q268 134 256 112"/>
+  <!-- Steam right -->
+  <path fill="none" stroke="white" stroke-width="22" stroke-linecap="round"
+    d="M316 210 Q304 188 316 166 Q328 144 316 122"/>
+</svg>
