@@ -148,7 +148,11 @@ export class VisionPipelineConfigResponseDto {
   supported_classes!: VisionClassDefinitionResponseDto[];
 
   @ApiProperty({
-    example: ['Stage 1 is closed-set detection only.'],
+    example: [
+      'Stage 1 is closed-set detection only.',
+      'Tracking, embeddings, OCR, and open-vocabulary fallback are intentionally outside this API contract.',
+      'Use inventory_policy to route detections into track, review, or ignore workflows.',
+    ],
   })
   notes!: string[];
 }

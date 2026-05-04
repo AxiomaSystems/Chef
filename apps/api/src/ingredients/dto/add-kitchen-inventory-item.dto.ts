@@ -1,4 +1,11 @@
-import { IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 
 export class AddKitchenInventoryItemDto {
   @ValidateIf((input: AddKitchenInventoryItemDto) => !input.canonical_name)
@@ -15,4 +22,14 @@ export class AddKitchenInventoryItemDto {
   @IsString()
   @MaxLength(120)
   label?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  estimated_amount?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(24)
+  unit?: string;
 }

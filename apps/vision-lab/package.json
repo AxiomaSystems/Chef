@@ -1,0 +1,10 @@
+{
+  "name": "vision-lab",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "..\\..\\.venv\\Scripts\\python.exe -m uvicorn fastapi_app:app --app-dir . --host 0.0.0.0 --port 8000 --reload",
+    "setup": "..\\..\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt",
+    "streamlit": "..\\..\\.venv\\Scripts\\python.exe -m streamlit run app.py"
+  }
+}

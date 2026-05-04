@@ -20,6 +20,10 @@ describe('VisionService', () => {
           id: 'olive_oil_bottle',
           inventory_policy: 'track',
         }),
+        expect.objectContaining({
+          id: 'spice_bottle',
+          inventory_policy: 'track',
+        }),
       ]),
     );
   });
@@ -85,5 +89,34 @@ describe('VisionService', () => {
         ignored_detection_count: 1,
       }),
     );
+  });
+
+  it('infers all exact closed-set labels from frame_ref text before generic labels', async () => {
+    const result = await service.analyzeScan({
+      scan_session_id: 'scan-2',
+      frames: [
+        {
+          frame_id: 1,
+          frame_ref: 'fridge shelf milk carton egg carton banana',
+        },
+        {
+          frame_id: 2,
+          frame_ref: 'counter bottle jar mug',
+        },
+      ],
+      options: {
+        include_ignored: false,
+      },
+    });
+
+    expect(result.frames[0].detections.map((detection) => detection.label)).toEqual([
+      'banana',
+      'egg carton',
+      'milk carton',
+    ]);
+    expect(result.frames[1].detections.map((detection) => detection.label)).toEqual([
+      'bottle',
+      'jar',
+    ]);
   });
 });
