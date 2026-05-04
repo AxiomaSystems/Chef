@@ -15,10 +15,15 @@ function splitTitle(text: string) {
   return { title: parts[0] ?? text, body: parts.slice(1).join(" ") };
 }
 
-function getStepIngredients(stepText: string, ingredients: BaseRecipe["ingredients"]) {
+function getStepIngredients(
+  stepText: string,
+  ingredients: BaseRecipe["ingredients"],
+) {
   const lower = stepText.toLowerCase();
   return ingredients.filter((ing) => {
-    const name = (ing.display_ingredient ?? ing.canonical_ingredient).toLowerCase();
+    const name = (
+      ing.display_ingredient ?? ing.canonical_ingredient
+    ).toLowerCase();
     return name.split(" ").some((w) => w.length > 3 && lower.includes(w));
   });
 }
@@ -68,7 +73,9 @@ type ElevenLabsMessage = {
 };
 
 function getAudioPayload(msg: ElevenLabsMessage) {
-  return msg.audio_event?.audio_base64 ?? msg.audio_event?.audio_base_64 ?? null;
+  return (
+    msg.audio_event?.audio_base64 ?? msg.audio_event?.audio_base_64 ?? null
+  );
 }
 
 function sendWsMessage(ws: WebSocket | null, payload: unknown) {
@@ -139,7 +146,11 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       };
     }
 
-    function handleToolCall(name: string, params: Record<string, unknown>, id: string) {
+    function handleToolCall(
+      name: string,
+      params: Record<string, unknown>,
+      id: string,
+    ) {
       const ws = wsRef.current;
       if (!ws) return;
 
@@ -190,14 +201,22 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       try {
         setConnectionError(null);
 
-        const tokenRes = await fetch("/api/elevenlabs/token", { method: "POST" });
-        const tokenData = (await tokenRes.json().catch(() => null)) as SignedUrlResponse | null;
+        const tokenRes = await fetch("/api/elevenlabs/token", {
+          method: "POST",
+        });
+        const tokenData = (await tokenRes
+          .json()
+          .catch(() => null)) as SignedUrlResponse | null;
         if (!tokenRes.ok || !tokenData?.signed_url) {
-          throw new Error(tokenData?.error ?? "Unable to start ElevenLabs conversation.");
+          throw new Error(
+            tokenData?.error ?? "Unable to start ElevenLabs conversation.",
+          );
         }
 
         if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error("Microphone access is not available in this browser.");
+          throw new Error(
+            "Microphone access is not available in this browser.",
+          );
         }
 
         const ctx = new AudioContext({ latencyHint: "interactive" });
@@ -205,7 +224,10 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
         if (ctx.state === "suspended") void ctx.resume();
         const nativeRate = ctx.sampleRate;
 
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: false,
+        });
 
         const ws = new WebSocket(tokenData.signed_url);
         wsRef.current = ws;
@@ -213,7 +235,9 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
         ws.onopen = () => {
           if (!mounted) return;
 
-          const stepsText = recipe.steps.map((s) => `Step ${s.step}: ${s.what_to_do}`).join("\n");
+          const stepsText = recipe.steps
+            .map((s) => `Step ${s.step}: ${s.what_to_do}`)
+            .join("\n");
           sendWsMessage(ws, {
             type: "conversation_initiation_client_data",
             dynamic_variables: {
@@ -230,7 +254,10 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
 
           processor.onaudioprocess = (e) => {
             if (ws.readyState !== WebSocket.OPEN) return;
-            const chunk = encodeAudioChunk(e.inputBuffer.getChannelData(0), nativeRate);
+            const chunk = encodeAudioChunk(
+              e.inputBuffer.getChannelData(0),
+              nativeRate,
+            );
             sendWsMessage(ws, { user_audio_chunk: chunk });
           };
 
@@ -268,15 +295,23 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
                 scheduledUntilRef.current = ctx.currentTime;
                 setMode("listening");
                 break;
-              case "ping":
-                if (msg.ping_event?.event_id) {
-                  window.setTimeout(() => {
-                    if (ws.readyState === WebSocket.OPEN) {
-                      sendWsMessage(ws, { type: "pong", event_id: msg.ping_event?.event_id });
-                    }
-                  }, msg.ping_event.ping_ms ?? 0);
-                }
+              case "ping": {
+                const pingEvent = msg.ping_event;
+                if (!pingEvent?.event_id) break;
+
+                const delayMs = pingEvent.ping_ms ?? 0;
+
+                window.setTimeout(() => {
+                  if (ws.readyState === WebSocket.OPEN) {
+                    sendWsMessage(ws, {
+                      type: "pong",
+                      event_id: pingEvent.event_id,
+                    });
+                  }
+                }, delayMs);
+
                 break;
+              }
               case "client_tool_call":
                 if (
                   msg.client_tool_call?.tool_name &&
@@ -293,7 +328,9 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
             }
           } catch (error) {
             setConnectionError(
-              error instanceof Error ? error.message : "Failed to handle ElevenLabs message.",
+              error instanceof Error
+                ? error.message
+                : "Failed to handle ElevenLabs message.",
             );
           }
         };
@@ -303,7 +340,8 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
           setMode("disconnected");
           if (!event.wasClean) {
             setConnectionError(
-              event.reason || `ElevenLabs connection closed unexpectedly (${event.code}).`,
+              event.reason ||
+                `ElevenLabs connection closed unexpectedly (${event.code}).`,
             );
           }
         };
@@ -311,12 +349,18 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
         ws.onerror = () => {
           if (!mounted) return;
           setMode("disconnected");
-          setConnectionError("ElevenLabs connection failed. Check the agent and API key settings.");
+          setConnectionError(
+            "ElevenLabs connection failed. Check the agent and API key settings.",
+          );
         };
       } catch (error) {
         if (!mounted) return;
         setMode("disconnected");
-        setConnectionError(error instanceof Error ? error.message : "Hands-free mode failed to start.");
+        setConnectionError(
+          error instanceof Error
+            ? error.message
+            : "Hands-free mode failed to start.",
+        );
       }
     }
 
@@ -349,15 +393,30 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
     });
   }
 
-  const modeConfig: Record<Mode, { label: string; icon: string; ring: string }> = {
-    connecting: { label: "Connecting...", icon: "mic", ring: "bg-white/10 text-white/30" },
+  const modeConfig: Record<
+    Mode,
+    { label: string; icon: string; ring: string }
+  > = {
+    connecting: {
+      label: "Connecting...",
+      icon: "mic",
+      ring: "bg-white/10 text-white/30",
+    },
     listening: {
       label: "Listening...",
       icon: "mic",
       ring: "animate-pulse bg-amber-400/20 text-amber-400",
     },
-    speaking: { label: "Speaking...", icon: "volume_up", ring: "bg-amber-400/30 text-amber-300" },
-    disconnected: { label: "Disconnected", icon: "mic_off", ring: "bg-red-500/20 text-red-400" },
+    speaking: {
+      label: "Speaking...",
+      icon: "volume_up",
+      ring: "bg-amber-400/30 text-amber-300",
+    },
+    disconnected: {
+      label: "Disconnected",
+      icon: "mic_off",
+      ring: "bg-red-500/20 text-red-400",
+    },
   };
   const { label, icon, ring } = modeConfig[mode];
 
@@ -377,7 +436,9 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
             <p className="font-mono text-2xl font-semibold tabular-nums text-amber-300">
               {formatTime(elapsedSeconds)}
             </p>
-            <p className="text-[10px] uppercase tracking-widest text-white/40">This step</p>
+            <p className="text-[10px] uppercase tracking-widest text-white/40">
+              This step
+            </p>
           </div>
           <button
             type="button"
@@ -393,7 +454,9 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       <div className="h-0.5 bg-white/10">
         <div
           className="h-full bg-amber-400/60 transition-all duration-300"
-          style={{ width: `${((activeStep + 1) / recipe.steps.length) * 100}%` }}
+          style={{
+            width: `${((activeStep + 1) / recipe.steps.length) * 100}%`,
+          }}
         />
       </div>
 
@@ -401,7 +464,9 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
         <p className="mb-6 text-5xl font-bold leading-tight tracking-tight text-white sm:text-6xl">
           {title}
         </p>
-        {body ? <p className="max-w-2xl text-xl leading-8 text-white/60">{body}</p> : null}
+        {body ? (
+          <p className="max-w-2xl text-xl leading-8 text-white/60">{body}</p>
+        ) : null}
         {stepIngredients.length > 0 ? (
           <div className="mt-8 flex flex-wrap justify-center gap-2">
             {stepIngredients.map((ing, i) => (
@@ -409,7 +474,8 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
                 key={i}
                 className="rounded-full bg-amber-400/15 px-4 py-1.5 text-sm text-amber-200/80"
               >
-                {ing.amount} {ing.unit} {ing.display_ingredient ?? ing.canonical_ingredient}
+                {ing.amount} {ing.unit}{" "}
+                {ing.display_ingredient ?? ing.canonical_ingredient}
               </span>
             ))}
           </div>
@@ -430,12 +496,18 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
           aria-label="Previous step"
           className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 disabled:opacity-30"
         >
-          <span className="material-symbols-outlined text-[28px]">arrow_back</span>
+          <span className="material-symbols-outlined text-[28px]">
+            arrow_back
+          </span>
         </button>
 
         <div className="flex flex-col items-center gap-2">
-          <div className={`flex h-16 w-16 items-center justify-center rounded-full transition-all ${ring}`}>
-            <span className="material-symbols-outlined text-[28px]">{icon}</span>
+          <div
+            className={`flex h-16 w-16 items-center justify-center rounded-full transition-all ${ring}`}
+          >
+            <span className="material-symbols-outlined text-[28px]">
+              {icon}
+            </span>
           </div>
           <p className="text-[11px] text-white/40">{label}</p>
           {connectionError ? (
@@ -452,7 +524,9 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
           aria-label="Next step"
           className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-400/20 text-amber-300 transition-colors hover:bg-amber-400/30 disabled:opacity-30"
         >
-          <span className="material-symbols-outlined text-[28px]">arrow_forward</span>
+          <span className="material-symbols-outlined text-[28px]">
+            arrow_forward
+          </span>
         </button>
       </div>
     </div>
