@@ -75,6 +75,10 @@ export type ImportRecipeActionState = {
   result?: AiRecipeImportResult;
 };
 
+export type RecipeCoverImageActionState = {
+  imageUrl?: string;
+};
+
 async function readErrorMessage(response: Response | null, fallback: string) {
   if (!response) return fallback;
 
@@ -247,6 +251,104 @@ export async function generateMealsAction(input: {
     recipes: payload.recipes ?? [],
     planningNotes: payload.planning_notes ?? [],
     costNotes: payload.cost_minimization_notes ?? [],
+  };
+}
+
+function normalizeRecipeImageQuery(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function findSpoonacularCoverImage(recipeName: string) {
+  const apiKey = process.env.SPOONACULAR_API_KEY;
+  if (!apiKey) return undefined;
+
+  const url = new URL("https://api.spoonacular.com/recipes/complexSearch");
+  url.searchParams.set("query", recipeName);
+  url.searchParams.set("number", "3");
+  url.searchParams.set("apiKey", apiKey);
+
+  const response = await fetch(url, { cache: "no-store" }).catch(() => null);
+  if (!response?.ok) return undefined;
+
+  const payload = (await response.json().catch(() => null)) as
+    | {
+        results?: Array<{
+          title?: string | null;
+          image?: string | null;
+        }>;
+      }
+    | null;
+
+  const results = payload?.results?.filter((recipe) => recipe.image) ?? [];
+  if (results.length === 0) return undefined;
+
+  const normalizedRecipeName = normalizeRecipeImageQuery(recipeName);
+  const bestMatch =
+    results.find(
+      (recipe) => normalizeRecipeImageQuery(recipe.title ?? "") === normalizedRecipeName,
+    ) ??
+    results.find((recipe) => {
+      const normalizedTitle = normalizeRecipeImageQuery(recipe.title ?? "");
+      return (
+        normalizedTitle.includes(normalizedRecipeName) ||
+        normalizedRecipeName.includes(normalizedTitle)
+      );
+    }) ??
+    results[0];
+
+  return bestMatch?.image ?? undefined;
+}
+
+async function findMealDbCoverImage(recipeName: string) {
+  const response = await fetch(
+    `https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(recipeName)}`,
+    { cache: "no-store" },
+  ).catch(() => null);
+
+  if (!response?.ok) return undefined;
+
+  const payload = (await response.json().catch(() => null)) as
+    | {
+        meals?: Array<{
+          strMeal?: string | null;
+          strMealThumb?: string | null;
+        }> | null;
+      }
+    | null;
+
+  const meals = payload?.meals?.filter((meal) => meal.strMealThumb) ?? [];
+  if (meals.length === 0) return undefined;
+
+  const normalizedRecipeName = normalizeRecipeImageQuery(recipeName);
+  const bestMatch =
+    meals.find((meal) => normalizeRecipeImageQuery(meal.strMeal ?? "") === normalizedRecipeName) ??
+    meals.find((meal) => {
+      const normalizedMeal = normalizeRecipeImageQuery(meal.strMeal ?? "");
+      return (
+        normalizedMeal.includes(normalizedRecipeName) ||
+        normalizedRecipeName.includes(normalizedMeal)
+      );
+    }) ??
+    meals[0];
+
+  return bestMatch?.strMealThumb ?? undefined;
+}
+
+export async function findRecipeCoverImageAction(input: {
+  recipeName: string;
+}): Promise<RecipeCoverImageActionState> {
+  const recipeName = input.recipeName.trim();
+  if (!recipeName) return {};
+
+  return {
+    imageUrl:
+      (await findSpoonacularCoverImage(recipeName)) ??
+      (await findMealDbCoverImage(recipeName)),
   };
 }
 

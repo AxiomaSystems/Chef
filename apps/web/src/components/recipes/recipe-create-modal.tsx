@@ -3,7 +3,11 @@
 import { useRef, useState, useTransition } from "react";
 import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
 import { createRecipeAction, updateRecipeAction } from "@/app/home-actions";
-import { generateMealsAction, type AiRecipePreview } from "@/app/ai-actions";
+import {
+  findRecipeCoverImageAction,
+  generateMealsAction,
+  type AiRecipePreview,
+} from "@/app/ai-actions";
 
 type IngredientRow = {
   canonical_ingredient: string;
@@ -400,6 +404,15 @@ export function RecipeCreateModal({
       }
 
       applyAiRecipePreview(recipe);
+      const currentCoverImageUrl = coverImageUrl.trim();
+      if (!currentCoverImageUrl) {
+        const imageResult = await findRecipeCoverImageAction({
+          recipeName: recipe.name || normalizedName,
+        });
+        if (imageResult.imageUrl) {
+          setCoverImageUrl(imageResult.imageUrl);
+        }
+      }
       setLastAutofilledName(normalizedName);
       setAutofillHint(
         trigger === "auto"
