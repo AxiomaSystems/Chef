@@ -1,8 +1,8 @@
-$ErrorActionPreference = "Stop"
-
 param(
   [switch]$Live
 )
+
+$ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $venvDir = Join-Path $repoRoot ".venv"
