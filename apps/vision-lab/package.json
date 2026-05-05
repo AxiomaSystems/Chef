@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "..\\..\\.venv\\Scripts\\python.exe -m uvicorn fastapi_app:app --app-dir . --host 0.0.0.0 --port 8000 --reload",
-    "setup": "..\\..\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt",
-    "streamlit": "..\\..\\.venv\\Scripts\\python.exe -m streamlit run app.py"
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\run_fastapi.ps1",
+    "setup": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\setup.ps1",
+    "setup:live": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\setup.ps1 -Live",
+    "streamlit": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\run_streamlit.ps1"
   }
 }
