@@ -1,9 +1,9 @@
-$ErrorActionPreference = "Stop"
-
 param(
   [switch]$SkipVision,
   [switch]$LiveVision
 )
+
+$ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $envFile = Join-Path $repoRoot ".env"
