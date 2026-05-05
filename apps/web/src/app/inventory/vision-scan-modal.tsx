@@ -284,9 +284,9 @@ export function VisionScanModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 p-4 flex items-end sm:items-center justify-center">
-      <div className="bg-white w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-3xl shadow-2xl flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/30">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4">
+      <div className="flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-[92vh] sm:rounded-3xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-outline-variant/30 px-4 py-3 sm:px-5 sm:py-4">
           <div>
             <p className="font-bold text-on-surface">{titleForMode(mode)}</p>
             <p className="text-xs text-outline">Find what is in your kitchen</p>
@@ -300,7 +300,7 @@ export function VisionScanModal({
           </button>
         </div>
 
-        <div className="overflow-y-auto p-5 space-y-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <input
             ref={fileInputRef}
             type="file"
@@ -309,27 +309,27 @@ export function VisionScanModal({
             onChange={handleFileChange}
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-4">
-            <div className="rounded-2xl overflow-hidden bg-black min-h-72 flex items-center justify-center">
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+            <div className="relative flex aspect-[4/3] max-h-[56vh] min-h-0 w-full items-center justify-center overflow-hidden rounded-2xl bg-black sm:aspect-video lg:aspect-[4/3]">
               {primaryAnnotatedFrame?.annotated_image_data_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={primaryAnnotatedFrame.annotated_image_data_url}
                   alt="Detected items with bounding boxes"
-                  className="w-full max-h-[460px] object-contain"
+                  className="absolute inset-0 h-full w-full object-contain"
                 />
               ) : preview?.kind === "image" && preview.url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={preview.url}
                   alt=""
-                  className="w-full max-h-[460px] object-contain"
+                  className="absolute inset-0 h-full w-full object-contain"
                 />
               ) : preview?.kind === "video" && preview.url ? (
                 <video
                   src={preview.url}
                   controls
-                  className="w-full max-h-[460px]"
+                  className="absolute inset-0 h-full w-full object-contain"
                 />
               ) : mode === "camera" ? (
                 <video
@@ -337,19 +337,19 @@ export function VisionScanModal({
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full min-h-72 object-cover"
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : (
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-white/80 text-sm font-semibold px-5 py-3 rounded-full bg-white/10"
+                  className="rounded-full bg-white/10 px-5 py-3 text-sm font-semibold text-white/80"
                 >
                   Choose {mode === "photo" ? "photo" : "video"}
                 </button>
               )}
             </div>
 
-            <div className="space-y-3">
+            <div className="min-w-0 space-y-3">
               <div className="rounded-2xl bg-surface-container px-4 py-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-outline">
                   Kitchen scan
@@ -373,6 +373,15 @@ export function VisionScanModal({
                   </span>
                   Select {mode === "photo" ? "photo" : "video"}
                 </button>
+              )}
+
+              {preview?.fileName && (
+                <div className="flex min-w-0 items-center gap-2 rounded-xl border border-outline-variant/40 px-3 py-2 text-xs text-outline">
+                  <span className="material-symbols-outlined text-[16px]">
+                    draft
+                  </span>
+                  <span className="truncate">{preview.fileName}</span>
+                </div>
               )}
 
               <button
@@ -412,8 +421,8 @@ export function VisionScanModal({
           </div>
 
           {result && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
+            <div className="mt-5 space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-bold text-on-surface">Items found</p>
                   <p className="text-xs text-outline">
@@ -424,7 +433,7 @@ export function VisionScanModal({
                   <button
                     onClick={() => void addAllGroups()}
                     disabled={addingKey !== null}
-                    className="rounded-full bg-primary-fixed-dim px-4 py-2 text-xs font-bold text-on-primary-fixed disabled:opacity-60"
+                    className="w-full rounded-full bg-primary-fixed-dim px-4 py-2 text-xs font-bold text-on-primary-fixed disabled:opacity-60 sm:w-auto"
                   >
                     Add everything shown
                   </button>
@@ -436,7 +445,7 @@ export function VisionScanModal({
                   No detections.
                 </p>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-4">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                   <div className="rounded-2xl border border-outline-variant/40 overflow-hidden divide-y divide-outline-variant/30">
                     {detectionGroups.map((group) => (
                       <button
@@ -468,8 +477,8 @@ export function VisionScanModal({
                   </div>
 
                   {expandedGroup && (
-                    <div className="rounded-2xl border border-outline-variant/40 overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-3 bg-surface-container">
+                    <div className="min-w-0 overflow-hidden rounded-2xl border border-outline-variant/40">
+                      <div className="flex flex-col gap-3 bg-surface-container px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <p className="font-bold text-base text-on-surface">
                             {expandedGroup.count}x {expandedGroup.label}
@@ -490,23 +499,26 @@ export function VisionScanModal({
                             : `Add ${expandedGroup.count}x`}
                         </button>
                       </div>
-                      <div className="max-h-80 overflow-y-auto divide-y divide-outline-variant/30">
+                      <div className="max-h-[22rem] overflow-y-auto divide-y divide-outline-variant/30">
                         {expandedGroup.detections.map((detection, index) => (
                           <div
                             key={detection.observation_id}
-                            className="flex items-center gap-3 px-4 py-3"
+                            className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
                           >
-                            <DetectionThumb
-                              src={detection.thumbnail_data_url}
-                              label={labelForDetection(detection)}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-base text-on-surface">
-                                {labelForDetection(detection)} #{index + 1}
-                              </p>
-                              <p className="text-xs text-outline">
-                                {Math.round(detection.confidence * 100)}% match
-                              </p>
+                            <div className="flex min-w-0 items-center gap-3">
+                              <DetectionThumb
+                                src={detection.thumbnail_data_url}
+                                label={labelForDetection(detection)}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-base font-semibold text-on-surface">
+                                  {labelForDetection(detection)} #{index + 1}
+                                </p>
+                                <p className="text-xs text-outline">
+                                  {Math.round(detection.confidence * 100)}%
+                                  match
+                                </p>
+                              </div>
                             </div>
                             <DetectionAddControl
                               detection={detection}
@@ -664,7 +676,7 @@ function DetectionAddControl({
     : "Name this item before adding it.";
 
   return (
-    <div className="w-44 shrink-0 space-y-2">
+    <div className="w-full shrink-0 space-y-2 sm:w-44">
       <select
         value={selected}
         onChange={(event) => onChoiceChange(event.target.value)}
