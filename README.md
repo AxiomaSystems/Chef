@@ -175,18 +175,33 @@ See [LICENSE](/C:/Users/akuma/repos/cart-generator/LICENSE) for details.
 
 ## Workspace Commands
 
+### Prerequisites
+
+Full app development requires:
+
+- Node.js and pnpm
+- Docker Desktop for the local PostgreSQL stack
+- Python 3.11 or newer for the vision sidecar
+- a local `.env` copied from `.env.example`
+
+On Windows, install Python first if `python --version` or `py -3 --version` does not work:
+
+```powershell
+winget install Python.Python.3.11
+```
+
 ### Fresh Clone Setup
 
-Use this path when setting up the repo on a new machine or after a clean clone.
+Use this path when setting up the full app on a new machine or after a clean clone.
 
 On Windows PowerShell:
 
 ```powershell
-pnpm install --frozen-lockfile
-Copy-Item .env.example .env -ErrorAction SilentlyContinue
-pnpm --filter api prisma:generate
+pnpm setup
 pnpm build
 ```
+
+`pnpm setup` installs Node dependencies, creates `.env` from `.env.example` when missing, starts local PostgreSQL, generates Prisma, applies migrations, seeds data, creates `.venv`, and installs the vision dependencies.
 
 Notes:
 
@@ -201,18 +216,22 @@ Install dependencies:
 pnpm install
 ```
 
-Run both apps:
+Run the full app:
 
 ```bash
 pnpm dev
 ```
 
-Run one app:
+Run one app or a reduced stack:
 
 ```bash
 pnpm dev:api
 pnpm dev:web
+pnpm dev:vision
+pnpm dev:main
 ```
+
+`pnpm dev` and `pnpm dev:all` run web, API, and vision-lab together. `pnpm dev:main` is only for working on web/API without the vision sidecar.
 
 Build the workspace:
 
@@ -227,6 +246,34 @@ pnpm lint
 pnpm test
 pnpm typecheck
 ```
+
+### Vision Lab Commands
+
+Create or refresh the repo-local virtual environment and install the base vision dependencies:
+
+```powershell
+pnpm vision:setup
+```
+
+For the optional live webcam path:
+
+```powershell
+pnpm vision:setup:live
+```
+
+Run the FastAPI vision sidecar:
+
+```powershell
+pnpm dev:vision
+```
+
+Run the Streamlit lab:
+
+```powershell
+pnpm vision:streamlit
+```
+
+The setup script creates `.venv` at the repo root. `.venv` is intentionally ignored and should not be committed.
 
 ## Local API Setup
 

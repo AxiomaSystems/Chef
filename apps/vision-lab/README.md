@@ -22,12 +22,18 @@ The current detector is intentionally a mock stage-1 detector. It stabilizes the
 
 ## Quick Start
 
-Create and activate a virtual environment:
+Python 3.11 or newer is required because the main app runs this vision sidecar in local development.
+
+For a full repo setup from the root, prefer:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r apps/vision-lab/requirements.txt
+pnpm setup
+```
+
+From the repo root, create the local virtual environment and install the base vision dependencies:
+
+```powershell
+pnpm vision:setup
 ```
 
 That base install is enough for:
@@ -39,13 +45,13 @@ That base install is enough for:
 If you also want the live webcam path, install the optional live extras:
 
 ```powershell
-pip install -r apps/vision-lab/requirements-live.txt
+pnpm vision:setup:live
 ```
 
 Run the Streamlit lab:
 
 ```powershell
-streamlit run apps/vision-lab/app.py
+pnpm vision:streamlit
 ```
 
 Or use the helper script:
@@ -57,7 +63,7 @@ Or use the helper script:
 Run the FastAPI sidecar:
 
 ```powershell
-uvicorn apps.vision-lab.fastapi_app:app --reload
+pnpm dev:vision
 ```
 
 Or use the helper script:
@@ -70,7 +76,7 @@ If the module import path gives trouble from repo root on Windows, use:
 
 ```powershell
 $env:PYTHONPATH="apps/vision-lab"
-uvicorn fastapi_app:app --reload --app-dir apps/vision-lab
+.\.venv\Scripts\python.exe -m uvicorn fastapi_app:app --reload --app-dir apps/vision-lab
 ```
 
 ## Recommended Architecture
