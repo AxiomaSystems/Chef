@@ -42,6 +42,14 @@ That base install is enough for:
 - uploaded video scanning
 - FastAPI sidecar testing
 
+Checkpoint binaries are not committed. Download shared model files from the team artifact folder and place them under:
+
+```text
+apps/vision-lab/checkpoints/
+```
+
+See `apps/vision-lab/checkpoints/README.md` for the exact expected paths.
+
 If you also want the live webcam path, install the optional live extras:
 
 ```powershell
@@ -110,6 +118,7 @@ For `yolo` mode:
 - upload a real image in Streamlit
 - or upload a short video and sample frames from it
 - the default model is `yolo11n.pt`
+- if `apps/vision-lab/checkpoints/base/yolo11n.pt` exists, the YOLO detector uses it before falling back to the Ultralytics model name
 - the first run may download model weights
 - detections are mapped into the Chef ontology as a best-effort starting point
 

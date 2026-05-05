@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageColor, ImageDraw
+
+from chef_vision.checkpoints import BASE_MODEL_DIR
 
 
 SEGMENTATION_COLORS = [
@@ -22,7 +25,15 @@ SEGMENTATION_COLORS = [
 def load_yolo_segmentation_model(model_name: str) -> Any:
     from ultralytics import YOLO
 
-    return YOLO(model_name)
+    model_source = model_name
+    if Path(model_name).exists():
+        model_source = str(Path(model_name).resolve())
+    else:
+        shared_base_model = BASE_MODEL_DIR / model_name
+        if shared_base_model.exists():
+            model_source = str(shared_base_model.resolve())
+
+    return YOLO(model_source)
 
 
 def run_yolo_segmentation(

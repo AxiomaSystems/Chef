@@ -6,10 +6,12 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+from chef_vision.checkpoints import INGREDIENT_CLASSIFIER_CHECKPOINTS_DIR
+
 
 APP_DIR = Path(__file__).resolve().parent
 DEFAULT_DATA_DIR = APP_DIR / "data" / "ingredient_training_dataset"
-DEFAULT_OUTPUT_DIR = APP_DIR / "data" / "ingredient_classifier_runs"
+DEFAULT_OUTPUT_DIR = INGREDIENT_CLASSIFIER_CHECKPOINTS_DIR
 
 
 def parse_args() -> argparse.Namespace:

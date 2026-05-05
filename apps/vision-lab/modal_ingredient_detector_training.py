@@ -8,6 +8,8 @@ from pathlib import PurePosixPath
 
 import modal
 
+from chef_vision.checkpoints import INGREDIENT_DETECTOR_CHECKPOINTS_DIR
+
 
 APP_NAME = "chef-ingredient-detector-training"
 VOLUME_NAME = "chef-ingredient-vision-data"
@@ -15,7 +17,7 @@ VOL_MOUNT = PurePosixPath("/mnt/chef-vision")
 REMOTE_CODE_DIR = PurePosixPath("/root/vision-lab")
 LOCAL_APP_DIR = Path(__file__).resolve().parent
 DEFAULT_LOCAL_DATA_DIR = LOCAL_APP_DIR / "data" / "ingredient_detection_dataset"
-DEFAULT_LOCAL_OUTPUT_DIR = LOCAL_APP_DIR / "data" / "ingredient_detector_runs"
+DEFAULT_LOCAL_OUTPUT_DIR = INGREDIENT_DETECTOR_CHECKPOINTS_DIR
 
 
 volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
@@ -33,6 +35,7 @@ image = (
         remote_path=str(REMOTE_CODE_DIR),
         ignore=[
             "data/**",
+            "checkpoints/**",
             "__pycache__/**",
             "*.pyc",
         ],
