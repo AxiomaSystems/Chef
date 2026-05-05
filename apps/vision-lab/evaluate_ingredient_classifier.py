@@ -6,19 +6,23 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from chef_vision.checkpoints import DEFAULT_CLASSIFIER_RUN, resolve_classifier_checkpoint_path
 from train_ingredient_classifier import build_model, progress_iterator, resolve_device
 
 
 APP_DIR = Path(__file__).resolve().parent
 DEFAULT_DATA_DIR = APP_DIR / "data" / "ingredient_training_dataset"
-DEFAULT_RUN_DIR = APP_DIR / "data" / "ingredient_classifier_runs" / "resnet18_ingredient_crops_2500"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Evaluate a trained ingredient classifier checkpoint or inspect top-k predictions."
     )
-    parser.add_argument("--checkpoint", type=Path, default=DEFAULT_RUN_DIR / "best_model.pt")
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        default=resolve_classifier_checkpoint_path(DEFAULT_CLASSIFIER_RUN),
+    )
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument("--split", choices=["train", "val", "test"], default="test")
     parser.add_argument("--batch-size", type=int, default=32)

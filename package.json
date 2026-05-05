@@ -15,6 +15,7 @@
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api start:dev",
     "dev:vision": "pnpm --filter vision-lab run dev",
+    "vision:checkpoints": "pnpm --filter vision-lab run checkpoints",
     "vision:setup": "pnpm --filter vision-lab run setup",
     "vision:setup:live": "pnpm --filter vision-lab run setup:live",
     "vision:streamlit": "pnpm --filter vision-lab run streamlit",

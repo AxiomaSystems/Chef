@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from chef_vision.checkpoints import FOODSEG_SEGMENTER_CHECKPOINTS_DIR
+
 
 APP_DIR = Path(__file__).resolve().parent
 DEFAULT_DATA_YAML = APP_DIR / "data" / "foodseg103_segmentation_dataset" / "data.yaml"
@@ -19,7 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--project",
         type=Path,
-        default=APP_DIR / "data" / "foodseg103_segmenter_runs",
+        default=FOODSEG_SEGMENTER_CHECKPOINTS_DIR,
     )
     parser.add_argument("--name", default="yolo11n_foodseg103_segmenter")
     parser.add_argument("--patience", type=int, default=20)

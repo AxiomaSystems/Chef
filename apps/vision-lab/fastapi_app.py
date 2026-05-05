@@ -10,6 +10,7 @@ from fastapi import FastAPI, File, Form, UploadFile
 from PIL import Image
 from pydantic import BaseModel, Field
 
+from chef_vision.checkpoints import DEFAULT_CLASSIFIER_RUN, default_yolo_model
 from chef_vision.classifier import (
     apply_classification_to_detection,
     classify_ingredient_image,
@@ -31,6 +32,9 @@ from chef_vision.contracts import (
 from chef_vision.pipeline import VisionPipeline
 from chef_vision.render import draw_detections
 from chef_vision.video import extract_sampled_frames
+
+
+DEFAULT_DETECTION_MODEL = default_yolo_model()
 
 
 class BoundingBoxModel(BaseModel):
@@ -96,7 +100,7 @@ class ScanOptionsModel(BaseModel):
 class ScanRequestModel(BaseModel):
     scan_session_id: str
     detector: str = "mock"
-    model_name: str = "yolo11n.pt"
+    model_name: str = DEFAULT_DETECTION_MODEL
     frames: list[FrameInputModel]
     options: ScanOptionsModel = Field(default_factory=ScanOptionsModel)
 
@@ -332,7 +336,7 @@ def health() -> dict[str, str]:
 @app.get("/pipeline")
 def describe_pipeline(
     detector: str = "mock",
-    model_name: str = "yolo11n.pt",
+    model_name: str = DEFAULT_DETECTION_MODEL,
 ) -> dict:
     pipeline = VisionPipeline(detector_name=detector, model_name=model_name)
     return pipeline.describe_pipeline().to_dict()
@@ -357,9 +361,9 @@ def detect_media(
     media: UploadFile = File(...),
     media_kind: str = Form("photo"),
     detector: str = Form("yolo"),
-    model_name: str = Form("yolo11n.pt"),
+    model_name: str = Form(DEFAULT_DETECTION_MODEL),
     classify_crops: bool = Form(True),
-    classifier_run: str = Form("resnet18_ingredient_crops_5000_modal_frozen_v2"),
+    classifier_run: str = Form(DEFAULT_CLASSIFIER_RUN),
     classifier_checkpoint: str | None = Form(None),
     classifier_top_k: int = Form(5),
     classifier_min_confidence: float = Form(0.15),

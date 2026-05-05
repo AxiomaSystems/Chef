@@ -208,7 +208,8 @@ Notes:
 - `.env` is intentionally ignored. Copy `.env.example` locally, then fill in any real secrets or shared database URLs out of band.
 - `apps/api/generated/prisma` is intentionally ignored. Regenerate it with `pnpm --filter api prisma:generate`; do not commit the generated client.
 - `node_modules`, `.venv`, `.next`, `dist`, Python caches, local datasets, and model checkpoints are local artifacts. Do not commit them to fix another developer's machine.
-- Vision model files such as `*.pt` and datasets under `apps/vision-lab/data/` are intentionally not part of a normal app checkout. If a vision workflow needs a specific trained checkpoint, share it through an artifact store or documented download path, not by removing it from `.gitignore`.
+- Vision checkpoint folders are tracked under `apps/vision-lab/checkpoints/`, but checkpoint binaries are intentionally ignored. Download shared checkpoints from the team Drive folder into the documented paths in `apps/vision-lab/checkpoints/README.md`.
+- Datasets, imports, previews, and scratch training output under `apps/vision-lab/data/` are local artifacts and should stay out of Git.
 
 Install dependencies:
 
@@ -274,6 +275,21 @@ pnpm vision:streamlit
 ```
 
 The setup script creates `.venv` at the repo root. `.venv` is intentionally ignored and should not be committed.
+
+Check whether shared checkpoint files are present:
+
+```powershell
+pnpm vision:checkpoints
+```
+
+Shared checkpoint convention:
+
+- Put base YOLO weights in `apps/vision-lab/checkpoints/base/`.
+- Put ingredient classifier checkpoints in `apps/vision-lab/checkpoints/classifiers/ingredient/<run-name>/best_model.pt`.
+- Put FoodSeg103 segmenter checkpoints in `apps/vision-lab/checkpoints/segmenters/foodseg103/<run-name>/weights/best.pt`.
+- Put ingredient detector checkpoints in `apps/vision-lab/checkpoints/detectors/ingredient/<run-name>/weights/best.pt`.
+
+The folder tree and manifest template are tracked in Git; the checkpoint binaries are shared separately.
 
 ## Local API Setup
 

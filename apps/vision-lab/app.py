@@ -8,6 +8,12 @@ from pathlib import Path
 import streamlit as st
 from PIL import Image, ImageColor, ImageDraw
 
+from chef_vision.checkpoints import (
+    DEFAULT_CLASSIFIER_RUN,
+    available_classifier_runs as discover_classifier_runs,
+    default_segmentation_model,
+    default_yolo_model,
+)
 from chef_vision.contracts import DebugObjectInput, FrameInput, ScanOptions
 from chef_vision.inventory import clear_inventory, ensure_inventory_store, load_inventory
 from chef_vision.live import LiveSessionBuffer, create_live_video_processor, scan_response_from_live_records
@@ -34,21 +40,8 @@ from sample_frames import SAMPLE_FRAME_REFS, SAMPLE_SCENARIOS
 
 APP_DIR = Path(__file__).resolve().parent
 INVENTORY_PATH = ensure_inventory_store(APP_DIR / "data" / "runtime_inventory.json")
-CLASSIFIER_RUNS_DIR = APP_DIR / "data" / "ingredient_classifier_runs"
-DEFAULT_CLASSIFIER_RUN = "resnet18_ingredient_crops_5000_modal_frozen_v2"
-TRAINED_FOODSEG_SEGMENTER = (
-    APP_DIR
-    / "data"
-    / "foodseg103_segmenter_runs"
-    / "yolo11n_foodseg103_segmenter_modal"
-    / "weights"
-    / "best.pt"
-)
-DEFAULT_SEGMENTATION_MODEL = (
-    str(TRAINED_FOODSEG_SEGMENTER)
-    if TRAINED_FOODSEG_SEGMENTER.exists()
-    else "yolo11n-seg.pt"
-)
+DEFAULT_DETECTION_MODEL = default_yolo_model()
+DEFAULT_SEGMENTATION_MODEL = default_segmentation_model()
 
 st.set_page_config(page_title="Chef Vision Lab", layout="wide")
 
@@ -65,13 +58,7 @@ if "live_session_started_at" not in st.session_state:
 
 
 def available_classifier_runs() -> list[Path]:
-    if not CLASSIFIER_RUNS_DIR.exists():
-        return []
-    return [
-        path
-        for path in sorted(CLASSIFIER_RUNS_DIR.iterdir())
-        if path.is_dir() and (path / "best_model.pt").exists()
-    ]
+    return discover_classifier_runs()
 
 
 def crop_detection(image: Image.Image, detection) -> Image.Image:
@@ -237,7 +224,7 @@ with st.sidebar:
     )
     model_name = st.text_input(
         "YOLO model",
-        value="yolo11n.pt",
+        value=DEFAULT_DETECTION_MODEL,
         help="Ultralytics model name or local .pt path. First use may download weights.",
         disabled=detector_name != "yolo",
     )
@@ -447,7 +434,7 @@ with tab_classifier:
     if not runs:
         st.info(
             "No local classifier checkpoints found. Train or download a run into "
-            "`apps/vision-lab/data/ingredient_classifier_runs/<run-name>/best_model.pt`."
+            "`apps/vision-lab/checkpoints/classifiers/ingredient/<run-name>/best_model.pt`."
         )
     else:
         left, right = st.columns([1, 1.2])

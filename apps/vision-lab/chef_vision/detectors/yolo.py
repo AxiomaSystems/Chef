@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from chef_vision.checkpoints import BASE_MODEL_DIR
 from chef_vision.contracts import BoundingBox, Detection, FrameInput, FrameResult, ScanOptions
 from chef_vision.detectors.base import DetectorProvider
 from chef_vision.ontology import MODEL_MAPPINGS, ONTOLOGY
@@ -75,6 +76,10 @@ class YoloDetector(DetectorProvider):
         model_source = self.model_name
         if Path(self.model_name).exists():
             model_source = str(Path(self.model_name).resolve())
+        else:
+            shared_base_model = BASE_MODEL_DIR / self.model_name
+            if shared_base_model.exists():
+                model_source = str(shared_base_model.resolve())
 
         self._model = YOLO(model_source)
         return self._model

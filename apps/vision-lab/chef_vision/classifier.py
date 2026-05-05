@@ -7,17 +7,13 @@ from uuid import uuid4
 
 from PIL import Image
 
+from chef_vision.checkpoints import DEFAULT_CLASSIFIER_RUN, resolve_classifier_checkpoint_path
 from chef_vision.contracts import BoundingBox, ClassificationPrediction, Detection
 from chef_vision.ontology import ONTOLOGY
 
 
-APP_DIR = Path(__file__).resolve().parents[1]
-CLASSIFIER_RUNS_DIR = APP_DIR / "data" / "ingredient_classifier_runs"
-DEFAULT_CLASSIFIER_RUN = "resnet18_ingredient_crops_5000_modal_frozen_v2"
-
-
 def default_checkpoint_path(run_name: str = DEFAULT_CLASSIFIER_RUN) -> Path:
-    return CLASSIFIER_RUNS_DIR / run_name / "best_model.pt"
+    return resolve_classifier_checkpoint_path(run_name)
 
 
 def crop_detection(image: Image.Image, detection: Detection) -> Image.Image | None:
