@@ -364,6 +364,10 @@ export function InventoryClient({
     }
   }
 
+  function handleAdded(item: KitchenInventoryItem) {
+    setItems((prev) => [realToDisplay(item), ...prev]);
+  }
+
   function handleRemove(id: string) {
     setRemovingId(id);
     const remove = async () => {
