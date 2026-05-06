@@ -1014,3 +1014,68 @@ Implications:
 - inventory is useful for the demo without pretending to know exact pantry quantities
 - per-cart ingredient review is still needed as an override layer
 - future computer vision should map detections into `Ingredient`, not directly into shopping-cart lines
+
+## 52. Weekly Meal Planning Should Stay Separate From Cart Generation
+
+Decision:
+- persist weekly meal plans as their own user-scoped resource instead of collapsing them into `Cart` or `CartDraft`
+
+Why:
+- weekly scheduling answers a different question than cart generation
+- users may assign recipes to days before deciding what to shop for
+- keeping `MealPlan` separate avoids overloading `Cart` with calendar semantics
+
+Implications:
+- `MealPlan` should be keyed by user + `week_start`
+- day slots should reference recipe ids, not embed copied recipe payloads
+- conversion from meal plan to cart can be added later without changing the persistence model
+
+## 53. Checkout Profile UI Data Is Product State, Not Payment Processing
+
+Decision:
+- persist saved addresses and payment-card display metadata as a lightweight checkout profile under `/me`
+- do not treat this as real payment-token infrastructure
+
+Why:
+- the product needs checkout-oriented UI state before it needs actual processor integration
+- storing profile metadata is useful for demos and flow validation
+- mixing this with gateway credentials would create a false sense of production-readiness
+
+Implications:
+- `saved_addresses` and `payment_cards` are display/profile data only
+- real checkout/tokenization should later live behind a separate provider boundary and security model
+- docs and deploy decisions should not assume production payments are implemented just because the account UI shows cards
+
+## 54. AI Preview Flows Should Integrate Without Pretending Persistence Exists
+
+Decision:
+- ship structured AI generation/import/swap endpoints now, but stop at preview/assistant state until explicit persistence workflows are ready
+
+Why:
+- the team needs real AI surfaces to validate prompts, schemas, and UX loops
+- forcing automatic persistence too early would create brittle ownership and audit problems
+- preview-first keeps the deterministic recipe/cart system insulated from bad model output
+
+Implications:
+- `/api/v1/ai` can generate recipes, structure imports, propose swaps, and chat
+- generated outputs should require explicit user confirmation before becoming durable recipes or carts
+- deployment/readiness should treat AI as partially integrated product functionality, not as a finished autonomous workflow
+
+## 55. Supabase Is The Shared Demo Database
+
+Decision:
+- use Supabase Postgres as the shared database for the demo branch
+- keep local Docker Postgres available for isolated development
+
+Why:
+- the team is small enough that a shared database improves coordination more than it increases operational risk
+- product and non-technical demo work benefit from shared seed data and a shared runtime state
+- Supabase gives the team a simple dashboard for inspecting data without requiring everyone to run local database tooling
+
+Implications:
+- root `.env` may define `SUPABASE_DATABASE_URL` and `SUPABASE_DIRECT_URL`
+- when those variables exist, the API and Prisma CLI prefer them over local `DATABASE_URL`
+- Prisma migrations should be created and reviewed locally, then applied to Supabase with `migrate deploy`
+- destructive reset commands should not be run against Supabase
+- the longer-term Postgres schema hardening work remains separate from this infrastructure move
+- public tables should have RLS enabled without broad anon/auth policies because NestJS remains the public application API

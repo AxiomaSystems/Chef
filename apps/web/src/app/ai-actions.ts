@@ -140,6 +140,45 @@ export async function askChefAction(input: {
   };
 }
 
+export type IngredientPrepActionState = {
+  error?: string;
+  notes?: string[];
+};
+
+export async function getIngredientPrepAction(input: {
+  recipeName: string;
+  ingredients: {
+    canonical_ingredient: string;
+    display_ingredient: string | null;
+    amount: number;
+    unit: string;
+  }[];
+}): Promise<IngredientPrepActionState> {
+  const ingredientList = input.ingredients
+    .map(
+      (i, idx) =>
+        `${idx + 1}. ${i.amount} ${i.unit} ${i.display_ingredient ?? i.canonical_ingredient}`,
+    )
+    .join("\n");
+
+  const message = `For each ingredient in "${input.recipeName}", write one short prep instruction (how to wash, cut, measure, or get it ready before cooking starts). Reply ONLY with a valid JSON array of strings, one instruction per ingredient in the exact same order listed. No markdown, no extra text.\n\nIngredients:\n${ingredientList}`;
+
+  const result = await askChefAction({ message, history: [] });
+
+  if (result.error || !result.message) {
+    return { error: result.error ?? "Could not generate prep guide." };
+  }
+
+  try {
+    const cleaned = result.message.replace(/```json\n?|\n?```/g, "").trim();
+    const notes = JSON.parse(cleaned) as string[];
+    if (!Array.isArray(notes)) return { error: "Unexpected response format." };
+    return { notes };
+  } catch {
+    return { error: "Could not parse prep instructions." };
+  }
+}
+
 async function requireAccessToken() {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
@@ -244,6 +283,30 @@ export async function fetchUserRecipesAction(): Promise<UserRecipesActionState> 
   return {
     recipes: ownedRecipes,
   };
+}
+
+export async function fetchUnsplashImageAction(
+  recipeName: string,
+): Promise<string | null> {
+  const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+  if (!accessKey) return null;
+
+  try {
+    const params = new URLSearchParams({
+      query: `${recipeName} food dish`,
+      orientation: "landscape",
+      client_id: accessKey,
+    });
+    const response = await fetch(
+      `https://api.unsplash.com/photos/random?${params}`,
+      { cache: "no-store" },
+    );
+    if (!response.ok) return null;
+    const data = (await response.json()) as { urls?: { regular?: string } };
+    return data.urls?.regular ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function importRecipeFromUrlAction(input: {

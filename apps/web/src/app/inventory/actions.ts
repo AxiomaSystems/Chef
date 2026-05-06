@@ -35,6 +35,7 @@ export async function createRestockCartAction(
 
 export async function addInventoryItemAction(
   canonicalName: string,
+  options: { estimatedAmount?: number; unit?: string; label?: string } = {},
 ): Promise<{ data?: KitchenInventoryItem; error?: string }> {
   const cookieStore = await cookies();
   const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
@@ -46,7 +47,12 @@ export async function addInventoryItemAction(
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ canonical_name: canonicalName.trim() }),
+    body: JSON.stringify({
+      canonical_name: canonicalName.trim(),
+      label: options.label,
+      estimated_amount: options.estimatedAmount,
+      unit: options.unit,
+    }),
     cache: "no-store",
   });
 

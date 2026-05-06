@@ -314,7 +314,9 @@ export class RecipeRepository {
           forkedFromRecipeId: sourceRecipe.id,
           cuisineId: sourceRecipe.cuisineId,
           isSystemRecipe: false,
-          name: sourceRecipe.name,
+          name: sourceRecipe.name.endsWith(' - You')
+            ? sourceRecipe.name
+            : `${sourceRecipe.name} - You`,
           description: sourceRecipe.description,
           coverImageUrl: sourceRecipe.coverImageUrl,
           servings: sourceRecipe.servings,

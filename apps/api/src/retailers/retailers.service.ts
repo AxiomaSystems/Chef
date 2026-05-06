@@ -3,6 +3,7 @@ import type { RetailerCapability } from '@cart/shared';
 import { CartExportService } from '../cart-export/cart-export.service';
 import { WALMART_USE_REAL_PROVIDER } from '../matching/matching.constants';
 import { MatchingService } from '../matching/matching.service';
+import { getProviderReadiness } from '../providers/provider-readiness';
 
 @Injectable()
 export class RetailersService {
@@ -12,9 +13,10 @@ export class RetailersService {
   ) {}
 
   listCapabilities(): RetailerCapability[] {
-    const krogerEnabled = this.matchingService.isProviderEnabled('kroger');
-    const instacartEnabled =
-      this.cartExportService.isProviderEnabled('instacart');
+    const krogerReadiness = this.matchingService.getProviderReadiness('kroger');
+    const instacartReadiness =
+      this.cartExportService.getProviderReadiness('instacart');
+    const walmartReadiness = getProviderReadiness('walmart');
 
     return [
       {
@@ -26,7 +28,7 @@ export class RetailersService {
         supports_native_checkout: false,
         requires_location: false,
         requires_api_key: true,
-        status: instacartEnabled ? 'configured' : 'disabled',
+        status: instacartReadiness.status,
         demo_priority: 1,
         notes:
           'Preferred demo handoff path. Generates a hosted Instacart shopping-list URL when configured.',
@@ -40,7 +42,7 @@ export class RetailersService {
         supports_native_checkout: false,
         requires_location: true,
         requires_api_key: true,
-        status: krogerEnabled ? 'configured' : 'disabled',
+        status: krogerReadiness.status,
         demo_priority: 2,
         notes:
           'Best current proof of real line-by-line product matching and subtotal estimation.',
@@ -54,7 +56,7 @@ export class RetailersService {
         supports_native_checkout: false,
         requires_location: false,
         requires_api_key: true,
-        status: WALMART_USE_REAL_PROVIDER ? 'configured' : 'partner_required',
+        status: walmartReadiness.status,
         demo_priority: 99,
         notes:
           'Provider boundary exists, but real Walmart access is approval-heavy and should not block the demo.',

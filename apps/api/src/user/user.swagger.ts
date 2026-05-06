@@ -13,6 +13,7 @@ import {
   CheckoutProfileResponseDto,
   ErrorResponseDto,
   MeResponseDto,
+  UserProfileMemoryResponseDto,
   UserPreferencesResponseDto,
   UserStatsResponseDto,
 } from '../common/http/swagger.dto';
@@ -23,14 +24,17 @@ import {
   meProfileExample,
   mePreferencesExample,
   meStatsExample,
+  profileMemoryExample,
   updateCheckoutProfileRequestExample,
   updateMePreferencesRequestExample,
+  updateProfileMemoryRequestExample,
 } from '../common/http/swagger.examples';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { UpdateCheckoutProfileDto } from './dto/update-checkout-profile.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateMePreferencesDto } from './dto/update-me-preferences.dto';
+import { UpdateProfileMemoryDto } from './dto/update-profile-memory.dto';
 
 export const ApiMeController = () => applyDecorators(ApiTags('me'));
 
@@ -57,9 +61,12 @@ export const ApiGetMe = () =>
 export const ApiGetMeStats = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiOperation({ summary: 'Get simple counters for the current authenticated user' }),
+    ApiOperation({
+      summary: 'Get simple counters for the current authenticated user',
+    }),
     ApiOkResponse({
-      description: 'Returns lightweight account counters for the authenticated user.',
+      description:
+        'Returns lightweight account counters for the authenticated user.',
       type: UserStatsResponseDto,
       content: {
         'application/json': {
@@ -106,7 +113,8 @@ export const ApiChangePassword = () =>
       },
     }),
     ApiBadRequestResponse({
-      description: 'Invalid payload or the new password matches the current password.',
+      description:
+        'Invalid payload or the new password matches the current password.',
       type: ErrorResponseDto,
       content: {
         'application/json': {
@@ -115,7 +123,8 @@ export const ApiChangePassword = () =>
               summary: 'New password matches current password',
               value: {
                 ...badRequestErrorExample,
-                message: 'New password must be different from the current password',
+                message:
+                  'New password must be different from the current password',
               },
             },
           },
@@ -188,10 +197,12 @@ export const ApiCompleteOnboarding = () =>
   applyDecorators(
     ApiBearerAuth(),
     ApiOperation({
-      summary: 'Mark onboarding as completed for the current authenticated user',
+      summary:
+        'Mark onboarding as completed for the current authenticated user',
     }),
     ApiOkResponse({
-      description: 'Returns the updated user profile with onboarding completion.',
+      description:
+        'Returns the updated user profile with onboarding completion.',
       type: MeResponseDto,
       content: {
         'application/json': {
@@ -235,10 +246,40 @@ export const ApiGetMePreferences = () =>
     }),
   );
 
+export const ApiGetProfileMemory = () =>
+  applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary:
+        'Get the current authenticated user profile memory for agentic planning',
+    }),
+    ApiOkResponse({
+      description:
+        'Returns legacy preferences plus v2 food rules, goals, pantry staples, and a derived Chef memory summary.',
+      type: UserProfileMemoryResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            profileMemory: {
+              summary: 'Profile memory',
+              value: profileMemoryExample,
+            },
+          },
+        },
+      },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
 export const ApiUpdateMePreferences = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiOperation({ summary: 'Replace the current authenticated user preferences' }),
+    ApiOperation({
+      summary: 'Replace the current authenticated user preferences',
+    }),
     ApiBody({
       type: UpdateMePreferencesDto,
       required: true,
@@ -278,7 +319,8 @@ export const ApiUpdateMePreferences = () =>
       },
     }),
     ApiForbiddenResponse({
-      description: 'Only shared system tags are currently allowed in preferences.',
+      description:
+        'Only shared system tags are currently allowed in preferences.',
       type: ErrorResponseDto,
       content: {
         'application/json': {
@@ -287,8 +329,61 @@ export const ApiUpdateMePreferences = () =>
               summary: 'User tag not allowed',
               value: {
                 ...forbiddenErrorExample,
-                message: 'Preferences currently support only shared system tags',
+                message:
+                  'Preferences currently support only shared system tags',
               },
+            },
+          },
+        },
+      },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
+    }),
+  );
+
+export const ApiUpdateProfileMemory = () =>
+  applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary:
+        'Partially update v2 profile memory rules, goals, and pantry staples',
+    }),
+    ApiBody({
+      type: UpdateProfileMemoryDto,
+      required: true,
+      examples: {
+        patchProfileMemory: {
+          summary: 'Patch profile memory',
+          value: updateProfileMemoryRequestExample,
+        },
+      },
+    }),
+    ApiOkResponse({
+      description: 'Returns the updated profile memory.',
+      type: UserProfileMemoryResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            updatedProfileMemory: {
+              summary: 'Updated profile memory',
+              value: profileMemoryExample,
+            },
+          },
+        },
+      },
+    }),
+    ApiBadRequestResponse({
+      description:
+        'Invalid ids, dates, priority, or unsafe inferred memory write.',
+      type: ErrorResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            invalidProfileMemory: {
+              summary: 'Validation error',
+              value: badRequestErrorExample,
             },
           },
         },
@@ -303,7 +398,10 @@ export const ApiUpdateMePreferences = () =>
 export const ApiGetCheckoutProfile = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiOperation({ summary: 'Get saved checkout addresses and cards for the current authenticated user' }),
+    ApiOperation({
+      summary:
+        'Get saved checkout addresses and cards for the current authenticated user',
+    }),
     ApiOkResponse({
       description: 'Returns saved addresses and payment cards for checkout.',
       type: CheckoutProfileResponseDto,
@@ -327,7 +425,10 @@ export const ApiGetCheckoutProfile = () =>
 export const ApiUpdateCheckoutProfile = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiOperation({ summary: 'Replace saved checkout addresses and cards for the current authenticated user' }),
+    ApiOperation({
+      summary:
+        'Replace saved checkout addresses and cards for the current authenticated user',
+    }),
     ApiBody({
       type: UpdateCheckoutProfileDto,
       required: true,

@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import './../src/env';
 import { AppModule } from './../src/app.module';
 import { configureApp } from './../src/app.setup';
 import { AuthTokenService } from './../src/auth/auth-token.service';
@@ -122,13 +123,17 @@ describe('Auth flow (e2e)', () => {
       });
     };
 
-    const [peruvianCuisine, mediterraneanCuisine, weeknightTag, comfortFoodTag] =
-      await Promise.all([
-        prisma.cuisine.findUnique({ where: { slug: 'peruvian' } }),
-        prisma.cuisine.findUnique({ where: { slug: 'mediterranean' } }),
-        ensureSystemTag('weeknight', 'Weeknight'),
-        ensureSystemTag('comfort-food', 'Comfort Food'),
-      ]);
+    const [
+      peruvianCuisine,
+      mediterraneanCuisine,
+      weeknightTag,
+      comfortFoodTag,
+    ] = await Promise.all([
+      prisma.cuisine.findUnique({ where: { slug: 'peruvian' } }),
+      prisma.cuisine.findUnique({ where: { slug: 'mediterranean' } }),
+      ensureSystemTag('weeknight', 'Weeknight'),
+      ensureSystemTag('comfort-food', 'Comfort Food'),
+    ]);
 
     expect(peruvianCuisine).toBeTruthy();
     expect(mediterraneanCuisine).toBeTruthy();
@@ -139,11 +144,31 @@ describe('Auth flow (e2e)', () => {
       .put('/api/v1/me/preferences')
       .set('authorization', `Bearer ${refreshResponse.body.access_token}`)
       .send({
-        preferred_cuisine_ids: [
-          peruvianCuisine!.id,
-          mediterraneanCuisine!.id,
-        ],
+        preferred_cuisine_ids: [peruvianCuisine!.id, mediterraneanCuisine!.id],
         preferred_tag_ids: [weeknightTag!.id, comfortFoodTag!.id],
+        shopping_location: {
+          zip_code: '60611',
+          label: 'Chicago, IL',
+          kroger_location_id: '01600479',
+        },
+        household_size: 'three_to_four_people',
+        kids_profile: 'no_kids',
+        favorite_proteins: ['chicken', 'salmon'],
+        favorite_flavors: ['spicy', 'savory_umami'],
+        spice_level: 'medium',
+        disliked_ingredients: ['olives'],
+        disliked_textures: ['chewy'],
+        cooking_skill_level: 'intermediate',
+        available_appliances: ['oven', 'air_fryer', 'blender'],
+        preferred_cooking_time: '15_to_30_min',
+        typical_meal_times: ['lunch', 'dinner'],
+        goal_priorities: ['save_money', 'eat_healthier'],
+        calorie_tracking_mode: 'casual',
+        weekly_budget: '50_to_100',
+        preferred_stores: ['kroger', 'walmart'],
+        shopping_mode: 'in_store',
+        recipe_discovery_sources: ['youtube', 'social_media'],
+        biggest_cooking_frustration: 'dont_know_what_to_make',
       })
       .expect(200);
 
@@ -157,6 +182,29 @@ describe('Auth flow (e2e)', () => {
           weeknightTag!.id,
           comfortFoodTag!.id,
         ]),
+        shopping_location: expect.objectContaining({
+          zip_code: '60611',
+          label: 'Chicago, IL',
+          kroger_location_id: '01600479',
+        }),
+        household_size: 'three_to_four_people',
+        kids_profile: 'no_kids',
+        favorite_proteins: ['chicken', 'salmon'],
+        favorite_flavors: ['spicy', 'savory_umami'],
+        spice_level: 'medium',
+        disliked_ingredients: ['olives'],
+        disliked_textures: ['chewy'],
+        cooking_skill_level: 'intermediate',
+        available_appliances: ['oven', 'air_fryer', 'blender'],
+        preferred_cooking_time: '15_to_30_min',
+        typical_meal_times: ['lunch', 'dinner'],
+        goal_priorities: ['save_money', 'eat_healthier'],
+        calorie_tracking_mode: 'casual',
+        weekly_budget: '50_to_100',
+        preferred_stores: ['kroger', 'walmart'],
+        shopping_mode: 'in_store',
+        recipe_discovery_sources: ['youtube', 'social_media'],
+        biggest_cooking_frustration: 'dont_know_what_to_make',
       }),
     );
     expect(updatedPreferences.body.preferred_cuisines).toEqual(
@@ -187,6 +235,29 @@ describe('Auth flow (e2e)', () => {
           weeknightTag!.id,
           comfortFoodTag!.id,
         ]),
+        shopping_location: expect.objectContaining({
+          zip_code: '60611',
+          label: 'Chicago, IL',
+          kroger_location_id: '01600479',
+        }),
+        household_size: 'three_to_four_people',
+        kids_profile: 'no_kids',
+        favorite_proteins: ['chicken', 'salmon'],
+        favorite_flavors: ['spicy', 'savory_umami'],
+        spice_level: 'medium',
+        disliked_ingredients: ['olives'],
+        disliked_textures: ['chewy'],
+        cooking_skill_level: 'intermediate',
+        available_appliances: ['oven', 'air_fryer', 'blender'],
+        preferred_cooking_time: '15_to_30_min',
+        typical_meal_times: ['lunch', 'dinner'],
+        goal_priorities: ['save_money', 'eat_healthier'],
+        calorie_tracking_mode: 'casual',
+        weekly_budget: '50_to_100',
+        preferred_stores: ['kroger', 'walmart'],
+        shopping_mode: 'in_store',
+        recipe_discovery_sources: ['youtube', 'social_media'],
+        biggest_cooking_frustration: 'dont_know_what_to_make',
       }),
     );
 
@@ -234,7 +305,7 @@ describe('Auth flow (e2e)', () => {
         refresh_token: refreshResponse.body.refresh_token,
       })
       .expect(401);
-  });
+  }, 20000);
 
   it('rejects non-system tags in preferences', async () => {
     const email = `auth-prefs-${Date.now()}@cart-generator.local`;
@@ -272,6 +343,38 @@ describe('Auth flow (e2e)', () => {
         preferred_tag_ids: [userTag.id],
       })
       .expect(403);
+  });
+
+  it('rejects invalid structured onboarding preference values', async () => {
+    const email = `auth-invalid-prefs-${Date.now()}@cart-generator.local`;
+    const password = 's3cure-passphrase';
+    createdEmails.push(email);
+
+    const registerResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({
+        email,
+        name: 'Invalid Preferences User',
+        password,
+      })
+      .expect(201);
+
+    const [peruvianCuisine, weeknightTag] = await Promise.all([
+      prisma.cuisine.findUnique({ where: { slug: 'peruvian' } }),
+      prisma.tag.findFirst({
+        where: { scope: 'system', slug: 'weeknight' },
+      }),
+    ]);
+
+    await request(app.getHttpServer())
+      .put('/api/v1/me/preferences')
+      .set('authorization', `Bearer ${registerResponse.body.access_token}`)
+      .send({
+        preferred_cuisine_ids: [peruvianCuisine!.id],
+        preferred_tag_ids: [weeknightTag!.id],
+        spice_level: 'wildfire',
+      })
+      .expect(400);
   });
 
   it('changes password for password-backed accounts', async () => {

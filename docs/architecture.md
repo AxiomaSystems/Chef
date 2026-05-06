@@ -28,6 +28,8 @@ This document distinguishes:
 
 The current web frontend should be considered a functional validation harness, not the final product interface. The architecture priority from here is to make the backend/API/tool contracts strong enough that a future frontend rebuild can sit on top cleanly.
 
+There is now also a stage-1 vision prototype in the API. It should be treated as an internal contract and provider boundary for kitchen object detection, not as finished pantry automation.
+
 ## Startup Product Shape
 
 The startup direction is broader than the current implemented vertical slice.
@@ -67,15 +69,25 @@ Visible recipes or user-provided meal idea
   -> Persisted shopping cart
 ```
 
+Separately, an internal stage-1 vision path now exists:
+
+```text
+ScanSession
+  -> frame observations
+  -> closed-set object detections
+```
+
 That flow is implemented in the NestJS API under:
 
 ```text
 apps/api/src/
 |-- auth/
+|-- ai/
 |-- cuisines/
 |-- tags/
 |-- recipe/
 |-- cart/
+|-- meal-plan/
 |-- aggregation/
 |-- matching/
 |-- user/
@@ -165,10 +177,11 @@ Current status:
 - the main composer now lives in a large overlay that can create a draft, create a cart, or edit an existing draft/cart
 - drafts are now treated as incomplete saved work, not the primary planning object
 
-Planned status:
+Implemented status:
 
-- pre-cart ingredient review should let users remove or adjust ingredients they already have before shopping-cart generation
+- pre-cart ingredient review lets users remove or adjust ingredients they already have before shopping-cart generation
 - this is a lightweight first step toward inventory without requiring full pantry tracking
+- ingredient review is persisted one-to-one with `Cart` and applied before retailer matching
 
 ### 3. Cart Layer
 
@@ -193,6 +206,24 @@ Current status:
 - the web app now treats `Cart` as the primary planning artifact once a run is generated
 - generating a cart from an existing draft should delete the draft so planning state does not duplicate itself
 
+### 3.5. Weekly Meal Plan Layer
+
+Purpose:
+
+- represent a user's weekly breakfast/lunch/dinner schedule independently from cart generation
+
+Implemented entities:
+
+- `MealPlan`
+- `MealPlanDay`
+
+Current status:
+
+- weekly meal plans are persisted per user and Monday `week_start`
+- each day can reference breakfast, lunch, and dinner recipe ids
+- the web app now exposes a dedicated `/meal-plan` surface
+- this layer currently organizes recipe intent for the week, but it is not yet deeply connected to `Cart` creation or grocery execution
+
 ### 4. Aggregation Layer
 
 Purpose:
@@ -215,6 +246,7 @@ Current integration:
 - cart overview reads can enrich aggregated ingredients with `in_kitchen`
 - this enrichment uses the user's `KitchenInventoryItem` rows through the shared `Ingredient` catalog
 - shopping-cart generation skips `in_kitchen` ingredients so retailer matching/export focuses on missing items
+- per-cart ingredient review can override the generated overview before shopping-cart generation
 
 ### 5. Product Matching Layer
 
@@ -284,6 +316,8 @@ Implemented today:
 - Instacart cart-export provider
 - retailer capability reporting through `/api/v1/retailers/capabilities`
 - shared ingredient catalog and user kitchen inventory persistence
+- AI provider-backed preview endpoints under `/api/v1/ai`
+- computer-vision detection contract under `/api/v1/vision`
 
 Planned provider categories:
 
@@ -293,6 +327,7 @@ Planned provider categories:
 - `RecipeGenerationProvider`
 - `RecipeEditingProvider`
 - `CartExportProvider`
+- `VisionDetectionProvider`
 - `CookingAssistantToolProvider`
 
 Design rule:
@@ -320,6 +355,9 @@ The current web app is intentionally split into separate surfaces:
 - `/` is the planning home
 - `/recipes` is the recipe browsing/library surface
 - `/shopping` is the saved shopping-cart library surface
+- `/meal-plan` is the weekly scheduling surface for breakfast/lunch/dinner assignment
+- `/inventory` is the inventory-management surface with manual add flow and a camera-assisted UI shell
+- `/chef-ai` is the dedicated AI workspace for recipe generation/import/swap exploration
 - recipe detail lives in an overlay on top of `/recipes`
 - the cart builder lives in a large overlay and can be entered from home or from recipe detail
 - draft detail and cart detail stay in overlays so the user can work without losing workspace context
@@ -367,15 +405,26 @@ Implemented route families:
 - `/api/v1/cart-drafts`
 - `/api/v1/carts`
 - `/api/v1/shopping-carts`
+- `/api/v1/meal-plans`
+- `/api/v1/ai`
+- `/api/v1/ingredients`
 - `/api/v1/retailers`
+- `/api/v1/vision`
+- `/api/v1/me`
 
 Implemented mapping:
 
 - `POST /api/v1/recipe-forks` replaces the older save-style command route
 - `POST /api/v1/carts` creates the meal-plan snapshot
 - `POST /api/v1/carts/:cartId/shopping-carts` derives a purchase basket from a cart
+- `GET|PUT /api/v1/carts/:cartId/ingredient-review` manages per-cart ingredient review before shopping-cart generation
+- `GET|PUT /api/v1/meal-plans?week_start=YYYY-MM-DD` manages one weekly meal plan per user
 - Instacart shopping-cart generation can persist an `external_url` for a hosted Instacart shopping-list handoff
+- `/api/v1/me/checkout-profile` stores saved addresses and payment cards for checkout-oriented UI work
+- `/api/v1/me/profile-memory` exposes Profile Memory v2: structured food rules, weighted goals, rough pantry staples, and a derived Chef memory summary
+- `/api/v1/ai/*` now exposes the first integrated AI contract instead of leaving AI entirely out-of-band
 - `GET /api/v1/retailers/capabilities` reports which retailer paths currently support product search, location lookup, cart handoff, native checkout, and demo priority
+- `/api/v1/vision/*` exposes a detection-only computer-vision contract for inventory experiments without mutating inventory automatically
 
 This keeps retailer integration behind the shopping-cart boundary instead of coupling it directly to recipe selection endpoints.
 
@@ -384,12 +433,20 @@ This keeps retailer integration behind the shopping-cart boundary instead of cou
 Persistent state today:
 
 - users
+- checkout profiles
+- profile memory food rules
+- profile memory goals
+- profile memory pantry staples
 - base recipes
 - dish ingredients
 - recipe steps
+- meal plans
 - cart drafts
 - carts
+- ingredient reviews
 - shopping carts
+- shared ingredients
+- kitchen inventory items
 
 Persisted but secondary planning state:
 
@@ -405,6 +462,7 @@ Derived but persisted shopping state:
 - aggregated ingredient overviews
 - matched cart items
 - estimated subtotal
+- external handoff URLs when generated by cart-export providers
 
 Derived at cart-read time:
 
@@ -415,23 +473,24 @@ Ephemeral state:
 - request-scoped actor context
 - request-scoped request id
 - intermediate matching candidates during computation
+- AI preview outputs that have not been explicitly persisted
+- vision detections before review or inventory confirmation
 
 Not implemented yet:
 
 - recipe variants
-- raw LLM outputs
+- raw LLM outputs as first-class persisted product data
 - async matching jobs
 - richer store-resolution UX and persisted saved-store management for Kroger
-- meal-idea recipe generation
-- external recipe import from URL, text, screenshot, menu, or creator content
-- pre-cart ingredient review/removal
+- meal-idea recipe generation as a persisted recipe workflow
+- external recipe import from URL, text, screenshot, menu, or creator content as a persisted recipe workflow
 - full pantry quantity deduction
-- computer-vision inventory capture
-- structured AI recipe generation and editing
-- contextual cooking assistant runtime
+- automatic computer-vision inventory mutation beyond detection/review candidates
+- structured AI recipe editing with recipe-library persistence
+- contextual cooking assistant runtime with real tool/state grounding
 - nutrition provider integration
-- cart export or Share-A-Cart-style transfer flow
-- pantry/inventory awareness beyond manual cart edits
+- broader Share-A-Cart-style transfer flow beyond Instacart handoff
+- exact pantry/inventory awareness beyond manual/presence and per-cart review decisions
 
 Not first-class in UI yet:
 
@@ -448,6 +507,8 @@ Implemented local services:
 
 Implemented supporting infrastructure:
 
+- Supabase Postgres as the shared demo/team database
+- RLS enabled on public Supabase tables without broad anon/auth policies
 - Swagger/OpenAPI
 - request logging with `x-request-id`
 - Postman collection for manual API testing
@@ -456,13 +517,14 @@ Not implemented yet:
 
 - Redis
 - background jobs
-- OpenAI integration
 
 Implemented but still hardening:
 
 - real external retailer integration through Kroger
 - external cart handoff through Instacart
 - provider-side throttling, token deduping, and location/query caching to reduce burst traffic
+- AI preview flows for chat, recipe generation, recipe import structuring, and ingredient swaps
+- vision detection as a safe backend contract, not automatic pantry state
 
 Planned external tool posture:
 
@@ -495,6 +557,7 @@ Current status:
 - `PATCH /me` is implemented
 - `/me/preferences` is implemented for cuisine and system-tag preferences
 - `/me/preferences` now also stores a neutral `shopping_location` block, including optional `kroger_location_id` for future store reuse
+- `/me/profile-memory` is implemented for v2 food rules, prioritized goals, pantry staples, and derived onboarding/agent summaries
 - `/me/onboarding/complete` is implemented
 - the web app now uses bearer-token auth for its dashboard flow
 - the temporary `x-user-id` fallback has now been removed from normal backend flows and Swagger guidance
@@ -584,8 +647,9 @@ Planned responsibilities:
 
 Status:
 
-- product direction is approved
-- runtime implementation has not started
+- first implementation slice exists through `/api/v1/ai` plus web AI surfaces
+- structured recipe generation, ingredient swaps, chat, and recipe-import structuring now run through provider-backed APIs
+- generated/imported outputs still stop at preview state rather than becoming core persisted recipe/cart workflow automatically
 - AI must produce or consume structured domain data rather than replacing deterministic aggregation, pricing, or matching
 
 ## Design Rules

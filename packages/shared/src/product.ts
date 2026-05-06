@@ -2,6 +2,7 @@ export type Retailer = "walmart" | "kroger" | "instacart";
 
 export type RetailerIntegrationStatus =
   | "configured"
+  | "missing_credentials"
   | "disabled"
   | "partner_required";
 

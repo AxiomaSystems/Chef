@@ -104,6 +104,8 @@ Provider behavior:
 - `CHEF_LLM_PROVIDER=mock` uses deterministic local responses.
 - `CHEF_LLM_PROVIDER=openai` calls the OpenAI Responses API with strict JSON Schema for structured outputs.
 - `OPENAI_MODEL` controls the active OpenAI model.
+- AI endpoints are rate-limited by `AiRateLimitGuard`.
+- `AI_RATE_LIMIT_WINDOW_MS` and `AI_RATE_LIMIT_MAX_REQUESTS` control the in-memory per-user limit.
 
 The frontend now has a global Chef chat widget:
 
@@ -124,9 +126,11 @@ Current working capabilities:
 4. Mock provider fallback for development without token spend.
 5. OpenAI provider path for real model calls.
 6. Strict JSON schemas for outputs that need to become product data.
+7. Per-user AI request throttling to reduce accidental spend and abuse.
 
 Current limits:
 
+- the AI rate limiter is process-local memory; use Redis or another shared store before multi-instance production
 - generated recipe previews are not yet saved into `BaseRecipe`
 - generated meal plans do not yet create `Cart` records automatically
 - ingredient swaps are not yet wired into the existing recipe edit modal
@@ -206,6 +210,8 @@ Required `.env` values for real OpenAI calls:
 CHEF_LLM_PROVIDER=openai
 OPENAI_API_KEY=your_key_here
 OPENAI_MODEL=gpt-5.4-mini
+AI_RATE_LIMIT_WINDOW_MS=600000
+AI_RATE_LIMIT_MAX_REQUESTS=30
 ```
 
 Use mock mode when you want the app to run without model calls:

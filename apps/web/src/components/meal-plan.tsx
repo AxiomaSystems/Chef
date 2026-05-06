@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { BaseRecipe, MealPlan, MealPlanDay } from "@cart/shared";
+import { createShoppingCartAction, submitDraftFlowAction } from "@/app/home-actions";
 import { getMealPlanAction, saveMealPlanAction } from "@/app/meal-plan/actions";
 import { RecipeImage } from "@/components/ui/recipe-image";
 
@@ -48,6 +50,7 @@ export function WeeklyMealPlan({
   recipes: BaseRecipe[];
   initialMealPlan: MealPlan;
 }) {
+  const router = useRouter();
   const today = new Date();
   const initialWeekStart = initialMealPlan.week_start || toDateKey(getMonday(today));
   const initialPlan =
@@ -64,18 +67,17 @@ export function WeeklyMealPlan({
   const [checkedGroceriesByWeek, setCheckedGroceriesByWeek] = useState<
     Record<string, string[]>
   >({});
+  const [excludedCartRecipeIds, setExcludedCartRecipeIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [cartError, setCartError] = useState<string | null>(null);
   const [isLoadingWeek, setIsLoadingWeek] = useState(false);
+  const [isGeneratingCart, startGeneratingCart] = useTransition();
 
   const currentWeekKeyRef = useRef(initialWeekStart);
   const loadRequestRef = useRef(0);
   const saveQueueRef = useRef(Promise.resolve());
+  const recipeReuseCursorRef = useRef(0);
   const cachedPlansRef = useRef(new Map<string, WeekPlan>([[initialWeekStart, initialPlan]]));
-
-  useEffect(() => {
-    setPickerSlot(null);
-    setPickerSearch("");
-  }, [weekStart]);
 
   useEffect(() => {
     const weekKey = toDateKey(weekStart);
@@ -192,11 +194,19 @@ export function WeeklyMealPlan({
   }
 
   function shiftWeek(delta: number) {
+    setPickerSlot(null);
+    setPickerSearch("");
     setWeekStart((previous) => {
       const nextDate = new Date(previous);
       nextDate.setDate(nextDate.getDate() + delta * 7);
       return nextDate;
     });
+  }
+
+  function goToCurrentWeek() {
+    setPickerSlot(null);
+    setPickerSearch("");
+    setWeekStart(getMonday(new Date()));
   }
 
   const weekKey = toDateKey(weekStart);
@@ -206,6 +216,14 @@ export function WeeklyMealPlan({
 
   const allRecipeIds = plan.flatMap((day) =>
     [day.breakfast, day.lunch, day.dinner].filter(Boolean) as string[],
+  );
+  const emptyMealSlotCount = plan.reduce(
+    (count, day) =>
+      count +
+      (day.breakfast ? 0 : 1) +
+      (day.lunch ? 0 : 1) +
+      (day.dinner ? 0 : 1),
+    0,
   );
 
   const nutrition = allRecipeIds.reduce(
@@ -242,12 +260,67 @@ export function WeeklyMealPlan({
   }
   const groceryList = Array.from(groceryMap.entries());
   const checkedGroceries = new Set(checkedGroceriesByWeek[weekKey] ?? []);
+  const plannedRecipeGroups = Array.from(
+    allRecipeIds.reduce(
+      (groups, id) => {
+        const recipe = getRecipe(id);
+        if (!recipe) return groups;
+
+        const existing = groups.get(id);
+        groups.set(id, {
+          recipe,
+          count: (existing?.count ?? 0) + 1,
+        });
+        return groups;
+      },
+      new Map<string, { recipe: BaseRecipe; count: number }>(),
+    ),
+  ).map(([id, group]) => ({ id, ...group }));
+  const selectedCartRecipeIds = plannedRecipeGroups
+    .filter((group) => !excludedCartRecipeIds.includes(group.id))
+    .map((group) => group.id);
+  const selectedCartRecipeGroups = plannedRecipeGroups.filter((group) =>
+    selectedCartRecipeIds.includes(group.id),
+  );
 
   const usedIds = new Set(allRecipeIds);
   const seasonalPick = recipes.find((recipe) => !usedIds.has(recipe.id)) ?? null;
   const filteredRecipes = recipes.filter((recipe) =>
     recipe.name.toLowerCase().includes(pickerSearch.toLowerCase()),
   );
+
+  function pickNextLeastUsedRecipe() {
+    if (recipes.length === 0) {
+      return null;
+    }
+
+    const usageCounts = recipes.map((recipe) => ({
+      recipe,
+      count: allRecipeIds.filter((id) => id === recipe.id).length,
+    }));
+    const lowestUseCount = Math.min(...usageCounts.map((entry) => entry.count));
+    const leastUsedRecipes = usageCounts
+      .filter((entry) => entry.count === lowestUseCount)
+      .map((entry) => entry.recipe);
+
+    const recipe =
+      leastUsedRecipes[recipeReuseCursorRef.current % leastUsedRecipes.length] ??
+      null;
+    recipeReuseCursorRef.current += 1;
+
+    return recipe;
+  }
+
+  function addRecipeToFirstOpenSlot(recipeId: string) {
+    for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+      for (const meal of ["breakfast", "lunch", "dinner"] as MealType[]) {
+        if (!plan[dayIndex]?.[meal]) {
+          setMeal(dayIndex, meal, recipeId);
+          return;
+        }
+      }
+    }
+  }
 
   function groceryItemKey(name: string, amount: number, unit: string) {
     return `${name}::${amount}::${unit}`;
@@ -267,6 +340,62 @@ export function WeeklyMealPlan({
         ...current,
         [weekKey]: Array.from(nextWeekItems),
       };
+    });
+  }
+
+  function toggleCartRecipe(recipeId: string) {
+    setExcludedCartRecipeIds((current) =>
+      current.includes(recipeId)
+        ? current.filter((id) => id !== recipeId)
+        : [...current, recipeId],
+    );
+    setCartError(null);
+  }
+
+  function setAllCartRecipesSelected(selected: boolean) {
+    setExcludedCartRecipeIds(selected ? [] : plannedRecipeGroups.map((group) => group.id));
+    setCartError(null);
+  }
+
+  function generateCartFromSelectedRecipes() {
+    if (selectedCartRecipeGroups.length === 0 || isGeneratingCart) {
+      setCartError("Choose at least one recipe to generate a cart.");
+      return;
+    }
+
+    setCartError(null);
+    startGeneratingCart(async () => {
+      const fd = new FormData();
+      fd.set("intent", "generate");
+      fd.set("name", `Meal plan - ${weekLabel}`);
+      fd.set(
+        "selections_json",
+        JSON.stringify(
+          selectedCartRecipeGroups.map((group) => ({
+            recipe_id: group.id,
+            quantity: group.count,
+          })),
+        ),
+      );
+      fd.set("retailer", "kroger");
+
+      const cartResult = await submitDraftFlowAction({}, fd);
+      if (cartResult.error || !cartResult.resourceId) {
+        setCartError(cartResult.error ?? "Unable to generate this cart.");
+        return;
+      }
+
+      const shoppingCartResult = await createShoppingCartAction(
+        cartResult.resourceId,
+        "kroger",
+      );
+      if (shoppingCartResult.error) {
+        setCartError(shoppingCartResult.error);
+        return;
+      }
+
+      setShowFullGroceryList(false);
+      router.push("/shopping");
     });
   }
 
@@ -308,7 +437,7 @@ export function WeeklyMealPlan({
           <button
             onClick={(event) => {
               event.stopPropagation();
-              setWeekStart(getMonday(new Date()));
+              goToCurrentWeek();
             }}
             className="px-3 py-1.5 rounded-full border border-outline-variant/30 text-label-sm text-on-surface-variant hover:bg-surface-container-low transition-colors"
           >
@@ -539,6 +668,26 @@ export function WeeklyMealPlan({
               >
                 View Full List
               </button>
+              <button
+                type="button"
+                onClick={generateCartFromSelectedRecipes}
+                disabled={selectedCartRecipeGroups.length === 0 || isGeneratingCart}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isGeneratingCart ? (
+                  <span className="material-symbols-outlined animate-spin text-[16px]">
+                    refresh
+                  </span>
+                ) : (
+                  <span className="material-symbols-outlined text-[16px]">
+                    shopping_cart
+                  </span>
+                )}
+                {isGeneratingCart ? "Generating..." : "Generate Cart"}
+              </button>
+              {cartError ? (
+                <p className="mt-2 text-center text-body-sm text-error">{cartError}</p>
+              ) : null}
             </>
           )}
         </div>
@@ -606,14 +755,7 @@ export function WeeklyMealPlan({
             </p>
             <button
               onClick={() => {
-                for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
-                  for (const meal of ["breakfast", "lunch", "dinner"] as MealType[]) {
-                    if (!plan[dayIndex]?.[meal]) {
-                      setMeal(dayIndex, meal, seasonalPick.id);
-                      return;
-                    }
-                  }
-                }
+                addRecipeToFirstOpenSlot(seasonalPick.id);
               }}
               className="relative rounded-full bg-white/20 hover:bg-white/30 transition-colors px-4 py-2 text-label-md font-semibold"
             >
@@ -624,7 +766,29 @@ export function WeeklyMealPlan({
           <div className="rounded-[24px] border border-outline-variant/20 bg-surface-container-low p-5 flex items-center justify-center">
             <div className="text-center">
               <span className="material-symbols-outlined text-[40px] text-outline-variant">auto_awesome</span>
-              <p className="mt-2 text-body-sm text-outline">All your recipes are in this week&apos;s plan!</p>
+              <p className="mt-2 text-label-lg font-semibold text-on-surface">
+                {emptyMealSlotCount > 0
+                  ? `${emptyMealSlotCount} meal slot${emptyMealSlotCount !== 1 ? "s" : ""} still open`
+                  : "This week's plan is full"}
+              </p>
+              <p className="mt-1 text-body-sm text-outline">
+                {recipes.length > 0
+                  ? "Every available recipe is already on this week's plan. Reuse one or add more recipes."
+                  : "Create or save recipes to start filling your plan."}
+              </p>
+              {emptyMealSlotCount > 0 && recipes[0] ? (
+                <button
+                  onClick={() => {
+                    const recipe = pickNextLeastUsedRecipe();
+                    if (recipe) {
+                      addRecipeToFirstOpenSlot(recipe.id);
+                    }
+                  }}
+                  className="mt-4 rounded-full bg-primary px-4 py-2 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container"
+                >
+                  Add Random Recipe
+                </button>
+              ) : null}
             </div>
           </div>
         )}
@@ -636,31 +800,56 @@ export function WeeklyMealPlan({
           onClick={() => setShowFullGroceryList(false)}
         >
           <div
-            className="max-h-[80vh] w-full max-w-xl overflow-hidden rounded-[28px] bg-white shadow-2xl"
+            className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-[32px] bg-white shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-outline-variant/20 px-6 py-5">
               <div>
                 <h3 className="text-headline-sm font-bold text-on-surface">
-                  Full Grocery List
+                  Grocery List By Recipe
                 </h3>
                 <p className="mt-1 text-body-sm text-outline">
-                  {groceryList.length} item{groceryList.length !== 1 ? "s" : ""} for{" "}
-                  {weekLabel}
+                  {groceryList.length} total item{groceryList.length !== 1 ? "s" : ""} from{" "}
+                  {plannedRecipeGroups.length} recipe{plannedRecipeGroups.length !== 1 ? "s" : ""} for {weekLabel}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowFullGroceryList(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-outline transition-colors hover:bg-surface-container-low hover:text-on-surface"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={generateCartFromSelectedRecipes}
+                  disabled={selectedCartRecipeGroups.length === 0 || isGeneratingCart}
+                  className="flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isGeneratingCart ? (
+                    <span className="material-symbols-outlined animate-spin text-[16px]">
+                      refresh
+                    </span>
+                  ) : (
+                    <span className="material-symbols-outlined text-[16px]">
+                      shopping_cart
+                    </span>
+                  )}
+                  {isGeneratingCart ? "Generating..." : "Generate Cart"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFullGroceryList(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-outline transition-colors hover:bg-surface-container-low hover:text-on-surface"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
             </div>
 
-            <div className="max-h-[calc(80vh-96px)] overflow-y-auto px-6 py-5">
+            {cartError ? (
+              <div className="border-b border-outline-variant/20 bg-error-container/60 px-6 py-3 text-body-sm text-on-error-container">
+                {cartError}
+              </div>
+            ) : null}
+
+            <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
               {groceryList.length === 0 ? (
-                <div className="py-10 text-center">
+                <div className="col-span-full py-16 text-center">
                   <span className="material-symbols-outlined text-[36px] text-outline-variant">
                     shopping_basket
                   </span>
@@ -669,47 +858,213 @@ export function WeeklyMealPlan({
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {groceryList.map(([name, { amount, unit }]) => (
-                    <button
-                      key={groceryItemKey(name, amount, unit)}
-                      type="button"
-                      onClick={() => toggleGroceryItem(name, amount, unit)}
-                      className="flex w-full items-center gap-3 rounded-2xl border border-outline-variant/20 bg-surface px-4 py-3 text-left transition-colors hover:bg-surface-container-low"
-                    >
-                      <span
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
-                          checkedGroceries.has(groceryItemKey(name, amount, unit))
-                            ? "border-primary bg-primary text-on-primary"
-                            : "border-outline-variant/50 bg-white"
-                        }`}
-                      >
-                        {checkedGroceries.has(groceryItemKey(name, amount, unit)) ? (
-                          <span className="material-symbols-outlined text-[14px]">
-                            check
-                          </span>
-                        ) : null}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className={`text-body-md capitalize ${
-                            checkedGroceries.has(groceryItemKey(name, amount, unit))
-                              ? "text-outline line-through"
-                              : "text-on-surface"
-                          }`}
-                        >
-                          {name}
+                <>
+                  <aside className="border-b border-outline-variant/20 bg-surface-container-low/35 p-5 lg:border-b-0 lg:border-r">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-label-lg font-bold text-on-surface">
+                          Recipes
                         </p>
-                        <p className="mt-0.5 text-body-sm text-outline">
-                          {amount > 0 ? `x${Math.ceil(amount)}` : ""}
-                          {unit ? ` ${unit}` : ""}
+                        <p className="text-body-sm text-outline">
+                          {selectedCartRecipeGroups.length} selected
                         </p>
                       </div>
-                    </button>
-                  ))}
-                </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAllCartRecipesSelected(
+                            selectedCartRecipeGroups.length !== plannedRecipeGroups.length,
+                          )
+                        }
+                        className="rounded-full border border-outline-variant/50 bg-white px-3 py-1.5 text-label-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-low"
+                      >
+                        {selectedCartRecipeGroups.length === plannedRecipeGroups.length
+                          ? "Clear"
+                          : "All"}
+                      </button>
+                    </div>
+
+                    <div className="max-h-[calc(88vh-220px)] space-y-2 overflow-y-auto pr-1">
+                      {plannedRecipeGroups.map((group) => {
+                        const selected = selectedCartRecipeIds.includes(group.id);
+                        return (
+                          <button
+                            key={group.id}
+                            type="button"
+                            onClick={() => toggleCartRecipe(group.id)}
+                            className={`flex w-full gap-3 rounded-2xl border p-3 text-left transition-colors ${
+                              selected
+                                ? "border-primary/40 bg-white shadow-sm"
+                                : "border-outline-variant/20 bg-white/60 opacity-70 hover:opacity-100"
+                            }`}
+                          >
+                            <span
+                              className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                                selected
+                                  ? "border-primary bg-primary text-on-primary"
+                                  : "border-outline-variant/50 bg-white"
+                              }`}
+                            >
+                              {selected ? (
+                                <span className="material-symbols-outlined text-[14px]">
+                                  check
+                                </span>
+                              ) : null}
+                            </span>
+                            <RecipeImage
+                              src={group.recipe.cover_image_url}
+                              alt={group.recipe.name}
+                              seed={group.recipe.id}
+                              className="h-14 w-14 shrink-0 overflow-hidden rounded-xl"
+                              imgClassName="h-14 w-14 object-cover"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="line-clamp-2 text-body-sm font-bold text-on-surface">
+                                {group.recipe.name}
+                              </p>
+                              <p className="mt-1 text-[11px] text-outline">
+                                {group.recipe.ingredients.length} ingredients
+                                {group.count > 1 ? ` x${group.count}` : ""}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </aside>
+
+                  <div className="max-h-[calc(88vh-128px)] overflow-y-auto p-5">
+                    {selectedCartRecipeGroups.length === 0 ? (
+                      <div className="flex min-h-72 flex-col items-center justify-center rounded-3xl border border-dashed border-outline-variant/40 bg-surface-container-low/40 text-center">
+                        <span className="material-symbols-outlined text-[44px] text-outline-variant">
+                          checklist
+                        </span>
+                        <p className="mt-3 text-label-lg font-semibold text-on-surface">
+                          Choose recipes to build this cart
+                        </p>
+                        <p className="mt-1 max-w-sm text-body-sm text-outline">
+                          Select one or more recipes on the left. Ingredients will stay grouped by recipe here.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-5">
+                        {selectedCartRecipeGroups.map((group) => (
+                          <section
+                            key={group.id}
+                            className="overflow-hidden rounded-3xl border border-outline-variant/20 bg-white shadow-sm"
+                          >
+                            <div className="flex items-center gap-4 border-b border-outline-variant/15 bg-surface-container-low/35 px-4 py-3">
+                              <RecipeImage
+                                src={group.recipe.cover_image_url}
+                                alt={group.recipe.name}
+                                seed={group.recipe.id}
+                                className="h-12 w-12 shrink-0 overflow-hidden rounded-xl"
+                                imgClassName="h-12 w-12 object-cover"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <h4 className="truncate text-label-lg font-bold text-on-surface">
+                                  {group.recipe.name}
+                                </h4>
+                                <p className="text-body-sm text-outline">
+                                  {group.recipe.ingredients.length} ingredients
+                                  {group.count > 1 ? ` for ${group.count} meals` : ""}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid gap-2 p-4 sm:grid-cols-2">
+                              {group.recipe.ingredients.map((ingredient, index) => {
+                                const amount = ingredient.amount * group.count;
+                                const itemKey = groceryItemKey(
+                                  `${group.id}:${ingredient.canonical_ingredient}:${index}`,
+                                  amount,
+                                  ingredient.unit,
+                                );
+                                const checked = checkedGroceries.has(itemKey);
+
+                                return (
+                                  <button
+                                    key={itemKey}
+                                    type="button"
+                                    onClick={() =>
+                                      toggleGroceryItem(
+                                        `${group.id}:${ingredient.canonical_ingredient}:${index}`,
+                                        amount,
+                                        ingredient.unit,
+                                      )
+                                    }
+                                    className="flex items-start gap-3 rounded-2xl border border-outline-variant/20 bg-surface px-3 py-3 text-left transition-colors hover:bg-surface-container-low"
+                                  >
+                                    <span
+                                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                                        checked
+                                          ? "border-primary bg-primary text-on-primary"
+                                          : "border-outline-variant/50 bg-white"
+                                      }`}
+                                    >
+                                      {checked ? (
+                                        <span className="material-symbols-outlined text-[14px]">
+                                          check
+                                        </span>
+                                      ) : null}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <p
+                                        className={`text-body-md capitalize ${
+                                          checked
+                                            ? "text-outline line-through"
+                                            : "text-on-surface"
+                                        }`}
+                                      >
+                                        {ingredient.display_ingredient ??
+                                          ingredient.canonical_ingredient}
+                                      </p>
+                                      <p className="mt-0.5 text-body-sm text-outline">
+                                        x{Math.ceil(amount)}
+                                        {ingredient.unit ? ` ${ingredient.unit}` : ""}
+                                        {ingredient.preparation
+                                          ? `, ${ingredient.preparation}`
+                                          : ""}
+                                      </p>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </section>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
+
+            {groceryList.length > 0 ? (
+              <div className="flex flex-col gap-3 border-t border-outline-variant/20 bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-body-sm text-outline">
+                  Cart will include {selectedCartRecipeGroups.length} recipe
+                  {selectedCartRecipeGroups.length !== 1 ? "s" : ""} from this meal plan.
+                </p>
+                <button
+                  type="button"
+                  onClick={generateCartFromSelectedRecipes}
+                  disabled={selectedCartRecipeGroups.length === 0 || isGeneratingCart}
+                  className="flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isGeneratingCart ? (
+                    <span className="material-symbols-outlined animate-spin text-[16px]">
+                      refresh
+                    </span>
+                  ) : (
+                    <span className="material-symbols-outlined text-[16px]">
+                      shopping_cart
+                    </span>
+                  )}
+                  {isGeneratingCart ? "Generating..." : "Generate Cart"}
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
