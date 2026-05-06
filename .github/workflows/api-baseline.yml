@@ -67,7 +67,7 @@ jobs:
         run: pnpm --filter api build
 
       - name: Run API unit tests
-        run: pnpm --filter api test -- --runInBand
+        run: pnpm --filter api exec jest --runInBand
 
       - name: Run API e2e tests
         run: pnpm --filter api test:e2e:ci
