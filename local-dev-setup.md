@@ -5,7 +5,7 @@ Short setup guide for **web + API first** (vision optional).
 ## Prerequisites
 
 - Node 22+
-- pnpm `10.26.2`
+- pnpm version from the root `packageManager` field
 - Docker Desktop (for local Postgres)
 - Optional for vision: Python 3.11+
 
