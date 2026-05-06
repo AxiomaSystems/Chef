@@ -257,6 +257,22 @@ describe('CartService', () => {
     ).rejects.toThrow('Set your shopping location first before using Kroger search.');
   });
 
+  it('fails clearly when Kroger credentials are missing', () => {
+    jest
+      .spyOn(service['matchingService'], 'getProviderReadiness')
+      .mockReturnValue({
+        retailer: 'kroger',
+        status: 'missing_credentials',
+        isAvailable: false,
+      });
+
+    expect(() =>
+      service['buildRetailerSearchContext']('kroger', '60611', null),
+    ).toThrow(
+      'Kroger search is unavailable because provider credentials are missing.',
+    );
+  });
+
   it('fails clearly when Instacart handoff is missing credentials', async () => {
     cartExportService.getProviderReadiness = jest.fn().mockReturnValue({
       retailer: 'instacart',
