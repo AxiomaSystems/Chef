@@ -20,6 +20,14 @@ describe('AppController (e2e)', () => {
   let recipeService: jest.Mocked<RecipeService>;
   let cartService: jest.Mocked<CartService>;
   let authTokenService: AuthTokenService;
+  let prismaServiceMock: {
+    $connect: jest.Mock;
+    enableShutdownHooks: jest.Mock;
+    $queryRawUnsafe: jest.Mock;
+    user: {
+      findUnique: jest.Mock;
+    };
+  };
   let accessToken: string;
 
   const recipeResponse: BaseRecipe = {
@@ -95,21 +103,24 @@ describe('AppController (e2e)', () => {
       findShoppingCart: jest.fn(),
     } as unknown as jest.Mocked<CartService>;
 
+    prismaServiceMock = {
+      $connect: jest.fn(),
+      enableShutdownHooks: jest.fn(),
+      $queryRawUnsafe: jest.fn(async () => [{ '?column?': 1 }]),
+      user: {
+        findUnique: jest.fn(async ({ where }: { where: { id?: string; email?: string } }) => ({
+          id: where.id ?? 'user-1',
+          email: where.email ?? 'user-1@cart-generator.local',
+          role: 'user',
+        })),
+      },
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(PrismaService)
-      .useValue({
-        $connect: jest.fn(),
-        enableShutdownHooks: jest.fn(),
-        user: {
-          findUnique: jest.fn(async ({ where }: { where: { id?: string; email?: string } }) => ({
-            id: where.id ?? 'user-1',
-            email: where.email ?? 'user-1@cart-generator.local',
-            role: 'user',
-          })),
-        },
-      })
+      .useValue(prismaServiceMock)
       .overrideProvider(RecipeService)
       .useValue(recipeService)
       .overrideProvider(CartService)
@@ -136,6 +147,44 @@ describe('AppController (e2e)', () => {
       .get('/')
       .expect(200)
       .expect('Hello World!');
+  });
+
+  it('GET /health returns liveness status', async () => {
+    await request(app.getHttpServer()).get('/health').expect(200).expect({
+      status: 'ok',
+      service: 'api',
+    });
+  });
+
+  it('GET /ready returns readiness status when database is reachable', async () => {
+    prismaServiceMock.$queryRawUnsafe.mockResolvedValue([{ '?column?': 1 }]);
+
+    await request(app.getHttpServer())
+      .get('/ready')
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.status).toBe('ready');
+        expect(response.body.service).toBe('api');
+        expect(response.body.database.status).toBe('ready');
+        expect(response.body.providers).toBeDefined();
+      });
+  });
+
+  it('GET /ready returns 503 when database is not reachable', async () => {
+    prismaServiceMock.$queryRawUnsafe.mockRejectedValue(new Error('db down'));
+
+    await request(app.getHttpServer())
+      .get('/ready')
+      .expect(503)
+      .expect((response) => {
+        const payload =
+          response.body?.message && typeof response.body.message === 'object'
+            ? response.body.message
+            : response.body;
+
+        expect(payload.status).toBe('not_ready');
+        expect(payload.database.status).toBe('not_ready');
+      });
   });
 
   it('adds an x-request-id response header', async () => {

@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import './../src/env';
 import { AppModule } from './../src/app.module';
 import { configureApp } from './../src/app.setup';
 import { AuthTokenService } from './../src/auth/auth-token.service';
