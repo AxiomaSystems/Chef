@@ -12,6 +12,10 @@ The initial wedge is practical: generate or import a meal, edit it to the user's
 
 The repo is still named `cart-generator`, but the internal product/team name is now Chef.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for recent changes and fixes.
+
 ## Product Direction
 
 Chef is not meant to be another recipe database, generic grocery list, calorie tracker, or chatbot.
