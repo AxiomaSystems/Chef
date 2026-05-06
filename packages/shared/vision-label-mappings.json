@@ -259,6 +259,69 @@
       "stage_1_enabled": true
     }
   ],
+  "training_label_mappings": {
+    "unmapped_label_policy": "exclude",
+    "package_terms": {
+      "bag": "bag",
+      "box": "box",
+      "bottle": "bottle",
+      "can": "can",
+      "carton": "carton",
+      "container": "container",
+      "jar": "jar",
+      "jug": "jug",
+      "packet": "packet",
+      "package": "package",
+      "pouch": "pouch"
+    },
+    "source_label_overrides": {
+      "bag of flour": {
+        "class_id": "flour_bag",
+        "package": "bag"
+      },
+      "bag of rice": {
+        "class_id": "rice_bag",
+        "package": "bag"
+      },
+      "cereal": "cereal_box",
+      "cereal box": {
+        "class_id": "cereal_box",
+        "package": "box"
+      },
+      "egg tray": "egg_carton",
+      "eggs": "egg_carton",
+      "flour": "flour_bag",
+      "flour bag": {
+        "class_id": "flour_bag",
+        "package": "bag"
+      },
+      "milk": "milk_carton",
+      "milk carton": {
+        "class_id": "milk_carton",
+        "package": "carton"
+      },
+      "milk jug": {
+        "class_id": "milk_carton",
+        "package": "jug"
+      },
+      "oil bottle": "olive_oil_bottle",
+      "rice": "rice_bag",
+      "rice bag": {
+        "class_id": "rice_bag",
+        "package": "bag"
+      },
+      "seasoning bottle": "spice_bottle",
+      "spice jar": "spice_bottle",
+      "tomato jar": {
+        "class_id": "tomato",
+        "package": "jar"
+      },
+      "tomatoes jar": {
+        "class_id": "tomato",
+        "package": "jar"
+      }
+    }
+  },
   "model_mappings": {
     "coco": {
       "apple": "apple",

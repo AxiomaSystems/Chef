@@ -1,0 +1,225 @@
+# Vision Pipeline v2
+
+Pipeline v2 keeps the current bounding-box detector path, but changes the system boundary from detection-centric to inventory-centric.
+
+## Why v2 Exists
+
+Pipeline v1 answers:
+
+```text
+What labels did we detect?
+```
+
+Pipeline v2 answers:
+
+```text
+What physical objects did we see, what are they likely to be, and how should they stack into inventory?
+```
+
+That distinction matters most for video and frame-by-frame scans, where the same item can appear in many frames.
+
+## Visible Streamlit Flow
+
+The Streamlit sidebar now has:
+
+```text
+Pipeline version: v1 | v2
+```
+
+- `v1`: fallback path. Groups detections by label and uses the existing resolver.
+- `v2`: creates object/session candidates before inventory resolution.
+
+Segmentation is hidden from the normal Streamlit lab. The old code remains archived behind `ENABLE_SEGMENTATION_LAB = False` in `apps/vision-lab/app.py` so it can be reopened deliberately, but it is not part of the active path.
+
+## Conceptual Objects
+
+### Detection Observation
+
+One box from one frame.
+
+```json
+{
+  "frame_id": 3,
+  "observation_id": "obs_3_1_abcd",
+  "label": "rice bag",
+  "bbox": {"x": 0.2, "y": 0.1, "width": 0.3, "height": 0.5},
+  "confidence": 0.82
+}
+```
+
+### Object Track
+
+One likely physical object seen across one or more frames.
+
+```json
+{
+  "track_id": "trk_003",
+  "label": "rice bag",
+  "frames_seen": 6,
+  "detection_count": 6,
+  "max_confidence": 0.91
+}
+```
+
+### Inventory Candidate
+
+A reviewable item proposal.
+
+```json
+{
+  "candidate_id": "cand_001",
+  "canonical_label": "rice_bag",
+  "display_label": "rice bag",
+  "likely_count": 1,
+  "status": "new",
+  "evidence_frames": [1, 2, 3, 4, 5, 6]
+}
+```
+
+### Inventory Item
+
+The saved kitchen state after the user confirms.
+
+```json
+{
+  "label": "rice_bag",
+  "estimated_count": 1,
+  "source": "video_scan"
+}
+```
+
+## Canonical Label vs Display Label
+
+`canonical_label` is the normalized system identity used for inventory, recipes, matching, and dedupe.
+
+Examples:
+
+```text
+tomato
+rice_bag
+milk_carton
+olive_oil_bottle
+```
+
+`display_label` is what the user sees. It can include packaging, brand, or friendly wording.
+
+Examples:
+
+```text
+tomato jar
+basmati rice bag
+milk carton
+olive oil bottle
+```
+
+Do not turn every display label into a model class. Package-specific wording should usually map into canonical identity plus metadata.
+
+## Dataset Automation
+
+Raw datasets stay separate. Training datasets are generated artifacts.
+
+```text
+apps/vision-lab/data/
+|-- sources/
+|   |-- pantry-jars-v1/
+|   |   `-- source_manifest.json
+|   `-- carton-boxes-v1/
+|       `-- source_manifest.json
+`-- training-builds/
+    `-- detector/
+        `-- chef-detector-v002/
+            |-- data.yaml
+            |-- images/
+            |-- labels/
+            |-- build_manifest.json
+            `-- label_map_report.json
+```
+
+### Register A Raw Dataset
+
+Pascal VOC:
+
+```powershell
+.\.venv\Scripts\python.exe apps\vision-lab\register_detection_dataset.py `
+  --source-id pantry-jars-v1 `
+  --images-dir C:\path\to\images `
+  --annotations C:\path\to\xml_annotations `
+  --format pascal-voc `
+  --copy-images `
+  --overwrite
+```
+
+COCO:
+
+```powershell
+.\.venv\Scripts\python.exe apps\vision-lab\register_detection_dataset.py `
+  --source-id carton-boxes-v1 `
+  --images-dir C:\path\to\images `
+  --annotations C:\path\to\annotations.json `
+  --format coco `
+  --copy-images `
+  --overwrite
+```
+
+YOLO:
+
+```powershell
+.\.venv\Scripts\python.exe apps\vision-lab\register_detection_dataset.py `
+  --source-id packaged-food-yolo-v1 `
+  --images-dir C:\path\to\images `
+  --annotations C:\path\to\labels `
+  --format yolo `
+  --class-names C:\path\to\classes.txt `
+  --copy-images `
+  --overwrite
+```
+
+### Build A Versioned Training Dataset
+
+```powershell
+.\.venv\Scripts\python.exe apps\vision-lab\build_detector_training_dataset.py `
+  --build-id chef-detector-v002 `
+  --source-manifest apps\vision-lab\data\sources\pantry-jars-v1\source_manifest.json `
+  --source-manifest apps\vision-lab\data\sources\carton-boxes-v1\source_manifest.json `
+  --overwrite
+```
+
+The build uses `packages/shared/vision-label-mappings.json` by default and writes:
+
+```text
+label_map_report.json
+build_manifest.json
+data.yaml
+```
+
+Review `label_map_report.json` before spending GPU time.
+
+### Create A Canonical Label Review Packet
+
+When labels are excluded, generate a review packet:
+
+```powershell
+.\.venv\Scripts\python.exe apps\vision-lab\create_label_mapping_review.py `
+  --label-map-report apps\vision-lab\data\training-builds\detector\chef-detector-v002\label_map_report.json `
+  --output apps\vision-lab\data\training-builds\detector\chef-detector-v002\canonical_label_review.json
+```
+
+That packet is designed for either human review or a reasoning model. Approved decisions should be manually merged into `packages/shared/vision-label-mappings.json`; the build should then be regenerated. This keeps training deterministic.
+
+## When Adding New Datasets
+
+Do not copy new files into an old dataset folder or append annotations manually.
+
+Use:
+
+```text
+new raw source
+-> source_manifest.json
+-> generated training build
+-> training run
+-> evaluation
+-> checkpoint manifest update
+```
+
+Retrain on a combined curated build, not only the new dataset, unless you intentionally want a narrow experiment. Training only on the new jar/box/carton dataset risks forgetting older ingredients.
+

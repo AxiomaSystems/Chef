@@ -16,7 +16,7 @@ VOLUME_NAME = "chef-ingredient-vision-data"
 VOL_MOUNT = PurePosixPath("/mnt/chef-vision")
 REMOTE_CODE_DIR = PurePosixPath("/root/vision-lab")
 LOCAL_APP_DIR = Path(__file__).resolve().parent
-DEFAULT_LOCAL_DATA_DIR = LOCAL_APP_DIR / "data" / "ingredient_detection_dataset"
+DEFAULT_LOCAL_DATA_DIR = LOCAL_APP_DIR / "data" / "datasets" / "bounding-box" / "food-ingredient-yolo"
 DEFAULT_LOCAL_OUTPUT_DIR = INGREDIENT_DETECTOR_CHECKPOINTS_DIR
 
 
@@ -46,11 +46,11 @@ app = modal.App(APP_NAME, image=image)
 
 
 def remote_dataset_dir() -> PurePosixPath:
-    return VOL_MOUNT / "ingredient_detection_dataset"
+    return VOL_MOUNT / "datasets" / "bounding-box" / "food-ingredient-yolo"
 
 
 def remote_runs_dir() -> PurePosixPath:
-    return VOL_MOUNT / "ingredient_detector_runs"
+    return VOL_MOUNT / "runs" / "bounding-box" / "ingredient-detector"
 
 
 def normalize_remote_data_yaml() -> Path:
@@ -83,7 +83,7 @@ def upload_dataset(local_data_dir: Path) -> None:
 
     print(f"Uploading {local_data_dir} to Modal volume {VOLUME_NAME}...", flush=True)
     with volume.batch_upload(force=True) as batch:
-        batch.put_directory(str(local_data_dir), "/ingredient_detection_dataset")
+        batch.put_directory(str(local_data_dir), f"/{remote_dataset_dir().relative_to(VOL_MOUNT)}")
     print("Upload complete.", flush=True)
 
 
@@ -99,7 +99,7 @@ def download_run(run_name: str, local_output_dir: Path) -> None:
         "weights/last.pt",
     ]
     for filename in files:
-        remote_path = f"/ingredient_detector_runs/{run_name}/{filename}"
+        remote_path = f"/{remote_runs_dir().relative_to(VOL_MOUNT)}/{run_name}/{filename}"
         local_path = output_dir / filename
         local_path.parent.mkdir(parents=True, exist_ok=True)
         try:

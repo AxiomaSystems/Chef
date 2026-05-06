@@ -7,7 +7,7 @@ from chef_vision.checkpoints import FOODSEG_SEGMENTER_CHECKPOINTS_DIR
 
 
 APP_DIR = Path(__file__).resolve().parent
-DEFAULT_DATA_YAML = APP_DIR / "data" / "foodseg103_segmentation_dataset" / "data.yaml"
+DEFAULT_DATA_YAML = APP_DIR / "data" / "datasets" / "segmentation" / "foodseg103-fridge" / "data.yaml"
 
 
 def parse_args() -> argparse.Namespace:

@@ -39,6 +39,8 @@ apps/vision-lab/data/ingredient_detector_runs/
 apps/vision-lab/data/foodseg103_segmentation_dataset*/
 apps/vision-lab/data/foodseg103_segmenter_runs/
 apps/vision-lab/data/segmentation_dataset_previews/
+apps/vision-lab/data/datasets/
+apps/vision-lab/data/previews/
 apps/vision-lab/data/
 apps/vision-lab/*.pt
 .claude/

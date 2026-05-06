@@ -13,6 +13,7 @@ scan session -> frame observations -> closed-set detections
 What is in scope now:
 
 - object detection only
+- canonical labels resolved before detector training
 - a stable API contract for scan sessions
 - frame-level observations
 - class-level `track` vs `review` vs `ignore` routing
@@ -28,7 +29,7 @@ What is intentionally still out of scope for this stage:
 - embeddings / re-identification
 - open-vocabulary fallback
 - OCR / barcode enrichment
-- meal segmentation
+- segmentation/masks
 - production-grade inventory persistence in the main backend
 - embedding-based identity matching
 - robust duplicate resolution across long camera gaps
@@ -107,6 +108,8 @@ image | video | live stream
   -> optional local inventory apply
 ```
 
+Pipeline v2 keeps this detection-only product direction but adds an explicit object/session candidate layer before inventory resolution. See `docs/vision-pipeline-v2.md`.
+
 A later production stage should extend the full flow like this:
 
 ```text
@@ -157,7 +160,7 @@ The most important current limitation is that inventory matching is still mostly
 
 This is useful for product iteration, but it is not yet the final object identity system.
 
-Another important caveat: classification is only as good as the crop proposal. If generic YOLO returns `container`, the classifier may still identify the crop as `basmati rice`, but if YOLO misses parsley entirely then the classifier never sees parsley. The next architecture improvement is an ingredient-aware detector trained from the imported XML boxes and evaluated against the current generic `yolo11n.pt` baseline.
+Another important caveat: classification is only as good as the crop proposal. If generic YOLO returns `container`, the classifier may still identify the crop as `basmati rice`, but if YOLO misses parsley entirely then the classifier never sees parsley. The next architecture improvement is an ingredient-aware detector trained from imported XML boxes after source labels are canonicalized through `packages/shared/vision-label-mappings.json`. Packaging words such as `jar`, `bag`, `box`, and `bottle` should become metadata hints where possible, not separate ingredient classes.
 
 ## Current Local Dev Stack
 

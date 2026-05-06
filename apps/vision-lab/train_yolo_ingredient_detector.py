@@ -7,7 +7,7 @@ from chef_vision.checkpoints import INGREDIENT_DETECTOR_CHECKPOINTS_DIR
 
 
 APP_DIR = Path(__file__).resolve().parent
-DEFAULT_DATA_YAML = APP_DIR / "data" / "ingredient_detection_dataset" / "data.yaml"
+DEFAULT_DATA_YAML = APP_DIR / "data" / "datasets" / "bounding-box" / "food-ingredient-yolo" / "data.yaml"
 
 
 def parse_args() -> argparse.Namespace:
