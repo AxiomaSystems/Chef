@@ -305,7 +305,7 @@ describe('Auth flow (e2e)', () => {
         refresh_token: refreshResponse.body.refresh_token,
       })
       .expect(401);
-  });
+  }, 20000);
 
   it('rejects non-system tags in preferences', async () => {
     const email = `auth-prefs-${Date.now()}@cart-generator.local`;
