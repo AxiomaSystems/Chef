@@ -2,7 +2,7 @@
 
 Owner: papostigo
 Primary agent: Cline + Codex
-Branch target: `demo/2` or a short-lived `piero/week7-backend-stabilization` integration branch
+Branch target: `main` or a short-lived feature branch that merges back into `main`
 Target user testing date: Saturday, May 9, 2026
 Target launch date: Saturday, May 16, 2026
 
@@ -160,7 +160,7 @@ Create or update deployment documentation only after inspecting current config.
 Document:
 
 - Vercel project root should be `apps/web`.
-- Vercel production branch should match the active demo/launch branch.
+- Vercel production branch should be `main` once the transition is complete.
 - Vercel build command and install command.
 - Railway backend service should deploy the API container from the root `Dockerfile`.
 - Railway should use production database env vars and provider env vars.
