@@ -21,9 +21,9 @@ export const configureApp = (app: INestApplication): void => {
   );
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Cart Generator API')
+    .setTitle('Chef API')
     .setDescription(
-      'Backend API for auth, profiles, recipes, cart drafts, carts, shopping carts, and matching.',
+      'Backend API for Chef auth, profiles, recipes, cart drafts, carts, shopping carts, and matching.',
     )
     .setVersion('0.1.0')
     .addTag('system')

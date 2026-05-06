@@ -179,7 +179,7 @@ describe('AppController (e2e)', () => {
     return request(app.getHttpServer())
       .get('/')
       .expect(200)
-      .expect('Hello World!');
+      .expect('Chef API');
   });
 
   it('GET /health returns liveness status', async () => {
@@ -238,7 +238,7 @@ describe('AppController (e2e)', () => {
       .get('/docs/openapi.json')
       .expect(200)
       .expect((response) => {
-        expect(response.body.info.title).toBe('Cart Generator API');
+        expect(response.body.info.title).toBe('Chef API');
         expect(response.body.paths['/api/v1/recipes']).toBeDefined();
       });
   });
