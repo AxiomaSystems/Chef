@@ -170,9 +170,12 @@ export async function submitDraftFlowAction(
   if (!response?.ok) {
     return {
       error:
-        nextResourceType === "draft"
-          ? "Unable to save this draft right now."
-          : "Unable to save this cart right now.",
+        await readErrorMessage(
+          response,
+          nextResourceType === "draft"
+            ? "Unable to save this draft right now."
+            : "Unable to save this cart right now.",
+        ),
     };
   }
 

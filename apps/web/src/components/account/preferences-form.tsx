@@ -17,7 +17,7 @@ function SaveButton() {
     <button
       type="submit"
       disabled={pending}
-      className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-primary text-on-primary font-semibold text-label-md hover:bg-on-primary-container disabled:opacity-50 transition-colors"
+      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:opacity-50 sm:w-auto"
     >
       {pending && <span className="material-symbols-outlined text-[16px] animate-spin">refresh</span>}
       {pending ? "Saving…" : "Save preferences"}
@@ -61,9 +61,9 @@ function CustomChipInput({
             key={value}
             type="button"
             onClick={() => onChange(values.filter((item) => item !== value))}
-            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-label-sm font-semibold text-on-primary transition-colors hover:bg-on-primary-container"
+            className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-label-sm font-semibold text-on-primary transition-colors hover:bg-on-primary-container"
           >
-            {value}
+            <span className="truncate">{value}</span>
             <span className="material-symbols-outlined text-[14px]">close</span>
           </button>
         ))}
@@ -93,7 +93,7 @@ function CustomChipInput({
           }}
           onBlur={() => addChip()}
           placeholder={values.length ? "Add another..." : placeholder}
-          className="min-w-40 flex-1 border-0 bg-transparent px-1 py-1.5 outline-none placeholder:text-outline"
+          className="min-w-0 flex-[1_1_10rem] border-0 bg-transparent px-1 py-1.5 outline-none placeholder:text-outline"
         />
       </div>
     </div>
@@ -114,20 +114,20 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
       <input type="hidden" name="shopping_location_kroger_location_id" defaultValue={preferences.shopping_location?.kroger_location_id ?? ""} />
 
       {/* ── Cuisines ───────────────────────────────────── */}
-      <section className="bg-white rounded-2xl border border-outline-variant/30 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-outline-variant/30">
+      <section className="overflow-hidden rounded-2xl border border-outline-variant/30 bg-white shadow-sm">
+        <div className="border-b border-outline-variant/30 px-4 py-5 sm:px-6">
           <p className="text-label-sm text-primary uppercase tracking-widest">Cuisines</p>
           <h2 className="text-headline-sm font-bold text-on-surface mt-1">Culinary profile</h2>
           <p className="text-body-sm text-outline mt-1">
             Select the cuisines that shape your recipe feed. Leave empty to stay neutral.
           </p>
         </div>
-        <div className="px-6 py-6 space-y-4">
+        <div className="space-y-4 px-4 py-5 sm:px-6 sm:py-6">
           <div className="flex flex-wrap gap-2">
             {cuisines.map((cuisine) => (
               <label
                 key={cuisine.id}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-outline-variant bg-surface-container-low text-body-sm text-on-surface cursor-pointer hover:border-primary hover:bg-primary-surface transition-colors has-[:checked]:bg-primary has-[:checked]:text-on-primary has-[:checked]:border-primary"
+                className="inline-flex max-w-full items-center gap-2 rounded-full border border-outline-variant bg-surface-container-low px-3 py-2 text-body-sm text-on-surface transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-on-primary hover:border-primary hover:bg-primary-surface sm:px-4"
               >
                 <input
                   type="checkbox"
@@ -136,7 +136,7 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
                   defaultChecked={preferences.preferred_cuisine_ids.includes(cuisine.id)}
                   className="sr-only"
                 />
-                {cuisine.label}
+                <span className="truncate">{cuisine.label}</span>
               </label>
             ))}
           </div>
@@ -150,15 +150,15 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
       </section>
 
       {/* ── Shopping location ──────────────────────────── */}
-      <section className="bg-white rounded-2xl border border-outline-variant/30 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-outline-variant/30">
+      <section className="overflow-hidden rounded-2xl border border-outline-variant/30 bg-white shadow-sm">
+        <div className="border-b border-outline-variant/30 px-4 py-5 sm:px-6">
           <p className="text-label-sm text-primary uppercase tracking-widest">Location</p>
           <h2 className="text-headline-sm font-bold text-on-surface mt-1">Shopping location</h2>
           <p className="text-body-sm text-outline mt-1">
             Save your ZIP code so retailers can find nearby stores automatically.
           </p>
         </div>
-        <div className="px-6 py-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 px-4 py-5 sm:grid-cols-2 sm:px-6 sm:py-6">
           <div className="space-y-1.5">
             <label className="text-label-sm text-outline uppercase tracking-wide">ZIP code</label>
             <input
@@ -183,20 +183,20 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
       </section>
 
       {/* ── Dietary tags ───────────────────────────────── */}
-      <section className="bg-white rounded-2xl border border-outline-variant/30 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-outline-variant/30">
+      <section className="overflow-hidden rounded-2xl border border-outline-variant/30 bg-white shadow-sm">
+        <div className="border-b border-outline-variant/30 px-4 py-5 sm:px-6">
           <p className="text-label-sm text-primary uppercase tracking-widest">Taste signals</p>
           <h2 className="text-headline-sm font-bold text-on-surface mt-1">Dietary preferences</h2>
           <p className="text-body-sm text-outline mt-1">
             Pick the tags that best describe your dietary style.
           </p>
         </div>
-        <div className="px-6 py-6 space-y-4">
+        <div className="space-y-4 px-4 py-5 sm:px-6 sm:py-6">
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => (
               <label
                 key={tag.id}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-outline-variant bg-surface-container-low text-body-sm text-on-surface cursor-pointer hover:border-primary hover:bg-primary-surface transition-colors has-[:checked]:bg-primary has-[:checked]:text-on-primary has-[:checked]:border-primary"
+                className="inline-flex max-w-full items-center gap-2 rounded-full border border-outline-variant bg-surface-container-low px-3 py-2 text-body-sm text-on-surface transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-on-primary hover:border-primary hover:bg-primary-surface sm:px-4"
               >
                 <input
                   type="checkbox"
@@ -205,7 +205,7 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
                   defaultChecked={preferences.preferred_tag_ids.includes(tag.id)}
                   className="sr-only"
                 />
-                {tag.name}
+                <span className="truncate">{tag.name}</span>
               </label>
             ))}
           </div>

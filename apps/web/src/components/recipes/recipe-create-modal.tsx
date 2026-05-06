@@ -82,13 +82,35 @@ export function RecipeCreateModal({
     initialRecipe?.cover_image_url ?? "",
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverImageSourceRef = useRef<"ai" | "upload" | "initial" | null>(
+    initialRecipe?.cover_image_url ? "initial" : null,
+  );
+  const uploadVersionRef = useRef(0);
+
+  function openFilePicker() {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  }
 
   function handleImageFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    setError(undefined);
     const reader = new FileReader();
     reader.onload = (e) => {
-      setCoverImageUrl(e.target?.result as string);
+      const result = e.target?.result;
+      if (typeof result !== "string") {
+        setError("Chef could not read that image file.");
+        return;
+      }
+      uploadVersionRef.current += 1;
+      coverImageSourceRef.current = "upload";
+      setCoverImageUrl(result);
+    };
+    reader.onerror = () => {
+      setError("Chef could not read that image file.");
     };
     reader.readAsDataURL(file);
   }
@@ -347,22 +369,43 @@ export function RecipeCreateModal({
     );
   }
 
-  function addDietaryRestrictionChip(value = dietaryRestrictionInput) {
-    const label = normalizeTagName(value.replace(/,+$/g, ""));
-    if (!label) return;
+  function addDietaryRestrictionChips(
+    value: string | string[] = dietaryRestrictionInput,
+  ) {
+    const labels = (Array.isArray(value) ? value : value.split(","))
+      .map((label) => normalizeTagName(label.replace(/,+$/g, "")))
+      .filter(Boolean);
+    if (labels.length === 0) return;
 
-    const existingTag = findTagFromName(label);
-    if (existingTag) {
+    const matchedTagIds: string[] = [];
+    const customLabels = new Map<string, string>();
+
+    for (const label of labels) {
+      const existingTag = findTagFromName(label);
+      if (existingTag) {
+        matchedTagIds.push(existingTag.id);
+        continue;
+      }
+
+      customLabels.set(normalizeTagSlug(label), label);
+    }
+
+    if (matchedTagIds.length > 0) {
       setSelectedTagIds((prev) =>
-        prev.includes(existingTag.id) ? prev : [...prev, existingTag.id],
+        Array.from(new Set([...prev, ...matchedTagIds])),
       );
-    } else {
-      const slug = normalizeTagSlug(label);
-      setCustomTagNames((prev) =>
-        prev.some((name) => normalizeTagSlug(name) === slug)
-          ? prev
-          : [...prev, label],
-      );
+    }
+
+    if (customLabels.size > 0) {
+      setCustomTagNames((prev) => {
+        const next = new Map(
+          prev.map((name) => [normalizeTagSlug(name), name]),
+        );
+        for (const [slug, label] of customLabels) {
+          if (!next.has(slug)) next.set(slug, label);
+        }
+        return Array.from(next.values());
+      });
     }
 
     setDietaryRestrictionInput("");
@@ -379,7 +422,7 @@ export function RecipeCreateModal({
 
   function removeLastDietaryRestrictionChip() {
     const tagChips = tags
-      .filter((tag) => tag.kind === "dietary_badge" && selectedTagIds.includes(tag.id))
+      .filter((tag) => selectedTagIds.includes(tag.id))
       .map((tag) => ({ type: "tag" as const, value: tag.id }));
     const customChips = customTagNames.map((name) => ({
       type: "custom" as const,
@@ -392,7 +435,7 @@ export function RecipeCreateModal({
 
   const dietaryRestrictionChips = [
     ...tags
-      .filter((tag) => tag.kind === "dietary_badge" && selectedTagIds.includes(tag.id))
+      .filter((tag) => selectedTagIds.includes(tag.id))
       .map((tag) => ({
         type: "tag" as const,
         value: tag.id,
@@ -445,7 +488,9 @@ export function RecipeCreateModal({
           }))
         : [{ what_to_do: "" }],
     );
-    setSelectedTagIds(findTagIdsFromNames(recipe.tags ?? []));
+    setSelectedTagIds((prev) =>
+      Array.from(new Set([...prev, ...findTagIdsFromNames(recipe.tags ?? [])])),
+    );
     setCalories(
       recipe.nutrition_estimate?.calories !== undefined
         ? String(recipe.nutrition_estimate.calories)
@@ -479,6 +524,7 @@ export function RecipeCreateModal({
 
     setError(undefined);
     setAutofillHint(undefined);
+    const uploadVersionAtAutofillStart = uploadVersionRef.current;
 
     startAutofill(async () => {
       const result = await generateMealsAction({
@@ -541,7 +587,8 @@ export function RecipeCreateModal({
       });
 
       applyAiRecipePreview(recipe, { renameRecipe: shouldSaveAsNew });
-      if (imageUrl && (!coverImageUrl || isEditing)) {
+      if (imageUrl && uploadVersionRef.current === uploadVersionAtAutofillStart) {
+        coverImageSourceRef.current = "ai";
         setCoverImageUrl(imageUrl);
       }
       setLastAutofilledName(normalizedName);
@@ -688,19 +735,19 @@ export function RecipeCreateModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-6">
+    <div className="fixed inset-0 z-[60] flex items-stretch justify-center p-0 sm:items-center sm:p-6">
       <div
         className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      <div className="relative flex max-h-[95vh] w-full flex-col overflow-hidden rounded-t-2xl bg-background shadow-2xl sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-outline-variant/30 px-6 py-4">
-          <div>
-            <h2 className="text-headline-sm font-bold text-on-surface">
+      <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-background shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-outline-variant/30 px-4 py-4 sm:items-center sm:px-6">
+          <div className="min-w-0">
+            <h2 className="truncate text-title-lg font-bold text-on-surface sm:text-headline-sm">
               {isEditing ? "Edit Recipe" : "Create Recipe"}
             </h2>
-            <p className="mt-0.5 text-body-sm text-outline">
+            <p className="mt-0.5 text-body-sm leading-snug text-outline">
               {isEditing
                 ? "Update this recipe or save the edit as a new version"
                 : "Build your own culinary masterpiece"}
@@ -716,7 +763,7 @@ export function RecipeCreateModal({
           </button>
         </div>
 
-        <div className="flex-1 space-y-7 overflow-y-auto px-6 py-6">
+        <div className="flex-1 space-y-7 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
           {error && (
             <div className="rounded-xl bg-error-container p-3 text-body-sm text-on-error-container">
               {error}
@@ -771,9 +818,11 @@ export function RecipeCreateModal({
                   onChange={(event) => {
                     const nextValue = event.target.value;
                     if (nextValue.includes(",")) {
-                      const [firstValue, ...rest] = nextValue.split(",");
-                      addDietaryRestrictionChip(firstValue);
-                      setDietaryRestrictionInput(rest.join(",").trimStart());
+                      const parts = nextValue.split(",");
+                      addDietaryRestrictionChips(parts.slice(0, -1));
+                      setDietaryRestrictionInput(
+                        (parts.at(-1) ?? "").trimStart(),
+                      );
                       return;
                     }
                     setDietaryRestrictionInput(nextValue);
@@ -781,7 +830,7 @@ export function RecipeCreateModal({
                   onKeyDown={(event) => {
                     if (event.key === "," || event.key === "Enter") {
                       event.preventDefault();
-                      addDietaryRestrictionChip();
+                      addDietaryRestrictionChips();
                       return;
                     }
 
@@ -794,7 +843,21 @@ export function RecipeCreateModal({
                       removeLastDietaryRestrictionChip();
                     }
                   }}
-                  onBlur={() => addDietaryRestrictionChip()}
+                  onPaste={(event) => {
+                    const pastedText = event.clipboardData.getData("text");
+                    if (!pastedText.includes(",")) return;
+
+                    event.preventDefault();
+                    const parts = pastedText.split(",");
+                    addDietaryRestrictionChips([
+                      dietaryRestrictionInput,
+                      ...parts.slice(0, -1),
+                    ]);
+                    setDietaryRestrictionInput(
+                      (parts.at(-1) ?? "").trimStart(),
+                    );
+                  }}
+                  onBlur={() => addDietaryRestrictionChips()}
                   placeholder={
                     dietaryRestrictionChips.length
                       ? "Add another..."
@@ -819,8 +882,8 @@ export function RecipeCreateModal({
               />
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex shrink-0 items-center gap-2">
+            <div className="grid gap-3 sm:flex sm:items-center">
+              <div className="flex items-center gap-2 sm:shrink-0">
                 <label className="text-label-sm uppercase tracking-wide text-outline">
                   Servings *
                 </label>
@@ -836,7 +899,7 @@ export function RecipeCreateModal({
                   className="w-16 rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-center text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
-              <p className="flex-1 text-[11px] leading-5 text-outline">
+              <p className="text-[11px] leading-5 text-outline sm:flex-1">
                 {isEditing
                   ? "Use AI after adding dietary restrictions or edit instructions."
                   : "Set servings, then Chef can draft the rest automatically."}
@@ -845,7 +908,7 @@ export function RecipeCreateModal({
                 type="button"
                 onClick={() => autofillFromName("manual")}
                 disabled={!name.trim() || isAutofilling}
-                className="flex shrink-0 items-center gap-1.5 rounded-full border border-outline-variant/50 bg-white px-3 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary-surface disabled:opacity-50"
+                className="flex min-h-10 w-full shrink-0 items-center justify-center gap-1.5 rounded-full border border-outline-variant/50 bg-white px-3 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary-surface disabled:opacity-50 sm:w-auto"
               >
                 {isAutofilling ? (
                   <span className="material-symbols-outlined animate-spin text-[14px]">
@@ -942,6 +1005,7 @@ export function RecipeCreateModal({
                   <button
                     type="button"
                     onClick={() => {
+                      coverImageSourceRef.current = null;
                       setCoverImageUrl("");
                       if (fileInputRef.current) fileInputRef.current.value = "";
                     }}
@@ -951,7 +1015,7 @@ export function RecipeCreateModal({
                   </button>
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={openFilePicker}
                     className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-black/70"
                   >
                     <span className="material-symbols-outlined text-[12px]">edit</span>
@@ -961,7 +1025,7 @@ export function RecipeCreateModal({
               ) : (
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={openFilePicker}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-outline-variant/50 bg-white px-4 py-6 text-body-sm text-outline transition-colors hover:bg-surface-container-low"
                 >
                   <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
@@ -1137,10 +1201,10 @@ export function RecipeCreateModal({
           </section>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-outline-variant/30 bg-white px-6 py-4">
+        <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-outline-variant/30 bg-white px-4 py-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:px-6 sm:py-4">
           <button
             onClick={onClose}
-            className="rounded-full border border-outline-variant px-5 py-2.5 text-label-md text-on-surface-variant transition-colors hover:bg-surface-container-low"
+            className="min-h-11 rounded-full border border-outline-variant px-5 py-2.5 text-label-md text-on-surface-variant transition-colors hover:bg-surface-container-low"
           >
             Cancel
           </button>
@@ -1153,7 +1217,7 @@ export function RecipeCreateModal({
                   handleSubmit("copy");
                 }}
                 disabled={saving}
-                className="flex items-center gap-2 rounded-full border border-outline-variant px-5 py-2.5 text-label-md font-semibold text-primary transition-colors hover:bg-primary-surface disabled:opacity-50"
+                className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-outline-variant px-5 py-2.5 text-label-md font-semibold text-primary transition-colors hover:bg-primary-surface disabled:opacity-50 sm:justify-start"
               >
                 {saving && editSaveMode === "copy" && (
                   <span className="material-symbols-outlined animate-spin text-[16px]">
@@ -1170,7 +1234,7 @@ export function RecipeCreateModal({
                   handleSubmit("update");
                 }}
                 disabled={saving}
-                className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:opacity-50"
+                className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-6 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:opacity-50 sm:col-span-1 sm:justify-start"
               >
                 {saving && editSaveMode === "update" && (
                   <span className="material-symbols-outlined animate-spin text-[16px]">
@@ -1184,7 +1248,7 @@ export function RecipeCreateModal({
             <button
               onClick={() => handleSubmit()}
               disabled={saving}
-              className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:opacity-50"
+              className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-6 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:opacity-50"
             >
               {saving && (
                 <span className="material-symbols-outlined animate-spin text-[16px]">

@@ -313,18 +313,39 @@ export async function fetchUnsplashImageAction(input: {
       .replace(/\s+/g, " ")
       .trim();
 
-    const params = new URLSearchParams({
+    const randomParams = new URLSearchParams({
       query,
       orientation: "landscape",
+      content_filter: "high",
       client_id: accessKey,
     });
-    const response = await fetch(
-      `https://api.unsplash.com/photos/random?${params}`,
+    const randomResponse = await fetch(
+      `https://api.unsplash.com/photos/random?${randomParams}`,
       { cache: "no-store" },
     );
-    if (!response.ok) return null;
-    const data = (await response.json()) as { urls?: { regular?: string } };
-    return data.urls?.regular ?? null;
+    if (randomResponse.ok) {
+      const data = (await randomResponse.json()) as {
+        urls?: { regular?: string };
+      };
+      if (data.urls?.regular) return data.urls.regular;
+    }
+
+    const searchParams = new URLSearchParams({
+      query,
+      orientation: "landscape",
+      content_filter: "high",
+      per_page: "1",
+      client_id: accessKey,
+    });
+    const searchResponse = await fetch(
+      `https://api.unsplash.com/search/photos?${searchParams}`,
+      { cache: "no-store" },
+    );
+    if (!searchResponse.ok) return null;
+    const searchData = (await searchResponse.json()) as {
+      results?: { urls?: { regular?: string } }[];
+    };
+    return searchData.results?.[0]?.urls?.regular ?? null;
   } catch {
     return null;
   }

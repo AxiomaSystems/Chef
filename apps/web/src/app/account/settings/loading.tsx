@@ -1,24 +1,16 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingState } from "@/components/ui/loading-state";
 
 export default function AccountSettingsLoading() {
   return (
-    <div className="space-y-8 p-6">
-      {/* Section title */}
-      <div className="space-y-2">
-        <Skeleton className="h-7 w-40" />
-        <Skeleton className="h-4 w-72" />
-      </div>
-
-      {/* Form fields */}
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="space-y-2">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-10 w-full rounded-xl" />
-        </div>
-      ))}
-
-      {/* Save button */}
-      <Skeleton className="h-10 w-28 rounded-xl" />
-    </div>
+    <LoadingState
+      title="Loading account settings"
+      detail="Getting your profile, preferences, checkout details, and security options."
+      steps={[
+        "Loading profile",
+        "Checking preferences",
+        "Preparing account forms",
+      ]}
+      shell={false}
+    />
   );
 }

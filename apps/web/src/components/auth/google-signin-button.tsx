@@ -76,9 +76,27 @@ export function GoogleSigninButton({
 }: GoogleSigninButtonProps) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const buttonId = useId();
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const buttonContainerRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
+  const [buttonWidth, setButtonWidth] = useState(320);
+
+  useEffect(() => {
+    const wrapperElement = wrapperRef.current;
+    if (!wrapperElement) return;
+
+    function updateButtonWidth() {
+      const nextWidth = wrapperRef.current?.clientWidth ?? 320;
+      setButtonWidth(Math.max(220, Math.min(320, nextWidth)));
+    }
+
+    updateButtonWidth();
+    const observer = new ResizeObserver(updateButtonWidth);
+    observer.observe(wrapperElement);
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!clientId) {
@@ -153,7 +171,7 @@ export function GoogleSigninButton({
           shape: "pill",
           text: "continue_with",
           size: "large",
-          width: 320,
+          width: buttonWidth,
           logo_alignment: "left",
         });
       } catch (mountError) {
@@ -171,7 +189,7 @@ export function GoogleSigninButton({
       isCancelled = true;
       googleCredentialHandler = null;
     };
-  }, [clientId]);
+  }, [buttonWidth, clientId]);
 
   if (!clientId) {
     return (
@@ -184,19 +202,15 @@ export function GoogleSigninButton({
 
   return (
     <div className="grid gap-3">
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-[#d7c2b9]" />
-        <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#85736c]">
-          {contextLabel}
-        </span>
-        <div className="h-px flex-1 bg-[#d7c2b9]" />
-      </div>
+      <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[#85736c]">
+        {contextLabel}
+      </p>
 
-      <div className="grid justify-center gap-3">
+      <div ref={wrapperRef} className="grid w-full justify-center gap-3 overflow-hidden">
         <div
           id={buttonId}
           ref={buttonContainerRef}
-          className={isLoading ? "pointer-events-none opacity-" : undefined}
+          className={isLoading ? "pointer-events-none opacity-60" : undefined}
         />
 
         {isLoading ? (

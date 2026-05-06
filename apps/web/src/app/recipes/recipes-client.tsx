@@ -216,16 +216,16 @@ export function RecipesClient({
 
         {/* ── Tabs ─────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex gap-1 bg-surface-container-low rounded-full p-1">
+          <div className="grid w-full grid-cols-3 gap-1 rounded-full bg-surface-container-low p-1 sm:w-auto">
             {([ ["mine", "My Recipes"], ["public", "Public Recipes"], ["saved", "Saved Recipes"] ] as [Tab, string][]).map(([t, label]) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`px-4 py-1.5 rounded-full text-label-sm font-semibold transition-all ${
+                className={`min-w-0 rounded-full px-2 py-1.5 text-label-sm font-semibold leading-tight transition-all sm:px-4 ${
                   tab === t ? "bg-white text-on-surface shadow-sm" : "text-outline hover:text-on-surface"
                 }`}
               >
-                {label}
+                <span className="block truncate">{label}</span>
                 {t === "saved" && recipes.filter(isUserSaved).length > 0 && (
                   <span className="ml-1.5 bg-primary text-on-primary text-[10px] px-1.5 py-0.5 rounded-full">
                     {recipes.filter(isUserSaved).length}
@@ -346,13 +346,13 @@ export function RecipesClient({
                       )}
                     </button>
 
-                    {/* Add-to-cart button (shows on hover) */}
+                    {/* Add-to-cart button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isSelected) removeSelection(recipe.id); else handleAddToCart(recipe);
                       }}
-                      className={`absolute bottom-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover:opacity-100 ${
+                      className={`absolute bottom-2.5 right-2.5 flex h-9 w-9 items-center justify-center rounded-full shadow-sm transition-all ${
                         isSelected ? "bg-primary text-on-primary" : "bg-white/90 text-outline hover:text-primary"
                       }`}
                       aria-label="Add to cart"

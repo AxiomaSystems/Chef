@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from './prisma/prisma.service';
+import { getProviderReadiness } from './providers/provider-readiness';
 
 @Injectable()
 export class AppService {
@@ -45,36 +46,14 @@ export class AppService {
   private getProviderStatuses() {
     return {
       kroger: {
-        status: this.getProviderStatus(
-          process.env.KROGER_USE_REAL_PROVIDER !== 'false',
-          ['KROGER_CLIENT_ID', 'KROGER_CLIENT_SECRET'],
-        ),
+        status: getProviderReadiness('kroger').status,
       },
       instacart: {
-        status: this.getProviderStatus(
-          process.env.INSTACART_USE_REAL_PROVIDER === 'true',
-          ['INSTACART_API_KEY'],
-        ),
+        status: getProviderReadiness('instacart').status,
       },
       walmart: {
-        status: this.getProviderStatus(
-          process.env.WALMART_USE_REAL_PROVIDER === 'true',
-          ['WALMART_CLIENT_ID', 'WALMART_CLIENT_SECRET'],
-        ),
+        status: getProviderReadiness('walmart').status,
       },
     } as const;
-  }
-
-  private getProviderStatus(enabled: boolean, requiredKeys: string[]) {
-    if (!enabled) {
-      return 'disabled';
-    }
-
-    const hasAllCredentials = requiredKeys.every((key) => {
-      const value = process.env[key];
-      return value !== undefined && value.trim() !== '';
-    });
-
-    return hasAllCredentials ? 'configured' : 'missing_credentials';
   }
 }
