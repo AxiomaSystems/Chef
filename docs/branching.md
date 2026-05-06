@@ -1,4 +1,4 @@
-# Branching Policy - 2026-06-05
+# Branching Policy - 2026-05-06
 
 This document replaces the earlier demo-branch recommendation.
 
