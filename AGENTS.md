@@ -108,6 +108,10 @@ If an agent changes API request or response behavior, it should also update:
 
 Agents should not leave the frontend and backend with mismatched contract assumptions.
 
+When creating new endpoints or redesigning existing endpoint routes, agents should use the `api-design-principles` skill and follow the API standards documented in `docs/specs/api-refactor-standards.md`.
+
+Agents should prefer resource-oriented route design, document conscious exceptions, and avoid introducing new inconsistent endpoint shapes during stabilization work.
+
 ## UI Rules
 
 Generated UI should be treated as draft-quality until reviewed by the frontend owner.

@@ -14,11 +14,13 @@ import { AuthTokenService } from './../src/auth/auth-token.service';
 import { CartService } from './../src/cart/cart.service';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { RecipeService } from './../src/recipe/recipe.service';
+import { RetailersService } from './../src/retailers/retailers.service';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
   let recipeService: jest.Mocked<RecipeService>;
   let cartService: jest.Mocked<CartService>;
+  let retailersService: jest.Mocked<RetailersService>;
   let authTokenService: AuthTokenService;
   let prismaServiceMock: {
     $connect: jest.Mock;
@@ -103,6 +105,35 @@ describe('AppController (e2e)', () => {
       findShoppingCart: jest.fn(),
     } as unknown as jest.Mocked<CartService>;
 
+    retailersService = {
+      listCapabilities: jest.fn().mockReturnValue([
+        {
+          retailer: 'instacart',
+          label: 'Instacart',
+          supports_product_search: false,
+          supports_location_lookup: false,
+          supports_cart_handoff: true,
+          supports_native_checkout: false,
+          requires_location: false,
+          requires_api_key: true,
+          status: 'configured',
+          demo_priority: 1,
+        },
+        {
+          retailer: 'kroger',
+          label: 'Kroger',
+          supports_product_search: true,
+          supports_location_lookup: true,
+          supports_cart_handoff: false,
+          supports_native_checkout: false,
+          requires_location: true,
+          requires_api_key: true,
+          status: 'missing_credentials',
+          demo_priority: 2,
+        },
+      ]),
+    } as unknown as jest.Mocked<RetailersService>;
+
     prismaServiceMock = {
       $connect: jest.fn(),
       enableShutdownHooks: jest.fn(),
@@ -125,6 +156,8 @@ describe('AppController (e2e)', () => {
       .useValue(recipeService)
       .overrideProvider(CartService)
       .useValue(cartService)
+      .overrideProvider(RetailersService)
+      .useValue(retailersService)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -203,6 +236,26 @@ describe('AppController (e2e)', () => {
       .expect((response) => {
         expect(response.body.info.title).toBe('Cart Generator API');
         expect(response.body.paths['/api/v1/recipes']).toBeDefined();
+      });
+  });
+
+  it('GET /api/v1/retailers/capabilities returns explicit provider states', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/retailers/capabilities')
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              retailer: 'instacart',
+              status: 'configured',
+            }),
+            expect.objectContaining({
+              retailer: 'kroger',
+              status: 'missing_credentials',
+            }),
+          ]),
+        );
       });
   });
 
