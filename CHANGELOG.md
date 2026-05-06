@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Inventory page now has an always-visible in-stock ingredient search bar instead of a search toggle button
+- Inventory `Add` action now opens the ingredient catalog in a full-screen modal overlay matching the photo/video scan modal pattern
+
 ### Fixed
 - API build failures due to outdated Prisma client generation
 - Missing `handleAdded` function in inventory client causing TypeScript errors

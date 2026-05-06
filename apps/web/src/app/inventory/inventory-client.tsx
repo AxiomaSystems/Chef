@@ -6,7 +6,6 @@ import type { KitchenInventoryItem } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { CameraModal } from "./camera-modal";
 import { removeInventoryItemAction, createRestockCartAction, addInventoryItemAction } from "./actions";
-import { AddItemModal } from "./add-item-modal";
 import { VisionScanModal } from "./vision-scan-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -169,9 +168,11 @@ function realToDisplay(item: KitchenInventoryItem): DisplayItem {
 function IngredientPicker({
   existingNames,
   onAdd,
+  embedded = false,
 }: {
   existingNames: Set<string>;
   onAdd: (name: string) => void;
+  embedded?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("All");
@@ -203,10 +204,18 @@ function IngredientPicker({
   }
 
   return (
-    <div className="bg-white rounded-3xl border border-outline-variant/30 shadow-sm overflow-hidden">
+    <div
+      className={`bg-white overflow-hidden ${
+        embedded
+          ? "rounded-2xl border border-outline-variant/30"
+          : "rounded-3xl border border-outline-variant/30 shadow-sm"
+      }`}
+    >
       {/* Header */}
       <div className="px-5 pt-5 pb-4 border-b border-outline-variant/20">
-        <h3 className="font-bold text-on-surface text-base mb-3">Add Ingredients</h3>
+        {!embedded && (
+          <h3 className="font-bold text-on-surface text-base mb-3">Add Ingredients</h3>
+        )}
         {/* Search */}
         <div className="relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
@@ -246,9 +255,15 @@ function IngredientPicker({
       </div>
 
       {/* List */}
-      <div className="max-h-[480px] overflow-y-auto divide-y divide-outline-variant/10">
+      <div
+        className={`overflow-y-auto divide-y divide-outline-variant/10 ${
+          embedded ? "max-h-[58vh]" : "max-h-[480px]"
+        }`}
+      >
         {filtered.length === 0 ? (
-          <p className="text-sm text-outline text-center py-10">No results for "{search}"</p>
+          <p className="text-sm text-outline text-center py-10">
+            {`No results for "${search}"`}
+          </p>
         ) : (
           filtered.map((group) => (
             <div key={group.category}>
@@ -316,6 +331,44 @@ function IngredientPicker({
   );
 }
 
+function IngredientPickerModal({
+  existingNames,
+  onAdd,
+  onClose,
+}: {
+  existingNames: Set<string>;
+  onAdd: (name: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 p-4 flex items-end sm:items-center justify-center">
+      <div className="bg-white w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-3xl shadow-2xl flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/30">
+          <div>
+            <p className="font-bold text-on-surface">Add ingredients</p>
+            <p className="text-xs text-outline">Choose what is in your kitchen</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-surface-container transition-colors"
+            aria-label="Close"
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-5 space-y-5">
+          <IngredientPicker
+            existingNames={existingNames}
+            onAdd={onAdd}
+            embedded
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function InventoryClient({
@@ -324,15 +377,14 @@ export function InventoryClient({
   realItems: KitchenInventoryItem[];
 }) {
   const [activeCategory, setActiveCategory] = useState("All Items");
-  const [cameraMode, setCameraMode] = useState<"photo" | "scan" | null>(null);
+  const [inventorySearch, setInventorySearch] = useState("");
+  const [ingredientPickerOpen, setIngredientPickerOpen] = useState(false);
   const [visionMode, setVisionMode] = useState<VisionMode | null>(null);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
-  const [addItemOpen, setAddItemOpen] = useState(false);
   const [items, setItems] = useState<DisplayItem[]>(realItems.map(realToDisplay));
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [restockError, setRestockError] = useState<string | undefined>();
   const [isRestocking, startRestock] = useTransition();
-  const [, startRemove] = useTransition();
 
   // Set of existing ingredient names (lowercase) for the picker
   const existingNames = useMemo(
@@ -346,10 +398,16 @@ export function InventoryClient({
     ...Array.from(new Set(items.map((i) => i.category))).sort(),
   ];
 
-  const filtered =
-    activeCategory === "All Items"
-      ? items
-      : items.filter((i) => i.category === activeCategory);
+  const normalizedInventorySearch = inventorySearch.trim().toLowerCase();
+  const filtered = items.filter((item) => {
+    const matchesCategory =
+      activeCategory === "All Items" || item.category === activeCategory;
+    const matchesSearch =
+      normalizedInventorySearch.length === 0 ||
+      item.name.toLowerCase().includes(normalizedInventorySearch);
+
+    return matchesCategory && matchesSearch;
+  });
 
   // Group by category
   const grouped = filtered.reduce<Record<string, DisplayItem[]>>((acc, item) => {
@@ -443,6 +501,18 @@ export function InventoryClient({
                   <span className="material-symbols-outlined text-[18px]">barcode_scanner</span>
                   Barcode
                 </button>
+                <button
+                  onClick={() => setIngredientPickerOpen(true)}
+                  aria-expanded={ingredientPickerOpen}
+                  className={`flex items-center gap-2 font-semibold text-sm px-4 py-2.5 rounded-full border transition-colors ${
+                    ingredientPickerOpen
+                      ? "bg-white text-[#1a1c1a] border-white shadow hover:bg-white/90"
+                      : "bg-white/15 text-white border-white/30 hover:bg-white/25"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">add</span>
+                  Add
+                </button>
               </div>
             </div>
 
@@ -509,23 +579,42 @@ export function InventoryClient({
           </div>
 
           {/* ── Category filters ── */}
-          {items.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              {categories.map((cat) => (
+          <div className="flex gap-2 flex-wrap">
+            <div className="relative w-full sm:w-64">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
+                search
+              </span>
+              <input
+                value={inventorySearch}
+                onChange={(e) => setInventorySearch(e.target.value)}
+                placeholder="Search inventory..."
+                className="w-full pl-9 pr-9 py-1.5 rounded-full border border-outline-variant text-sm outline-none focus:border-primary transition-colors bg-surface-container"
+              />
+              {inventorySearch && (
                 <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    activeCategory === cat
-                      ? "bg-primary-fixed-dim text-on-primary-fixed"
-                      : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
-                  }`}
+                  type="button"
+                  onClick={() => setInventorySearch("")}
+                  aria-label="Clear inventory search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-outline"
                 >
-                  {cat}
+                  <span className="material-symbols-outlined text-[16px]">close</span>
                 </button>
-              ))}
+              )}
             </div>
-          )}
+            {items.length > 0 && categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  activeCategory === cat
+                    ? "bg-primary-fixed-dim text-on-primary-fixed"
+                    : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
 
           {/* ── Item groups ── */}
           {Object.keys(grouped).length === 0 ? (
@@ -533,7 +622,11 @@ export function InventoryClient({
               <span className="material-symbols-outlined text-[48px] block mb-3 opacity-40">
                 inventory_2
               </span>
-              <p className="text-sm">No items yet — check some ingredients below.</p>
+              <p className="text-sm">
+                {items.length === 0
+                  ? "No items yet — use Add to choose ingredients."
+                  : `No in-stock ingredients found for "${inventorySearch.trim()}".`}
+              </p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -593,11 +686,6 @@ export function InventoryClient({
               ))}
             </div>
           )}
-
-          {/* ── Ingredient Picker ── */}
-          <div className="pb-8">
-            <IngredientPicker existingNames={existingNames} onAdd={handlePickerAdd} />
-          </div>
         </div>
       </AppShell>
 
@@ -616,10 +704,11 @@ export function InventoryClient({
           onAdded={handleAdded}
         />
       )}
-      {addItemOpen && (
-        <AddItemModal
-          onClose={() => setAddItemOpen(false)}
-          onAdded={handleAdded}
+      {ingredientPickerOpen && (
+        <IngredientPickerModal
+          existingNames={existingNames}
+          onAdd={handlePickerAdd}
+          onClose={() => setIngredientPickerOpen(false)}
         />
       )}
     </>
