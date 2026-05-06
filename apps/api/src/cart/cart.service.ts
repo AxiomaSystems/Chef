@@ -590,12 +590,18 @@ export class CartService {
     if (retailer === 'kroger') {
       const normalizedZipCode = preferredZipCode?.trim();
       if (!normalizedZipCode) {
-        throw new BadRequestException('Set your shopping location first.');
+        throw new BadRequestException(
+          'Set your shopping location first before using Kroger search.',
+        );
       }
 
-      if (!this.matchingService.isProviderEnabled('kroger')) {
+      const krogerReadiness = this.matchingService.getProviderReadiness('kroger');
+
+      if (!krogerReadiness.isAvailable) {
         throw new ServiceUnavailableException(
-          'Kroger search is not configured right now.',
+          krogerReadiness.status === 'missing_credentials'
+            ? 'Kroger search is unavailable because provider credentials are missing.'
+            : 'Kroger search is not configured right now.',
         );
       }
 
@@ -608,9 +614,14 @@ export class CartService {
     }
 
     if (retailer === 'instacart') {
-      if (!this.cartExportService.isProviderEnabled('instacart')) {
+      const instacartReadiness =
+        this.cartExportService.getProviderReadiness('instacart');
+
+      if (!instacartReadiness.isAvailable) {
         throw new ServiceUnavailableException(
-          'Instacart handoff is not configured right now.',
+          instacartReadiness.status === 'missing_credentials'
+            ? 'Instacart handoff is unavailable because provider credentials are missing.'
+            : 'Instacart handoff is not configured right now.',
         );
       }
 

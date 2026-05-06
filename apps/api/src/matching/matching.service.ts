@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type {
   AggregatedIngredient,
   MatchedIngredientProduct,
+  RetailerIntegrationStatus,
   Retailer,
 } from '@cart/shared';
 import { KrogerRetailerProductProvider } from './kroger-retailer-product.provider';
@@ -15,6 +16,7 @@ import {
 import { computeQuantity } from './quantity-estimation';
 import type { RetailerSearchContext } from './retailer-product-provider';
 import { WalmartRetailerProductProvider } from './walmart-retailer-product.provider';
+import { getProviderReadiness } from '../providers/provider-readiness';
 
 @Injectable()
 export class MatchingService {
@@ -53,20 +55,32 @@ export class MatchingService {
     return this.getProvider(retailer).searchProducts(query, context);
   }
 
-  isProviderEnabled(retailer: Retailer) {
-    if (retailer === 'kroger') {
-      return this.krogerProvider.isEnabled();
+  getProviderReadiness(retailer: Retailer): {
+    retailer: Retailer;
+    status: RetailerIntegrationStatus;
+    isAvailable: boolean;
+  } {
+    if (retailer === 'instacart') {
+      return {
+        retailer,
+        status: 'disabled',
+        isAvailable: false,
+      };
     }
 
+    if (retailer === 'walmart' && !this.walmartProvider.isEnabled()) {
+      return getProviderReadiness('walmart');
+    }
+
+    return getProviderReadiness(retailer);
+  }
+
+  isProviderEnabled(retailer: Retailer) {
     if (retailer === 'walmart') {
       return this.walmartProvider.isEnabled() || this.mockProvider.isEnabled();
     }
 
-    if (retailer === 'instacart') {
-      return false;
-    }
-
-    return false;
+    return this.getProviderReadiness(retailer).isAvailable;
   }
 
   private async matchIngredient(

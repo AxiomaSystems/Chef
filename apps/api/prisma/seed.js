@@ -69,7 +69,6 @@ function encodeSupabasePasswordAtSigns(value) {
 }
 
 loadEnvFile(resolve(__dirname, "../../../.env"));
-loadEnvFile(resolve(__dirname, "../.env"));
 
 process.env.DATABASE_URL =
   encodeSupabasePasswordAtSigns(process.env.SUPABASE_DATABASE_URL) ??

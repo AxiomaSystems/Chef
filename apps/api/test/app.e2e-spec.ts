@@ -14,12 +14,22 @@ import { AuthTokenService } from './../src/auth/auth-token.service';
 import { CartService } from './../src/cart/cart.service';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { RecipeService } from './../src/recipe/recipe.service';
+import { RetailersService } from './../src/retailers/retailers.service';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
   let recipeService: jest.Mocked<RecipeService>;
   let cartService: jest.Mocked<CartService>;
+  let retailersService: jest.Mocked<RetailersService>;
   let authTokenService: AuthTokenService;
+  let prismaServiceMock: {
+    $connect: jest.Mock;
+    enableShutdownHooks: jest.Mock;
+    $queryRawUnsafe: jest.Mock;
+    user: {
+      findUnique: jest.Mock;
+    };
+  };
   let accessToken: string;
 
   const recipeResponse: BaseRecipe = {
@@ -95,25 +105,59 @@ describe('AppController (e2e)', () => {
       findShoppingCart: jest.fn(),
     } as unknown as jest.Mocked<CartService>;
 
+    retailersService = {
+      listCapabilities: jest.fn().mockReturnValue([
+        {
+          retailer: 'instacart',
+          label: 'Instacart',
+          supports_product_search: false,
+          supports_location_lookup: false,
+          supports_cart_handoff: true,
+          supports_native_checkout: false,
+          requires_location: false,
+          requires_api_key: true,
+          status: 'configured',
+          demo_priority: 1,
+        },
+        {
+          retailer: 'kroger',
+          label: 'Kroger',
+          supports_product_search: true,
+          supports_location_lookup: true,
+          supports_cart_handoff: false,
+          supports_native_checkout: false,
+          requires_location: true,
+          requires_api_key: true,
+          status: 'missing_credentials',
+          demo_priority: 2,
+        },
+      ]),
+    } as unknown as jest.Mocked<RetailersService>;
+
+    prismaServiceMock = {
+      $connect: jest.fn(),
+      enableShutdownHooks: jest.fn(),
+      $queryRawUnsafe: jest.fn(async () => [{ '?column?': 1 }]),
+      user: {
+        findUnique: jest.fn(async ({ where }: { where: { id?: string; email?: string } }) => ({
+          id: where.id ?? 'user-1',
+          email: where.email ?? 'user-1@cart-generator.local',
+          role: 'user',
+        })),
+      },
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(PrismaService)
-      .useValue({
-        $connect: jest.fn(),
-        enableShutdownHooks: jest.fn(),
-        user: {
-          findUnique: jest.fn(async ({ where }: { where: { id?: string; email?: string } }) => ({
-            id: where.id ?? 'user-1',
-            email: where.email ?? 'user-1@cart-generator.local',
-            role: 'user',
-          })),
-        },
-      })
+      .useValue(prismaServiceMock)
       .overrideProvider(RecipeService)
       .useValue(recipeService)
       .overrideProvider(CartService)
       .useValue(cartService)
+      .overrideProvider(RetailersService)
+      .useValue(retailersService)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -138,6 +182,44 @@ describe('AppController (e2e)', () => {
       .expect('Hello World!');
   });
 
+  it('GET /health returns liveness status', async () => {
+    await request(app.getHttpServer()).get('/health').expect(200).expect({
+      status: 'ok',
+      service: 'api',
+    });
+  });
+
+  it('GET /ready returns readiness status when database is reachable', async () => {
+    prismaServiceMock.$queryRawUnsafe.mockResolvedValue([{ '?column?': 1 }]);
+
+    await request(app.getHttpServer())
+      .get('/ready')
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.status).toBe('ready');
+        expect(response.body.service).toBe('api');
+        expect(response.body.database.status).toBe('ready');
+        expect(response.body.providers).toBeDefined();
+      });
+  });
+
+  it('GET /ready returns 503 when database is not reachable', async () => {
+    prismaServiceMock.$queryRawUnsafe.mockRejectedValue(new Error('db down'));
+
+    await request(app.getHttpServer())
+      .get('/ready')
+      .expect(503)
+      .expect((response) => {
+        const payload =
+          response.body?.message && typeof response.body.message === 'object'
+            ? response.body.message
+            : response.body;
+
+        expect(payload.status).toBe('not_ready');
+        expect(payload.database.status).toBe('not_ready');
+      });
+  });
+
   it('adds an x-request-id response header', async () => {
     await request(app.getHttpServer())
       .get('/')
@@ -154,6 +236,26 @@ describe('AppController (e2e)', () => {
       .expect((response) => {
         expect(response.body.info.title).toBe('Cart Generator API');
         expect(response.body.paths['/api/v1/recipes']).toBeDefined();
+      });
+  });
+
+  it('GET /api/v1/retailers/capabilities returns explicit provider states', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/retailers/capabilities')
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              retailer: 'instacart',
+              status: 'configured',
+            }),
+            expect.objectContaining({
+              retailer: 'kroger',
+              status: 'missing_credentials',
+            }),
+          ]),
+        );
       });
   });
 
