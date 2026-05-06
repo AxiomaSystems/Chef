@@ -63,6 +63,10 @@ pnpm setup
 pnpm dev
 ```
 
+Vision is optional for the main web/API flow. The Nest API can run without the
+Python sidecar, but real media scans through `/api/v1/vision` require the
+FastAPI sidecar at `VISION_API_BASE_URL` plus the expected checkpoint files.
+
 Optional live camera deps:
 
 ```powershell
@@ -134,3 +138,4 @@ Expected classifier path pattern:
 - Railway/API should set `RUN_DB_SEED_ON_STARTUP=true` only for demo/staging environments that intentionally need seed data on boot.
 - Vercel/Web needs `API_BASE_URL` pointed at the deployed API `/api/v1` base URL.
 - Optional web integrations such as `UNSPLASH_ACCESS_KEY`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, and `NEXT_PUBLIC_ELEVENLABS_AGENT_ID` should be configured in Vercel only when the corresponding UI feature is enabled for testing.
+- Real vision media scans need a deployed Python sidecar and `VISION_API_BASE_URL`; otherwise the product should treat vision as mock/optional.

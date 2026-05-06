@@ -35,6 +35,7 @@ gh pr create --base staging/week7 --head staging/week7 --title "Staging: integra
 - [ ] Staging deploys on Vercel + Railway
 - [ ] Production deploy branch is `main` after convergence
 - [ ] `/health` and `/ready` return expected statuses on staging
+- [ ] Vision sidecar is running if testing real media scans; otherwise vision is treated as optional/mock
 - [ ] No 404s on critical pages: `/`, `/recipes`, `/shopping`, `/account`, draft detail
 - [ ] Planning spine: save draft -> generate cart -> generate shopping cart (or clear provider error)
 - [ ] Retailer search works when provider is enabled or shows explicit error when not
