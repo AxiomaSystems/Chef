@@ -131,3 +131,6 @@ Expected classifier path pattern:
 
 - Railway/API and Vercel/Web must use their own platform env vars.
 - Do **not** assume local `.env` exists in deploy.
+- Railway/API should set `RUN_DB_SEED_ON_STARTUP=true` only for demo/staging environments that intentionally need seed data on boot.
+- Vercel/Web needs `API_BASE_URL` pointed at the deployed API `/api/v1` base URL.
+- Optional web integrations such as `UNSPLASH_ACCESS_KEY`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, and `NEXT_PUBLIC_ELEVENLABS_AGENT_ID` should be configured in Vercel only when the corresponding UI feature is enabled for testing.
