@@ -59,6 +59,7 @@ Purpose:
 - separate process liveness from real traffic readiness
 - expose database readiness
 - expose provider-readiness shape without making expensive live calls
+- reuse the same provider-readiness status language as retailer capabilities
 
 ### 4. Retailer/provider readiness contract
 

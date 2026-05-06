@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import type { Retailer } from '@cart/shared';
+import { getProviderReadiness } from './providers/provider-readiness';
 import { PrismaService } from './prisma/prisma.service';
 
 @Injectable()
@@ -44,37 +46,18 @@ export class AppService {
 
   private getProviderStatuses() {
     return {
-      kroger: {
-        status: this.getProviderStatus(
-          process.env.KROGER_USE_REAL_PROVIDER !== 'false',
-          ['KROGER_CLIENT_ID', 'KROGER_CLIENT_SECRET'],
-        ),
-      },
-      instacart: {
-        status: this.getProviderStatus(
-          process.env.INSTACART_USE_REAL_PROVIDER === 'true',
-          ['INSTACART_API_KEY'],
-        ),
-      },
-      walmart: {
-        status: this.getProviderStatus(
-          process.env.WALMART_USE_REAL_PROVIDER === 'true',
-          ['WALMART_CLIENT_ID', 'WALMART_CLIENT_SECRET'],
-        ),
-      },
+      kroger: this.toReadinessStatus('kroger'),
+      instacart: this.toReadinessStatus('instacart'),
+      walmart: this.toReadinessStatus('walmart'),
     } as const;
   }
 
-  private getProviderStatus(enabled: boolean, requiredKeys: string[]) {
-    if (!enabled) {
-      return 'disabled';
-    }
+  private toReadinessStatus(retailer: Retailer) {
+    const readiness = getProviderReadiness(retailer);
 
-    const hasAllCredentials = requiredKeys.every((key) => {
-      const value = process.env[key];
-      return value !== undefined && value.trim() !== '';
-    });
-
-    return hasAllCredentials ? 'configured' : 'missing_credentials';
+    return {
+      status: readiness.status,
+      is_available: readiness.isAvailable,
+    };
   }
 }

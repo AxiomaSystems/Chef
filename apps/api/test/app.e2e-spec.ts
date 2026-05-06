@@ -200,6 +200,10 @@ describe('AppController (e2e)', () => {
         expect(response.body.service).toBe('api');
         expect(response.body.database.status).toBe('ready');
         expect(response.body.providers).toBeDefined();
+        expect(response.body.providers.walmart).toEqual({
+          status: 'partner_required',
+          is_available: false,
+        });
       });
   });
 
