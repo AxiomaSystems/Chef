@@ -230,10 +230,20 @@ async function seedDietaryBadgeTags(prisma) {
   };
 
   for (const [slug, name] of Object.entries(labels)) {
-    await prisma.tag.upsert({
-      where: { slug_scope: { slug, scope: "system" } },
-      update: { name, kind: "dietary_badge" },
-      create: { name, slug, scope: "system", kind: "dietary_badge" },
+    const existing = await prisma.tag.findFirst({
+      where: { slug, scope: "system" },
+    });
+
+    if (existing) {
+      await prisma.tag.update({
+        where: { id: existing.id },
+        data: { name, kind: "dietary_badge" },
+      });
+      continue;
+    }
+
+    await prisma.tag.create({
+      data: { name, slug, scope: "system", kind: "dietary_badge" },
     });
   }
 }
