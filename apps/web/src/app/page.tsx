@@ -35,7 +35,7 @@ export default function LandingPage() {
       {/* ── Nav ── */}
       <header className="sticky top-0 z-50 bg-[#faf9f6]/90 backdrop-blur-sm border-b border-[#d7c2b9]/30">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="text-xl font-black text-[#ffb38e] tracking-tight">Chef</span>
+          <span className="text-xl font-black text-[#ffb38e] tracking-tight">Butter Me</span>
           <div className="flex items-center gap-3">
             <Link
               href="/login"
@@ -172,9 +172,9 @@ export default function LandingPage() {
       {/* ── Footer ── */}
       <footer className="border-t border-[#d7c2b9]/30 py-8">
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="font-black text-[#ffb38e] text-lg">Chef</span>
+          <span className="font-black text-[#ffb38e] text-lg">Butter Me</span>
           <p className="text-body-sm text-[#85736c]">
-            &copy; {new Date().getFullYear()} Chef. Meal Execution Platform.
+            &copy; {new Date().getFullYear()} Butter Me. Meal Planning.
           </p>
           <div className="flex gap-6">
             <Link href="/login" className="text-body-sm text-[#85736c] hover:text-[#1a1c1a] transition-colors">

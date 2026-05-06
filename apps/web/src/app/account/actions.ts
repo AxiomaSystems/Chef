@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ACCESS_TOKEN_COOKIE, buildApiUrl } from "@/lib/auth";
+import type { UpdateUserProfileMemoryRequest } from "@cart/shared";
 
 export type ProfileActionState = {
   error?: string;
@@ -97,6 +98,14 @@ export async function updatePreferencesAction(
   const shoppingLocationKrogerLocationId = String(
     formData.get("shopping_location_kroger_location_id") ?? "",
   ).trim();
+  const customCuisineLabels = formData
+    .getAll("custom_cuisine_labels")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  const customDietaryLabels = formData
+    .getAll("custom_dietary_labels")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
 
   const response = await callAuthedJson("/me/preferences", {
     method: "PUT",
@@ -118,6 +127,48 @@ export async function updatePreferencesAction(
     return {
       error: "Unable to update your preferences right now.",
     };
+  }
+
+  if (customCuisineLabels.length > 0 || customDietaryLabels.length > 0) {
+    const uniqueCustomCuisines = Array.from(new Set(customCuisineLabels));
+    const uniqueCustomDietaryLabels = Array.from(new Set(customDietaryLabels));
+    const profileMemoryPayload: UpdateUserProfileMemoryRequest = {
+      food_rules: [
+        ...uniqueCustomCuisines.map((label) => ({
+          kind: "ingredient_preference" as const,
+          label: `Loves ${label} cuisine`,
+          action: "prefer" as const,
+          strictness: "soft" as const,
+          active: true,
+          source: "manual" as const,
+          confidence: "high" as const,
+        })),
+        ...uniqueCustomDietaryLabels.map((label) => ({
+          kind: "dietary_constraint" as const,
+          label,
+          action: "avoid" as const,
+          strictness: "hard" as const,
+          active: true,
+          source: "manual" as const,
+          confidence: "high" as const,
+        })),
+      ],
+    };
+
+    const profileMemoryResponse = await callAuthedJson("/me/profile-memory", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(profileMemoryPayload),
+    }).catch(() => null);
+
+    if (!profileMemoryResponse?.ok) {
+      return {
+        error:
+          "Preferences updated, but the custom profile memory could not be saved.",
+      };
+    }
   }
 
   revalidatePath("/");

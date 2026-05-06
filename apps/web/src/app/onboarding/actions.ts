@@ -37,6 +37,8 @@ export type OnboardingActionState = {
 export type SavePreferencesInput = {
   preferred_cuisine_ids: string[];
   preferred_tag_ids: string[];
+  custom_cuisine_labels: string[];
+  dietary_restrictions: string[];
   shopping_location_zip: string;
   shopping_location_label: string;
   shopping_location_kroger_location_id: string;
@@ -139,6 +141,24 @@ function buildProfileMemoryRequest(
         kind: "texture_preference" as const,
         label: DISLIKED_TEXTURE_LABELS[texture],
         action: "dislike" as const,
+        strictness: "soft" as const,
+        active: true,
+        source: "onboarding" as const,
+        confidence: "high" as const,
+      })),
+      ...input.dietary_restrictions.map((slug) => ({
+        kind: "dietary_constraint" as const,
+        label: slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+        action: "avoid" as const,
+        strictness: "hard" as const,
+        active: true,
+        source: "onboarding" as const,
+        confidence: "high" as const,
+      })),
+      ...input.custom_cuisine_labels.map((label) => ({
+        kind: "ingredient_preference" as const,
+        label: `Loves ${label} cuisine`,
+        action: "prefer" as const,
         strictness: "soft" as const,
         active: true,
         source: "onboarding" as const,

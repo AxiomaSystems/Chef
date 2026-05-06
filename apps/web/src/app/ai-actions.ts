@@ -285,15 +285,36 @@ export async function fetchUserRecipesAction(): Promise<UserRecipesActionState> 
   };
 }
 
-export async function fetchUnsplashImageAction(
-  recipeName: string,
-): Promise<string | null> {
+export async function fetchUnsplashImageAction(input: {
+  recipeName: string;
+  cuisine?: string;
+  ingredients?: string[];
+  instructions?: string;
+  dietaryRestrictions?: string;
+}): Promise<string | null> {
   const accessKey = process.env.UNSPLASH_ACCESS_KEY;
   if (!accessKey) return null;
 
   try {
+    const importantIngredients = (input.ingredients ?? [])
+      .map((ingredient) => ingredient.trim())
+      .filter(Boolean)
+      .slice(0, 6);
+    const query = [
+      input.recipeName,
+      input.cuisine,
+      ...importantIngredients,
+      input.dietaryRestrictions,
+      input.instructions,
+      "food dish",
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+
     const params = new URLSearchParams({
-      query: `${recipeName} food dish`,
+      query,
       orientation: "landscape",
       client_id: accessKey,
     });

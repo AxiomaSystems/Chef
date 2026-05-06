@@ -36,6 +36,17 @@ const UNITS = [
   "to taste",
 ];
 
+function normalizeTagName(name: string) {
+  return name.trim().replace(/\s+/g, " ");
+}
+
+function normalizeTagSlug(name: string) {
+  return normalizeTagName(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export function RecipeCreateModal({
   cuisines,
   tags,
@@ -126,12 +137,16 @@ export function RecipeCreateModal({
       ? String(initialRecipe.nutrition_data.fat_g)
       : "",
   );
+  const [dietaryRestrictionInput, setDietaryRestrictionInput] = useState("");
+  const [customTagNames, setCustomTagNames] = useState<string[]>([]);
+  const [additionalInstructions, setAdditionalInstructions] = useState("");
   const [error, setError] = useState<string | undefined>();
   const [, startSave] = useTransition();
   const [isAutofilling, startAutofill] = useTransition();
   const [saving, setSaving] = useState(false);
   const [autofillHint, setAutofillHint] = useState<string | undefined>();
   const [lastAutofilledName, setLastAutofilledName] = useState("");
+  const [editSaveMode, setEditSaveMode] = useState<"update" | "copy">("update");
 
   function isLikelyEmptyRecipeDraft() {
     const hasDescription = description.trim().length > 0;
@@ -312,14 +327,95 @@ export function RecipeCreateModal({
   }
 
   function findTagIdsFromNames(nextTags: string[]) {
-    const normalizedTags = nextTags.map((tag) => tag.trim().toLowerCase());
+    const normalizedTags = nextTags.map(normalizeTagSlug);
 
     return dietaryTags
-      .filter((tag) => normalizedTags.includes(tag.name.trim().toLowerCase()))
+      .filter((tag) => normalizedTags.includes(normalizeTagSlug(tag.name)))
       .map((tag) => tag.id);
   }
 
-  function applyAiRecipePreview(recipe: AiRecipePreview) {
+  function findTagFromName(name: string) {
+    const slug = normalizeTagSlug(name);
+    if (!slug) return null;
+
+    return (
+      tags.find(
+        (tag) =>
+          normalizeTagSlug(tag.name) === slug ||
+          normalizeTagSlug(tag.slug) === slug,
+      ) ?? null
+    );
+  }
+
+  function addDietaryRestrictionChip(value = dietaryRestrictionInput) {
+    const label = normalizeTagName(value.replace(/,+$/g, ""));
+    if (!label) return;
+
+    const existingTag = findTagFromName(label);
+    if (existingTag) {
+      setSelectedTagIds((prev) =>
+        prev.includes(existingTag.id) ? prev : [...prev, existingTag.id],
+      );
+    } else {
+      const slug = normalizeTagSlug(label);
+      setCustomTagNames((prev) =>
+        prev.some((name) => normalizeTagSlug(name) === slug)
+          ? prev
+          : [...prev, label],
+      );
+    }
+
+    setDietaryRestrictionInput("");
+  }
+
+  function removeDietaryRestrictionChip(chip: { type: "tag" | "custom"; value: string }) {
+    if (chip.type === "tag") {
+      setSelectedTagIds((prev) => prev.filter((tagId) => tagId !== chip.value));
+      return;
+    }
+
+    setCustomTagNames((prev) => prev.filter((name) => name !== chip.value));
+  }
+
+  function removeLastDietaryRestrictionChip() {
+    const tagChips = tags
+      .filter((tag) => tag.kind === "dietary_badge" && selectedTagIds.includes(tag.id))
+      .map((tag) => ({ type: "tag" as const, value: tag.id }));
+    const customChips = customTagNames.map((name) => ({
+      type: "custom" as const,
+      value: name,
+    }));
+    const lastChip = [...tagChips, ...customChips].at(-1);
+
+    if (lastChip) removeDietaryRestrictionChip(lastChip);
+  }
+
+  const dietaryRestrictionChips = [
+    ...tags
+      .filter((tag) => tag.kind === "dietary_badge" && selectedTagIds.includes(tag.id))
+      .map((tag) => ({
+        type: "tag" as const,
+        value: tag.id,
+        label: tag.name,
+      })),
+    ...customTagNames.map((name) => ({
+      type: "custom" as const,
+      value: name,
+      label: name,
+    })),
+  ];
+
+  const dietaryRestrictionText = dietaryRestrictionChips
+    .map((chip) => chip.label)
+    .join(", ");
+
+  function applyAiRecipePreview(
+    recipe: AiRecipePreview,
+    options: { renameRecipe?: boolean } = {},
+  ) {
+    if (options.renameRecipe && recipe.name.trim()) {
+      setName(recipe.name.trim());
+    }
     setDescription(recipe.description ?? "");
     applyCuisineFromAi(recipe.cuisine);
     setServings(String(recipe.servings > 0 ? recipe.servings : 2));
@@ -374,8 +470,10 @@ export function RecipeCreateModal({
 
   function autofillFromName(trigger: "auto" | "manual") {
     const normalizedName = name.trim();
+    const shouldSaveAsNew = isEditing && editSaveMode === "copy";
 
-    if (!normalizedName || isEditing || isAutofilling) return;
+    if (!normalizedName || isAutofilling) return;
+    if (trigger === "auto" && isEditing) return;
     if (trigger === "auto" && !isLikelyEmptyRecipeDraft()) return;
     if (trigger === "auto" && lastAutofilledName === normalizedName) return;
 
@@ -383,17 +481,41 @@ export function RecipeCreateModal({
     setAutofillHint(undefined);
 
     startAutofill(async () => {
-      const [result, imageUrl] = await Promise.all([
-        generateMealsAction({
-          mealPrompt: normalizedName,
-          mealsNeeded: 1,
-          servingsPerMeal: getAutofillServings(),
-          mealStyle: "standard",
-          notes:
-            "Return one practical recipe preview suitable for pre-filling a manual recipe creation form.",
-        }),
-        fetchUnsplashImageAction(normalizedName),
-      ]);
+      const result = await generateMealsAction({
+        mealPrompt: normalizedName,
+        mealsNeeded: 1,
+        servingsPerMeal: getAutofillServings(),
+        mealStyle: "standard",
+        notes: [
+          "Return one practical recipe preview suitable for pre-filling a manual recipe creation form.",
+          isEditing
+            ? "Use the current recipe as the base and revise it according to the user's instructions."
+            : "",
+          shouldSaveAsNew
+            ? "Generate a clear new recipe name that reflects the edited version."
+            : "",
+          isEditing
+            ? `Current recipe name: ${initialRecipe?.name ?? normalizedName}.`
+            : "",
+          isEditing && description.trim()
+            ? `Current description: ${description.trim()}.`
+            : "",
+          isEditing
+            ? `Current ingredients: ${ingredients
+                .map((ingredient) => ingredient.canonical_ingredient.trim())
+                .filter(Boolean)
+                .join(", ")}.`
+            : "",
+          dietaryRestrictionText
+            ? `Dietary restrictions: ${dietaryRestrictionText}.`
+            : "",
+          additionalInstructions.trim()
+            ? `Additional instructions: ${additionalInstructions.trim()}.`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      });
 
       if (result.error) {
         setError(result.error);
@@ -406,15 +528,29 @@ export function RecipeCreateModal({
         return;
       }
 
-      applyAiRecipePreview(recipe);
-      if (imageUrl && !coverImageUrl) {
+      const imageUrl = await fetchUnsplashImageAction({
+        recipeName: recipe.name || normalizedName,
+        cuisine: recipe.cuisine,
+        ingredients: recipe.ingredients.map(
+          (ingredient) =>
+            ingredient.display_ingredient ??
+            ingredient.canonical_ingredient,
+        ),
+        instructions: additionalInstructions.trim() || undefined,
+        dietaryRestrictions: dietaryRestrictionText || undefined,
+      });
+
+      applyAiRecipePreview(recipe, { renameRecipe: shouldSaveAsNew });
+      if (imageUrl && (!coverImageUrl || isEditing)) {
         setCoverImageUrl(imageUrl);
       }
       setLastAutofilledName(normalizedName);
       setAutofillHint(
         trigger === "auto"
           ? "Chef filled in the rest of the form from the recipe name."
-          : "Chef refreshed the recipe draft with AI suggestions.",
+          : shouldSaveAsNew
+            ? "Chef drafted a new edited version with a fresh name."
+            : "Chef refreshed this recipe with AI suggestions.",
       );
     });
   }
@@ -466,8 +602,9 @@ export function RecipeCreateModal({
     );
   }
 
-  function handleSubmit() {
+  function handleSubmit(mode = editSaveMode) {
     setError(undefined);
+    const shouldCreateNewRecipe = isEditing && mode === "copy";
 
     if (!name.trim()) {
       setError("Recipe name is required.");
@@ -499,12 +636,18 @@ export function RecipeCreateModal({
     }
 
     const payload = {
-      name: name.trim(),
+      name:
+        shouldCreateNewRecipe &&
+        initialRecipe?.name &&
+        name.trim() === initialRecipe.name.trim()
+          ? `${name.trim()} Variation`
+          : name.trim(),
       description: description.trim() || undefined,
       cuisine_id: resolvedCuisineId,
       servings: normalizedServingCount,
       cover_image_url: coverImageUrl.trim() || undefined,
       tag_ids: selectedTagIds.length ? selectedTagIds : undefined,
+      custom_tag_names: customTagNames.length ? customTagNames : undefined,
       ingredients: validIngredients.map((row) => ({
         canonical_ingredient: row.canonical_ingredient.trim(),
         amount: parseFloat(row.amount),
@@ -530,7 +673,7 @@ export function RecipeCreateModal({
     setSaving(true);
     startSave(async () => {
       const result =
-        isEditing && initialRecipe?.id
+        isEditing && initialRecipe?.id && !shouldCreateNewRecipe
           ? await updateRecipeAction(initialRecipe.id, payload)
           : await createRecipeAction(payload);
       setSaving(false);
@@ -559,7 +702,7 @@ export function RecipeCreateModal({
             </h2>
             <p className="mt-0.5 text-body-sm text-outline">
               {isEditing
-                ? "Update your recipe details and save changes"
+                ? "Update this recipe or save the edit as a new version"
                 : "Build your own culinary masterpiece"}
             </p>
           </div>
@@ -605,6 +748,77 @@ export function RecipeCreateModal({
               />
             </div>
 
+            <div className="space-y-1">
+              <label className="text-label-sm uppercase tracking-wide text-outline">
+                Dietary Restrictions
+              </label>
+              <div className="flex min-h-[46px] w-full flex-wrap items-center gap-2 rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus-within:ring-2 focus-within:ring-primary/20">
+                {dietaryRestrictionChips.map((chip) => (
+                  <button
+                    key={`${chip.type}-${chip.value}`}
+                    type="button"
+                    onClick={() => removeDietaryRestrictionChip(chip)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-primary-surface px-3 py-1.5 text-label-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-on-primary"
+                  >
+                    {chip.label}
+                    <span className="material-symbols-outlined text-[14px]">
+                      close
+                    </span>
+                  </button>
+                ))}
+                <input
+                  value={dietaryRestrictionInput}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    if (nextValue.includes(",")) {
+                      const [firstValue, ...rest] = nextValue.split(",");
+                      addDietaryRestrictionChip(firstValue);
+                      setDietaryRestrictionInput(rest.join(",").trimStart());
+                      return;
+                    }
+                    setDietaryRestrictionInput(nextValue);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "," || event.key === "Enter") {
+                      event.preventDefault();
+                      addDietaryRestrictionChip();
+                      return;
+                    }
+
+                    if (
+                      event.key === "Backspace" &&
+                      !dietaryRestrictionInput &&
+                      dietaryRestrictionChips.length > 0
+                    ) {
+                      event.preventDefault();
+                      removeLastDietaryRestrictionChip();
+                    }
+                  }}
+                  onBlur={() => addDietaryRestrictionChip()}
+                  placeholder={
+                    dietaryRestrictionChips.length
+                      ? "Add another..."
+                      : "e.g. dairy free, nut free..."
+                  }
+                  className="min-w-32 flex-1 border-0 bg-transparent px-1 py-1.5 outline-none placeholder:text-outline"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-label-sm uppercase tracking-wide text-outline">
+                Additional Instructions{" "}
+                <span className="normal-case text-[11px] font-normal">(optional)</span>
+              </label>
+              <textarea
+                value={additionalInstructions}
+                onChange={(e) => setAdditionalInstructions(e.target.value)}
+                placeholder="e.g. keep it under 30 minutes, use pantry staples, make it spicy..."
+                rows={2}
+                className="w-full resize-none rounded-xl border border-outline-variant/50 bg-white px-4 py-2.5 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
             <div className="flex items-center gap-3">
               <div className="flex shrink-0 items-center gap-2">
                 <label className="text-label-sm uppercase tracking-wide text-outline">
@@ -622,30 +836,32 @@ export function RecipeCreateModal({
                   className="w-16 rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-center text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
-              {!isEditing && (
-                <>
-                  <p className="flex-1 text-[11px] leading-5 text-outline">
-                    Set servings, then Chef can draft the rest automatically.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => autofillFromName("manual")}
-                    disabled={!name.trim() || isAutofilling}
-                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-outline-variant/50 bg-white px-3 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary-surface disabled:opacity-50"
-                  >
-                    {isAutofilling ? (
-                      <span className="material-symbols-outlined animate-spin text-[14px]">
-                        refresh
-                      </span>
-                    ) : (
-                      <span className="material-symbols-outlined text-[14px]">
-                        auto_awesome
-                      </span>
-                    )}
-                    {isAutofilling ? "Drafting..." : "Autofill with AI"}
-                  </button>
-                </>
-              )}
+              <p className="flex-1 text-[11px] leading-5 text-outline">
+                {isEditing
+                  ? "Use AI after adding dietary restrictions or edit instructions."
+                  : "Set servings, then Chef can draft the rest automatically."}
+              </p>
+              <button
+                type="button"
+                onClick={() => autofillFromName("manual")}
+                disabled={!name.trim() || isAutofilling}
+                className="flex shrink-0 items-center gap-1.5 rounded-full border border-outline-variant/50 bg-white px-3 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary-surface disabled:opacity-50"
+              >
+                {isAutofilling ? (
+                  <span className="material-symbols-outlined animate-spin text-[14px]">
+                    refresh
+                  </span>
+                ) : (
+                  <span className="material-symbols-outlined text-[14px]">
+                    auto_awesome
+                  </span>
+                )}
+                {isAutofilling
+                  ? "Drafting..."
+                  : isEditing
+                    ? "Apply AI edits"
+                    : "Autofill with AI"}
+              </button>
             </div>
 
             <div className="space-y-1">
@@ -921,31 +1137,63 @@ export function RecipeCreateModal({
           </section>
         </div>
 
-        <div className="flex shrink-0 justify-end gap-3 border-t border-outline-variant/30 bg-white px-6 py-4">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-outline-variant/30 bg-white px-6 py-4">
           <button
             onClick={onClose}
             className="rounded-full border border-outline-variant px-5 py-2.5 text-label-md text-on-surface-variant transition-colors hover:bg-surface-container-low"
           >
             Cancel
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:opacity-50"
-          >
-            {saving && (
-              <span className="material-symbols-outlined animate-spin text-[16px]">
-                refresh
-              </span>
-            )}
-            {saving
-              ? isEditing
-                ? "Saving..."
-                : "Creating..."
-              : isEditing
-                ? "Save Changes"
-                : "Create Recipe"}
-          </button>
+          {isEditing ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditSaveMode("copy");
+                  handleSubmit("copy");
+                }}
+                disabled={saving}
+                className="flex items-center gap-2 rounded-full border border-outline-variant px-5 py-2.5 text-label-md font-semibold text-primary transition-colors hover:bg-primary-surface disabled:opacity-50"
+              >
+                {saving && editSaveMode === "copy" && (
+                  <span className="material-symbols-outlined animate-spin text-[16px]">
+                    refresh
+                  </span>
+                )}
+                {saving && editSaveMode === "copy"
+                  ? "Creating..."
+                  : "Save as New Recipe"}
+              </button>
+              <button
+                onClick={() => {
+                  setEditSaveMode("update");
+                  handleSubmit("update");
+                }}
+                disabled={saving}
+                className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:opacity-50"
+              >
+                {saving && editSaveMode === "update" && (
+                  <span className="material-symbols-outlined animate-spin text-[16px]">
+                    refresh
+                  </span>
+                )}
+                {saving && editSaveMode === "update" ? "Saving..." : "Save Changes"}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => handleSubmit()}
+              disabled={saving}
+              className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:opacity-50"
+            >
+              {saving && (
+                <span className="material-symbols-outlined animate-spin text-[16px]">
+                  refresh
+                </span>
+              )}
+              {saving ? "Creating..." : "Create Recipe"}
+            </button>
+          )}
         </div>
       </div>
     </div>

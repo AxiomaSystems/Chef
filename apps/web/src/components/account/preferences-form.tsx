@@ -1,15 +1,15 @@
 "use client";
 
 import type { Cuisine, Tag, UserPreferences } from "@cart/shared";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { updatePreferencesAction, type PreferencesActionState } from "@/app/account/actions";
 
 const INITIAL_STATE: PreferencesActionState = {};
 
-const KIND_LABELS: Record<Cuisine["kind"], string> = {
-  national: "National", regional: "Regional", cultural: "Cultural", style: "Style", other: "Other",
-};
+function normalizeChipLabel(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
 
 function SaveButton() {
   const { pending } = useFormStatus();
@@ -25,17 +25,89 @@ function SaveButton() {
   );
 }
 
+function CustomChipInput({
+  name,
+  values,
+  onChange,
+  placeholder,
+}: {
+  name: string;
+  values: string[];
+  onChange: (values: string[]) => void;
+  placeholder: string;
+}) {
+  const [input, setInput] = useState("");
+
+  function addChip(value = input) {
+    const label = normalizeChipLabel(value.replace(/,+$/g, ""));
+    if (!label) return;
+
+    onChange(
+      values.some((existing) => existing.toLowerCase() === label.toLowerCase())
+        ? values
+        : [...values, label],
+    );
+    setInput("");
+  }
+
+  return (
+    <div className="space-y-2">
+      {values.map((value) => (
+        <input key={value} type="hidden" name={name} value={value} />
+      ))}
+      <div className="flex min-h-[46px] w-full flex-wrap items-center gap-2 rounded-xl border border-outline-variant/50 bg-surface-container-low px-3 py-2 text-body-sm text-on-surface focus-within:ring-2 focus-within:ring-primary/20">
+        {values.map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onChange(values.filter((item) => item !== value))}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-label-sm font-semibold text-on-primary transition-colors hover:bg-on-primary-container"
+          >
+            {value}
+            <span className="material-symbols-outlined text-[14px]">close</span>
+          </button>
+        ))}
+        <input
+          value={input}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            if (nextValue.includes(",")) {
+              const [firstValue, ...rest] = nextValue.split(",");
+              addChip(firstValue);
+              setInput(rest.join(",").trimStart());
+              return;
+            }
+            setInput(nextValue);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "," || event.key === "Enter") {
+              event.preventDefault();
+              addChip();
+              return;
+            }
+
+            if (event.key === "Backspace" && !input && values.length > 0) {
+              event.preventDefault();
+              onChange(values.slice(0, -1));
+            }
+          }}
+          onBlur={() => addChip()}
+          placeholder={values.length ? "Add another..." : placeholder}
+          className="min-w-40 flex-1 border-0 bg-transparent px-1 py-1.5 outline-none placeholder:text-outline"
+        />
+      </div>
+    </div>
+  );
+}
+
 export function PreferencesForm({ cuisines, tags, preferences }: {
   cuisines: Cuisine[];
   tags: Tag[];
   preferences: UserPreferences;
 }) {
   const [state, formAction] = useActionState(updatePreferencesAction, INITIAL_STATE);
-
-  const grouped = cuisines.reduce<Record<Cuisine["kind"], Cuisine[]>>(
-    (acc, c) => { acc[c.kind].push(c); return acc; },
-    { national: [], regional: [], cultural: [], style: [], other: [] },
-  );
+  const [customCuisines, setCustomCuisines] = useState<string[]>([]);
+  const [customDietaryLabels, setCustomDietaryLabels] = useState<string[]>([]);
 
   return (
     <form action={formAction} className="space-y-5">
@@ -50,33 +122,30 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
             Select the cuisines that shape your recipe feed. Leave empty to stay neutral.
           </p>
         </div>
-        <div className="px-6 py-6 space-y-6">
-          {Object.entries(grouped).map(([kind, list]) =>
-            list.length > 0 ? (
-              <div key={kind}>
-                <p className="text-label-sm text-outline uppercase tracking-widest mb-3">
-                  {KIND_LABELS[kind as Cuisine["kind"]]}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {list.map((cuisine) => (
-                    <label
-                      key={cuisine.id}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-outline-variant bg-surface-container-low text-body-sm text-on-surface cursor-pointer hover:border-primary hover:bg-primary-surface transition-colors has-[:checked]:bg-primary has-[:checked]:text-on-primary has-[:checked]:border-primary"
-                    >
-                      <input
-                        type="checkbox"
-                        name="preferred_cuisine_ids"
-                        value={cuisine.id}
-                        defaultChecked={preferences.preferred_cuisine_ids.includes(cuisine.id)}
-                        className="sr-only"
-                      />
-                      {cuisine.label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ) : null,
-          )}
+        <div className="px-6 py-6 space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {cuisines.map((cuisine) => (
+              <label
+                key={cuisine.id}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-outline-variant bg-surface-container-low text-body-sm text-on-surface cursor-pointer hover:border-primary hover:bg-primary-surface transition-colors has-[:checked]:bg-primary has-[:checked]:text-on-primary has-[:checked]:border-primary"
+              >
+                <input
+                  type="checkbox"
+                  name="preferred_cuisine_ids"
+                  value={cuisine.id}
+                  defaultChecked={preferences.preferred_cuisine_ids.includes(cuisine.id)}
+                  className="sr-only"
+                />
+                {cuisine.label}
+              </label>
+            ))}
+          </div>
+          <CustomChipInput
+            name="custom_cuisine_labels"
+            values={customCuisines}
+            onChange={setCustomCuisines}
+            placeholder="Add another cuisine..."
+          />
         </div>
       </section>
 
@@ -122,7 +191,7 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
             Pick the tags that best describe your dietary style.
           </p>
         </div>
-        <div className="px-6 py-6">
+        <div className="px-6 py-6 space-y-4">
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => (
               <label
@@ -140,6 +209,12 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
               </label>
             ))}
           </div>
+          <CustomChipInput
+            name="custom_dietary_labels"
+            values={customDietaryLabels}
+            onChange={setCustomDietaryLabels}
+            placeholder="Add a dietary preference..."
+          />
         </div>
       </section>
 

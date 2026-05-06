@@ -55,7 +55,7 @@ export class TagsService {
         name,
         slug,
         scope: 'user',
-        kind: 'general',
+        kind: input.kind ?? 'general',
       },
     });
 

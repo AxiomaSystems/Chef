@@ -439,11 +439,17 @@ export function RecipesClient({
           initialRecipe={editingRecipe}
           onClose={() => setEditingRecipe(null)}
           onCreated={(updatedRecipe) => {
-            setRecipes((prev) =>
-              prev.map((recipe) =>
-                recipe.id === updatedRecipe.id ? updatedRecipe : recipe,
-              ),
-            );
+            setRecipes((prev) => {
+              const existingRecipe = prev.some(
+                (recipe) => recipe.id === updatedRecipe.id,
+              );
+
+              return existingRecipe
+                ? prev.map((recipe) =>
+                    recipe.id === updatedRecipe.id ? updatedRecipe : recipe,
+                  )
+                : [updatedRecipe, ...prev];
+            });
             setSelectedRecipe(updatedRecipe);
             setEditingRecipe(null);
           }}

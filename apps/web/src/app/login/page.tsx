@@ -6,7 +6,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-[#faf9f6] flex items-center justify-center p-6">
       <div className="w-full max-w-[448px] bg-white rounded-2xl p-8 shadow-[0_4px_20px_-4px_rgba(137,80,50,0.12)]">
-        <p className="text-headline-sm text-[#ffb38e] font-black tracking-tight">Chef</p>
+        <p className="text-headline-sm text-[#ffb38e] font-black tracking-tight">Butter Me</p>
         <h1 className="text-headline-sm text-[#1a1c1a] font-bold mt-3">Welcome back</h1>
         <p className="text-body-md text-[#52443d] mt-1">Sign in to your account</p>
 

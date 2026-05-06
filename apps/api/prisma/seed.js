@@ -3,7 +3,7 @@ const { resolve } = require("node:path");
 const { PrismaClient } = require("../generated/prisma");
 const { seedCuisines } = require("./seed/cuisines");
 const { seedUsers } = require("./seed/users");
-const { seedRecipes } = require("./seed/recipes");
+const { seedRecipes, seedDietaryBadgeTags } = require("./seed/recipes");
 const { seedIngredients } = require("./seed/ingredients");
 
 function loadEnvFile(path) {
@@ -83,6 +83,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   await seedCuisines(prisma);
+  await seedDietaryBadgeTags(prisma);
   const { devUser } = await seedUsers(prisma);
   await seedRecipes(prisma, devUser.id);
   await seedIngredients(prisma, devUser.id);
