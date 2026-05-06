@@ -378,7 +378,7 @@ export function ChefChatWidget() {
           isExpandedView ? "rounded-[24px] p-4 shadow-sm" : "mt-3 rounded-2xl p-3"
         }`}
       >
-        <p className="text-sm font-semibold text-on-surface">Plan meals with Chef</p>
+        <p className="text-sm font-semibold text-on-surface">Plan meals with Butter Me</p>
         <div className="mt-3 space-y-3">
           <input
             type="text"
@@ -641,7 +641,7 @@ export function ChefChatWidget() {
                         </div>
                         <div>
                           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
-                            Chef AI
+                            Butter Me AI
                           </p>
                           <h2 className="text-base font-semibold text-on-surface">
                             Kitchen sidekick

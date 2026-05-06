@@ -13,11 +13,11 @@ $liveRequirements = Join-Path $PSScriptRoot "requirements-live.txt"
 function Test-PythonCandidate {
   param(
     [string]$Command,
-    [string[]]$Args
+    [string[]]$Arguments
   )
 
   try {
-    $versionText = & $Command @Args -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
+    $versionText = & $Command @Arguments -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
     if ($LASTEXITCODE -ne 0) {
       return $false
     }
@@ -26,7 +26,7 @@ function Test-PythonCandidate {
     $major = [int]$parts[0]
     $minor = [int]$parts[1]
 
-    return ($major -gt 3 -or ($major -eq 3 -and $minor -ge 11))
+    return ($major -eq 3 -and $minor -ge 11 -and $minor -le 13)
   } catch {
     return $false
   }
@@ -34,6 +34,16 @@ function Test-PythonCandidate {
 
 function Resolve-PythonCommand {
   $candidates = @()
+
+  $py = Get-Command py -ErrorAction SilentlyContinue
+  if ($py) {
+    foreach ($version in @("3.13", "3.12", "3.11")) {
+      $candidates += [pscustomobject]@{
+        Command = $py.Source
+        Args = @("-$version")
+      }
+    }
+  }
 
   $python = Get-Command python -ErrorAction SilentlyContinue
   if ($python) {
@@ -43,16 +53,8 @@ function Resolve-PythonCommand {
     }
   }
 
-  $py = Get-Command py -ErrorAction SilentlyContinue
-  if ($py) {
-    $candidates += [pscustomobject]@{
-      Command = $py.Source
-      Args = @("-3")
-    }
-  }
-
   foreach ($candidate in $candidates) {
-    if (Test-PythonCandidate -Command $candidate.Command -Args $candidate.Args) {
+    if (Test-PythonCandidate -Command $candidate.Command -Arguments $candidate.Args) {
       return @($candidate.Command) + $candidate.Args
     }
   }
@@ -63,8 +65,8 @@ function Resolve-PythonCommand {
 $pythonCommand = Resolve-PythonCommand
 
 if (-not $pythonCommand) {
-  Write-Host "Python 3.11 or newer is required for apps/vision-lab, but a compatible Python was not found on PATH." -ForegroundColor Red
-  Write-Host "Install Python 3.11 or newer, then rerun:"
+  Write-Host "Python 3.11, 3.12, or 3.13 is required for apps/vision-lab, but a compatible Python was not found on PATH." -ForegroundColor Red
+  Write-Host "Install Python 3.11, 3.12, or 3.13, then rerun:"
   Write-Host "  pnpm vision:setup"
   Write-Host ""
   Write-Host "Windows option:"

@@ -52,6 +52,7 @@ export type BaseRecipe = {
   steps: RecipeStep[];
   tag_ids: string[];
   tags: Tag[];
+  dietary_restrictions?: string;
   created_at: string;
   updated_at: string;
 };

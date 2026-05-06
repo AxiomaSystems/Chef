@@ -278,7 +278,7 @@ export function ImportClient({ cuisines }: { cuisines: Cuisine[] }) {
 
   return (
     <AppShell topBarTitle="Import Recipe">
-    <div className="mx-auto max-w-2xl px-6 pt-6 pb-40 space-y-6">
+    <div className="mx-auto max-w-2xl space-y-5 px-4 pb-40 pt-5 sm:space-y-6 sm:px-6 sm:pt-6">
       <div>
         <h1 className="text-headline-lg font-bold text-on-surface">Import a Recipe</h1>
         <p className="mt-1 text-body-md text-on-surface-variant">
@@ -286,22 +286,22 @@ export function ImportClient({ cuisines }: { cuisines: Cuisine[] }) {
         </p>
       </div>
 
-      <div className="rounded-[28px] border border-outline-variant/20 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex flex-wrap gap-2">
-          <span className="flex items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
+      <div className="rounded-[24px] border border-outline-variant/20 bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-6">
+        <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
               <rect width="24" height="24" rx="5" fill="#FF0000" />
               <path fill="white" d="M9.5 7.5l7 4.5-7 4.5V7.5z" />
             </svg>
-            YouTube
+            <span className="truncate">YouTube</span>
           </span>
-          <span className="flex items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
+          <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
               <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.5a8.18 8.18 0 004.78 1.52V6.56a4.85 4.85 0 01-1.01.13z" />
             </svg>
-            TikTok
+            <span className="truncate">TikTok</span>
           </span>
-          <span className="flex items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
+          <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
               <defs>
                 <linearGradient id="ig-grad" x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse">
@@ -314,11 +314,11 @@ export function ImportClient({ cuisines }: { cuisines: Cuisine[] }) {
               <circle cx="12" cy="12" r="4.5" stroke="url(#ig-grad)" strokeWidth="2" />
               <circle cx="17.5" cy="6.5" r="1.2" fill="url(#ig-grad)" />
             </svg>
-            Instagram
+            <span className="truncate">Instagram</span>
           </span>
-          <span className="flex items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
+          <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
             <span className="material-symbols-outlined text-[14px]">link</span>
-            Any link
+            <span className="truncate">Any link</span>
           </span>
         </div>
 

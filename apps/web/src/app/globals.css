@@ -155,6 +155,23 @@
 }
 
 /* ─── Base ───────────────────────────────────────────────────────────────── */
+
+@keyframes loading-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  50% {
+    transform: translateX(45%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+.loading-sweep {
+  animation: loading-sweep 1.35s ease-in-out infinite;
+}
+
 * { box-sizing: border-box; }
 
 body {

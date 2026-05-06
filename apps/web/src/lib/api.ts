@@ -92,6 +92,7 @@ export async function fetchAuthedCollection<T>(
       status: response.status,
     };
   } catch (error) {
+    if (error instanceof Error && "digest" in error) throw error;
     return {
       ok: false,
       data: [],
@@ -138,6 +139,7 @@ export async function fetchAuthedResource<T>(
       status: response.status,
     };
   } catch (error) {
+    if (error instanceof Error && "digest" in error) throw error;
     return {
       ok: false,
       data: null,

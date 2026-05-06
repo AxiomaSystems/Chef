@@ -64,6 +64,11 @@ export function WeeklyMealPlan({
   const [pickerSlot, setPickerSlot] = useState<{ dayIndex: number; meal: MealType } | null>(null);
   const [pickerSearch, setPickerSearch] = useState("");
   const [showFullGroceryList, setShowFullGroceryList] = useState(false);
+  const [planView, setPlanView] = useState<"week" | "day">("day");
+  const [activeDayIndex, setActiveDayIndex] = useState(() => {
+    const day = today.getDay();
+    return day === 0 ? 6 : day - 1;
+  });
   const [checkedGroceriesByWeek, setCheckedGroceriesByWeek] = useState<
     Record<string, string[]>
   >({});
@@ -213,6 +218,8 @@ export function WeeklyMealPlan({
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 6);
   const weekLabel = `${MONTH_NAMES[weekStart.getMonth()]} ${weekStart.getDate()} - ${MONTH_NAMES[weekEnd.getMonth()]} ${weekEnd.getDate()}, ${weekEnd.getFullYear()}`;
+  const activeDayDate = new Date(weekStart);
+  activeDayDate.setDate(activeDayDate.getDate() + activeDayIndex);
 
   const allRecipeIds = plan.flatMap((day) =>
     [day.breakfast, day.lunch, day.dinner].filter(Boolean) as string[],
@@ -424,7 +431,26 @@ export function WeeklyMealPlan({
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <div className="grid grid-cols-2 rounded-full bg-surface-container-low p-1">
+            {(["day", "week"] as const).map((view) => (
+              <button
+                key={view}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setPlanView(view);
+                }}
+                className={`rounded-full px-3 py-1.5 text-label-sm font-semibold capitalize transition-all ${
+                  planView === view
+                    ? "bg-white text-on-surface shadow-sm"
+                    : "text-outline hover:text-on-surface"
+                }`}
+              >
+                {view}
+              </button>
+            ))}
+          </div>
           <button
             onClick={(event) => {
               event.stopPropagation();
@@ -455,6 +481,159 @@ export function WeeklyMealPlan({
         </div>
       </div>
 
+      {planView === "day" ? (
+        <div className="space-y-4 rounded-[28px] border border-outline-variant/25 bg-white p-4 shadow-sm sm:p-5">
+          <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {DAY_LABELS.map((day, index) => {
+              const date = new Date(weekStart);
+              date.setDate(date.getDate() + index);
+              const isToday = date.toDateString() === today.toDateString();
+              const active = activeDayIndex === index;
+
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setActiveDayIndex(index);
+                  }}
+                  className={`flex min-w-14 flex-col items-center rounded-2xl border px-3 py-2 transition-colors ${
+                    active
+                      ? "border-primary bg-primary text-on-primary"
+                      : isToday
+                        ? "border-primary/30 bg-primary-surface text-primary"
+                        : "border-outline-variant/30 bg-surface-container-low text-on-surface-variant"
+                  }`}
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-widest">{day}</span>
+                  <span className="mt-0.5 text-body-lg font-bold">{date.getDate()}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div>
+            <p className="text-label-sm font-semibold uppercase tracking-widest text-outline">
+              {DAY_LABELS[activeDayIndex]}
+            </p>
+            <h3 className="text-title-lg font-bold text-on-surface">
+              {MONTH_NAMES[activeDayDate.getMonth()]} {activeDayDate.getDate()}
+            </h3>
+          </div>
+
+          <div className="space-y-3">
+            {MEAL_CONFIG.map((meal) => {
+              const recipeId = plan[activeDayIndex]?.[meal.type];
+              const recipe = getRecipe(recipeId);
+              const isOpen =
+                pickerSlot?.dayIndex === activeDayIndex &&
+                pickerSlot.meal === meal.type;
+
+              return (
+                <div
+                  key={meal.type}
+                  className="relative rounded-2xl border border-outline-variant/25 bg-surface-container-low/40 p-3"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px] text-primary">{meal.icon}</span>
+                    <p className="text-label-lg font-semibold text-on-surface">{meal.label}</p>
+                  </div>
+
+                  {recipe ? (
+                    <div className="flex items-center gap-3 rounded-2xl bg-white p-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPickerSlot(isOpen ? null : { dayIndex: activeDayIndex, meal: meal.type })
+                        }
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                      >
+                        <RecipeImage
+                          src={recipe.cover_image_url}
+                          alt={recipe.name}
+                          seed={recipe.id}
+                          className="h-16 w-16 shrink-0 overflow-hidden rounded-xl"
+                          imgClassName="h-16 w-16 object-cover"
+                        />
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 text-body-md font-semibold text-on-surface">{recipe.name}</p>
+                          <p className="mt-1 text-label-sm text-outline">{recipe.servings} servings</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setMeal(activeDayIndex, meal.type, undefined);
+                        }}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-container text-outline"
+                        aria-label={`Remove ${meal.label}`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">close</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPickerSlot(isOpen ? null : { dayIndex: activeDayIndex, meal: meal.type })
+                      }
+                      className="flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-outline-variant/35 bg-white text-label-md font-semibold text-outline"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">add</span>
+                      Add {meal.label}
+                    </button>
+                  )}
+
+                  {isOpen ? (
+                    <div className="absolute left-3 right-3 top-full z-30 mt-2 rounded-2xl border border-outline-variant/30 bg-white p-3 shadow-2xl">
+                      <input
+                        autoFocus
+                        value={pickerSearch}
+                        onChange={(event) => setPickerSearch(event.target.value)}
+                        placeholder="Search recipes..."
+                        className="w-full rounded-xl border border-outline-variant/40 bg-surface-container-low px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                      <div className="mt-2 max-h-64 space-y-1 overflow-y-auto pr-0.5">
+                        {filteredRecipes.length === 0 ? (
+                          <p className="py-4 text-center text-body-sm text-outline">No recipes found</p>
+                        ) : (
+                          filteredRecipes.map((filteredRecipe) => (
+                            <button
+                              key={filteredRecipe.id}
+                              type="button"
+                              onClick={() => setMeal(activeDayIndex, meal.type, filteredRecipe.id)}
+                              className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-surface-container-low"
+                            >
+                              <RecipeImage
+                                src={filteredRecipe.cover_image_url}
+                                alt={filteredRecipe.name}
+                                seed={filteredRecipe.id}
+                                className="h-10 w-10 shrink-0 overflow-hidden rounded-lg"
+                                imgClassName="h-10 w-10 object-cover"
+                              />
+                              <div className="min-w-0">
+                                <p className="truncate text-body-sm font-semibold text-on-surface">
+                                  {filteredRecipe.name}
+                                </p>
+                                <p className="text-[11px] text-outline">
+                                  {filteredRecipe.servings} serving{filteredRecipe.servings !== 1 ? "s" : ""}
+                                </p>
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
       <div className="rounded-[28px] border border-outline-variant/25 bg-white shadow-sm overflow-x-auto">
         <div className="min-w-[640px]">
           <div className="grid grid-cols-[80px_repeat(7,1fr)] border-b border-outline-variant/20 bg-surface-container-low/40">
@@ -596,6 +775,7 @@ export function WeeklyMealPlan({
           ))}
         </div>
       </div>
+      )}
 
       <div className="grid gap-5 md:grid-cols-3">
         <div className="rounded-[24px] border border-outline-variant/25 bg-white p-5 shadow-sm">

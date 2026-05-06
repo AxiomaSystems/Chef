@@ -8,6 +8,7 @@ import type {
   Retailer,
   RetailerProductSearchResponse,
   ShoppingCart,
+  Tag,
 } from "@cart/shared";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -169,9 +170,12 @@ export async function submitDraftFlowAction(
   if (!response?.ok) {
     return {
       error:
-        nextResourceType === "draft"
-          ? "Unable to save this draft right now."
-          : "Unable to save this cart right now.",
+        await readErrorMessage(
+          response,
+          nextResourceType === "draft"
+            ? "Unable to save this draft right now."
+            : "Unable to save this cart right now.",
+        ),
     };
   }
 
@@ -347,6 +351,7 @@ export type CreateRecipePayload = {
   description?: string;
   cover_image_url?: string;
   tag_ids?: string[];
+  custom_tag_names?: string[];
   ingredients: { canonical_ingredient: string; amount: number; unit: string; preparation?: string; optional?: boolean }[];
   steps: { step: number; what_to_do: string }[];
   nutrition_data?: {
@@ -357,13 +362,113 @@ export type CreateRecipePayload = {
 
 export type CreateRecipeActionState = { error?: string; recipe?: BaseRecipe };
 
+function normalizeTagName(name: string) {
+  return name.trim().replace(/\s+/g, " ");
+}
+
+function normalizeTagSlug(name: string) {
+  return normalizeTagName(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+async function listVisibleTags() {
+  const response = await callAuthedJson("/tags").catch(() => null);
+  if (!response?.ok) return [];
+  return (await response.json()) as Tag[];
+}
+
+async function createUserTag(name: string) {
+  const response = await callAuthedJson("/tags", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, kind: "dietary_badge" }),
+  }).catch(() => null);
+
+  if (!response?.ok) return null;
+  return (await response.json()) as Tag;
+}
+
+async function resolveRecipeTagIds(payload: CreateRecipePayload) {
+  const existingIds = payload.tag_ids ?? [];
+  const customNames = Array.from(
+    new Map(
+      (payload.custom_tag_names ?? [])
+        .map(normalizeTagName)
+        .filter(Boolean)
+        .map((name) => [normalizeTagSlug(name), name]),
+    ).values(),
+  );
+
+  if (customNames.length === 0) {
+    return existingIds;
+  }
+
+  const visibleTags = await listVisibleTags();
+  const tagsBySlug = new Map(
+    visibleTags.map((tag) => [normalizeTagSlug(tag.name || tag.slug), tag]),
+  );
+  const resolvedIds = [...existingIds];
+
+  for (const name of customNames) {
+    const slug = normalizeTagSlug(name);
+    const existingTag = tagsBySlug.get(slug);
+
+    if (existingTag) {
+      resolvedIds.push(existingTag.id);
+      continue;
+    }
+
+    const createdTag = await createUserTag(name);
+    if (createdTag) {
+      tagsBySlug.set(slug, createdTag);
+      resolvedIds.push(createdTag.id);
+      continue;
+    }
+
+    const refreshedTags = await listVisibleTags();
+    const refreshedTag = refreshedTags.find(
+      (tag) => normalizeTagSlug(tag.name || tag.slug) === slug,
+    );
+    if (!refreshedTag) {
+      throw new Error(`Unable to save tag "${name}".`);
+    }
+    resolvedIds.push(refreshedTag.id);
+  }
+
+  return Array.from(new Set(resolvedIds));
+}
+
+async function buildRecipeRequestPayload(payload: CreateRecipePayload) {
+  const tagIds = await resolveRecipeTagIds(payload);
+  const { custom_tag_names: _customTagNames, ...recipePayload } = payload;
+
+  return {
+    ...recipePayload,
+    tag_ids: tagIds.length > 0 ? tagIds : undefined,
+  };
+}
+
 export async function createRecipeAction(
   payload: CreateRecipePayload,
 ): Promise<CreateRecipeActionState> {
+  let recipePayload: Omit<CreateRecipePayload, "custom_tag_names">;
+  try {
+    recipePayload = await buildRecipeRequestPayload(payload);
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to save recipe tags right now.",
+    };
+  }
+
   const response = await callAuthedJson("/recipes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(recipePayload),
   }).catch(() => null);
 
   if (!response?.ok) {
@@ -386,10 +491,22 @@ export async function updateRecipeAction(
     return { error: "Recipe not found." };
   }
 
+  let recipePayload: Omit<CreateRecipePayload, "custom_tag_names">;
+  try {
+    recipePayload = await buildRecipeRequestPayload(payload);
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to save recipe tags right now.",
+    };
+  }
+
   const response = await callAuthedJson(`/recipes/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(recipePayload),
   }).catch(() => null);
 
   if (!response?.ok) {

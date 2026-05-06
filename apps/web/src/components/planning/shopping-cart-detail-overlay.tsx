@@ -99,30 +99,30 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6">
+    <div className="fixed inset-0 z-[60] flex items-stretch justify-center p-0 sm:items-center sm:p-6">
       <div className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full sm:max-w-5xl max-h-[95vh] sm:max-h-[90vh] bg-background rounded-t-2xl sm:rounded-2xl overflow-hidden flex flex-col shadow-2xl">
+      <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-background shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-5xl sm:rounded-2xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 border-b border-outline-variant/30 px-5 py-4 sm:px-6 flex-shrink-0">
-          <div>
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-outline-variant/30 px-4 py-4 sm:items-center sm:px-6">
+          <div className="min-w-0">
             <p className="text-label-sm text-primary uppercase tracking-wide">{cart.retailer}</p>
-            <h2 className="text-headline-sm text-on-surface mt-1">Shopping Cart</h2>
+            <h2 className="mt-1 truncate text-title-lg text-on-surface sm:text-headline-sm">Shopping Cart</h2>
             <p className="text-body-sm text-outline mt-0.5">{lineCount} items · updated {fmtDate(updatedAt)}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {editing ? (
               <>
                 <button
                   onClick={() => { setEditing(false); setCart(shoppingCart); setCtx(null); setResults([]); }}
-                  className="px-4 py-2 rounded-full border border-outline-variant text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors"
+                  className="hidden rounded-full border border-outline-variant px-4 py-2 text-label-md text-on-surface-variant transition-colors hover:bg-surface-container-low sm:inline-flex"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={saveChanges}
                   disabled={isSaving}
-                  className="px-4 py-2 rounded-full bg-primary text-on-primary text-label-md hover:bg-on-primary-container disabled:opacity-50 transition-colors"
+                  className="hidden rounded-full bg-primary px-4 py-2 text-label-md text-on-primary transition-colors hover:bg-on-primary-container disabled:opacity-50 sm:inline-flex"
                 >
                   {isSaving ? "Saving…" : "Save Changes"}
                 </button>
@@ -130,14 +130,15 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
             ) : (
               <button
                 onClick={() => setEditing(true)}
-                className="px-4 py-2 rounded-full border border-outline-variant text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors"
+                className="rounded-full border border-outline-variant px-3 py-2 text-label-sm leading-tight text-on-surface-variant transition-colors hover:bg-surface-container-low sm:px-4 sm:text-label-md"
               >
                 Edit Cart
               </button>
             )}
             <button
               onClick={onClose}
-              className="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center hover:bg-surface-container-low transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant transition-colors hover:bg-surface-container-low"
+              aria-label="Close shopping cart"
             >
               <span className="material-symbols-outlined text-on-surface-variant text-[20px]">close</span>
             </button>
@@ -146,7 +147,24 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto">
-          <div className="flex flex-col lg:flex-row gap-6 p-6">
+          <div className="flex flex-col gap-4 px-4 pb-28 pt-4 sm:gap-6 sm:p-6 lg:flex-row">
+            {editing && (
+              <div className="grid grid-cols-2 gap-2 sm:hidden">
+                <button
+                  onClick={() => { setEditing(false); setCart(shoppingCart); setCtx(null); setResults([]); }}
+                  className="min-h-11 rounded-full border border-outline-variant px-4 py-2 text-label-md text-on-surface-variant"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveChanges}
+                  disabled={isSaving}
+                  className="min-h-11 rounded-full bg-primary px-4 py-2 text-label-md text-on-primary disabled:opacity-50"
+                >
+                  {isSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            )}
 
             {/* Items list */}
             <div className="flex-1 space-y-3">
@@ -164,11 +182,11 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
                 return (
                   <div
                     key={`${item.canonical_ingredient}-${i}`}
-                    className={`bg-white rounded-xl border p-4 shadow-sm transition-opacity ${isDeleting ? "opacity-40" : ""} ${item.kind === "manual_item" ? "border-tertiary-container/50" : "border-outline-variant/30"}`}
+                    className={`rounded-2xl border bg-white p-3 shadow-sm transition-opacity sm:p-4 ${isDeleting ? "opacity-40" : ""} ${item.kind === "manual_item" ? "border-tertiary-container/50" : "border-outline-variant/30"}`}
                   >
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-3 sm:gap-4">
                       {/* Product image */}
-                      <div className="w-16 h-16 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
+                      <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-surface-container">
                         {prod?.image_url ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img src={prod.image_url} alt={prod.title} className="w-full h-full object-cover" />
@@ -182,8 +200,8 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
                       <div className="flex-1 min-w-0">
                         {/* Name + price row */}
                         <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-label-lg text-on-surface">{prod?.title ?? label}</p>
+                          <div className="min-w-0">
+                            <p className="line-clamp-2 text-label-lg leading-snug text-on-surface">{prod?.title ?? label}</p>
                             {prod?.brand && (
                               <p className="text-label-sm text-outline mt-0.5">{prod.brand}</p>
                             )}
@@ -195,13 +213,13 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
                             )}
                           </div>
                           {item.estimated_line_total !== undefined && (
-                            <p className="text-label-lg text-primary shrink-0">{fmt$(item.estimated_line_total)}</p>
+                            <p className="shrink-0 text-label-lg text-primary">{fmt$(item.estimated_line_total)}</p>
                           )}
                         </div>
 
                         {/* Controls row */}
-                        <div className="flex items-center justify-between mt-3">
-                          <div className="flex items-center gap-3">
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <div className="flex min-w-0 flex-wrap items-center gap-3">
                             {/* Quantity stepper — always visible when product matched */}
                             {prod && (
                               <div className="flex items-center gap-2">
@@ -236,7 +254,7 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
                           <button
                             onClick={() => deleteAndSave(i)}
                             disabled={isDeleting}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-outline hover:text-error hover:bg-error-container/30 transition-colors disabled:opacity-30"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-outline transition-colors hover:bg-error-container/30 hover:text-error disabled:opacity-30"
                             aria-label="Remove item"
                           >
                             <span className="material-symbols-outlined text-[18px]">delete</span>
@@ -251,7 +269,7 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
               {editing && (
                 <button
                   onClick={() => { setCtx({ mode: "add", query: "" }); setResults([]); }}
-                  className="w-full py-3 rounded-xl border-2 border-dashed border-outline-variant text-label-lg text-outline hover:border-primary hover:text-primary flex items-center justify-center gap-2 transition-colors"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-outline-variant py-3 text-label-lg text-outline transition-colors hover:border-primary hover:text-primary"
                 >
                   <span className="material-symbols-outlined">add</span>
                   Add item manually
@@ -260,7 +278,7 @@ export function ShoppingCartDetailOverlay({ shoppingCart, onClose }: { shoppingC
             </div>
 
             {/* Sidebar */}
-            <div className="lg:w-72 space-y-4 flex-shrink-0">
+            <div className="space-y-4 lg:w-72 lg:flex-shrink-0">
 
               {/* Order summary */}
               <div className="bg-white rounded-2xl border border-outline-variant/30 p-5 shadow-sm">

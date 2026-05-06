@@ -91,52 +91,64 @@ export function ShoppingClient({
               return (
                 <div
                   key={cart.id}
-                  className={`flex items-center gap-4 rounded-xl border border-outline-variant/30 bg-white p-4 shadow-[0_4px_20px_-4px_rgba(137,80,50,0.08)] transition-all ${
+                  className={`rounded-2xl border border-outline-variant/30 bg-white p-4 shadow-[0_4px_20px_-4px_rgba(137,80,50,0.08)] transition-all ${
                     isDeleting ? "opacity-40" : ""
                   }`}
                 >
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-surface-container">
-                    <span className="material-symbols-outlined text-[26px] text-outline">
-                      shopping_cart
-                    </span>
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="truncate text-label-lg font-semibold text-on-surface">
-                        {name}
-                      </h3>
-                      <Badge variant="secondary">
-                        {retailerLabel(cart.retailer)}
-                      </Badge>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface-container">
+                      <span className="material-symbols-outlined text-[26px] text-outline">
+                        shopping_cart
+                      </span>
                     </div>
-                    <p className="mt-1 text-body-sm text-outline">
-                      {cart.matched_items.length} items
-                      {cart.estimated_subtotal > 0
-                        ? ` - ~${fmt$(cart.estimated_subtotal)}`
-                        : ""}
-                      {cart.created_at ? ` - ${fmtDate(cart.created_at)}` : ""}
-                    </p>
-                    {cart.external_url && (
-                      <a
-                        href={cart.external_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1 flex items-center gap-1 text-label-sm text-primary hover:underline"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <span className="material-symbols-outlined text-[14px]">
-                          open_in_new
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <h3 className="min-w-0 flex-1 truncate text-label-lg font-semibold text-on-surface">
+                          {name}
+                        </h3>
+                        <Badge variant="secondary">
+                          {retailerLabel(cart.retailer)}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2 text-label-sm text-outline">
+                        <span className="rounded-full bg-surface-container-low px-2.5 py-1">
+                          {cart.matched_items.length} items
                         </span>
-                        View on {retailerLabel(cart.retailer)}
-                      </a>
-                    )}
+                        {cart.estimated_subtotal > 0 && (
+                          <span className="rounded-full bg-surface-container-low px-2.5 py-1">
+                            ~{fmt$(cart.estimated_subtotal)}
+                          </span>
+                        )}
+                        {cart.created_at && (
+                          <span className="rounded-full bg-surface-container-low px-2.5 py-1">
+                            {fmtDate(cart.created_at)}
+                          </span>
+                        )}
+                      </div>
+                      {cart.external_url && (
+                        <a
+                          href={cart.external_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 flex items-center gap-1 text-label-sm text-primary hover:underline"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <span className="material-symbols-outlined text-[14px]">
+                            open_in_new
+                          </span>
+                          View on {retailerLabel(cart.retailer)}
+                        </a>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="mt-4 grid grid-cols-[1fr_1fr_auto] items-center gap-2 sm:flex sm:justify-end">
                     <Button
                       variant="outline"
                       size="sm"
+                      fullWidth
+                      className="sm:w-auto"
                       onClick={() => setOpenCart(cart)}
                     >
                       Open
@@ -144,7 +156,7 @@ export function ShoppingClient({
                     {cart.id && (
                       <Link
                         href={`/shopping/checkout/${cart.id}`}
-                        className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ffb38e] px-4 py-2 text-label-md font-semibold text-[#6d391d] shadow-sm transition-colors hover:bg-[#ffcfb6]"
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full bg-[#ffb38e] px-4 py-2 text-label-md font-semibold text-[#6d391d] shadow-sm transition-colors hover:bg-[#ffcfb6]"
                       >
                         Checkout
                       </Link>
