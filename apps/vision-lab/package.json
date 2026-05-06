@@ -1,0 +1,12 @@
+{
+  "name": "vision-lab",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\run_fastapi.ps1",
+    "checkpoints": "..\\..\\.venv\\Scripts\\python.exe check_checkpoints.py",
+    "setup": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\setup.ps1",
+    "setup:live": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\setup.ps1 -Live",
+    "streamlit": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\run_streamlit.ps1"
+  }
+}

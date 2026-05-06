@@ -1,0 +1,39 @@
+{
+  "base": {
+    "yolo11n.pt": {
+      "local_path": "apps/vision-lab/checkpoints/base/yolo11n.pt",
+      "source": "Ultralytics YOLO11 nano detection weights",
+      "shared_artifact": "Add Google Drive link or folder note here"
+    },
+    "yolo11n-seg.pt": {
+      "local_path": "apps/vision-lab/checkpoints/base/yolo11n-seg.pt",
+      "source": "Ultralytics YOLO11 nano segmentation weights",
+      "shared_artifact": "Add Google Drive link or folder note here"
+    }
+  },
+  "classifiers": {
+    "resnet18_ingredient_crops_5000_modal_frozen_v2": {
+      "local_path": "apps/vision-lab/checkpoints/classifiers/ingredient/resnet18_ingredient_crops_5000_modal_frozen_v2/best_model.pt",
+      "source": "Ingredient crop classifier",
+      "shared_artifact": "Add Google Drive link or folder note here",
+      "metrics": {}
+    }
+  },
+  "segmenters": {
+    "yolo11n_foodseg103_segmenter_modal": {
+      "local_path": "apps/vision-lab/checkpoints/segmenters/foodseg103/yolo11n_foodseg103_segmenter_modal/weights/best.pt",
+      "source": "FoodSeg103 YOLO segmentation checkpoint",
+      "shared_artifact": "Add Google Drive link or folder note here",
+      "metrics": {}
+    }
+  },
+  "detectors": {
+    "yolo11n_ingredient_detector_modal": {
+      "local_path": "apps/vision-lab/checkpoints/detectors/ingredient/yolo11n_ingredient_detector_modal/weights/best.pt",
+      "source": "Ingredient YOLO detection checkpoint",
+      "shared_artifact": "Add Google Drive link or folder note here",
+      "metrics": {}
+    }
+  }
+}
+

@@ -148,7 +148,11 @@ export class VisionPipelineConfigResponseDto {
   supported_classes!: VisionClassDefinitionResponseDto[];
 
   @ApiProperty({
-    example: ['Stage 1 is closed-set detection only.'],
+    example: [
+      'Stage 1 is closed-set detection only.',
+      'Tracking, embeddings, OCR, and open-vocabulary fallback are intentionally outside this API contract.',
+      'Use inventory_policy to route detections into track, review, or ignore workflows.',
+    ],
   })
   notes!: string[];
 }
@@ -406,6 +410,251 @@ export class UserPreferencesResponseDto {
   biggest_cooking_frustration?: string;
 }
 
+export class UserFoodRuleResponseDto {
+  @ApiProperty({ example: 'rule-1' })
+  id!: string;
+
+  @ApiProperty({
+    enum: ['dietary_constraint', 'ingredient_preference', 'texture_preference'],
+    example: 'ingredient_preference',
+  })
+  kind!: string;
+
+  @ApiProperty({ example: 'Mushrooms' })
+  label!: string;
+
+  @ApiProperty({ example: 'mushrooms' })
+  normalized_label!: string;
+
+  @ApiPropertyOptional({ example: 'ingredient-mushroom' })
+  ingredient_id?: string;
+
+  @ApiPropertyOptional({ example: 'tag-system-vegan' })
+  tag_id?: string;
+
+  @ApiProperty({
+    enum: ['prefer', 'dislike', 'avoid', 'require'],
+    example: 'avoid',
+  })
+  action!: string;
+
+  @ApiProperty({ enum: ['soft', 'hard'], example: 'soft' })
+  strictness!: string;
+
+  @ApiProperty({ example: true })
+  active!: boolean;
+
+  @ApiPropertyOptional({ example: '2026-04-30T00:00:00.000Z' })
+  starts_at?: string;
+
+  @ApiPropertyOptional({ example: '2026-05-07T00:00:00.000Z' })
+  expires_at?: string;
+
+  @ApiProperty({
+    enum: ['onboarding', 'manual', 'behavior', 'inferred', 'import'],
+    example: 'onboarding',
+  })
+  source!: string;
+
+  @ApiProperty({ enum: ['low', 'medium', 'high'], example: 'high' })
+  confidence!: string;
+
+  @ApiPropertyOptional({ example: 'User marked this during onboarding.' })
+  notes?: string;
+
+  @ApiProperty({ example: '2026-04-30T18:00:00.000Z' })
+  created_at!: string;
+
+  @ApiProperty({ example: '2026-04-30T18:00:00.000Z' })
+  updated_at!: string;
+}
+
+export class UserGoalResponseDto {
+  @ApiProperty({ example: 'goal-1' })
+  id!: string;
+
+  @ApiProperty({ example: 'save_money' })
+  goal!: string;
+
+  @ApiProperty({ example: 1 })
+  priority!: number;
+
+  @ApiProperty({ example: true })
+  active!: boolean;
+
+  @ApiPropertyOptional({ example: '2026-04-30T00:00:00.000Z' })
+  starts_at?: string;
+
+  @ApiPropertyOptional({ example: '2026-05-31T00:00:00.000Z' })
+  expires_at?: string;
+
+  @ApiProperty({
+    enum: ['default', 'this_week', 'long_term'],
+    example: 'default',
+  })
+  timeframe!: string;
+
+  @ApiProperty({
+    enum: ['onboarding', 'manual', 'behavior', 'inferred', 'import'],
+    example: 'onboarding',
+  })
+  source!: string;
+
+  @ApiProperty({ enum: ['low', 'medium', 'high'], example: 'high' })
+  confidence!: string;
+
+  @ApiProperty({ example: '2026-04-30T18:00:00.000Z' })
+  created_at!: string;
+
+  @ApiProperty({ example: '2026-04-30T18:00:00.000Z' })
+  updated_at!: string;
+}
+
+export class UserPantryStapleResponseDto {
+  @ApiProperty({ example: 'ingredient-rice' })
+  ingredient_id!: string;
+
+  @ApiProperty({ example: 'rice' })
+  canonical_name!: string;
+
+  @ApiProperty({ example: 'onboarding' })
+  source!: string;
+
+  @ApiProperty({ example: 'high' })
+  confidence!: string;
+
+  @ApiProperty({ example: '2026-04-30T18:00:00.000Z' })
+  created_at!: string;
+
+  @ApiProperty({ example: '2026-04-30T18:00:00.000Z' })
+  updated_at!: string;
+}
+
+export class ChefMemorySummaryResponseDto {
+  @ApiProperty({
+    example: {
+      household: { label: 'two_people', detail: 'no_kids' },
+      taste: {
+        cuisine_count: 2,
+        favorite_proteins: ['chicken', 'salmon'],
+        favorite_flavors: ['savory_umami'],
+        spice_level: 'medium',
+      },
+      rules: {
+        hard_rule_count: 1,
+        soft_rule_count: 2,
+        labels: ['Vegan', 'Mushrooms'],
+      },
+      kitchen: {
+        skill_level: 'intermediate',
+        appliance_count: 3,
+        preferred_time: '15_to_30_min',
+      },
+      pantry: { staple_count: 2, labels: ['rice', 'olive oil'] },
+      goals: [{ goal: 'save_money', priority: 1, timeframe: 'default' }],
+      shopping: {
+        preferred_store_count: 1,
+        shopping_mode: 'pickup',
+        location_label: 'ZIP 60201',
+      },
+      completion: {
+        has_household: true,
+        has_taste: true,
+        has_rules: true,
+        has_kitchen: true,
+        has_pantry: true,
+        has_goals: true,
+        has_shopping: true,
+        has_location: true,
+      },
+    },
+  })
+  summary!: Record<string, unknown>;
+}
+
+export class MeResponseDto {
+  @ApiProperty({ example: 'user-1' })
+  id!: string;
+
+  @ApiProperty({ example: 'postigodev@cart-generator.local' })
+  email!: string;
+
+  @ApiProperty({ example: 'Postigo Dev' })
+  name!: string;
+
+  @ApiProperty({ example: 'user' })
+  role!: 'admin' | 'user';
+
+  @ApiProperty({ example: ['password'] })
+  auth_providers!: Array<'google' | 'password'>;
+
+  @ApiPropertyOptional({ example: '2026-03-20T18:45:00.000Z' })
+  onboarding_completed_at?: string;
+
+  @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
+  created_at!: string;
+
+  @ApiProperty({ example: '2026-03-20T18:45:00.000Z' })
+  updated_at!: string;
+}
+
+export class UserProfileMemoryResponseDto {
+  @ApiProperty({ type: () => MeResponseDto })
+  user!: MeResponseDto;
+
+  @ApiProperty({ type: () => UserPreferencesResponseDto })
+  preferences!: UserPreferencesResponseDto;
+
+  @ApiProperty({ type: () => [UserFoodRuleResponseDto] })
+  food_rules!: UserFoodRuleResponseDto[];
+
+  @ApiProperty({ type: () => [UserGoalResponseDto] })
+  goals!: UserGoalResponseDto[];
+
+  @ApiProperty({ type: () => [UserPantryStapleResponseDto] })
+  pantry_staples!: UserPantryStapleResponseDto[];
+
+  @ApiProperty({
+    example: {
+      household: { label: 'two_people', detail: 'no_kids' },
+      taste: {
+        cuisine_count: 2,
+        favorite_proteins: ['chicken', 'salmon'],
+        favorite_flavors: ['savory_umami'],
+        spice_level: 'medium',
+      },
+      rules: {
+        hard_rule_count: 1,
+        soft_rule_count: 2,
+        labels: ['Vegan', 'Mushrooms'],
+      },
+      kitchen: {
+        skill_level: 'intermediate',
+        appliance_count: 3,
+        preferred_time: '15_to_30_min',
+      },
+      pantry: { staple_count: 2, labels: ['rice', 'olive oil'] },
+      goals: [{ goal: 'save_money', priority: 1, timeframe: 'default' }],
+      shopping: {
+        preferred_store_count: 1,
+        shopping_mode: 'pickup',
+        location_label: 'ZIP 60201',
+      },
+      completion: {
+        has_household: true,
+        has_taste: true,
+        has_rules: true,
+        has_kitchen: true,
+        has_pantry: true,
+        has_goals: true,
+        has_shopping: true,
+        has_location: true,
+      },
+    },
+  })
+  summary!: Record<string, unknown>;
+}
+
 export class SavedAddressResponseDto {
   @ApiProperty({ example: 'address-1' })
   id!: string;
@@ -475,32 +724,6 @@ export class UserStatsResponseDto {
 
   @ApiProperty({ example: 4 })
   preferred_tag_count!: number;
-}
-
-export class MeResponseDto {
-  @ApiProperty({ example: 'user-1' })
-  id!: string;
-
-  @ApiProperty({ example: 'postigodev@cart-generator.local' })
-  email!: string;
-
-  @ApiProperty({ example: 'Postigo Dev' })
-  name!: string;
-
-  @ApiProperty({ example: 'user' })
-  role!: 'admin' | 'user';
-
-  @ApiProperty({ example: ['password'] })
-  auth_providers!: Array<'google' | 'password'>;
-
-  @ApiPropertyOptional({ example: '2026-03-20T18:45:00.000Z' })
-  onboarding_completed_at?: string;
-
-  @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
-  created_at!: string;
-
-  @ApiProperty({ example: '2026-03-20T18:45:00.000Z' })
-  updated_at!: string;
 }
 
 export class DishResponseDto {

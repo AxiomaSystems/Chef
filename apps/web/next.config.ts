@@ -11,8 +11,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "spoonacular.com",
-        pathname: "/cdn/ingredients_**",
+        hostname: "images.unsplash.com",
       },
     ],
   },

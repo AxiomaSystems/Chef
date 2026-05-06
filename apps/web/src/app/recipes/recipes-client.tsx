@@ -137,9 +137,9 @@ export function RecipesClient({
       <div className="px-6 pt-6 pb-40 max-w-6xl mx-auto space-y-7">
 
         {/* ── Page header ─────────────────────────────────────── */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-headline-lg text-on-surface font-bold">Saved Recipes</h1>
-          <div className="relative flex-1 max-w-xs">
+          <div className="relative w-full sm:flex-1 sm:max-w-xs">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
             <input
               type="text"
@@ -153,7 +153,7 @@ export function RecipesClient({
 
         {/* ── Action cards + YOUR FAVS ─────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2 grid grid-cols-2 gap-4">
+          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Create own */}
             <button
               onClick={() => setShowCreate(true)}
@@ -299,7 +299,7 @@ export function RecipesClient({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
             {filtered.map((recipe) => {
               const dietBadge  = recipe.tags.find((t) => t.kind === "dietary_badge");
               const isSelected = selections.has(recipe.id);

@@ -125,6 +125,8 @@ export class IngredientsService {
         userId,
         ingredientId: ingredient.id,
         label: input.label?.trim() || undefined,
+        estimatedAmount: input.estimated_amount ?? undefined,
+        unit: input.unit?.trim() || undefined,
         source: 'manual',
         confidence: 'high',
       },

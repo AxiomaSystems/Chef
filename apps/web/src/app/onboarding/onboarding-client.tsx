@@ -33,6 +33,17 @@ import { StepShoppingBehavior } from "@/components/onboarding/steps/step-shoppin
 import { StepDiscoveryFriction } from "@/components/onboarding/steps/step-discovery-friction";
 import { StepLocation } from "@/components/onboarding/steps/step-location";
 import {
+  AVAILABLE_APPLIANCE_LABELS,
+  DISLIKED_INGREDIENT_LABELS,
+  DISLIKED_TEXTURE_LABELS,
+  FAVORITE_FLAVOR_LABELS,
+  FAVORITE_PROTEIN_LABELS,
+  GOAL_PRIORITY_LABELS,
+  HOUSEHOLD_SIZE_LABELS,
+  PREFERRED_STORE_LABELS,
+  SPICE_LEVEL_LABELS,
+} from "@/components/onboarding/labels";
+import {
   savePreferencesAndCompleteAction,
   skipOnboardingAction,
 } from "./actions";
@@ -41,40 +52,40 @@ const TOTAL_STEPS = 9;
 
 const STEP_COPY: Record<number, { title: string; subtitle: string }> = {
   1: {
-    title: "Who are you cooking for?",
-    subtitle: "Portions, budgets, and leftovers start here.",
+    title: "Who should Chef plan for?",
+    subtitle: "Set the default serving context.",
   },
   2: {
     title: "What food feels like you?",
-    subtitle: "Choose cuisines and dietary filters.",
+    subtitle: "Cuisine and dietary defaults.",
   },
   3: {
-    title: "What should Chef prioritize?",
-    subtitle: "These are soft preferences, not hard rules.",
+    title: "What should Chef reach for first?",
+    subtitle: "Soft taste preferences.",
   },
   4: {
     title: "What should Chef avoid?",
-    subtitle: "Pick only the things that reliably ruin a meal for you.",
+    subtitle: "Soft dislikes for recipe ranking.",
   },
   5: {
     title: "Your kitchen reality",
-    subtitle: "Equipment and time shape better recommendations.",
+    subtitle: "Equipment and time constraints.",
   },
   6: {
-    title: "Goals and nutrition",
-    subtitle: "Tell Chef what tradeoffs matter most.",
+    title: "What should Chef optimize for?",
+    subtitle: "Prioritized planning goals.",
   },
   7: {
-    title: "Shopping behavior",
-    subtitle: "This helps Chef build realistic grocery carts.",
+    title: "How do you shop?",
+    subtitle: "Budget and store defaults.",
   },
   8: {
-    title: "Where do recipes come from?",
-    subtitle: "This helps shape future import tools.",
+    title: "How should Chef help first?",
+    subtitle: "Guide future agent behavior.",
   },
   9: {
-    title: "Where do you shop?",
-    subtitle: "Nearby stores make the cart more useful.",
+    title: "Where should Chef build your cart?",
+    subtitle: "Store availability and cart accuracy.",
   },
 };
 
@@ -113,10 +124,12 @@ function buildInitialState(prefs: UserPreferences | null): FormState {
     favorite_proteins: (prefs?.favorite_proteins ?? []) as FavoriteProtein[],
     favorite_flavors: (prefs?.favorite_flavors ?? []) as FavoriteFlavor[],
     spice_level: prefs?.spice_level ?? null,
-    disliked_ingredients: (prefs?.disliked_ingredients ?? []) as DislikedIngredient[],
+    disliked_ingredients: (prefs?.disliked_ingredients ??
+      []) as DislikedIngredient[],
     disliked_textures: (prefs?.disliked_textures ?? []) as DislikedTexture[],
     cooking_skill_level: prefs?.cooking_skill_level ?? null,
-    available_appliances: (prefs?.available_appliances ?? []) as AvailableAppliance[],
+    available_appliances: (prefs?.available_appliances ??
+      []) as AvailableAppliance[],
     preferred_cooking_time: prefs?.preferred_cooking_time ?? null,
     typical_meal_times: (prefs?.typical_meal_times ?? []) as TypicalMealTime[],
     goal_priorities: (prefs?.goal_priorities ?? []) as GoalPriority[],
@@ -124,13 +137,100 @@ function buildInitialState(prefs: UserPreferences | null): FormState {
     weekly_budget: prefs?.weekly_budget ?? null,
     preferred_stores: (prefs?.preferred_stores ?? []) as PreferredStore[],
     shopping_mode: prefs?.shopping_mode ?? null,
-    recipe_discovery_sources: (prefs?.recipe_discovery_sources ?? []) as RecipeDiscoverySource[],
+    recipe_discovery_sources: (prefs?.recipe_discovery_sources ??
+      []) as RecipeDiscoverySource[],
     biggest_cooking_frustration: prefs?.biggest_cooking_frustration ?? null,
     shopping_location_zip: prefs?.shopping_location?.zip_code ?? "",
     shopping_location_label: prefs?.shopping_location?.label ?? "",
     shopping_location_kroger_location_id:
       prefs?.shopping_location?.kroger_location_id ?? "",
   };
+}
+
+function joinLabels(labels: string[], max = 3) {
+  const visible = labels.slice(0, max);
+  const extra = labels.length - visible.length;
+  return extra > 0 ? `${visible.join(", ")} +${extra}` : visible.join(", ");
+}
+
+function buildMemoryItems(
+  form: FormState,
+  cuisines: Cuisine[],
+  dietaryTags: Tag[],
+) {
+  const items: string[] = [];
+  const cuisineLabels = form.preferred_cuisine_ids
+    .map((id) => cuisines.find((cuisine) => cuisine.id === id)?.label)
+    .filter((label): label is string => Boolean(label));
+  const dietaryLabels = form.preferred_tag_ids
+    .map((id) => dietaryTags.find((tag) => tag.id === id)?.name)
+    .filter((label): label is string => Boolean(label));
+  const favoriteLabels = [
+    ...form.favorite_proteins.map((value) => FAVORITE_PROTEIN_LABELS[value]),
+    ...form.favorite_flavors.map((value) => FAVORITE_FLAVOR_LABELS[value]),
+  ];
+  const avoidLabels = [
+    ...form.disliked_ingredients.map(
+      (value) => DISLIKED_INGREDIENT_LABELS[value],
+    ),
+    ...form.disliked_textures.map((value) => DISLIKED_TEXTURE_LABELS[value]),
+  ];
+  const goalLabels = form.goal_priorities.map(
+    (value) => GOAL_PRIORITY_LABELS[value],
+  );
+
+  if (form.household_size) {
+    items.push(`Planning for ${HOUSEHOLD_SIZE_LABELS[form.household_size]}`);
+  }
+
+  if (cuisineLabels.length > 0) {
+    items.push(`Likes ${joinLabels(cuisineLabels)}`);
+  }
+
+  if (dietaryLabels.length > 0) {
+    items.push(`Uses ${joinLabels(dietaryLabels)} as dietary filters`);
+  }
+
+  if (favoriteLabels.length > 0 || form.spice_level) {
+    const spice = form.spice_level ? SPICE_LEVEL_LABELS[form.spice_level] : null;
+    items.push(
+      `Prefers ${joinLabels([...favoriteLabels, ...(spice ? [spice] : [])])}`,
+    );
+  }
+
+  if (avoidLabels.length > 0) {
+    items.push(`Down-ranks ${joinLabels(avoidLabels)}`);
+  }
+
+  if (form.available_appliances.length > 0) {
+    items.push(
+      `Kitchen has ${joinLabels(
+        form.available_appliances.map(
+          (value) => AVAILABLE_APPLIANCE_LABELS[value],
+        ),
+      )}`,
+    );
+  }
+
+  if (goalLabels.length > 0) {
+    items.push(`Optimizes for ${joinLabels(goalLabels)}`);
+  }
+
+  if (form.preferred_stores.length > 0 || form.shopping_location_zip) {
+    const stores = form.preferred_stores.map(
+      (value) => PREFERRED_STORE_LABELS[value],
+    );
+    items.push(
+      `Shopping defaults: ${joinLabels([
+        ...stores,
+        ...(form.shopping_location_zip
+          ? [`ZIP ${form.shopping_location_zip}`]
+          : []),
+      ])}`,
+    );
+  }
+
+  return items;
 }
 
 export function OnboardingClient({
@@ -187,16 +287,18 @@ export function OnboardingClient({
   }
 
   const copy = STEP_COPY[step]!;
+  const memoryItems = buildMemoryItems(form, cuisines, dietaryTags);
 
   return (
     <OnboardingShell
       currentStep={step}
       title={copy.title}
       subtitle={copy.subtitle}
+      memoryItems={memoryItems}
       onBack={step > 1 ? handleBack : null}
       onSkip={handleSkip}
       onNext={handleNext}
-      nextLabel={step === TOTAL_STEPS ? "Finish" : "Next"}
+      nextLabel={step === TOTAL_STEPS ? "Save memory" : "Continue"}
       isPending={isPending}
       error={error}
     >

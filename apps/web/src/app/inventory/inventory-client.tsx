@@ -6,6 +6,8 @@ import type { KitchenInventoryItem } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { CameraModal } from "./camera-modal";
 import { removeInventoryItemAction, createRestockCartAction, addInventoryItemAction } from "./actions";
+import { AddItemModal } from "./add-item-modal";
+import { VisionScanModal } from "./vision-scan-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,6 +109,7 @@ const INGREDIENT_CATALOG: { category: string; items: string[] }[] = [
     ],
   },
 ];
+type VisionMode = "photo" | "video" | "camera";
 
 // ─── Ingredient image ─────────────────────────────────────────────────────────
 
@@ -322,6 +325,9 @@ export function InventoryClient({
 }) {
   const [activeCategory, setActiveCategory] = useState("All Items");
   const [cameraMode, setCameraMode] = useState<"photo" | "scan" | null>(null);
+  const [visionMode, setVisionMode] = useState<VisionMode | null>(null);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const [addItemOpen, setAddItemOpen] = useState(false);
   const [items, setItems] = useState<DisplayItem[]>(realItems.map(realToDisplay));
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [restockError, setRestockError] = useState<string | undefined>();
@@ -406,18 +412,32 @@ export function InventoryClient({
               </div>
               <div className="relative z-10 flex gap-3 mt-4 flex-wrap">
                 <button
-                  onClick={() => setCameraMode("photo")}
+                  onClick={() => setVisionMode("camera")}
                   className="flex items-center gap-2 bg-white text-[#1a1c1a] font-semibold text-sm px-4 py-2.5 rounded-full shadow hover:bg-white/90 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
-                  Add a photo
+                  <span className="material-symbols-outlined text-[18px]">center_focus_strong</span>
+                  Live scan
                 </button>
                 <button
-                  onClick={() => setCameraMode("scan")}
+                  onClick={() => setVisionMode("photo")}
+                  className="flex items-center gap-2 bg-white/15 text-white font-semibold text-sm px-4 py-2.5 rounded-full border border-white/30 hover:bg-white/25 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
+                  Photo
+                </button>
+                <button
+                  onClick={() => setVisionMode("video")}
+                  className="flex items-center gap-2 bg-white/15 text-white font-semibold text-sm px-4 py-2.5 rounded-full border border-white/30 hover:bg-white/25 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px]">video_camera_back</span>
+                  Video
+                </button>
+                <button
+                  onClick={() => setBarcodeOpen(true)}
                   className="flex items-center gap-2 bg-white/15 text-white font-semibold text-sm px-4 py-2.5 rounded-full border border-white/30 hover:bg-white/25 transition-colors"
                 >
                   <span className="material-symbols-outlined text-[18px]">barcode_scanner</span>
-                  Scan Items
+                  Barcode
                 </button>
               </div>
             </div>
@@ -577,12 +597,25 @@ export function InventoryClient({
         </div>
       </AppShell>
 
-      {/* Camera Modal */}
-      {cameraMode && (
+      {/* Modals */}
+      {visionMode && (
+        <VisionScanModal
+          mode={visionMode}
+          onClose={() => setVisionMode(null)}
+          onAdded={handleAdded}
+        />
+      )}
+      {barcodeOpen && (
         <CameraModal
-          mode={cameraMode}
-          onClose={() => setCameraMode(null)}
-          onAdded={(item) => setItems((prev) => [realToDisplay(item), ...prev])}
+          mode="scan"
+          onClose={() => setBarcodeOpen(false)}
+          onAdded={handleAdded}
+        />
+      )}
+      {addItemOpen && (
+        <AddItemModal
+          onClose={() => setAddItemOpen(false)}
+          onAdded={handleAdded}
         />
       )}
     </>

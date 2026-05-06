@@ -132,6 +132,7 @@ The API uses Prisma + PostgreSQL.
 - Migrations: [apps/api/prisma/migrations](/C:/Users/akuma/repos/cart-generator/apps/api/prisma/migrations)
 - Seed data: [apps/api/prisma/seed](/C:/Users/akuma/repos/cart-generator/apps/api/prisma/seed)
 - Local Docker stack: [infra/docker/docker-compose.yml](/C:/Users/akuma/repos/cart-generator/infra/docker/docker-compose.yml)
+- Shared Supabase setup: [docs/supabase-database.md](/C:/Users/akuma/repos/cart-generator/docs/supabase-database.md)
 
 ### Documentation
 
@@ -174,24 +175,64 @@ See [LICENSE](/C:/Users/akuma/repos/cart-generator/LICENSE) for details.
 
 ## Workspace Commands
 
+### Prerequisites
+
+Full app development requires:
+
+- Node.js and pnpm
+- Docker Desktop for the local PostgreSQL stack
+- Python 3.11 or newer for the vision sidecar
+- a local `.env` copied from `.env.example`
+
+On Windows, install Python first if `python --version` or `py -3 --version` does not work:
+
+```powershell
+winget install Python.Python.3.11
+```
+
+### Fresh Clone Setup
+
+Use this path when setting up the full app on a new machine or after a clean clone.
+
+On Windows PowerShell:
+
+```powershell
+pnpm setup
+pnpm build
+```
+
+`pnpm setup` installs Node dependencies, creates `.env` from `.env.example` when missing, starts local PostgreSQL, generates Prisma, applies migrations, seeds data, creates `.venv`, and installs the vision dependencies.
+
+Notes:
+
+- `.env` is intentionally ignored. Copy `.env.example` locally, then fill in any real secrets or shared database URLs out of band.
+- `apps/api/generated/prisma` is intentionally ignored. Regenerate it with `pnpm --filter api prisma:generate`; do not commit the generated client.
+- `node_modules`, `.venv`, `.next`, `dist`, Python caches, local datasets, and model checkpoints are local artifacts. Do not commit them to fix another developer's machine.
+- Vision checkpoint folders are tracked under `apps/vision-lab/checkpoints/`, but checkpoint binaries are intentionally ignored. Download shared checkpoints from the team Drive folder into the documented paths in `apps/vision-lab/checkpoints/README.md`.
+- Datasets, imports, previews, and scratch training output under `apps/vision-lab/data/` are local artifacts and should stay out of Git.
+
 Install dependencies:
 
 ```bash
 pnpm install
 ```
 
-Run both apps:
+Run the full app:
 
 ```bash
 pnpm dev
 ```
 
-Run one app:
+Run one app or a reduced stack:
 
 ```bash
 pnpm dev:api
 pnpm dev:web
+pnpm dev:vision
+pnpm dev:main
 ```
+
+`pnpm dev` and `pnpm dev:all` run web, API, and vision-lab together. `pnpm dev:main` is only for working on web/API without the vision sidecar.
 
 Build the workspace:
 
@@ -206,6 +247,49 @@ pnpm lint
 pnpm test
 pnpm typecheck
 ```
+
+### Vision Lab Commands
+
+Create or refresh the repo-local virtual environment and install the base vision dependencies:
+
+```powershell
+pnpm vision:setup
+```
+
+For the optional live webcam path:
+
+```powershell
+pnpm vision:setup:live
+```
+
+Run the FastAPI vision sidecar:
+
+```powershell
+pnpm dev:vision
+```
+
+Run the Streamlit lab:
+
+```powershell
+pnpm vision:streamlit
+```
+
+The setup script creates `.venv` at the repo root. `.venv` is intentionally ignored and should not be committed.
+
+Check whether shared checkpoint files are present:
+
+```powershell
+pnpm vision:checkpoints
+```
+
+Shared checkpoint convention:
+
+- Put base YOLO weights in `apps/vision-lab/checkpoints/base/`.
+- Put ingredient classifier checkpoints in `apps/vision-lab/checkpoints/classifiers/ingredient/<run-name>/best_model.pt`.
+- Put FoodSeg103 segmenter checkpoints in `apps/vision-lab/checkpoints/segmenters/foodseg103/<run-name>/weights/best.pt`.
+- Put ingredient detector checkpoints in `apps/vision-lab/checkpoints/detectors/ingredient/<run-name>/weights/best.pt`.
+
+The folder tree and manifest template are tracked in Git; the checkpoint binaries are shared separately.
 
 ## Local API Setup
 

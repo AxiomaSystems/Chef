@@ -108,13 +108,13 @@ export function ImportClient({ cuisines }: { cuisines: Cuisine[] }) {
 
     return (
       <AppShell topBarTitle="Import Recipe">
-      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-        <div className="mb-8 flex items-center justify-between gap-4">
+      <div className="mx-auto max-w-3xl px-6 pt-6 pb-40 space-y-6">
+        <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
               Recipe imported
             </p>
-            <h1 className="mt-1 text-2xl font-bold text-on-surface">
+            <h1 className="mt-1 text-headline-lg font-bold text-on-surface">
               {recipe.name}
             </h1>
             <div className="mt-2 flex items-center gap-2">
@@ -254,7 +254,7 @@ export function ImportClient({ cuisines }: { cuisines: Cuisine[] }) {
           </div>
         )}
 
-        <div className="mt-8 flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={saveRecipe}
@@ -278,34 +278,48 @@ export function ImportClient({ cuisines }: { cuisines: Cuisine[] }) {
 
   return (
     <AppShell topBarTitle="Import Recipe">
-    <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
-      <div className="mb-10 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-fixed-dim text-on-primary-fixed shadow-sm">
-          <span className="material-symbols-outlined text-[26px]">add_link</span>
-        </div>
-        <h1 className="text-2xl font-bold text-on-surface">Import a Recipe</h1>
-        <p className="mt-2 text-body-md text-on-surface-variant">
-          Paste a link from YouTube, TikTok, or Instagram and Chef will extract
-          the recipe for you.
+    <div className="mx-auto max-w-2xl px-6 pt-6 pb-40 space-y-6">
+      <div>
+        <h1 className="text-headline-lg font-bold text-on-surface">Import a Recipe</h1>
+        <p className="mt-1 text-body-md text-on-surface-variant">
+          Paste a link from YouTube, TikTok, or Instagram and Chef will extract the recipe for you.
         </p>
       </div>
 
       <div className="rounded-[28px] border border-outline-variant/20 bg-white p-6 shadow-sm">
         <div className="mb-4 flex flex-wrap gap-2">
-          {[
-            { icon: "smart_display", label: "YouTube" },
-            { icon: "music_video", label: "TikTok" },
-            { icon: "photo_camera", label: "Instagram" },
-            { icon: "link", label: "Any link" },
-          ].map(({ icon, label }) => (
-            <span
-              key={label}
-              className="flex items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant"
-            >
-              <span className="material-symbols-outlined text-[14px]">{icon}</span>
-              {label}
-            </span>
-          ))}
+          <span className="flex items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
+              <rect width="24" height="24" rx="5" fill="#FF0000" />
+              <path fill="white" d="M9.5 7.5l7 4.5-7 4.5V7.5z" />
+            </svg>
+            YouTube
+          </span>
+          <span className="flex items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.5a8.18 8.18 0 004.78 1.52V6.56a4.85 4.85 0 01-1.01.13z" />
+            </svg>
+            TikTok
+          </span>
+          <span className="flex items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
+              <defs>
+                <linearGradient id="ig-grad" x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#f9ce34" />
+                  <stop offset="0.5" stopColor="#ee2a7b" />
+                  <stop offset="1" stopColor="#6228d7" />
+                </linearGradient>
+              </defs>
+              <rect x="2" y="2" width="20" height="20" rx="6" stroke="url(#ig-grad)" strokeWidth="2" />
+              <circle cx="12" cy="12" r="4.5" stroke="url(#ig-grad)" strokeWidth="2" />
+              <circle cx="17.5" cy="6.5" r="1.2" fill="url(#ig-grad)" />
+            </svg>
+            Instagram
+          </span>
+          <span className="flex items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
+            <span className="material-symbols-outlined text-[14px]">link</span>
+            Any link
+          </span>
         </div>
 
         <div className="space-y-3">
@@ -367,9 +381,8 @@ export function ImportClient({ cuisines }: { cuisines: Cuisine[] }) {
         </div>
       </div>
 
-      <p className="mt-4 text-center text-xs text-outline">
-        YouTube works best. For TikTok and Instagram, pasting the caption or
-        transcript improves accuracy.
+      <p className="text-xs text-outline">
+        YouTube works best. For TikTok and Instagram, pasting the caption or transcript improves accuracy.
       </p>
     </div>
     </AppShell>

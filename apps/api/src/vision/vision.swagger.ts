@@ -1,5 +1,6 @@
 import { applyDecorators } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBody,
   ApiOkResponse,
   ApiOperation,
@@ -12,6 +13,7 @@ import {
   VisionScanResponseDto,
 } from '../common/http/swagger.dto';
 import {
+  badRequestErrorExample,
   visionPipelineExample,
   visionScanRequestExample,
   visionScanResponseExample,
@@ -73,6 +75,20 @@ export const ApiAnalyzeVisionScan = () =>
             scan: {
               summary: 'Vision scan response',
               value: visionScanResponseExample,
+            },
+          },
+        },
+      },
+    }),
+    ApiBadRequestResponse({
+      description: 'Invalid vision scan payload',
+      type: ErrorResponseDto,
+      content: {
+        'application/json': {
+          examples: {
+            invalidVisionScan: {
+              summary: 'Validation error',
+              value: badRequestErrorExample,
             },
           },
         },
