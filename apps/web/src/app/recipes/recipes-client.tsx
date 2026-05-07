@@ -6,18 +6,22 @@ import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { RecipeDetailOverlay } from "@/components/recipes/recipe-detail-overlay";
 import { RecipeCreateModal } from "@/components/recipes/recipe-create-modal";
-import { submitDraftFlowAction, createShoppingCartAction, forkRecipeAction } from "@/app/home-actions";
+import {
+  submitDraftFlowAction,
+  createShoppingCartAction,
+  forkRecipeAction,
+} from "@/app/home-actions";
 import { RecipeImage } from "@/components/ui/recipe-image";
 
 /* ── helpers ────────────────────────────────────────────────────── */
 
 const FAV_STYLES = [
-  { bg: "bg-green-100",  text: "text-green-700",  icon: "eco" },
-  { bg: "bg-orange-100", text: "text-orange-600",  icon: "bolt" },
-  { bg: "bg-teal-100",   text: "text-teal-700",    icon: "spa" },
-  { bg: "bg-purple-100", text: "text-purple-700",  icon: "fitness_center" },
-  { bg: "bg-blue-100",   text: "text-blue-700",    icon: "water_drop" },
-  { bg: "bg-rose-100",   text: "text-rose-600",    icon: "favorite" },
+  { bg: "bg-green-100", text: "text-green-700", icon: "eco" },
+  { bg: "bg-orange-100", text: "text-orange-600", icon: "bolt" },
+  { bg: "bg-teal-100", text: "text-teal-700", icon: "spa" },
+  { bg: "bg-purple-100", text: "text-purple-700", icon: "fitness_center" },
+  { bg: "bg-blue-100", text: "text-blue-700", icon: "water_drop" },
+  { bg: "bg-rose-100", text: "text-rose-600", icon: "favorite" },
 ];
 
 type Tab = "mine" | "public" | "saved";
@@ -37,19 +41,21 @@ export function RecipesClient({
 }) {
   const router = useRouter();
 
-  const [recipes, setRecipes]             = useState(initialRecipes);
-  const [tab, setTab]                     = useState<Tab>("mine");
-  const [search, setSearch]               = useState("");
+  const [recipes, setRecipes] = useState(initialRecipes);
+  const [tab, setTab] = useState<Tab>("mine");
+  const [search, setSearch] = useState("");
   const [activeCuisine, setActiveCuisine] = useState<string | null>(null);
-  const [activeTag, setActiveTag]         = useState<string | null>(null);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<BaseRecipe | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<BaseRecipe | null>(null);
-  const [showCreate, setShowCreate]       = useState(openCreateOnLoad);
-  const [selections, setSelections]       = useState<Map<string, BaseRecipe>>(new Map());
-  const [savingId, setSavingId]           = useState<string | null>(null);
-  const [buildError, setBuildError]       = useState<string | undefined>();
-  const [isBuilding, startBuilding]       = useTransition();
-  const [, startFork]                     = useTransition();
+  const [showCreate, setShowCreate] = useState(openCreateOnLoad);
+  const [selections, setSelections] = useState<Map<string, BaseRecipe>>(
+    new Map(),
+  );
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [buildError, setBuildError] = useState<string | undefined>();
+  const [isBuilding, startBuilding] = useTransition();
+  const [, startFork] = useTransition();
   const recipeGridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,7 +64,9 @@ export function RecipesClient({
     }
   }, [router, openCreateOnLoad]);
 
-  const dietaryTags = tags.filter((t) => t.kind === "dietary_badge").slice(0, 6);
+  const dietaryTags = tags
+    .filter((t) => t.kind === "dietary_badge")
+    .slice(0, 6);
 
   // IDs of system recipes that the user has already forked/saved
   const savedRecipesBySourceId = new Map(
@@ -66,20 +74,32 @@ export function RecipesClient({
       .filter((r) => r.forked_from_recipe_id)
       .map((r) => [r.forked_from_recipe_id!, r]),
   );
-  const savedSourceIds = new Set(
-    savedRecipesBySourceId.keys(),
-  );
+  const savedSourceIds = new Set(savedRecipesBySourceId.keys());
   // User-created recipes (not a system fork, not a system recipe)
-  const isUserOwned   = (r: BaseRecipe) => !!r.owner_user_id && !r.is_system_recipe;
-  const isUserSaved   = (r: BaseRecipe) => !!r.forked_from_recipe_id;
+  const isUserOwned = (r: BaseRecipe) =>
+    !!r.owner_user_id && !r.is_system_recipe;
+  const isUserSaved = (r: BaseRecipe) => !!r.forked_from_recipe_id;
 
   const tabFiltered =
-    tab === "saved" ? recipes.filter(isUserSaved) :
-    tab === "public" ? recipes.filter((r) => !isUserOwned(r) && !isUserSaved(r)) :
-    recipes.filter((r) => isUserOwned(r) && !isUserSaved(r));
+    tab === "saved"
+      ? recipes.filter(isUserSaved)
+      : tab === "public"
+        ? recipes.filter((r) => !isUserOwned(r) && !isUserSaved(r))
+        : recipes.filter((r) => isUserOwned(r) && !isUserSaved(r));
+  const tabCounts: Record<Tab, number> = {
+    mine: recipes.filter((r) => isUserOwned(r) && !isUserSaved(r)).length,
+    public: recipes.filter((r) => !isUserOwned(r) && !isUserSaved(r)).length,
+    saved: recipes.filter(isUserSaved).length,
+  };
+  const tabOptions: { id: Tab; label: string; icon: string }[] = [
+    { id: "mine", label: "My Recipes", icon: "restaurant_menu" },
+    { id: "public", label: "Public Recipes", icon: "public" },
+    { id: "saved", label: "Saved Recipes", icon: "bookmark" },
+  ];
 
   const filtered = tabFiltered.filter((r) => {
-    if (search && !r.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !r.name.toLowerCase().includes(search.toLowerCase()))
+      return false;
     if (activeCuisine && r.cuisine.label !== activeCuisine) return false;
     if (activeTag && !r.tags.some((t) => t.name === activeTag)) return false;
     return true;
@@ -109,7 +129,11 @@ export function RecipesClient({
   }
 
   function removeSelection(id: string) {
-    setSelections((prev) => { const n = new Map(prev); n.delete(id); return n; });
+    setSelections((prev) => {
+      const n = new Map(prev);
+      n.delete(id);
+      return n;
+    });
   }
 
   function handleBuildCart() {
@@ -118,14 +142,29 @@ export function RecipesClient({
     startBuilding(async () => {
       const fd = new FormData();
       fd.set("intent", "generate");
-      fd.set("selections_json", JSON.stringify(
-        Array.from(selections.values()).map((r) => ({ recipe_id: r.id, quantity: 1 })),
-      ));
+      fd.set(
+        "selections_json",
+        JSON.stringify(
+          Array.from(selections.values()).map((r) => ({
+            recipe_id: r.id,
+            quantity: 1,
+          })),
+        ),
+      );
       fd.set("retailer", "kroger");
       const cartResult = await submitDraftFlowAction({}, fd);
-      if (cartResult.error || !cartResult.resourceId) { setBuildError(cartResult.error ?? "Failed."); return; }
-      const scResult = await createShoppingCartAction(cartResult.resourceId, "kroger");
-      if (scResult.error) { setBuildError(scResult.error); return; }
+      if (cartResult.error || !cartResult.resourceId) {
+        setBuildError(cartResult.error ?? "Failed.");
+        return;
+      }
+      const scResult = await createShoppingCartAction(
+        cartResult.resourceId,
+        "kroger",
+      );
+      if (scResult.error) {
+        setBuildError(scResult.error);
+        return;
+      }
       router.push("/shopping");
     });
   }
@@ -135,12 +174,15 @@ export function RecipesClient({
   return (
     <AppShell topBarTitle="Recipes">
       <div className="px-6 pt-6 pb-40 max-w-6xl mx-auto space-y-7">
-
         {/* ── Page header ─────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-headline-lg text-on-surface font-bold">Saved Recipes</h1>
+          <h1 className="text-headline-lg text-on-surface font-bold">
+            Saved Recipes
+          </h1>
           <div className="relative w-full sm:flex-1 sm:max-w-xs">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
+              search
+            </span>
             <input
               type="text"
               placeholder="Search your kitchen…"
@@ -160,51 +202,80 @@ export function RecipesClient({
               className="bg-secondary-container rounded-2xl p-5 flex flex-col gap-3 cursor-pointer hover:brightness-95 transition-all text-left"
             >
               <div className="w-12 h-12 bg-white/60 rounded-xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-[28px] text-on-secondary-container">draw</span>
+                <span className="material-symbols-outlined text-[28px] text-on-secondary-container">
+                  draw
+                </span>
               </div>
               <div>
-                <p className="text-label-lg font-bold text-on-secondary-container">Create own</p>
-                <p className="text-body-sm text-on-secondary-container/70 mt-0.5 leading-snug">Handcraft your unique culinary masterpiece.</p>
+                <p className="text-label-lg font-bold text-on-secondary-container">
+                  Create own
+                </p>
+                <p className="text-body-sm text-on-secondary-container/70 mt-0.5 leading-snug">
+                  Handcraft your unique culinary masterpiece.
+                </p>
               </div>
-              <span className="material-symbols-outlined text-on-secondary-container/60 text-[20px]">arrow_forward</span>
+              <span className="material-symbols-outlined text-on-secondary-container/60 text-[20px]">
+                arrow_forward
+              </span>
             </button>
 
             {/* Public recipes */}
             <button
               onClick={() => {
                 setTab("public");
-                setTimeout(() => recipeGridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                setTimeout(
+                  () =>
+                    recipeGridRef.current?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    }),
+                  50,
+                );
               }}
               className="bg-primary-surface rounded-2xl p-5 flex flex-col gap-3 cursor-pointer hover:brightness-95 transition-all text-left border border-primary-fixed-dim/20"
             >
               <div className="w-12 h-12 bg-primary-fixed-dim/20 rounded-xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-[28px] text-primary">auto_fix_high</span>
+                <span className="material-symbols-outlined text-[28px] text-primary">
+                  auto_fix_high
+                </span>
               </div>
               <div>
-                <p className="text-label-lg font-bold text-on-surface">Public recipes</p>
-                <p className="text-body-sm text-outline mt-0.5 leading-snug">Browse shared recipes and save the ones you like.</p>
+                <p className="text-label-lg font-bold text-on-surface">
+                  Public recipes
+                </p>
+                <p className="text-body-sm text-outline mt-0.5 leading-snug">
+                  Browse shared recipes and save the ones you like.
+                </p>
               </div>
-              <span className="material-symbols-outlined text-outline text-[20px]">arrow_forward</span>
+              <span className="material-symbols-outlined text-outline text-[20px]">
+                arrow_forward
+              </span>
             </button>
           </div>
 
           {/* YOUR FAVS */}
           {dietaryTags.length > 0 && (
             <div className="bg-white rounded-2xl p-5 border border-outline-variant/30 shadow-sm">
-              <p className="text-label-sm text-outline uppercase tracking-widest mb-3">Your Favs</p>
+              <p className="text-label-sm text-outline uppercase tracking-widest mb-3">
+                Your Favs
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 {dietaryTags.slice(0, 4).map((tag, i) => {
-                  const style   = FAV_STYLES[i % FAV_STYLES.length];
+                  const style = FAV_STYLES[i % FAV_STYLES.length];
                   const isActive = activeTag === tag.name;
                   return (
                     <button
                       key={tag.id}
                       onClick={() => setActiveTag(isActive ? null : tag.name)}
                       className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-label-sm font-semibold transition-all ${
-                        isActive ? "bg-primary text-on-primary" : `${style.bg} ${style.text} hover:brightness-95`
+                        isActive
+                          ? "bg-primary text-on-primary"
+                          : `${style.bg} ${style.text} hover:brightness-95`
                       }`}
                     >
-                      <span className="material-symbols-outlined text-[14px]">{style.icon}</span>
+                      <span className="material-symbols-outlined text-[14px]">
+                        {style.icon}
+                      </span>
                       {tag.name}
                     </button>
                   );
@@ -216,24 +287,30 @@ export function RecipesClient({
 
         {/* ── Tabs ─────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="grid w-full grid-cols-3 gap-1 rounded-full bg-surface-container-low p-1 sm:w-auto">
-            {([ ["mine", "My Recipes"], ["public", "Public Recipes"], ["saved", "Saved Recipes"] ] as [Tab, string][]).map(([t, label]) => (
+          <div className="grid w-full grid-cols-3 gap-1.5 rounded-[1.25rem] border border-outline-variant/25 bg-white/70 p-1.5 shadow-sm sm:w-auto">
+            {tabOptions.map(({ id, label, icon }) => (
               <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`min-w-0 rounded-full px-2 py-1.5 text-label-sm font-semibold leading-tight transition-all sm:px-4 ${
-                  tab === t ? "bg-white text-on-surface shadow-sm" : "text-outline hover:text-on-surface"
+                key={id}
+                onClick={() => setTab(id)}
+                className={`flex min-w-0 items-center justify-center gap-1.5 rounded-2xl px-2.5 py-2 text-label-sm font-bold leading-tight transition-all sm:min-w-[138px] sm:px-4 ${
+                  tab === id
+                    ? "bg-primary text-on-primary shadow-sm"
+                    : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
                 }`}
               >
-                <span className="block truncate">{label}</span>
-                {t === "saved" && recipes.filter(isUserSaved).length > 0 && (
-                  <span className="ml-1.5 bg-primary text-on-primary text-[10px] px-1.5 py-0.5 rounded-full">
-                    {recipes.filter(isUserSaved).length}
-                  </span>
-                )}
-                {t === "mine" && recipes.filter((r) => isUserOwned(r) && !isUserSaved(r)).length > 0 && (
-                  <span className="ml-1.5 bg-primary text-on-primary text-[10px] px-1.5 py-0.5 rounded-full">
-                    {recipes.filter((r) => isUserOwned(r) && !isUserSaved(r)).length}
+                <span className="material-symbols-outlined hidden text-[16px] sm:inline-block">
+                  {icon}
+                </span>
+                <span className="truncate">{label}</span>
+                {tabCounts[id] > 0 && (
+                  <span
+                    className={`flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
+                      tab === id
+                        ? "bg-white/22 text-on-primary"
+                        : "bg-primary text-on-primary"
+                    }`}
+                  >
+                    {tabCounts[id]}
                   </span>
                 )}
               </button>
@@ -246,27 +323,50 @@ export function RecipesClient({
               value={activeCuisine ?? ""}
               onChange={(e) => setActiveCuisine(e.target.value || null)}
               className="h-8 pl-3 pr-7 rounded-full border border-outline-variant text-label-sm text-on-surface-variant bg-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
-              style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%2385736c' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center" }}
+              style={{
+                backgroundImage:
+                  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%2385736c' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E\")",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 8px center",
+              }}
             >
               <option value="">Cuisine</option>
-              {cuisines.map((c) => <option key={c.id} value={c.label}>{c.label}</option>)}
+              {cuisines.map((c) => (
+                <option key={c.id} value={c.label}>
+                  {c.label}
+                </option>
+              ))}
             </select>
 
             {activeCuisine && (
-              <button onClick={() => setActiveCuisine(null)} className="flex items-center gap-1 px-3 h-8 rounded-full bg-primary text-on-primary text-label-sm">
-                {activeCuisine} <span className="material-symbols-outlined text-[14px]">close</span>
+              <button
+                onClick={() => setActiveCuisine(null)}
+                className="flex items-center gap-1 px-3 h-8 rounded-full bg-primary text-on-primary text-label-sm"
+              >
+                {activeCuisine}{" "}
+                <span className="material-symbols-outlined text-[14px]">
+                  close
+                </span>
               </button>
             )}
             {activeTag && (
-              <button onClick={() => setActiveTag(null)} className="flex items-center gap-1 px-3 h-8 rounded-full bg-primary text-on-primary text-label-sm">
-                {activeTag} <span className="material-symbols-outlined text-[14px]">close</span>
+              <button
+                onClick={() => setActiveTag(null)}
+                className="flex items-center gap-1 px-3 h-8 rounded-full bg-primary text-on-primary text-label-sm"
+              >
+                {activeTag}{" "}
+                <span className="material-symbols-outlined text-[14px]">
+                  close
+                </span>
               </button>
             )}
 
             <div className="flex items-center gap-1 text-label-sm text-outline">
               <span>Sort by</span>
               <span className="font-semibold text-primary">Most Recent</span>
-              <span className="material-symbols-outlined text-[16px]">keyboard_arrow_down</span>
+              <span className="material-symbols-outlined text-[16px]">
+                keyboard_arrow_down
+              </span>
             </div>
           </div>
         </div>
@@ -276,16 +376,26 @@ export function RecipesClient({
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-20 text-center">
             <span className="material-symbols-outlined text-[48px] text-outline-variant">
-              {tab === "saved" ? "bookmark" : tab === "public" ? "restaurant" : "draw"}
+              {tab === "saved"
+                ? "bookmark"
+                : tab === "public"
+                  ? "restaurant"
+                  : "draw"}
             </span>
             <div>
               <p className="text-label-lg font-semibold text-on-surface">
-                {tab === "saved" ? "No saved recipes yet" : tab === "public" ? "No public recipes found" : "No created recipes yet"}
+                {tab === "saved"
+                  ? "No saved recipes yet"
+                  : tab === "public"
+                    ? "No public recipes found"
+                    : "No created recipes yet"}
               </p>
               <p className="text-body-sm text-outline mt-1">
-                {tab === "saved" ? "Tap the bookmark on any recipe to save it here." :
-                 tab === "public" ? "Try a different filter or search term." :
-                 "Use \u201cCreate own\u201d to build your first recipe."}
+                {tab === "saved"
+                  ? "Tap the bookmark on any recipe to save it here."
+                  : tab === "public"
+                    ? "Try a different filter or search term."
+                    : "Use \u201cCreate own\u201d to build your first recipe."}
               </p>
             </div>
             {tab === "mine" && (
@@ -293,7 +403,9 @@ export function RecipesClient({
                 onClick={() => setShowCreate(true)}
                 className="flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary rounded-full font-semibold text-label-md"
               >
-                <span className="material-symbols-outlined text-[16px]">add</span>
+                <span className="material-symbols-outlined text-[16px]">
+                  add
+                </span>
                 Create Recipe
               </button>
             )}
@@ -301,16 +413,23 @@ export function RecipesClient({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
             {filtered.map((recipe) => {
-              const dietBadge  = recipe.tags.find((t) => t.kind === "dietary_badge");
+              const dietBadge = recipe.tags.find(
+                (t) => t.kind === "dietary_badge",
+              );
               const isSelected = selections.has(recipe.id);
               const savedRecipe = savedRecipesBySourceId.get(recipe.id);
-              const isSaved    = savedSourceIds.has(recipe.id) || isUserSaved(recipe);
-              const isSaving   = savingId === recipe.id;
-              const canSave    = recipe.is_system_recipe && !isSaved;
+              const isSaved =
+                savedSourceIds.has(recipe.id) || isUserSaved(recipe);
+              const isSaving = savingId === recipe.id;
+              const canSave = recipe.is_system_recipe && !isSaved;
               const recipeToOpen = savedRecipe ?? recipe;
 
               return (
-                <div key={recipe.id} className="group cursor-pointer space-y-2" onClick={() => setSelectedRecipe(recipeToOpen)}>
+                <div
+                  key={recipe.id}
+                  className="group cursor-pointer space-y-2"
+                  onClick={() => setSelectedRecipe(recipeToOpen)}
+                >
                   {/* Image */}
                   <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-container">
                     <RecipeImage
@@ -332,13 +451,15 @@ export function RecipesClient({
                         isSaved
                           ? "bg-primary text-on-primary"
                           : canSave
-                          ? "bg-white/90 text-outline-variant hover:text-primary hover:bg-white"
-                          : "bg-white/90 text-outline-variant"
+                            ? "bg-white/90 text-outline-variant hover:text-primary hover:bg-white"
+                            : "bg-white/90 text-outline-variant"
                       }`}
                       aria-label={isSaved ? "Saved" : "Save recipe"}
                     >
                       {isSaving ? (
-                        <span className="material-symbols-outlined text-[16px] animate-spin">refresh</span>
+                        <span className="material-symbols-outlined text-[16px] animate-spin">
+                          refresh
+                        </span>
                       ) : (
                         <span className="material-symbols-outlined text-[16px]">
                           {isSaved ? "bookmark" : "bookmark"}
@@ -350,10 +471,13 @@ export function RecipesClient({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (isSelected) removeSelection(recipe.id); else handleAddToCart(recipe);
+                        if (isSelected) removeSelection(recipe.id);
+                        else handleAddToCart(recipe);
                       }}
                       className={`absolute bottom-2.5 right-2.5 flex h-9 w-9 items-center justify-center rounded-full shadow-sm transition-all ${
-                        isSelected ? "bg-primary text-on-primary" : "bg-white/90 text-outline hover:text-primary"
+                        isSelected
+                          ? "bg-primary text-on-primary"
+                          : "bg-white/90 text-outline hover:text-primary"
                       }`}
                       aria-label="Add to cart"
                     >
@@ -384,12 +508,16 @@ export function RecipesClient({
                     </h3>
                     <p className="text-body-sm text-outline mt-1 flex items-center gap-2">
                       <span className="flex items-center gap-0.5">
-                        <span className="material-symbols-outlined text-[13px]">group</span>
+                        <span className="material-symbols-outlined text-[13px]">
+                          group
+                        </span>
                         {recipe.servings} servings
                       </span>
                       {recipe.nutrition_data?.calories && (
                         <span className="flex items-center gap-0.5">
-                          <span className="material-symbols-outlined text-[13px]">local_fire_department</span>
+                          <span className="material-symbols-outlined text-[13px]">
+                            local_fire_department
+                          </span>
                           {recipe.nutrition_data.calories} kcal
                         </span>
                       )}
@@ -462,7 +590,8 @@ export function RecipesClient({
           <div className="bg-on-surface rounded-2xl shadow-2xl p-4 flex items-center gap-4 w-full max-w-lg pointer-events-auto">
             <div className="flex-1 min-w-0">
               <p className="text-label-lg text-white font-semibold">
-                {selections.size} recipe{selections.size !== 1 ? "s" : ""} selected
+                {selections.size} recipe{selections.size !== 1 ? "s" : ""}{" "}
+                selected
               </p>
               <div className="flex gap-1.5 mt-1 flex-wrap">
                 {Array.from(selections.values()).map((recipe) => (
@@ -471,12 +600,20 @@ export function RecipesClient({
                     onClick={() => removeSelection(recipe.id)}
                     className="flex items-center gap-1 bg-white/10 text-white text-[11px] font-medium px-2 py-0.5 rounded-full hover:bg-white/20 transition-colors"
                   >
-                    {recipe.name.length > 20 ? recipe.name.slice(0, 20) + "…" : recipe.name}
-                    <span className="material-symbols-outlined text-[12px]">close</span>
+                    {recipe.name.length > 20
+                      ? recipe.name.slice(0, 20) + "…"
+                      : recipe.name}
+                    <span className="material-symbols-outlined text-[12px]">
+                      close
+                    </span>
                   </button>
                 ))}
               </div>
-              {buildError && <p className="text-primary-fixed-dim text-body-sm mt-1">{buildError}</p>}
+              {buildError && (
+                <p className="text-primary-fixed-dim text-body-sm mt-1">
+                  {buildError}
+                </p>
+              )}
             </div>
             <button
               onClick={handleBuildCart}
@@ -484,9 +621,19 @@ export function RecipesClient({
               className="shrink-0 bg-primary-fixed-dim text-on-primary-fixed font-semibold text-label-md px-4 py-2.5 rounded-xl hover:bg-primary-fixed active:scale-[0.97] transition-all disabled:opacity-60 flex items-center gap-2"
             >
               {isBuilding ? (
-                <><span className="material-symbols-outlined text-[18px] animate-spin">refresh</span>Building…</>
+                <>
+                  <span className="material-symbols-outlined text-[18px] animate-spin">
+                    refresh
+                  </span>
+                  Building…
+                </>
               ) : (
-                <><span className="material-symbols-outlined text-[18px]">shopping_cart</span>Generate Cart</>
+                <>
+                  <span className="material-symbols-outlined text-[18px]">
+                    shopping_cart
+                  </span>
+                  Generate Cart
+                </>
               )}
             </button>
           </div>
