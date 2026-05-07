@@ -298,6 +298,7 @@ model UserFoodRule {
   @@unique([userId, dedupeKey])
   @@index([userId, kind])
   @@index([userId, strictness])
+  @@index([userId, strictness, createdAt])
   @@index([userId, active, startsAt, expiresAt])
   @@index([ingredientId])
   @@index([tagId])
@@ -321,6 +322,7 @@ model UserGoal {
   @@unique([userId, goal, timeframe])
   @@index([userId, active, priority])
   @@index([userId, active, startsAt, expiresAt])
+  @@index([userId, priority, createdAt])
 }
 
 model UserPantryStaple {
@@ -335,6 +337,7 @@ model UserPantryStaple {
 
   @@id([userId, ingredientId])
   @@index([ingredientId])
+  @@index([userId, createdAt])
 }
 
 model RecipeTag {
@@ -397,6 +400,7 @@ model KitchenInventoryItem {
 
   @@unique([userId, ingredientId])
   @@index([userId, createdAt])
+  @@index([userId, updatedAt])
   @@index([ingredientId])
 }
 
