@@ -1,6 +1,7 @@
 # Integration Branch Commands & Quick Checklist
 
 ## Git commands (create integration branch, merge feature branches)
+
 ```bash
 # start from latest main
 git fetch origin
@@ -24,12 +25,14 @@ gh pr create --base staging/week7 --head staging/week7 --title "Staging: integra
 ```
 
 ## Quick Railway / Vercel checks
+
 - During Week 7 staging, confirm Railway and Vercel have preview/staging deployments for `staging/week7`.
 - After convergence, confirm Railway production and Vercel production both deploy from `main`.
 - Ensure staging env vars mirror production where safe (secrets omitted) or use staging-specific values.
 - Set `RUN_DB_SEED_ON_STARTUP=true` only for demo/staging API services that intentionally need seed data on boot.
 
 ## Short checklist for the UI engineer (paste into PR description)
+
 - [ ] Build succeeds locally (`pnpm install && pnpm --filter api build && pnpm --filter web build`)
 - [ ] CI passes on the PR
 - [ ] Staging deploys on Vercel + Railway

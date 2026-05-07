@@ -1,4 +1,4 @@
-# Local Dev Setup (Week 7 Stabilization)
+# Local Dev Setup
 
 Short setup guide for **web + API first** (vision optional).
 
@@ -135,7 +135,14 @@ Expected classifier path pattern:
 
 - Railway/API and Vercel/Web must use their own platform env vars.
 - Do **not** assume local `.env` exists in deploy.
+- Railway/API deploys from the root `Dockerfile`.
+- Railway/API production source is repo `AxiomaSystems/Chef`, branch `main`, with no root directory override.
+- Railway/API should keep custom start command empty and use the Dockerfile `CMD`.
+- Railway/API should use `/ready` as the healthcheck path.
+- Railway/API should enable Wait for CI before automatic production deploys.
 - Railway/API should set `RUN_DB_SEED_ON_STARTUP=true` only for demo/staging environments that intentionally need seed data on boot.
 - Vercel/Web needs `API_BASE_URL` pointed at the deployed API `/api/v1` base URL.
+- Vercel/Web production source is branch `main`, root directory `apps/web`.
+- The production frontend domain is `chef.postigo.sh`; do not assign that domain to the Railway API service.
 - Optional web integrations such as `UNSPLASH_ACCESS_KEY`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, and `NEXT_PUBLIC_ELEVENLABS_AGENT_ID` should be configured in Vercel only when the corresponding UI feature is enabled for testing.
 - Real vision media scans need a deployed Python sidecar and `VISION_API_BASE_URL`; otherwise the product should treat vision as mock/optional.

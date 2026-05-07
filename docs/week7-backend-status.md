@@ -140,6 +140,8 @@ Purpose:
 Created:
 
 - `.github/workflows/api-baseline.yml`
+- `.github/workflows/web-baseline.yml`
+- `.github/workflows/vision-baseline.yml`
 
 Current purpose:
 
@@ -155,6 +157,12 @@ Current trigger policy:
 
 This was narrowed intentionally so CI does not fire on every branch push.
 
+Current status:
+
+- API baseline is green on `main`
+- web baseline is green on `main`
+- vision baseline is green on `main`
+
 ### 9. Branching and deploy posture updated
 
 Updated:
@@ -163,10 +171,18 @@ Updated:
 
 Current direction:
 
-- `main` should become the stable shared baseline
+- `main` is the stable shared baseline
 - feature work should happen in short-lived personal branches
 - preview deploys can continue on branches/PRs
 - production should come from `main`
+
+Production status:
+
+- Vercel web production deploys from `main`
+- Railway API production deploys from `main`
+- Railway API uses the root `Dockerfile`
+- Railway API healthcheck path should be `/ready`
+- Railway Wait for CI should remain enabled
 
 ### 10. Frontend handoff for backend route drift
 
@@ -200,22 +216,22 @@ The exact GitHub Actions environment can still reveal Linux-specific or CI-speci
 - major runtime failure modes are easier to understand
 - API route standards are documented
 - CI baseline exists
-- branch policy now points toward `main` as the stable branch
+- branch policy now uses `main` as the stable production branch
+- Vercel and Railway are aligned to `main`
 
 ### Still transitional
 
-- first GitHub Actions runs may still expose clean-environment gaps
-- Vercel/GitHub integration behavior still needs explicit team confirmation
 - legacy demo branches still exist and should be cleaned up intentionally later
+- frontend and backend may still drift if route/payload changes are not documented in PRs
+- CDN/storage and email confirmation remain separate future slices
 
 ## Recommended Immediate Next Steps
 
-1. make sure stable work is merged into `main`
-2. set `main` as the default branch in GitHub
-3. protect `main` with required CI
-4. confirm Vercel production branch is `main`
-5. keep preview deploys for PRs/branches
-6. clean up legacy integration branches only after confirming nobody still depends on them
+1. protect `main` with required CI if not already enforced
+2. keep preview deploys for PRs/branches
+3. keep Railway Wait for CI enabled
+4. clean up legacy integration branches only after confirming nobody still depends on them
+5. document any route, schema, env, or deploy behavior changes in the same PR that changes code
 
 ## Bottom Line
 

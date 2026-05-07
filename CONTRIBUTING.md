@@ -2,12 +2,17 @@
 
 ## Branches
 
-- `main`: stable/deployable branch. No direct pushes.
-- `dev`: active integration branch.
-- `demo/*`: demo-specific snapshots.
-- `staging/*`: sprint or weekly integration branches.
-- `integration/*`: temporary integration branches.
+- `main`: stable production branch. Branch from it by default.
 - `piero/*`, `enoch/*`, `gallo/*`, `ahmad/*`: individual work branches.
+- `spike/*`: experiments or research that may not merge.
+- `staging/*` or `integration/*`: temporary integration branches only when the team explicitly needs one.
+- `demo/*`: legacy/demo snapshots. Do not use as a default base for new work.
+
+Production deploys come from `main`:
+
+- Vercel deploys the web app from `main`.
+- Railway deploys the API from `main` after CI succeeds.
+- PRs and feature branches may have previews, but they are not production truth.
 
 ## Commit format
 
@@ -31,10 +36,11 @@ Examples:
 
 ## PR expectations
 
-Every integration PR should include:
+Every PR should include:
 
 - what changed
-- branches or commits integrated
 - risky areas
 - commands run
 - remaining issues
+
+Integration PRs should also list branches or commits integrated.
