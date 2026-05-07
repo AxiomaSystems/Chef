@@ -342,12 +342,17 @@ export class CartService {
       computation,
       persistedReview?.items ?? [],
     );
-    const ingredientsToBuy = reviewedComputation.filter(
-      (ingredient) =>
-        !ingredient.in_kitchen &&
-        ingredient.review_action !== 'already_have' &&
-        ingredient.review_action !== 'skip',
-    );
+    const ingredientsToBuy = reviewedComputation
+      .filter(
+        (ingredient) =>
+          ingredient.review_action !== 'already_have' &&
+          ingredient.review_action !== 'skip' &&
+          (ingredient.remaining_to_buy ?? ingredient.total_amount) > 0,
+      )
+      .map((ingredient) => ({
+        ...ingredient,
+        total_amount: ingredient.remaining_to_buy ?? ingredient.total_amount,
+      }));
     const searchContext = this.buildRetailerSearchContext(
       input.retailer,
       actor.preferredZipCode,
@@ -513,15 +518,39 @@ export class CartService {
       return overview;
     }
 
-    const inventorySlugs =
-      await this.ingredientsService.listInventoryIngredientSlugs(userId);
+    const inventoryItems = await this.ingredientsService.listInventory(userId);
+    const inventoryBySlug = new Map(
+      inventoryItems.map((item) => [
+        this.ingredientsService.normalizeSlug(item.ingredient.canonical_name),
+        item,
+      ]),
+    );
 
-    return overview.map((ingredient) => ({
-      ...ingredient,
-      in_kitchen: inventorySlugs.has(
+    return overview.map((ingredient) => {
+      const inventoryItem = inventoryBySlug.get(
         this.ingredientsService.normalizeSlug(ingredient.canonical_ingredient),
-      ),
-    }));
+      );
+      const inventoryAmount = inventoryItem?.estimated_amount;
+      const inventoryUnit = inventoryItem?.unit?.trim() || undefined;
+      const remaining =
+        inventoryItem && inventoryAmount === undefined
+          ? { remainingToBuy: 0, deductionPossible: false }
+          : this.calculateRemainingToBuy(
+              ingredient.total_amount,
+              ingredient.unit,
+              inventoryAmount,
+              inventoryUnit,
+            );
+
+      return {
+        ...ingredient,
+        in_kitchen: Boolean(inventoryItem),
+        inventory_amount: inventoryAmount,
+        inventory_unit: inventoryUnit,
+        remaining_to_buy: remaining.remainingToBuy,
+        deduction_possible: remaining.deductionPossible,
+      };
+    });
   }
 
   private applyIngredientReview(
@@ -548,6 +577,7 @@ export class CartService {
           ...ingredient,
           in_kitchen: true,
           review_action: review.action,
+          remaining_to_buy: 0,
         };
       }
 
@@ -562,6 +592,15 @@ export class CartService {
           review_action: review.action,
           reviewed_amount: reviewedAmount,
           reviewed_unit: reviewedUnit,
+          remaining_to_buy:
+            ingredient.deduction_possible && ingredient.inventory_amount !== undefined
+              ? this.calculateRemainingToBuy(
+                  reviewedAmount,
+                  reviewedUnit,
+                  ingredient.inventory_amount,
+                  ingredient.inventory_unit,
+                ).remainingToBuy
+              : reviewedAmount,
         };
       }
 
@@ -580,6 +619,97 @@ export class CartService {
     return `${item.canonical_ingredient.trim().toLowerCase()}::${item.unit
       .trim()
       .toLowerCase()}`;
+  }
+
+  private calculateRemainingToBuy(
+    neededAmount: number,
+    neededUnit: string,
+    inventoryAmount?: number,
+    inventoryUnit?: string,
+  ): { remainingToBuy: number; deductionPossible: boolean } {
+    if (inventoryAmount === undefined) {
+      return { remainingToBuy: neededAmount, deductionPossible: false };
+    }
+
+    const convertedInventoryAmount = this.convertAmount(
+      inventoryAmount,
+      inventoryUnit,
+      neededUnit,
+    );
+
+    if (convertedInventoryAmount === undefined) {
+      return { remainingToBuy: neededAmount, deductionPossible: false };
+    }
+
+    return {
+      remainingToBuy: Math.max(neededAmount - convertedInventoryAmount, 0),
+      deductionPossible: true,
+    };
+  }
+
+  private convertAmount(
+    amount: number,
+    fromUnit?: string,
+    toUnit?: string,
+  ): number | undefined {
+    const from = this.normalizeUnit(fromUnit);
+    const to = this.normalizeUnit(toUnit);
+
+    if (from === to) {
+      return amount;
+    }
+
+    const volumeToMl: Record<string, number> = {
+      ml: 1,
+      l: 1000,
+      tsp: 4.92892,
+      tbsp: 14.7868,
+      cup: 236.588,
+    };
+    const weightToG: Record<string, number> = {
+      g: 1,
+      kg: 1000,
+      oz: 28.3495,
+      lb: 453.592,
+    };
+
+    if (volumeToMl[from] && volumeToMl[to]) {
+      return (amount * volumeToMl[from]) / volumeToMl[to];
+    }
+
+    if (weightToG[from] && weightToG[to]) {
+      return (amount * weightToG[from]) / weightToG[to];
+    }
+
+    return undefined;
+  }
+
+  private normalizeUnit(unit?: string): string {
+    const normalized = unit?.trim().toLowerCase() || 'unit';
+    const aliases: Record<string, string> = {
+      liter: 'l',
+      liters: 'l',
+      litre: 'l',
+      litres: 'l',
+      milliliter: 'ml',
+      milliliters: 'ml',
+      teaspoon: 'tsp',
+      teaspoons: 'tsp',
+      tablespoon: 'tbsp',
+      tablespoons: 'tbsp',
+      cups: 'cup',
+      gram: 'g',
+      grams: 'g',
+      kilogram: 'kg',
+      kilograms: 'kg',
+      ounce: 'oz',
+      ounces: 'oz',
+      pound: 'lb',
+      pounds: 'lb',
+      units: 'unit',
+    };
+
+    return aliases[normalized] ?? normalized;
   }
 
   private buildRetailerSearchContext(

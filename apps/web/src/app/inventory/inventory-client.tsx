@@ -5,7 +5,12 @@ import Image from "next/image";
 import type { KitchenInventoryItem } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { CameraModal } from "./camera-modal";
-import { removeInventoryItemAction, createRestockCartAction, addInventoryItemAction } from "./actions";
+import {
+  removeInventoryItemAction,
+  createRestockCartAction,
+  addInventoryItemAction,
+  updateInventoryItemAction,
+} from "./actions";
 import { VisionScanModal } from "./vision-scan-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -15,6 +20,8 @@ type DisplayItem = {
   name: string;
   category: string;
   quantity: string;
+  estimatedAmount?: number;
+  unit?: string;
 };
 
 // ─── Ingredient Catalog ───────────────────────────────────────────────────────
@@ -152,7 +159,7 @@ function toTitleCase(str: string) {
 function realToDisplay(item: KitchenInventoryItem): DisplayItem {
   const amount =
     item.estimated_amount != null
-      ? `${item.estimated_amount}${item.unit ?? ""}`
+      ? `${item.estimated_amount} ${item.unit ?? "unit"}`.trim()
       : "In stock";
   const rawCategory = item.ingredient.category?.trim();
   return {
@@ -160,6 +167,8 @@ function realToDisplay(item: KitchenInventoryItem): DisplayItem {
     name: item.label ?? item.ingredient.canonical_name,
     category: rawCategory ? toTitleCase(rawCategory) : "Other",
     quantity: amount,
+    estimatedAmount: item.estimated_amount,
+    unit: item.unit,
   };
 }
 
@@ -171,12 +180,14 @@ function IngredientPicker({
   embedded = false,
 }: {
   existingNames: Set<string>;
-  onAdd: (name: string) => void;
+  onAdd: (name: string, options?: { estimatedAmount?: number; unit?: string }) => void;
   embedded?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("All");
   const [adding, setAdding] = useState<Set<string>>(new Set());
+  const [amountByName, setAmountByName] = useState<Record<string, string>>({});
+  const [unitByName, setUnitByName] = useState<Record<string, string>>({});
 
   const tabs = ["All", ...INGREDIENT_CATALOG.map((c) => c.category)];
 
@@ -194,8 +205,12 @@ function IngredientPicker({
 
   async function handleCheck(name: string) {
     if (existingNames.has(name.toLowerCase()) || adding.has(name)) return;
+    const parsedAmount = Number(amountByName[name]);
+    const estimatedAmount =
+      Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : undefined;
+    const unit = unitByName[name]?.trim() || undefined;
     setAdding((prev) => new Set(prev).add(name));
-    await onAdd(name);
+    await onAdd(name, { estimatedAmount, unit });
     setAdding((prev) => {
       const next = new Set(prev);
       next.delete(name);
@@ -277,7 +292,7 @@ function IngredientPicker({
                   const inKitchen = existingNames.has(name.toLowerCase());
                   const isAdding = adding.has(name);
                   return (
-                    <label
+                    <div
                       key={name}
                       className={`flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors ${
                         inKitchen
@@ -302,6 +317,35 @@ function IngredientPicker({
                       >
                         {name}
                       </span>
+                      {!inKitchen && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={amountByName[name] ?? ""}
+                            onChange={(e) =>
+                              setAmountByName((prev) => ({
+                                ...prev,
+                                [name]: e.target.value,
+                              }))
+                            }
+                            placeholder="Qty"
+                            className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-white text-xs outline-none focus:border-primary"
+                          />
+                          <input
+                            value={unitByName[name] ?? ""}
+                            onChange={(e) =>
+                              setUnitByName((prev) => ({
+                                ...prev,
+                                [name]: e.target.value,
+                              }))
+                            }
+                            placeholder="unit"
+                            className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-white text-xs outline-none focus:border-primary"
+                          />
+                        </div>
+                      )}
                       {/* Checkbox / state */}
                       {inKitchen ? (
                         <span className="material-symbols-outlined text-primary-fixed-dim text-[20px]">
@@ -319,7 +363,7 @@ function IngredientPicker({
                           className="w-4 h-4 accent-primary-fixed-dim cursor-pointer"
                         />
                       )}
-                    </label>
+                    </div>
                   );
                 })}
               </div>
@@ -337,7 +381,7 @@ function IngredientPickerModal({
   onClose,
 }: {
   existingNames: Set<string>;
-  onAdd: (name: string) => void;
+  onAdd: (name: string, options?: { estimatedAmount?: number; unit?: string }) => void;
   onClose: () => void;
 }) {
   return (
@@ -383,6 +427,9 @@ export function InventoryClient({
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [items, setItems] = useState<DisplayItem[]>(realItems.map(realToDisplay));
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({});
+  const [unitDrafts, setUnitDrafts] = useState<Record<string, string>>({});
   const [restockError, setRestockError] = useState<string | undefined>();
   const [isRestocking, startRestock] = useTransition();
 
@@ -415,8 +462,11 @@ export function InventoryClient({
     return acc;
   }, {});
 
-  async function handlePickerAdd(name: string) {
-    const result = await addInventoryItemAction(name);
+  async function handlePickerAdd(
+    name: string,
+    options?: { estimatedAmount?: number; unit?: string },
+  ) {
+    const result = await addInventoryItemAction(name, options);
     if (result.data) {
       setItems((prev) => [realToDisplay(result.data!), ...prev]);
     }
@@ -434,6 +484,31 @@ export function InventoryClient({
       setRemovingId(null);
     };
     remove();
+  }
+
+  async function handleQuantitySave(item: DisplayItem) {
+    const rawAmount = amountDrafts[item.id] ?? String(item.estimatedAmount ?? "");
+    const parsedAmount = Number(rawAmount);
+    const estimatedAmount =
+      rawAmount.trim() && Number.isFinite(parsedAmount) && parsedAmount >= 0
+        ? parsedAmount
+        : null;
+    const unit = (unitDrafts[item.id] ?? item.unit ?? "").trim() || null;
+
+    setSavingId(item.id);
+    const result = await updateInventoryItemAction(item.id, {
+      estimatedAmount,
+      unit,
+    });
+
+    if (result.data) {
+      const next = realToDisplay(result.data);
+      setItems((prev) => prev.map((entry) => (entry.id === item.id ? next : entry)));
+      setAmountDrafts((prev) => ({ ...prev, [item.id]: String(next.estimatedAmount ?? "") }));
+      setUnitDrafts((prev) => ({ ...prev, [item.id]: next.unit ?? "" }));
+    }
+
+    setSavingId(null);
   }
 
   function handleAddToCart() {
@@ -667,9 +742,40 @@ export function InventoryClient({
                         </div>
 
                         <div className="flex items-center gap-2.5 shrink-0">
-                          <span className="text-sm font-bold text-on-surface">
-                            {item.quantity}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={amountDrafts[item.id] ?? String(item.estimatedAmount ?? "")}
+                              onChange={(e) =>
+                                setAmountDrafts((prev) => ({
+                                  ...prev,
+                                  [item.id]: e.target.value,
+                                }))
+                              }
+                              onBlur={() => void handleQuantitySave(item)}
+                              placeholder="Qty"
+                              className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
+                            />
+                            <input
+                              value={unitDrafts[item.id] ?? item.unit ?? ""}
+                              onChange={(e) =>
+                                setUnitDrafts((prev) => ({
+                                  ...prev,
+                                  [item.id]: e.target.value,
+                                }))
+                              }
+                              onBlur={() => void handleQuantitySave(item)}
+                              placeholder="unit"
+                              className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
+                            />
+                            {savingId === item.id && (
+                              <span className="material-symbols-outlined text-outline text-[16px] animate-spin">
+                                refresh
+                              </span>
+                            )}
+                          </div>
                           <button
                             onClick={() => handleRemove(item.id)}
                             className="p-1 rounded-full text-outline hover:text-error hover:bg-error-container/30 transition-colors"

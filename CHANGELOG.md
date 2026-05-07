@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Inventory page now has an always-visible in-stock ingredient search bar instead of a search toggle button
 - Inventory `Add` action now opens the ingredient catalog in a full-screen modal overlay matching the photo/video scan modal pattern
+- Inventory now supports visible and editable quantity/unit values instead of only showing `In stock`
+- Shopping cart ingredient aggregation now annotates inventory amount, remaining amount to buy, and whether inventory deduction was possible
 
 ### Fixed
 - API build failures due to outdated Prisma client generation
@@ -19,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Vision sidecar FastAPI service setup and startup documentation
 - Comprehensive build verification across all packages
+- Inventory quantity update API via `PATCH /me/kitchen-inventory/:id`
+- Basic cart inventory deduction for matching units and common weight/volume conversions
 
 ## [2026-05-06] - Build Fixes and Vision Service Setup
 
