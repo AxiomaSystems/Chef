@@ -1,23 +1,24 @@
 # Branching Policy - 2026-05-06
 
-This document replaces the earlier demo-branch recommendation.
+This document replaces the earlier demo-branch and staging-branch recommendations.
 
-The repo should now converge toward a simpler model:
+The repo now uses a simple production-trunk model:
 
 - `main` is the stable shared baseline
 - feature work happens in short-lived personal or spike branches
 - preview deploys happen on branches/PRs through Vercel
-- production deploys come from `main`
+- production deploys come from `main` through Vercel and Railway
 
 ## Current Recommendation
 
 Use `main` as the primary branch for the repo.
 
 Why:
+
 - Week 7 backend stabilization has reduced major runtime unknowns
 - API standards and CI baseline now exist
 - long-lived demo branch naming is becoming a source of confusion
-- Vercel production should have one clear source of truth
+- Vercel and Railway production now have one clear source of truth
 
 ## Branch Roles
 
@@ -26,7 +27,8 @@ Why:
 - stable shared baseline
 - branch protection target
 - required CI target
-- production source for Vercel once CI is consistently green
+- production source for Vercel web
+- production source for Railway API
 
 ### `<person>/<topic>`
 
@@ -35,6 +37,7 @@ Why:
 - should merge back through PRs into `main`
 
 Examples:
+
 - `piero/onboarding-backend`
 - `enoch/shopping-editor`
 - `galo/vision-spike`
@@ -46,8 +49,9 @@ Examples:
 
 ### Legacy demo branches
 
-- `demo/2`, `piero/demo2`, and similar branches should be treated as transition-era integration branches
-- do not start new work from them unless the team explicitly decides to keep one temporarily during migration
+- `demo/2`, `piero/demo2`, and similar branches are transition-era integration branches
+- do not start new work from them
+- delete/archive them after confirming nobody still depends on them
 
 ## Deploy Policy
 
@@ -58,9 +62,11 @@ Examples:
 
 ### Production deploys
 
-- production branch should be `main`
+- production branch is `main`
+- Vercel deploys the web app from `main`
+- Railway deploys the API from `main`
+- Railway should wait for GitHub CI before deploying
 - production deploys should come only from changes intentionally merged into `main`
-- if CI is still flaky, delay automatic production deploy until repeated green runs confirm stability
 
 ## Merge Rules
 
@@ -74,23 +80,19 @@ Before merging into `main`, the change should satisfy all of these:
 
 ## Transition Plan
 
-### 1. Stabilize `main`
+The transition to `main` as production trunk is complete. The remaining cleanup is behavioral:
 
-- merge the current stable work back into `main`
-- verify CI against `main`
-- make sure Vercel preview/production settings match the intended branch policy
-
-### 2. Stop expanding legacy integration branches
+### 1. Stop expanding legacy integration branches
 
 - stop opening new work from `demo/2` or `piero/demo2`
 - branch new work from `main`
 
-### 3. Keep divergent experiments explicit
+### 2. Keep divergent experiments explicit
 
 - branches like `ft-yolo_galo` or any large vision spike should be reviewed intentionally
 - do not auto-fold them into `main` without scope review
 
-### 4. Clean up old branches later
+### 3. Clean up old branches later
 
 After confirming nothing active still depends on them:
 
