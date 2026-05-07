@@ -68,6 +68,83 @@ def available_classifier_runs() -> list[Path]:
     return discover_classifier_runs()
 
 
+def default_classifier_run_index(runs: list[Path]) -> int:
+    return next(
+        (
+            index
+            for index, run in enumerate(runs)
+            if run.name == DEFAULT_CLASSIFIER_RUN
+        ),
+        0,
+    )
+
+
+def render_classifier_controls(prefix: str, *, default_enabled: bool = False) -> dict:
+    runs = available_classifier_runs()
+    classify_crops = st.checkbox(
+        "Classify detected crops with ResNet",
+        value=default_enabled and bool(runs),
+        disabled=not runs,
+        key=f"{prefix}_classify_crops",
+        help=(
+            "Benchmark result: keep this off by default. Enable it only to inspect whether "
+            "the crop classifier helps a specific model/image."
+        ),
+    )
+    if runs:
+        selected_run = st.selectbox(
+            "Ingredient classifier checkpoint",
+            options=runs,
+            index=default_classifier_run_index(runs),
+            format_func=lambda path: path.name,
+            disabled=not classify_crops,
+            key=f"{prefix}_classifier_run",
+        )
+        checkpoint_text = st.text_input(
+            "Classifier .pt path",
+            value=str(selected_run / "best_model.pt"),
+            disabled=not classify_crops,
+            key=f"{prefix}_classifier_checkpoint",
+            help="Use a ResNet ingredient classifier checkpoint here, not in the YOLO detector model field.",
+        )
+    else:
+        checkpoint_text = ""
+        st.caption("No classifier checkpoints found under apps/vision-lab/checkpoints/classifiers/ingredient.")
+
+    top_k = st.slider(
+        "Classifier top-k",
+        1,
+        10,
+        5,
+        disabled=not classify_crops,
+        key=f"{prefix}_classifier_top_k",
+    )
+    min_confidence = st.slider(
+        "Relabel confidence threshold",
+        0.0,
+        1.0,
+        0.35,
+        0.05,
+        disabled=not classify_crops,
+        key=f"{prefix}_classifier_min_confidence",
+        help="Below this, the YOLO label stays primary but classifier predictions are still shown in JSON.",
+    )
+    relabel_detections = st.checkbox(
+        "Use classifier label for inventory/tracking",
+        value=False,
+        disabled=not classify_crops,
+        key=f"{prefix}_classifier_relabel_detections",
+        help="The benchmark showed relabeling reduced identity accuracy, so this defaults off.",
+    )
+    return {
+        "enabled": classify_crops,
+        "checkpoint_path": Path(checkpoint_text) if checkpoint_text else None,
+        "top_k": top_k,
+        "min_confidence": min_confidence,
+        "relabel_detections": relabel_detections,
+    }
+
+
 def crop_detection(image: Image.Image, detection) -> Image.Image:
     width, height = image.size
     left = max(0, int(detection.bbox.x * width))
@@ -313,6 +390,7 @@ with st.sidebar:
     detector_name = st.selectbox(
         "Detector",
         options=["mock", "yolo"],
+        index=1,
         help="Use mock for contract testing and YOLO for basic real image detection.",
     )
     yolo_detection_models = available_yolo_detection_models()
@@ -342,6 +420,10 @@ with st.sidebar:
         st.warning(
             "`best_model.pt` is the ResNet crop classifier. Use a YOLO detector `.pt` here, "
             "then enable crop classification inside the BoundingBox tabs."
+        )
+    if detector_name == "yolo":
+        st.info(
+            "Benchmark default: use the v005b Open Images detector first. Keep ResNet crop classification off unless you are testing it deliberately."
         )
     pipeline = VisionPipeline(detector_name=detector_name, model_name=model_name)
     pipeline_config = pipeline.describe_pipeline()
@@ -440,6 +522,8 @@ with tab_bbox_photo:
             0.05,
             help="Higher values can preserve more nearby same-class boxes, which may help when two identical items sit close together.",
         )
+        st.divider()
+        photo_classifier = render_classifier_controls("photo_detection", default_enabled=False)
         run_single = st.button("Run Single-Frame Detection", use_container_width=True)
 
     with right:
@@ -479,11 +563,41 @@ with tab_bbox_photo:
                 st.error(str(exc))
                 st.stop()
 
+            photo_classification = {
+                "enabled": False,
+                "reason": "Crop classification was not requested for this scan.",
+            }
+            if photo_classifier["enabled"]:
+                if photo_classifier["checkpoint_path"] is None:
+                    st.error("Classifier checkpoint path is required.")
+                    st.stop()
+                photo_classification = classify_video_detections(
+                    result=result,
+                    frame_paths={1: image_path} if image_path else {},
+                    checkpoint_path=photo_classifier["checkpoint_path"],
+                    top_k=photo_classifier["top_k"],
+                    min_confidence=photo_classifier["min_confidence"],
+                    relabel_detections=photo_classifier["relabel_detections"],
+                )
+                refresh_scan_summary(result)
+
             st.subheader("Summary")
             metric_a, metric_b, metric_c = st.columns(3)
             metric_a.metric("Detections", result.summary.detection_count)
             metric_b.metric("Track", result.summary.track_candidate_count)
             metric_c.metric("Review", result.summary.review_candidate_count)
+            if photo_classification["enabled"]:
+                class_a, class_b = st.columns(2)
+                class_a.metric(
+                    "Classified crops",
+                    photo_classification["classified_detection_count"],
+                )
+                class_b.metric(
+                    "Relabeled detections",
+                    photo_classification["relabeled_detection_count"],
+                )
+            else:
+                st.caption(photo_classification["reason"])
 
             detections = result.frames[0].detections
             if pipeline_version == "v2":
@@ -569,6 +683,7 @@ with tab_bbox_photo:
 
             st.subheader("Response JSON")
             photo_payload = result.to_dict()
+            photo_payload["classification"] = photo_classification
             photo_payload["pipeline_resolution"] = versioned_result.to_dict()
             st.json(photo_payload, expanded=2)
 
@@ -1322,68 +1437,7 @@ with tab_bbox_video:
                 help="Raise this when identical nearby items get merged into one box.",
             )
             st.divider()
-            video_classifier_runs = available_classifier_runs()
-            classify_video_crops = st.checkbox(
-                "Classify detected crops",
-                value=bool(video_classifier_runs),
-                disabled=not video_classifier_runs,
-                help="YOLO finds boxes. The ingredient classifier can relabel each detected crop with food-specific labels.",
-            )
-            if video_classifier_runs:
-                default_video_run_index = next(
-                    (
-                        index
-                        for index, path in enumerate(video_classifier_runs)
-                        if path.name == DEFAULT_CLASSIFIER_RUN
-                    ),
-                    0,
-                )
-                selected_video_classifier_run = st.selectbox(
-                    "Ingredient classifier checkpoint",
-                    options=video_classifier_runs,
-                    index=default_video_run_index,
-                    format_func=lambda path: path.name,
-                    disabled=not classify_video_crops,
-                    key="video_classifier_run",
-                )
-                video_classifier_checkpoint_text = st.text_input(
-                    "Classifier .pt path",
-                    value=str(selected_video_classifier_run / "best_model.pt"),
-                    disabled=not classify_video_crops,
-                    key="video_classifier_checkpoint",
-                    help="Use a ResNet ingredient classifier checkpoint here, not in the YOLO detector model field.",
-                )
-            else:
-                selected_video_classifier_run = None
-                video_classifier_checkpoint_text = ""
-                st.caption(
-                    "No classifier checkpoints found under apps/vision-lab/checkpoints/classifiers/ingredient."
-                )
-            video_classifier_top_k = st.slider(
-                "Classifier top-k",
-                1,
-                10,
-                5,
-                disabled=not classify_video_crops,
-                key="video_classifier_top_k",
-            )
-            video_classifier_min_confidence = st.slider(
-                "Relabel confidence threshold",
-                0.0,
-                1.0,
-                0.35,
-                0.05,
-                disabled=not classify_video_crops,
-                key="video_classifier_min_confidence",
-                help="Below this, the YOLO label stays primary but classifier predictions are still shown in JSON.",
-            )
-            relabel_video_detections = st.checkbox(
-                "Use classifier label for tracking",
-                value=True,
-                disabled=not classify_video_crops,
-                key="video_relabel_detections",
-                help="Turn off to track by YOLO labels while still storing classifier top-k predictions.",
-            )
+            video_classifier = render_classifier_controls("video_detection", default_enabled=False)
             run_video = st.button("Run Video Detection", use_container_width=True)
 
         with right:
@@ -1440,14 +1494,17 @@ with tab_bbox_video:
                     "enabled": False,
                     "reason": "Crop classification was not requested for this scan.",
                 }
-                if classify_video_crops:
+                if video_classifier["enabled"]:
+                    if video_classifier["checkpoint_path"] is None:
+                        st.error("Classifier checkpoint path is required.")
+                        st.stop()
                     video_classification = classify_video_detections(
                         result=result,
                         frame_paths=frame_lookup,
-                        checkpoint_path=Path(video_classifier_checkpoint_text),
-                        top_k=video_classifier_top_k,
-                        min_confidence=video_classifier_min_confidence,
-                        relabel_detections=relabel_video_detections,
+                        checkpoint_path=video_classifier["checkpoint_path"],
+                        top_k=video_classifier["top_k"],
+                        min_confidence=video_classifier["min_confidence"],
+                        relabel_detections=video_classifier["relabel_detections"],
                     )
                     refresh_scan_summary(result)
 
@@ -1670,6 +1727,9 @@ with tab_bbox_stream:
         st.info("Live camera is intended for the `yolo` detector. Switch the detector to `yolo` to test webcam streaming.")
     else:
         st.write("Browser camera -> WebRTC -> YOLO -> overlay")
+        st.caption(
+            f"Live uses the active detector model: `{model_name}`. Crop classification is disabled for live streaming to keep frame latency manageable."
+        )
         session_buffer: LiveSessionBuffer = st.session_state.live_session_buffer
         live_col_a, live_col_b = st.columns(2)
         with live_col_a:

@@ -110,6 +110,97 @@
       "stage_1_enabled": true
     },
     {
+      "id": "avocado",
+      "label": "avocado",
+      "aliases": ["avocado", "avocados"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "cucumber",
+      "label": "cucumber",
+      "aliases": ["cucumber", "cucumbers"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "garlic",
+      "label": "garlic",
+      "aliases": ["garlic", "garlic clove", "garlic cloves"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "lemon",
+      "label": "lemon",
+      "aliases": ["lemon", "lemons"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "lettuce",
+      "label": "lettuce",
+      "aliases": ["lettuce"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "mushroom",
+      "label": "mushroom",
+      "aliases": [
+        "mushroom",
+        "mushrooms",
+        "white button mushroom",
+        "white_button_mushroom",
+        "shiitake",
+        "shiitake mushroom",
+        "oyster mushroom",
+        "king oyster mushroom",
+        "enoki mushroom"
+      ],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "pepper",
+      "label": "pepper",
+      "aliases": ["pepper", "peppers", "bell pepper", "chili pepper"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "potato",
+      "label": "potato",
+      "aliases": ["potato", "potatoes"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "strawberry",
+      "label": "strawberry",
+      "aliases": ["strawberry", "strawberries"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
       "id": "egg_carton",
       "label": "egg carton",
       "aliases": ["egg carton", "egg tray", "eggs"],
@@ -182,6 +273,115 @@
       "stage_1_enabled": true
     },
     {
+      "id": "unknown_packaged_food",
+      "label": "unknown packaged food",
+      "aliases": [
+        "unknown packaged food",
+        "packaged food",
+        "canned food",
+        "dried food",
+        "instant noodles",
+        "instant drink",
+        "seasoner",
+        "seasoning",
+        "puffed food"
+      ],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "fresh_produce",
+      "label": "fresh produce",
+      "aliases": ["fresh produce", "produce", "fruit", "vegetable", "ingredient"],
+      "category": "produce",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "produce_item",
+      "label": "produce item",
+      "aliases": ["produce item", "fruit item", "vegetable item"],
+      "category": "produce",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_bag",
+      "label": "food bag",
+      "aliases": ["food bag", "bagged food", "ingredient bag"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_box",
+      "label": "food box",
+      "aliases": ["food box", "boxed food", "ingredient box"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_bottle",
+      "label": "food bottle",
+      "aliases": ["food bottle", "ingredient bottle"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_can",
+      "label": "food can",
+      "aliases": ["food can", "canned food", "ingredient can"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_carton",
+      "label": "food carton",
+      "aliases": ["food carton", "ingredient carton"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_jar",
+      "label": "food jar",
+      "aliases": ["food jar", "ingredient jar"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_packet",
+      "label": "food packet",
+      "aliases": ["food packet", "packaged ingredient"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "prepared_food",
+      "label": "prepared food",
+      "aliases": ["prepared food", "cooked food", "meal", "leftovers"],
+      "category": "prepared_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
       "id": "bottle",
       "label": "bottle",
       "aliases": ["bottle", "water bottle"],
@@ -191,9 +391,54 @@
       "stage_1_enabled": true
     },
     {
+      "id": "can",
+      "label": "can",
+      "aliases": ["can", "tin can"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "box",
+      "label": "box",
+      "aliases": ["box", "cardboard box"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "bag",
+      "label": "bag",
+      "aliases": ["bag", "plastic bag", "paper bag"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "carton",
+      "label": "carton",
+      "aliases": ["carton"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
       "id": "jar",
       "label": "jar",
       "aliases": ["jar", "glass jar"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "packet",
+      "label": "packet",
+      "aliases": ["packet", "package", "pouch"],
       "category": "container",
       "granularity": "generic",
       "inventory_policy": "review",
@@ -232,9 +477,27 @@
       "stage_1_enabled": true
     },
     {
+      "id": "bowl",
+      "label": "bowl",
+      "aliases": ["bowl"],
+      "category": "kitchenware",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "cup",
+      "label": "cup",
+      "aliases": ["cup", "glass"],
+      "category": "kitchenware",
+      "granularity": "generic",
+      "inventory_policy": "ignore",
+      "stage_1_enabled": true
+    },
+    {
       "id": "mug",
       "label": "mug",
-      "aliases": ["mug", "cup"],
+      "aliases": ["mug"],
       "category": "kitchenware",
       "granularity": "generic",
       "inventory_policy": "ignore",
@@ -274,23 +537,29 @@
       "package": "package",
       "pouch": "pouch"
     },
-    "source_label_overrides": {
-      "bag of flour": {
-        "class_id": "flour_bag",
-        "package": "bag"
-      },
+      "source_label_overrides": {
+        "bag of flour": {
+          "class_id": "flour_bag",
+          "package": "bag"
+        },
       "bag of rice": {
         "class_id": "rice_bag",
         "package": "bag"
       },
       "cereal": "cereal_box",
-      "cereal box": {
-        "class_id": "cereal_box",
-        "package": "box"
-      },
-      "egg tray": "egg_carton",
-      "eggs": "egg_carton",
-      "flour": "flour_bag",
+        "cereal box": {
+          "class_id": "cereal_box",
+          "package": "box"
+        },
+        "canned food": {
+          "class_id": "unknown_packaged_food",
+          "package": "can"
+        },
+        "dried food": "unknown_packaged_food",
+        "dried fruit": "unknown_packaged_food",
+        "egg tray": "egg_carton",
+        "eggs": "egg_carton",
+        "flour": "flour_bag",
       "flour bag": {
         "class_id": "flour_bag",
         "package": "bag"
@@ -300,18 +569,23 @@
         "class_id": "milk_carton",
         "package": "carton"
       },
-      "milk jug": {
-        "class_id": "milk_carton",
-        "package": "jug"
-      },
-      "oil bottle": "olive_oil_bottle",
-      "rice": "rice_bag",
-      "rice bag": {
-        "class_id": "rice_bag",
-        "package": "bag"
-      },
-      "seasoning bottle": "spice_bottle",
-      "spice jar": "spice_bottle",
+        "milk jug": {
+          "class_id": "milk_carton",
+          "package": "jug"
+        },
+        "oil bottle": "olive_oil_bottle",
+        "instant drink": "unknown_packaged_food",
+        "instant noodles": "unknown_packaged_food",
+        "packaged food": "unknown_packaged_food",
+        "puffed food": "unknown_packaged_food",
+        "rice": "rice_bag",
+        "rice bag": {
+          "class_id": "rice_bag",
+          "package": "bag"
+        },
+        "seasoning bottle": "spice_bottle",
+        "seasoner": "spice_bottle",
+        "spice jar": "spice_bottle",
       "tomato jar": {
         "class_id": "tomato",
         "package": "jar"
@@ -328,9 +602,9 @@
       "banana": "banana",
       "bottle": "bottle",
       "broccoli": "broccoli",
-      "bowl": "container",
+      "bowl": "bowl",
       "carrot": "carrot",
-      "cup": "mug",
+      "cup": "cup",
       "fork": "utensil",
       "knife": "utensil",
       "orange": "orange",

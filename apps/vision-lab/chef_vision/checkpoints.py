@@ -15,7 +15,7 @@ LEGACY_INGREDIENT_CLASSIFIER_RUNS_DIR = LEGACY_DATA_DIR / "ingredient_classifier
 LEGACY_FOODSEG_SEGMENTER_RUNS_DIR = LEGACY_DATA_DIR / "foodseg103_segmenter_runs"
 
 DEFAULT_CLASSIFIER_RUN = "resnet18_ingredient_crops_5000_modal_frozen_v2"
-DEFAULT_INGREDIENT_DETECTOR_RUN = "yolo11n_ingredient_detector_modal"
+DEFAULT_INGREDIENT_DETECTOR_RUN = "yolo11n_ingredient_detector_chef-detector-v005b-openimages-filtered"
 DEFAULT_FOODSEG_SEGMENTER_RUN = "yolo11n_foodseg103_segmenter_modal"
 
 

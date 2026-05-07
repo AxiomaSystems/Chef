@@ -73,9 +73,13 @@ Next inventory UI
   -> Nest /api/v1/vision/detect/media
   -> Python FastAPI sidecar
   -> YOLO object crop proposals
-  -> crop classifier top-k predictions
   -> grouped detections, crop thumbnails, top-k picker, and annotated frame
 ```
+
+The current detector convention is YOLO11 through the Python sidecar default, currently resolving to `yolo11n_ingredient_detector_chef-detector-v005b-openimages-filtered` when that checkpoint is present.
+The current crop-classifier convention is `resnet18_ingredient_crops_5000_modal_frozen_v2`.
+
+In the product UI, photo and video scans send YOLO detections through that ResNet18 crop classifier for top-k review suggestions, with a conservative relabel threshold. Live camera scans keep the classifier off while streaming so the user can start once, continuously see YOLO boxes, stop, and then review generic detections such as bottles, cans, jars, and containers before adding anything.
 
 The UI remains a review workflow. It shows the user what was found and lets them add selected items instead of automatically writing raw detections into inventory.
 
@@ -101,7 +105,7 @@ The Python lab currently extends that basic detection-only path with:
 ```text
 image | video | live stream
   -> YOLO detections
-  -> optional classifier crop ranking
+  -> optional classifier crop ranking for lab experiments
   -> provisional tracks
   -> distinct-instance estimates
   -> resolved items
@@ -147,6 +151,10 @@ The Python lab currently uses inventory-aware overlay colors:
 - green: new trackable item
 - yellow: review item
 - gray: ignored item
+
+Annotated bounding-box images are rendered by `apps/vision-lab/chef_vision/render.py`. The renderer uses image-size-aware label text, thicker box outlines, and a TrueType font fallback so labels remain readable in Streamlit and in the product inventory scan modal.
+
+The product inventory modal shows the annotated frame in the normal scan flow and provides an inspect view for opening that frame at a larger scrollable size. This is intentionally a product UI affordance; model labels should not be shrunk into unreadable badges in the review workflow.
 
 This is a practical MVP rule set. It is still mostly label-based rather than true physical-object identity.
 

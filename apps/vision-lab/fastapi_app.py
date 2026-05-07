@@ -362,7 +362,7 @@ def detect_media(
     media_kind: str = Form("photo"),
     detector: str = Form("yolo"),
     model_name: str = Form(DEFAULT_DETECTION_MODEL),
-    classify_crops: bool = Form(True),
+    classify_crops: bool = Form(False),
     classifier_run: str = Form(DEFAULT_CLASSIFIER_RUN),
     classifier_checkpoint: str | None = Form(None),
     classifier_top_k: int = Form(5),

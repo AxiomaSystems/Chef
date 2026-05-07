@@ -64,6 +64,22 @@ Review the generated `label_map_report.json`. If labels are excluded, create a r
   --output apps\vision-lab\data\training-builds\detector\chef-detector-v002\canonical_label_review.json
 ```
 
+## Overnight Starter Pipeline
+
+For the current detector-recall push, use:
+
+```powershell
+.\apps\vision-lab\overnight_detector_data_pipeline.ps1
+```
+
+Add `-TrainOnModal` only when you want the script to spend Modal GPU credits:
+
+```powershell
+.\apps\vision-lab\overnight_detector_data_pipeline.ps1 -TrainOnModal
+```
+
+See `docs/vision-dataset-overnight-run.md` for the exact sources and morning review checklist.
+
 ## Canonical Modal Volume Layout
 
 The Modal volume mirrors the same vocabulary:
@@ -79,6 +95,19 @@ The Modal volume mirrors the same vocabulary:
 ```
 
 After changing to this layout, re-run the relevant `--action upload` command before training so Modal has the dataset in the canonical location.
+
+## Open Images v005 Benchmark
+
+Use `docs/vision-openimages-benchmark.md` for the Open Images detector benchmark path.
+
+This path intentionally excludes FoodSeg103 and uses Open Images bounding boxes plus TeenDifferent. It creates a quality report before any Modal training and then supports a 4-way benchmark:
+
+```text
+original YOLO
+original YOLO + ResNet
+Open Images detector
+Open Images detector + ResNet
+```
 
 ## Legacy Local Folders
 

@@ -31,7 +31,10 @@ export async function POST(request: Request) {
   }
 
   outbound.set("detector", getFormString(inbound, "detector") ?? "yolo");
-  outbound.set("classify_crops", "true");
+  outbound.set(
+    "classify_crops",
+    getFormString(inbound, "classify_crops") ?? "false",
+  );
   outbound.set(
     "classifier_top_k",
     getFormString(inbound, "classifier_top_k") ?? "5",

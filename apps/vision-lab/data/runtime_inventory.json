@@ -1,1 +1,112 @@
-[]
+[
+  {
+    "label": "apple",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 3,
+    "max_confidence": 0.73,
+    "source": "single_frame_scan",
+    "first_added_at": "2026-05-06T09:18:29.590587+00:00",
+    "last_seen_at": "2026-05-07T17:52:37.690889+00:00"
+  },
+  {
+    "label": "avocado",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.72,
+    "source": "single_frame_scan",
+    "first_added_at": "2026-05-07T17:29:21.568576+00:00",
+    "last_seen_at": "2026-05-07T17:52:22.360023+00:00"
+  },
+  {
+    "label": "broccoli",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 3,
+    "max_confidence": 1.0,
+    "source": "single_frame_scan",
+    "first_added_at": "2026-05-06T09:18:29.590587+00:00",
+    "last_seen_at": "2026-05-07T17:52:37.690889+00:00"
+  },
+  {
+    "label": "cabbage",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.51,
+    "source": "single_frame_scan",
+    "first_added_at": "2026-05-06T18:14:14.144055+00:00",
+    "last_seen_at": "2026-05-06T18:14:14.144055+00:00"
+  },
+  {
+    "label": "carrot",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 4,
+    "max_confidence": 0.8,
+    "source": "live_session",
+    "first_added_at": "2026-05-07T17:51:50.815240+00:00",
+    "last_seen_at": "2026-05-07T17:51:50.815240+00:00"
+  },
+  {
+    "label": "cilantro",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.74,
+    "source": "single_frame_scan",
+    "first_added_at": "2026-05-07T17:29:21.568576+00:00",
+    "last_seen_at": "2026-05-07T17:52:22.360023+00:00"
+  },
+  {
+    "label": "cucumber",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 10,
+    "max_confidence": 0.92,
+    "source": "live_session",
+    "first_added_at": "2026-05-07T17:51:50.815240+00:00",
+    "last_seen_at": "2026-05-07T17:51:50.815240+00:00"
+  },
+  {
+    "label": "jalapeno",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.52,
+    "source": "single_frame_scan",
+    "first_added_at": "2026-05-07T17:30:03.484840+00:00",
+    "last_seen_at": "2026-05-07T17:52:22.360023+00:00"
+  },
+  {
+    "label": "orange",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.68,
+    "source": "live_session",
+    "first_added_at": "2026-05-07T17:51:50.815240+00:00",
+    "last_seen_at": "2026-05-07T17:51:50.815240+00:00"
+  },
+  {
+    "label": "pepper",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.29,
+    "source": "live_session",
+    "first_added_at": "2026-05-07T17:51:50.815240+00:00",
+    "last_seen_at": "2026-05-07T17:51:50.815240+00:00"
+  },
+  {
+    "label": "tomato",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.3,
+    "source": "live_session",
+    "first_added_at": "2026-05-07T17:51:50.815240+00:00",
+    "last_seen_at": "2026-05-07T17:51:50.815240+00:00"
+  }
+]

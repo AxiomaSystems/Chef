@@ -157,16 +157,40 @@ def _resolve_ontology_entry(raw_label: str) -> dict:
     if mapped_id:
         return next(entry for entry in ONTOLOGY if entry["id"] == mapped_id)
 
-    normalized_label = raw_label.lower().strip()
+    normalized_label = _normalize_label(raw_label)
     for entry in ONTOLOGY:
-        if any(alias == normalized_label for alias in entry["aliases"]):
+        aliases = [entry["id"], entry["label"], *entry.get("aliases", [])]
+        if any(_normalize_label(alias) == normalized_label for alias in aliases):
             return entry
 
     if "bottle" in normalized_label:
         return next(entry for entry in ONTOLOGY if entry["id"] == "bottle")
-    if "cup" in normalized_label or "mug" in normalized_label:
+    if "jar" in normalized_label:
+        return next(entry for entry in ONTOLOGY if entry["id"] == "jar")
+    if "can" in normalized_label:
+        return next(entry for entry in ONTOLOGY if entry["id"] == "can")
+    if "box" in normalized_label:
+        return next(entry for entry in ONTOLOGY if entry["id"] == "box")
+    if "bag" in normalized_label:
+        return next(entry for entry in ONTOLOGY if entry["id"] == "bag")
+    if "carton" in normalized_label:
+        return next(entry for entry in ONTOLOGY if entry["id"] == "carton")
+    if "packet" in normalized_label or "package" in normalized_label or "pouch" in normalized_label:
+        return next(entry for entry in ONTOLOGY if entry["id"] == "packet")
+    if "bowl" in normalized_label:
+        return next(entry for entry in ONTOLOGY if entry["id"] == "bowl")
+    if "cup" in normalized_label or "glass" in normalized_label:
+        return next(entry for entry in ONTOLOGY if entry["id"] == "cup")
+    if "mug" in normalized_label:
         return next(entry for entry in ONTOLOGY if entry["id"] == "mug")
     if "plate" in normalized_label:
         return next(entry for entry in ONTOLOGY if entry["id"] == "plate")
 
     return next(entry for entry in ONTOLOGY if entry["id"] == "unknown_kitchen_item")
+
+
+def _normalize_label(label: str) -> str:
+    normalized = label.lower().strip()
+    for character in ("_", "-", "/", "\\", ".", ",", "(", ")"):
+        normalized = normalized.replace(character, " ")
+    return " ".join(normalized.split())
