@@ -66,6 +66,41 @@ export async function addInventoryItemAction(
   return { data: await res.json() };
 }
 
+export async function updateInventoryItemAction(
+  id: string,
+  options: {
+    estimatedAmount?: number | null;
+    unit?: string | null;
+    label?: string | null;
+  },
+): Promise<{ data?: KitchenInventoryItem; error?: string }> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
+  if (!token) return { error: "Not authenticated" };
+
+  const res = await fetch(buildApiUrl(`/me/kitchen-inventory/${id}`), {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      label: options.label,
+      estimated_amount: options.estimatedAmount,
+      unit: options.unit,
+    }),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    return { error: body.message ?? "Failed to update item" };
+  }
+
+  revalidatePath("/inventory");
+  return { data: await res.json() };
+}
+
 export async function removeInventoryItemAction(
   id: string,
 ): Promise<{ error?: string }> {

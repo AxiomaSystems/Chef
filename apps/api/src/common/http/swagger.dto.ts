@@ -782,6 +782,18 @@ export class AggregatedIngredientResponseDto {
   @ApiPropertyOptional({ example: true })
   in_kitchen?: boolean;
 
+  @ApiPropertyOptional({ example: 1 })
+  inventory_amount?: number;
+
+  @ApiPropertyOptional({ example: 'cup' })
+  inventory_unit?: string;
+
+  @ApiPropertyOptional({ example: 3 })
+  remaining_to_buy?: number;
+
+  @ApiPropertyOptional({ example: true })
+  deduction_possible?: boolean;
+
   @ApiPropertyOptional({
     enum: ['buy', 'already_have', 'skip', 'adjust'],
     example: 'adjust',

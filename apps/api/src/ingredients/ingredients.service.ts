@@ -7,6 +7,7 @@ import {
 import type { Ingredient, KitchenInventoryItem } from '@cart/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddKitchenInventoryItemDto } from './dto/add-kitchen-inventory-item.dto';
+import { UpdateKitchenInventoryItemDto } from './dto/update-kitchen-inventory-item.dto';
 import { mapIngredient, mapKitchenInventoryItem } from './ingredients.mapper';
 
 @Injectable()
@@ -130,6 +131,39 @@ export class IngredientsService {
         source: 'manual',
         confidence: 'high',
       },
+      include: { ingredient: true },
+    });
+
+    return mapKitchenInventoryItem(item);
+  }
+
+  async updateInventoryItem(
+    userId: string,
+    id: string,
+    input: UpdateKitchenInventoryItemDto,
+  ): Promise<KitchenInventoryItem> {
+    const updated = await this.prisma.kitchenInventoryItem.updateMany({
+      where: {
+        id,
+        userId,
+      },
+      data: {
+        label:
+          input.label === undefined ? undefined : input.label?.trim() || null,
+        estimatedAmount:
+          input.estimated_amount === undefined
+            ? undefined
+            : input.estimated_amount,
+        unit: input.unit === undefined ? undefined : input.unit?.trim() || null,
+      },
+    });
+
+    if (updated.count === 0) {
+      throw new NotFoundException(`Kitchen inventory item ${id} not found`);
+    }
+
+    const item = await this.prisma.kitchenInventoryItem.findUniqueOrThrow({
+      where: { id },
       include: { ingredient: true },
     });
 

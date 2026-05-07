@@ -124,6 +124,7 @@ describe('CartService', () => {
     } as unknown as jest.Mocked<CartExportService>;
 
     ingredientsService = {
+      listInventory: jest.fn().mockResolvedValue([]),
       listInventoryIngredientSlugs: jest.fn().mockResolvedValue(new Set()),
       normalizeSlug: jest
         .fn()
@@ -328,6 +329,74 @@ describe('CartService', () => {
         canonical_ingredient: 'chicken thigh',
         needed_amount: 400,
       }),
+    );
+  });
+
+  it('deducts matching kitchen inventory quantities before product matching', async () => {
+    cartPersistenceService.findCartById.mockResolvedValue({
+      id: 'cart-1',
+      user_id: 'user-1',
+      name: 'Weekly dinner plan',
+      retailer: 'walmart',
+      selections: [],
+      dishes: [
+        {
+          id: 'recipe-1',
+          name: recipe.name,
+          cuisine: recipe.cuisine.label,
+          servings: recipe.servings,
+          ingredients: recipe.ingredients,
+          steps: recipe.steps,
+          tags: recipe.tags.map((tag) => tag.name),
+        },
+      ],
+      overview: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    ingredientsService.listInventory.mockResolvedValue([
+      {
+        id: 'inventory-rice',
+        user_id: 'user-1',
+        ingredient_id: 'ingredient-rice',
+        ingredient: {
+          id: 'ingredient-rice',
+          canonical_name: 'rice',
+          slug: 'rice',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        estimated_amount: 1,
+        unit: 'cup',
+        source: 'manual',
+        confidence: 'high',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]);
+
+    await service.createShoppingCart('cart-1', { retailer: 'walmart' });
+
+    const createdShoppingCart =
+      cartPersistenceService.createShoppingCart.mock.calls[0][0].shoppingCart;
+    expect(createdShoppingCart.overview).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonical_ingredient: 'rice',
+          inventory_amount: 1,
+          inventory_unit: 'cup',
+          remaining_to_buy: 1,
+          deduction_possible: true,
+        }),
+      ]),
+    );
+    expect(createdShoppingCart.matched_items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonical_ingredient: 'rice',
+          needed_amount: 1,
+        }),
+      ]),
     );
   });
 

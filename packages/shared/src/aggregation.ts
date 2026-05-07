@@ -14,6 +14,10 @@ export type AggregatedIngredient = {
   purchase_unit_hint?: string;
   ingredient_id?: string;
   in_kitchen?: boolean;
+  inventory_amount?: number;
+  inventory_unit?: string;
+  remaining_to_buy?: number;
+  deduction_possible?: boolean;
   review_action?: "buy" | "already_have" | "skip" | "adjust";
   reviewed_amount?: number;
   reviewed_unit?: string;
