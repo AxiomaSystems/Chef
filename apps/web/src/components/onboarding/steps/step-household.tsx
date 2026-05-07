@@ -21,6 +21,8 @@ export function StepHousehold({
   onHouseholdSizeChange,
   onKidsProfileChange,
 }: Props) {
+  const isJustMe = householdSize === "just_me";
+
   return (
     <div className="grid gap-8">
       <div className="grid gap-3">
@@ -41,9 +43,10 @@ export function StepHousehold({
         </p>
         <ChipSingleSelect
           options={KIDS_PROFILE_VALUES}
-          selected={kidsProfile}
+          selected={isJustMe ? "no_kids" : kidsProfile}
           onChange={onKidsProfileChange}
           getLabel={(v) => KIDS_PROFILE_LABELS[v]}
+          isOptionDisabled={() => isJustMe}
         />
       </div>
     </div>

@@ -1,0 +1,40 @@
+name: Web Baseline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  web-baseline:
+    runs-on: ubuntu-latest
+
+    env:
+      API_BASE_URL: http://localhost:3001/api/v1
+      AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS: '30'
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ''
+      NEXT_PUBLIC_ELEVENLABS_AGENT_ID: ''
+      UNSPLASH_ACCESS_KEY: ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @cart/shared build
+
+      - name: Build web
+        run: pnpm --filter web build

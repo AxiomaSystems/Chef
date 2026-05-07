@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'chef-shell-v1';
-const IMAGE_CACHE = 'chef-images-v1';
+const SHELL_CACHE = 'butter-me-shell-v2';
+const IMAGE_CACHE = 'butter-me-images-v2';
 
 // On install, take control immediately
 self.addEventListener('install', () => {

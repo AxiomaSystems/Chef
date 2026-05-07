@@ -19,10 +19,17 @@ export function Sidebar() {
     <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-white border-r border-outline-variant/40 z-50">
       {/* Brand */}
       <div className="px-6 pt-7 pb-5">
-        <Link href="/" className="text-xl font-black text-primary-fixed-dim">
-          Chef
+        <Link href="/" className="flex items-center gap-2.5 text-xl font-black text-primary-fixed-dim">
+          <img
+            src="/icon-192.png"
+            alt=""
+            className="h-9 w-9 rounded-xl"
+            width={36}
+            height={36}
+          />
+          <span>Butter Me</span>
         </Link>
-        <p className="text-outline text-xs mt-0.5">Meal Execution Platform</p>
+        <p className="text-outline text-xs mt-0.5">Meal Planning</p>
       </div>
 
       {/* Nav */}

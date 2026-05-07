@@ -4,6 +4,7 @@ import type {
   CartHandoffResult,
   CreateCartHandoffInput,
 } from './cart-export.types';
+import { getProviderReadiness } from '../providers/provider-readiness';
 
 @Injectable()
 export class CartExportService {
@@ -11,12 +12,20 @@ export class CartExportService {
     private readonly instacartProvider: InstacartCartExportProvider,
   ) {}
 
-  isProviderEnabled(retailer: CreateCartHandoffInput['retailer']) {
+  getProviderReadiness(retailer: CreateCartHandoffInput['retailer']) {
     if (retailer === 'instacart') {
-      return this.instacartProvider.isEnabled();
+      return getProviderReadiness('instacart');
     }
 
-    return true;
+    return {
+      retailer,
+      status: 'configured' as const,
+      isAvailable: true,
+    };
+  }
+
+  isProviderEnabled(retailer: CreateCartHandoffInput['retailer']) {
+    return this.getProviderReadiness(retailer).isAvailable;
   }
 
   async createHandoff(

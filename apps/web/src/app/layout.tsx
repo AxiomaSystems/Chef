@@ -17,17 +17,20 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Chef — Meal Execution Platform",
+  title: "Butter Me - Meal Planning",
   description: "Turn food ideas into meals you can actually cook.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    title: "Chef",
+    title: "Butter Me",
     statusBarStyle: "default",
   },
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icon-192.png",
   },
 };
 

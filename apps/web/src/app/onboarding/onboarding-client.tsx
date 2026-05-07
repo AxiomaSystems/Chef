@@ -94,6 +94,8 @@ type FormState = {
   kids_profile: KidsProfile | null;
   preferred_cuisine_ids: string[];
   preferred_tag_ids: string[];
+  custom_cuisine_labels: string[];
+  dietary_restrictions: string[];
   favorite_proteins: FavoriteProtein[];
   favorite_flavors: FavoriteFlavor[];
   spice_level: SpiceLevel | null;
@@ -121,6 +123,8 @@ function buildInitialState(prefs: UserPreferences | null): FormState {
     kids_profile: prefs?.kids_profile ?? null,
     preferred_cuisine_ids: prefs?.preferred_cuisine_ids ?? [],
     preferred_tag_ids: prefs?.preferred_tag_ids ?? [],
+    custom_cuisine_labels: [],
+    dietary_restrictions: [],
     favorite_proteins: (prefs?.favorite_proteins ?? []) as FavoriteProtein[],
     favorite_flavors: (prefs?.favorite_flavors ?? []) as FavoriteFlavor[],
     spice_level: prefs?.spice_level ?? null,
@@ -191,6 +195,13 @@ function buildMemoryItems(
     items.push(`Uses ${joinLabels(dietaryLabels)} as dietary filters`);
   }
 
+  const restrictionLabels = form.dietary_restrictions.map((slug) =>
+    slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+  );
+  if (restrictionLabels.length > 0) {
+    items.push(`Restrictions: ${joinLabels(restrictionLabels)}`);
+  }
+
   if (favoriteLabels.length > 0 || form.spice_level) {
     const spice = form.spice_level ? SPICE_LEVEL_LABELS[form.spice_level] : null;
     items.push(
@@ -253,6 +264,14 @@ export function OnboardingClient({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function handleHouseholdSizeChange(value: HouseholdSize) {
+    setForm((prev) => ({
+      ...prev,
+      household_size: value,
+      kids_profile: value === "just_me" ? "no_kids" : prev.kids_profile,
+    }));
+  }
+
   function handleNext() {
     if (step < TOTAL_STEPS) {
       setStep((s) => s + 1);
@@ -306,7 +325,7 @@ export function OnboardingClient({
         <StepHousehold
           householdSize={form.household_size}
           kidsProfile={form.kids_profile}
-          onHouseholdSizeChange={(v) => patch("household_size", v)}
+          onHouseholdSizeChange={handleHouseholdSizeChange}
           onKidsProfileChange={(v) => patch("kids_profile", v)}
         />
       )}
@@ -316,8 +335,12 @@ export function OnboardingClient({
           dietaryTags={dietaryTags}
           selectedCuisineIds={form.preferred_cuisine_ids}
           selectedTagIds={form.preferred_tag_ids}
+          customCuisineLabels={form.custom_cuisine_labels}
+          dietaryRestrictions={form.dietary_restrictions}
           onCuisinesChange={(v) => patch("preferred_cuisine_ids", v)}
           onTagsChange={(v) => patch("preferred_tag_ids", v)}
+          onCustomCuisineLabelsChange={(v) => patch("custom_cuisine_labels", v)}
+          onDietaryRestrictionsChange={(v) => patch("dietary_restrictions", v)}
         />
       )}
       {step === 3 && (

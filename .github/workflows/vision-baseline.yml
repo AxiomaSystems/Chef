@@ -1,0 +1,35 @@
+name: Vision Baseline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  vision-baseline:
+    runs-on: ubuntu-latest
+
+    env:
+      PYTHONPATH: apps/vision-lab
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run vision smoke test
+        run: python apps/vision-lab/tests_smoke.py
+
+      - name: Run vision resolver smoke test
+        run: python apps/vision-lab/tests_resolver.py
+
+      - name: Run vision summary smoke test
+        run: python apps/vision-lab/tests_summary.py
+
+      - name: Run vision tracking smoke test
+        run: python apps/vision-lab/tests_tracking.py

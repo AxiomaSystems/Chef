@@ -58,6 +58,21 @@ function decodePcm16Base64(b64: string): Float32Array {
 
 type Mode = "connecting" | "listening" | "speaking" | "disconnected";
 type Props = { recipe: BaseRecipe; onClose: () => void };
+type TimerCommand = "pause" | "resume" | "toggle";
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult:
+    | ((event: {
+        results: ArrayLike<ArrayLike<{ transcript: string }>>;
+      }) => void)
+    | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
 type SignedUrlResponse = { signed_url?: string; error?: string };
 type ElevenLabsToolCall = {
   tool_name?: string;
@@ -87,14 +102,18 @@ function sendWsMessage(ws: WebSocket | null, payload: unknown) {
 export function HandsFreeMode({ recipe, onClose }: Props) {
   const [activeStep, setActiveStep] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isTimerPaused, setIsTimerPaused] = useState(false);
   const [mode, setMode] = useState<Mode>("connecting");
   const [agentMessage, setAgentMessage] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const activeStepRef = useRef(0);
+  const timerPausedRef = useRef(false);
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const scheduledUntilRef = useRef(0); // for gapless audio scheduling
+  const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  const localSpeechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const currentStep = recipe.steps[activeStep] ?? null;
   const { title, body } = currentStep
@@ -109,9 +128,161 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
   }, [activeStep]);
 
   useEffect(() => {
-    const id = window.setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    timerPausedRef.current = isTimerPaused;
+  }, [isTimerPaused]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!timerPausedRef.current) {
+        setElapsedSeconds((s) => s + 1);
+      }
+    }, 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    const SpeechRecognitionCtor =
+      (
+        window as typeof window & {
+          SpeechRecognition?: new () => BrowserSpeechRecognition;
+          webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+        }
+      ).SpeechRecognition ??
+      (
+        window as typeof window & {
+          webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+        }
+      ).webkitSpeechRecognition;
+
+    if (!SpeechRecognitionCtor) return;
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+    recognition.onresult = (event) => {
+      const result = event.results[event.results.length - 1];
+      const transcript = result?.[0]?.transcript?.trim();
+      if (transcript) {
+        handleLocalCommand(transcript);
+      }
+    };
+    recognition.onerror = () => {};
+    recognition.onend = () => {
+      if (wsRef.current?.readyState !== WebSocket.CLOSED) {
+        try {
+          recognition.start();
+        } catch {
+          // Recognition can already be active.
+        }
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch {
+      return;
+    }
+
+    return () => {
+      recognition.onend = null;
+      recognition.stop();
+    };
+  }, []);
+
+  function stopQueuedSpeech() {
+    window.speechSynthesis?.cancel();
+    localSpeechUtteranceRef.current = null;
+    const ctx = audioCtxRef.current;
+    for (const source of audioSourcesRef.current) {
+      try {
+        source.stop();
+      } catch {
+        // The source may have already ended.
+      }
+      source.disconnect();
+    }
+    audioSourcesRef.current.clear();
+    scheduledUntilRef.current = ctx?.currentTime ?? 0;
+    setMode((current) => (current === "disconnected" ? current : "listening"));
+  }
+
+  function speakLocal(text: string) {
+    if (!("speechSynthesis" in window)) return;
+
+    stopQueuedSpeech();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.96;
+    utterance.pitch = 1;
+    localSpeechUtteranceRef.current = utterance;
+    setMode("speaking");
+    utterance.onend = () => {
+      if (localSpeechUtteranceRef.current === utterance) {
+        localSpeechUtteranceRef.current = null;
+        setMode((current) => (current === "disconnected" ? current : "listening"));
+      }
+    };
+    utterance.onerror = utterance.onend;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function setTimerPaused(nextPaused: boolean, announce = true) {
+    timerPausedRef.current = nextPaused;
+    setIsTimerPaused(nextPaused);
+    if (announce) {
+      speakLocal(nextPaused ? "Timer paused." : "Timer resumed.");
+    }
+  }
+
+  function controlTimer(command: TimerCommand, announce = true) {
+    const nextPaused =
+      command === "toggle" ? !timerPausedRef.current : command === "pause";
+    setTimerPaused(nextPaused, announce);
+  }
+
+  function readStep(idx = activeStepRef.current, prefix?: string) {
+    const step = recipe.steps[idx];
+    if (!step) return;
+    speakLocal(
+      `${prefix ? `${prefix} ` : ""}Step ${idx + 1} of ${recipe.steps.length}. ${step.what_to_do}`,
+    );
+  }
+
+  function goToStep(idx: number, announce = true) {
+    const boundedIdx = Math.max(0, Math.min(recipe.steps.length - 1, idx));
+    activeStepRef.current = boundedIdx;
+    setActiveStep(boundedIdx);
+    setElapsedSeconds(0);
+    setTimerPaused(false, false);
+    if (announce) {
+      readStep(boundedIdx);
+    }
+  }
+
+  function handleLocalCommand(text: string) {
+    const command = text.toLowerCase();
+    if (/\b(pause|stop|hold)\b.*\b(time|timer|clock)\b/.test(command)) {
+      controlTimer("pause");
+      return true;
+    }
+    if (/\b(resume|start|continue)\b.*\b(time|timer|clock)\b/.test(command)) {
+      controlTimer("resume");
+      return true;
+    }
+    if (/\b(next|continue|go on)\b/.test(command)) {
+      manualNav("next");
+      return true;
+    }
+    if (/\b(back|previous|go back)\b/.test(command)) {
+      manualNav("prev");
+      return true;
+    }
+    if (/\b(repeat|read that again|say that again)\b/.test(command)) {
+      readStep();
+      return true;
+    }
+    return false;
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -133,6 +304,7 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.connect(ctx.destination);
+      audioSourcesRef.current.add(src);
 
       const startAt = Math.max(ctx.currentTime, scheduledUntilRef.current);
       src.start(startAt);
@@ -140,6 +312,8 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
 
       if (mounted) setMode("speaking");
       src.onended = () => {
+        audioSourcesRef.current.delete(src);
+        src.disconnect();
         if (mounted && ctx.currentTime >= scheduledUntilRef.current - 0.05) {
           setMode("listening");
         }
@@ -154,6 +328,35 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       const ws = wsRef.current;
       if (!ws) return;
 
+      if (name === "timer_control" || name === "control_timer") {
+        const action = String(params.action ?? params.command ?? "");
+        if (action === "pause" || action === "resume" || action === "toggle") {
+          controlTimer(action);
+          sendWsMessage(ws, {
+            type: "client_tool_result",
+            tool_call_id: id,
+            result:
+              action === "pause"
+                ? "Timer paused."
+                : action === "resume"
+                  ? "Timer resumed."
+                  : timerPausedRef.current
+                    ? "Timer paused."
+                    : "Timer resumed.",
+            is_error: false,
+          });
+          return;
+        }
+
+        sendWsMessage(ws, {
+          type: "client_tool_result",
+          tool_call_id: id,
+          result: `Unsupported timer action: ${action}`,
+          is_error: true,
+        });
+        return;
+      }
+
       if (name !== "navigate_step") {
         sendWsMessage(ws, {
           type: "client_tool_result",
@@ -163,6 +366,8 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
         });
         return;
       }
+
+      stopQueuedSpeech();
 
       let idx = activeStepRef.current;
       const dir = params.direction;
@@ -178,10 +383,6 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
         return;
       }
 
-      activeStepRef.current = idx;
-      setActiveStep(idx);
-      setElapsedSeconds(0);
-
       const step = recipe.steps[idx];
       const result = step
         ? `Step ${idx + 1} of ${recipe.steps.length}: ${step.what_to_do}`
@@ -192,9 +393,13 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       sendWsMessage(ws, {
         type: "client_tool_result",
         tool_call_id: id,
-        result: step ? `${result}\nRead this step aloud now.` : result,
+        result,
         is_error: false,
       });
+
+      if (step) {
+        goToStep(idx);
+      }
     }
 
     async function connect() {
@@ -244,6 +449,8 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
               recipe_name: recipe.name,
               servings: String(recipe.servings),
               steps: stepsText,
+              hands_free_client_rules:
+                "Keep responses under 2 short sentences. For next, back, previous, repeat, pause timer, or resume timer, call the client tool instead of explaining. The client reads steps aloud locally for speed.",
             },
           });
 
@@ -265,7 +472,13 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
           processor.connect(silentGain);
           silentGain.connect(ctx.destination);
 
-          if (mounted) setMode("listening");
+          if (mounted) {
+            setMode("listening");
+            window.setTimeout(() => {
+              if (!mounted || activeStepRef.current !== 0) return;
+              readStep(0, "Hands-free is ready. I'll start with");
+            }, 250);
+          }
         };
 
         ws.onmessage = (ev) => {
@@ -287,13 +500,14 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
                 break;
               case "agent_response":
                 if (msg.agent_response_event?.agent_response) {
-                  setAgentMessage(msg.agent_response_event.agent_response);
+                  const responseText = msg.agent_response_event.agent_response;
+                  handleLocalCommand(responseText);
+                  setAgentMessage(responseText);
                   window.setTimeout(() => setAgentMessage(null), 5000);
                 }
                 break;
               case "interruption":
-                scheduledUntilRef.current = ctx.currentTime;
-                setMode("listening");
+                stopQueuedSpeech();
                 break;
               case "ping": {
                 const pingEvent = msg.ping_event;
@@ -370,6 +584,7 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       mounted = false;
       wsRef.current?.close();
       wsRef.current = null;
+      stopQueuedSpeech();
       processor?.disconnect();
       sourceNode?.disconnect();
       silentGain?.disconnect();
@@ -384,13 +599,7 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       dir === "next"
         ? Math.min(recipe.steps.length - 1, activeStep + 1)
         : Math.max(0, activeStep - 1);
-    activeStepRef.current = idx;
-    setActiveStep(idx);
-    setElapsedSeconds(0);
-    sendWsMessage(wsRef.current, {
-      type: "user_message",
-      text: `I tapped the ${dir === "next" ? "next" : "back"} button. Read step ${idx + 1} aloud now: ${recipe.steps[idx]?.what_to_do ?? ""}`,
-    });
+    goToStep(idx);
   }
 
   const modeConfig: Record<
@@ -432,14 +641,28 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-white/10 px-5 py-2 text-center">
-            <p className="font-mono text-2xl font-semibold tabular-nums text-amber-300">
-              {formatTime(elapsedSeconds)}
-            </p>
-            <p className="text-[10px] uppercase tracking-widest text-white/40">
-              This step
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={() => controlTimer("toggle")}
+            aria-label={isTimerPaused ? "Resume timer" : "Pause timer"}
+            className={`flex items-center gap-4 rounded-3xl border px-5 py-3 text-left transition-colors ${
+              isTimerPaused
+                ? "border-amber-300/50 bg-amber-300/15"
+                : "border-white/10 bg-white/10 hover:bg-white/15"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[28px] text-amber-300">
+              {isTimerPaused ? "play_arrow" : "pause"}
+            </span>
+            <span>
+              <span className="block font-mono text-4xl font-black leading-none tabular-nums text-amber-300">
+                {formatTime(elapsedSeconds)}
+              </span>
+              <span className="mt-1 block text-[10px] font-bold uppercase tracking-widest text-white/45">
+                {isTimerPaused ? "Paused" : "This step"}
+              </span>
+            </span>
+          </button>
           <button
             type="button"
             onClick={onClose}

@@ -17,7 +17,9 @@ COPY . .
 
 RUN pnpm --filter api prisma:generate
 RUN pnpm --filter api build
-RUN mkdir -p apps/api/dist/apps/api/generated \
+RUN mkdir -p apps/api/dist/generated \
+  && mkdir -p apps/api/dist/apps/api/generated \
+  && cp -R apps/api/generated/prisma apps/api/dist/generated/prisma \
   && cp -R apps/api/generated/prisma apps/api/dist/apps/api/generated/prisma
 
-CMD ["sh", "-c", "pnpm --dir apps/api exec prisma migrate deploy && pnpm --filter api db:seed && pnpm --filter api start"]
+CMD ["sh", "-c", "pnpm --dir apps/api exec prisma migrate deploy && if [ \"$RUN_DB_SEED_ON_STARTUP\" = \"true\" ]; then pnpm --filter api db:seed; fi && pnpm --filter api start"]

@@ -41,8 +41,57 @@ Agent work in this repo should optimize for:
 - testability
 - maintainability
 - explicit assumptions
+- token efficiency
 
 Agents should prefer boring, correct, well-integrated code over flashy or overbuilt output.
+
+## Token Efficiency
+
+Agents should stay compact and avoid re-reading or restating the same context.
+
+Preferred behavior:
+
+- use `rg` / `rg --files` first to narrow the search before opening files
+- read only the files needed for the current task
+- prefer entrypoints, touched files, diffs, and referenced docs over exploratory repo-wide reading
+- read small slices first (`Get-Content -TotalCount`, targeted matches, nearby sections), then expand only if needed
+- rely on the repo docs that already capture branch/process/setup state
+- summarize long docs instead of quoting them back
+- avoid broad repo scans unless the task truly needs them
+- do not re-derive branch policy, local setup, or integration commands if the docs already cover them
+- do not reopen the same long file repeatedly unless it changed or a new section is actually needed
+- avoid reading generated files, build outputs, lockfiles, datasets, checkpoints, and dependency trees unless they are directly relevant
+
+Default reading order:
+
+1. search
+2. smallest relevant doc or entrypoint
+3. touched implementation files
+4. tests
+5. only then wider context if still blocked
+
+For context-heavy tasks:
+
+- prefer `README.md`, `local-dev-setup.md`, `docs/`, `docs/specs/`, `scripts/`, and `.github/workflows/` before scanning code broadly
+- if one of those sources already answers the process/setup question, do not re-audit the entire repo
+- if a repo-state audit is requested, focus on launch-critical or task-critical surfaces rather than trying to read everything
+
+When investigating code:
+
+- start from the calling file, route, script, or failing command
+- trace outward only along the execution path
+- prefer checking current branch diffs and recent commits over re-reading stable modules with no recent changes
+
+When a task is about process, setup, architecture, or handoff context, prefer checking the relevant source directly:
+
+- `README.md` for repo direction and high-level product context
+- `local-dev-setup.md` for current local startup flow
+- `docs/` for architecture, branching, handoffs, and current project status
+- `docs/specs/` for approved specs and standards
+- `scripts/` for local setup and automation entry points
+- `.github/workflows/` for CI behavior
+
+If a task is about process rather than code, start from the smallest relevant source instead of exploring the whole repo again.
 
 ## What Agents Are Allowed To Do
 
@@ -107,6 +156,10 @@ If an agent changes API request or response behavior, it should also update:
 - tests
 
 Agents should not leave the frontend and backend with mismatched contract assumptions.
+
+When creating new endpoints or redesigning existing endpoint routes, agents should use the `api-design-principles` skill and follow the API standards documented in `docs/specs/api-refactor-standards.md`.
+
+Agents should prefer resource-oriented route design, document conscious exceptions, and avoid introducing new inconsistent endpoint shapes during stabilization work.
 
 ## UI Rules
 

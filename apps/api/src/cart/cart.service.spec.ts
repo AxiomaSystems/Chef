@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { BaseRecipe } from '@cart/shared';
 import { AggregationService } from '../aggregation/aggregation.service';
 import { CartExportService } from '../cart-export/cart-export.service';
@@ -120,6 +120,11 @@ describe('CartService', () => {
 
     cartExportService = {
       isProviderEnabled: jest.fn().mockReturnValue(true),
+      getProviderReadiness: jest.fn().mockReturnValue({
+        retailer: 'instacart',
+        status: 'configured',
+        isAvailable: true,
+      }),
       createHandoff: jest.fn().mockResolvedValue({}),
     } as unknown as jest.Mocked<CartExportService>;
 
@@ -250,7 +255,37 @@ describe('CartService', () => {
 
     await expect(
       service.createShoppingCart('cart-1', { retailer: 'kroger' }),
-    ).rejects.toThrow('Set your shopping location first.');
+    ).rejects.toThrow('Set your shopping location first before using Kroger search.');
+  });
+
+  it('fails clearly when Kroger credentials are missing', () => {
+    jest
+      .spyOn(service['matchingService'], 'getProviderReadiness')
+      .mockReturnValue({
+        retailer: 'kroger',
+        status: 'missing_credentials',
+        isAvailable: false,
+      });
+
+    expect(() =>
+      service['buildRetailerSearchContext']('kroger', '60611', null),
+    ).toThrow(
+      'Kroger search is unavailable because provider credentials are missing.',
+    );
+  });
+
+  it('fails clearly when Instacart handoff is missing credentials', async () => {
+    cartExportService.getProviderReadiness = jest.fn().mockReturnValue({
+      retailer: 'instacart',
+      status: 'missing_credentials',
+      isAvailable: false,
+    });
+
+    expect(() =>
+      service['buildRetailerSearchContext']('instacart', '60611', null),
+    ).toThrow(
+      'Instacart handoff is unavailable because provider credentials are missing.',
+    );
   });
 
   it('applies ingredient review decisions before product matching', async () => {

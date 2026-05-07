@@ -1,6 +1,6 @@
 {
-  "name": "Chef — Meal Execution Platform",
-  "short_name": "Chef",
+  "name": "Butter Me - Meal Planning",
+  "short_name": "Butter Me",
   "description": "Turn food ideas into meals you can actually cook.",
   "start_url": "/dashboard",
   "scope": "/",
@@ -11,16 +11,16 @@
   "categories": ["food", "lifestyle"],
   "icons": [
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-maskable.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

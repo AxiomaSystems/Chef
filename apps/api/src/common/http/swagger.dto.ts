@@ -963,7 +963,12 @@ export class RetailerCapabilityResponseDto {
   requires_api_key!: boolean;
 
   @ApiProperty({
-    enum: ['configured', 'disabled', 'partner_required'],
+    enum: [
+      'configured',
+      'missing_credentials',
+      'disabled',
+      'partner_required',
+    ],
     example: 'configured',
   })
   status!: string;

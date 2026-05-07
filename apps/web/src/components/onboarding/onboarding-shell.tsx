@@ -51,10 +51,10 @@ export function OnboardingShell({
         <aside className="hidden lg:block">
           <div className="max-w-sm">
             <p className="text-[13px] font-black uppercase tracking-[0.22em] text-[#895032]">
-              Chef
+              Butter Me
             </p>
             <h1 className="mt-4 text-[48px] font-black leading-[0.98] text-[#1a1c1a]">
-              Build your Chef memory.
+              Build your Butter Me memory.
             </h1>
             <p className="mt-5 max-w-xs text-body-md text-[#52443d]">
               Teach Chef how to plan meals, groceries, and cooking help around
@@ -79,13 +79,21 @@ export function OnboardingShell({
                     }`}
                   >
                     <span
-                      className={`material-symbols-outlined grid rounded-full text-[16px] leading-none ${
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
                         isDone || isActive
-                          ? "bg-[#895032] text-white"
-                          : "bg-[#efe7df] text-[#85736c]"
+                          ? "bg-[#895032]"
+                          : "bg-[#efe7df]"
                       }`}
                     >
-                      {isDone ? "check" : item.icon}
+                      <span
+                        className={`material-symbols-outlined text-[18px] ${
+                          isDone || isActive
+                            ? "text-white"
+                            : "text-[#85736c]"
+                        }`}
+                      >
+                        {isDone ? "check" : item.icon}
+                      </span>
                     </span>
                     <span
                       className={`text-label-lg ${
@@ -102,7 +110,7 @@ export function OnboardingShell({
             <div className="mt-6 overflow-hidden rounded-[1.6rem] border border-[#eadbd1] bg-white/70 p-4 shadow-[0_24px_70px_-48px_rgba(61,30,8,0.75)]">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#895032]">
-                  Chef knows
+                  Butter Me knows
                 </p>
                 <span className="material-symbols-outlined text-[18px] text-[#895032]">
                   auto_awesome
@@ -132,7 +140,7 @@ export function OnboardingShell({
         <div className="w-full">
           <div className="mb-6 text-center lg:hidden">
             <p className="font-black tracking-tight text-headline-sm text-[#895032]">
-              Chef memory
+              Butter Me memory
             </p>
             <p className="mt-1 text-body-md text-[#52443d]">
               Teach Chef your defaults
@@ -141,8 +149,10 @@ export function OnboardingShell({
 
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined grid place-items-center rounded-full bg-[#895032] text-[18px] text-white">
-                {activeStep.icon}
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#895032]">
+                <span className="material-symbols-outlined text-[18px] text-white">
+                  {activeStep.icon}
+                </span>
               </span>
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#895032]">
                 {activeStep.label}

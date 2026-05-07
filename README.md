@@ -158,7 +158,10 @@ Those docs now describe the startup thesis, the implemented `v1` direction, the 
 cart-generator/
 |-- apps/
 |   |-- api/
-|   `-- web/
+|   |-- web/
+|   |-- mobile/
+|   |-- vision-lab/
+|   `-- llm-testing/
 |-- docs/
 |-- infra/
 |   `-- docker/
@@ -197,6 +200,8 @@ winget install Python.Python.3.11
 ### Fresh Clone Setup
 
 Use this path when setting up the full app on a new machine or after a clean clone.
+
+For the shortest current setup guide, prefer [local-dev-setup.md](/C:/Users/akuma/repos/cart-generator/local-dev-setup.md).
 
 On Windows PowerShell:
 
@@ -308,15 +313,15 @@ pnpm api:reset
 What they do:
 
 - `pnpm api:setup`
-Prepares the local backend without starting the server.
-Starts Postgres, generates Prisma client, applies existing migrations, and seeds local data.
+  Prepares the local backend without starting the server.
+  Starts Postgres, generates Prisma client, applies existing migrations, and seeds local data.
 
 - `pnpm api:up`
-Starts Postgres if needed and then runs the API in dev mode.
+  Starts Postgres if needed and then runs the API in dev mode.
 
 - `pnpm api:reset`
-Destructive.
-Resets the local API database, reapplies migrations, and reruns seed through Prisma.
+  Destructive.
+  Resets the local API database, reapplies migrations, and reruns seed through Prisma.
 
 Start PostgreSQL:
 

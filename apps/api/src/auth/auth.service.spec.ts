@@ -202,7 +202,7 @@ describe('AuthService', () => {
     prisma.refreshToken.findUnique.mockResolvedValue({
       id: 'refresh-1',
       revokedAt: null,
-      expiresAt: new Date('2026-04-01T00:00:00.000Z'),
+      expiresAt: new Date('2099-04-01T00:00:00.000Z'),
       user,
     });
     authTokenService.buildAuthTokens.mockResolvedValue({
@@ -210,7 +210,7 @@ describe('AuthService', () => {
       refresh_token: 'next-refresh',
       expires_in: '15m',
       refreshTokenHash: 'next-hash',
-      refreshTokenExpiresAt: new Date('2026-04-02T00:00:00.000Z'),
+      refreshTokenExpiresAt: new Date('2099-04-02T00:00:00.000Z'),
     });
     prisma.$transaction.mockImplementation(async (callback: never) =>
       callback({

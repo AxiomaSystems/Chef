@@ -1,166 +1,110 @@
-# Branch Audit - 2026-04-29
+# Branching Policy - 2026-05-06
 
-This note is a practical branch map for the current repo state. It is not a long-term Git policy document. The goal is to help the team stop guessing which branch matters.
+This document replaces the earlier demo-branch and staging-branch recommendations.
+
+The repo now uses a simple production-trunk model:
+
+- `main` is the stable shared baseline
+- feature work happens in short-lived personal or spike branches
+- preview deploys happen on branches/PRs through Vercel
+- production deploys come from `main` through Vercel and Railway
 
 ## Current Recommendation
 
-Use `piero/demo2` as the working integration branch for the current demo/deploy line.
+Use `main` as the primary branch for the repo.
 
 Why:
-- local `piero/demo2` and local `demo/2` point to the same commit
-- `origin/demo/2` contains the deploy-ready work that is already running in Vercel and Railway
-- most remote branches are already fully contained in `origin/demo/2`
 
-## What The Branches Mean Right Now
+- Week 7 backend stabilization has reduced major runtime unknowns
+- API standards and CI baseline now exist
+- long-lived demo branch naming is becoming a source of confusion
+- Vercel and Railway production now have one clear source of truth
 
-### Active baseline
+## Branch Roles
 
-- `piero/demo2`
-  - local branch only right now
-  - points at the same commit as `demo/2`
-  - recommended branch to push and keep as the main team integration line for the demo
+### `main`
 
-- `demo/2`
-  - current deploy-ready integration branch
-  - already contains the work from `main`, `demo/1`, `ft-frontend-ui`, `ft-llm`, `enoch/voice-integration`, and `piero/demo-backend/1`
+- stable shared baseline
+- branch protection target
+- required CI target
+- production source for Vercel web
+- production source for Railway API
 
-### Older branches now mostly superseded
+### `<person>/<topic>`
 
-- `demo/1`
-  - old demo integration branch
-  - fully contained in `demo/2`
+- active feature or fix work
+- default place for day-to-day engineering changes
+- should merge back through PRs into `main`
 
-- `piero/demo-backend/1`
-  - old backend-focused branch
-  - fully contained in `demo/2`
+Examples:
 
-- `ft-frontend-ui`
-  - fully contained in `demo/2`
+- `piero/onboarding-backend`
+- `enoch/shopping-editor`
+- `galo/vision-spike`
 
-- `ft-llm`
-  - fully contained in `demo/2`
+### `spike/<topic>`
 
-- `enoch/voice-integration`
-  - despite the name, the remote branch is currently fully contained in `demo/2`
+- experiments or research that may not merge
+- use when architecture or product value is still uncertain
 
-- `main`
-  - remote `main` is behind `demo/2`
-  - treat it as stale for the demo line until the team intentionally merges the demo branch back
+### Legacy demo branches
 
-### Branch that is still genuinely separate
+- `demo/2`, `piero/demo2`, and similar branches are transition-era integration branches
+- do not start new work from them
+- delete/archive them after confirming nobody still depends on them
 
-- `ft-yolo_galo`
-  - not contained in `demo/2`
-  - includes a large vision/YOLO spike
-  - adds `apps/vision-lab`, `vision` API files, docs, shared vision types, and a model file
-  - this branch should be reviewed intentionally, not auto-deleted
+## Deploy Policy
 
-## Simple Read On The Repo
+### Preview deploys
 
-At the moment the repo is not suffering from "many independent product lines". It is suffering from:
+- branches and PRs may create preview deploys in Vercel
+- preview deploys are for validation, not for declaring the repo stable
 
-- duplicate integration branch names
-- stale legacy branch names still hanging around
-- one still-diverged experimental branch (`ft-yolo_galo`)
+### Production deploys
 
-That is a manageable cleanup.
+- production branch is `main`
+- Vercel deploys the web app from `main`
+- Railway deploys the API from `main`
+- Railway should wait for GitHub CI before deploying
+- production deploys should come only from changes intentionally merged into `main`
 
-## Team Alignment Plan
+## Merge Rules
 
-### 1. Pick one integration branch name
+Before merging into `main`, the change should satisfy all of these:
 
-Recommended:
-- keep using `piero/demo2`
+- scope is coherent
+- API/documentation updates are included when contracts changed
+- smallest relevant tests/builds were run
+- no unrelated demo-only hacks are bundled in
+- feature is acceptable for production-facing deployment if Vercel is connected to `main`
 
-Then:
-- push `piero/demo2`
-- tell the team to branch from `piero/demo2`
-- stop using `demo/1`, `demo/2`, and `piero/demo-backend/1` for new work
+## Transition Plan
 
-### 2. Ask everyone to push local-only work immediately
+The transition to `main` as production trunk is complete. The remaining cleanup is behavioral:
 
-Message to send:
+### 1. Stop expanding legacy integration branches
 
-```text
-Please push any local-only work today, even if it is messy or incomplete.
-Use a branch name that starts with your name, for example:
+- stop opening new work from `demo/2` or `piero/demo2`
+- branch new work from `main`
 
-  enoch/<short-topic>
-  galo/<short-topic>
-  ahmad/<short-topic>
-  piero/<short-topic>
+### 2. Keep divergent experiments explicit
 
-If your work is exploratory, still push it. We need visibility first, cleanup second.
-```
+- branches like `ft-yolo_galo` or any large vision spike should be reviewed intentionally
+- do not auto-fold them into `main` without scope review
 
-### 3. Freeze branch creation rules
+### 3. Clean up old branches later
 
-Use only these categories:
-- `main` for stable shared baseline
-- `piero/demo2` for current demo integration
-- `<person>/<topic>` for active individual work
-- `spike/<topic>` for experiments that may never merge
+After confirming nothing active still depends on them:
 
-Avoid:
-- `demo/1`, `demo/2`, `demo/3`
-- `ft-*` without ownership
-- branch names that encode temporary history instead of responsibility
+- archive or delete old demo branches
+- archive or delete already-absorbed legacy branches
 
-### 4. Review `ft-yolo_galo` explicitly
+## Practical Default
 
-Before merging or deleting it, decide:
-- is vision part of the next demo scope?
-- does `apps/vision-lab` belong in this repo?
-- do we want the `vision` API surface now, or later?
+Use this model going forward:
 
-If yes:
-- rebase or merge it onto `piero/demo2`
-- open a focused integration PR
+- `main` = stable + production branch
+- `<person>/<topic>` = feature work
+- `spike/<topic>` = experiments
 
-If no:
-- leave it as a spike branch
-- do not mix it into the deploy branch yet
-
-### 5. Clean up after local pushes are visible
-
-Once everyone has pushed local-only work and the team has reviewed it:
-- archive or delete `demo/1`
-- archive or delete `piero/demo-backend/1`
-- archive or delete `ft-frontend-ui`
-- archive or delete `ft-llm`
-- archive or delete `enoch/voice-integration`
-
-Only do this after confirming no one still depends on them locally.
-
-## Immediate Command Checklist
-
-For you:
-
-```powershell
-git checkout piero/demo2
-git push -u origin piero/demo2
-```
-
-For each teammate:
-
-```powershell
-git status
-git branch
-git push -u origin <their-current-branch>
-```
-
-If they have detached or messy local work:
-
-```powershell
-git checkout -b <name>/<topic>
-git push -u origin <name>/<topic>
-```
-
-## Bottom Line
-
-Today there is one real integration line and one real divergent experiment:
-
-- integration line: `piero/demo2` / `demo/2`
-- divergent experiment: `ft-yolo_galo`
-
-Everything else looks like legacy naming or already-absorbed work.
+If the team needs a short-lived integration branch again for a specific event or demo, use a dated branch name and retire it afterward.

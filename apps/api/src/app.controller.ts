@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AppService } from './app.service';
 
@@ -12,5 +12,28 @@ export class AppController {
   @ApiOkResponse({ description: 'Simple root response', type: String })
   getHello(): string {
     return this.appService.getHello();
+  }
+
+  @Get('health')
+  @ApiOperation({ summary: 'Liveness probe for API process' })
+  @ApiOkResponse({ description: 'API process is alive' })
+  getHealth() {
+    return this.appService.getHealth();
+  }
+
+  @Get('ready')
+  @ApiOperation({
+    summary:
+      'Readiness probe for API traffic (database + provider configuration state)',
+  })
+  @ApiOkResponse({ description: 'API is ready to serve traffic' })
+  async getReady() {
+    const readiness = await this.appService.getReadiness();
+
+    if (readiness.status !== 'ready') {
+      throw new ServiceUnavailableException(readiness);
+    }
+
+    return readiness;
   }
 }
