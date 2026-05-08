@@ -89,6 +89,36 @@ $env:PYTHONPATH="apps/vision-lab"
 .\.venv\Scripts\python.exe -m uvicorn fastapi_app:app --reload --app-dir apps/vision-lab
 ```
 
+## Railway Deployment
+
+Deploy the vision sidecar as a separate Railway service from the same repo:
+
+- Source repo: `AxiomaSystems/Chef`
+- Root directory: `apps/vision-lab`
+- Builder: Dockerfile
+- Dockerfile path: `Dockerfile`
+- Healthcheck path: `/health`
+- Public networking: enabled
+
+Railway injects `PORT`; the Dockerfile starts:
+
+```sh
+uvicorn fastapi_app:app --host 0.0.0.0 --port ${PORT:-8000}
+```
+
+After the sidecar has a public URL, set the API service env var:
+
+```text
+VISION_API_BASE_URL=https://<vision-sidecar>.up.railway.app
+```
+
+Then redeploy the API service. The web app already proxies media uploads through
+the Nest API route `/api/v1/vision/detect/media`.
+
+The Docker image includes `yolo11n.pt` from this directory for the demo path.
+Custom detector/classifier checkpoints are still artifact-managed separately and
+should be added through a later storage/artifact flow, not committed directly.
+
 ## Recommended Architecture
 
 For the next phase, the cleanest split is:
