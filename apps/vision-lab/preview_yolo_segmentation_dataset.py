@@ -8,8 +8,8 @@ from PIL import Image, ImageColor, ImageDraw
 
 
 APP_DIR = Path(__file__).resolve().parent
-DEFAULT_DATASET_DIR = APP_DIR / "data" / "foodseg103_segmentation_dataset_smoke"
-DEFAULT_OUTPUT_DIR = APP_DIR / "data" / "segmentation_dataset_previews"
+DEFAULT_DATASET_DIR = APP_DIR / "data" / "datasets" / "segmentation" / "foodseg103-smoke"
+DEFAULT_OUTPUT_DIR = APP_DIR / "data" / "previews" / "segmentation"
 
 COLORS = [
     "#16a34a",

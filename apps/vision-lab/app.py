@@ -10,27 +10,24 @@ from PIL import Image, ImageColor, ImageDraw
 
 from chef_vision.checkpoints import (
     DEFAULT_CLASSIFIER_RUN,
+    available_yolo_detection_models,
     available_classifier_runs as discover_classifier_runs,
-    default_segmentation_model,
     default_yolo_model,
 )
-from chef_vision.contracts import DebugObjectInput, FrameInput, ScanOptions
+from chef_vision.classifier import apply_classification_to_detection
+from chef_vision.contracts import ClassificationPrediction, DebugObjectInput, FrameInput, ScanOptions
 from chef_vision.inventory import clear_inventory, ensure_inventory_store, load_inventory
 from chef_vision.live import LiveSessionBuffer, create_live_video_processor, scan_response_from_live_records
 from chef_vision.ontology import ONTOLOGY
 from chef_vision.pipeline import VisionPipeline
+from chef_vision.pipelines.v1 import resolve_photo_v1, resolve_video_v1
+from chef_vision.pipelines.v2 import resolve_scan_v2
 from chef_vision.render import draw_detections, load_image_from_bytes
 from chef_vision.resolver import (
     apply_resolved_items_to_inventory,
     build_label_status_map,
     resolve_single_frame,
     resolve_video_scan,
-)
-from chef_vision.segmentation import (
-    draw_segmentation_results,
-    run_yolo_segmentation,
-    segmentation_crop,
-    segmentation_masked_crop,
 )
 from chef_vision.session_summary import best_detections_by_label, summarize_scan_labels
 from chef_vision.tracking import build_provisional_tracks, estimate_distinct_instances
@@ -41,7 +38,17 @@ from sample_frames import SAMPLE_FRAME_REFS, SAMPLE_SCENARIOS
 APP_DIR = Path(__file__).resolve().parent
 INVENTORY_PATH = ensure_inventory_store(APP_DIR / "data" / "runtime_inventory.json")
 DEFAULT_DETECTION_MODEL = default_yolo_model()
-DEFAULT_SEGMENTATION_MODEL = default_segmentation_model()
+ENABLE_SEGMENTATION_LAB = False
+if ENABLE_SEGMENTATION_LAB:
+    from chef_vision.checkpoints import default_segmentation_model
+    from chef_vision.segmentation import (
+        draw_segmentation_results,
+        run_yolo_segmentation,
+        segmentation_crop,
+        segmentation_masked_crop,
+    )
+
+    DEFAULT_SEGMENTATION_MODEL = default_segmentation_model()
 
 st.set_page_config(page_title="Chef Vision Lab", layout="wide")
 
@@ -59,6 +66,83 @@ if "live_session_started_at" not in st.session_state:
 
 def available_classifier_runs() -> list[Path]:
     return discover_classifier_runs()
+
+
+def default_classifier_run_index(runs: list[Path]) -> int:
+    return next(
+        (
+            index
+            for index, run in enumerate(runs)
+            if run.name == DEFAULT_CLASSIFIER_RUN
+        ),
+        0,
+    )
+
+
+def render_classifier_controls(prefix: str, *, default_enabled: bool = False) -> dict:
+    runs = available_classifier_runs()
+    classify_crops = st.checkbox(
+        "Classify detected crops with ResNet",
+        value=default_enabled and bool(runs),
+        disabled=not runs,
+        key=f"{prefix}_classify_crops",
+        help=(
+            "Benchmark result: keep this off by default. Enable it only to inspect whether "
+            "the crop classifier helps a specific model/image."
+        ),
+    )
+    if runs:
+        selected_run = st.selectbox(
+            "Ingredient classifier checkpoint",
+            options=runs,
+            index=default_classifier_run_index(runs),
+            format_func=lambda path: path.name,
+            disabled=not classify_crops,
+            key=f"{prefix}_classifier_run",
+        )
+        checkpoint_text = st.text_input(
+            "Classifier .pt path",
+            value=str(selected_run / "best_model.pt"),
+            disabled=not classify_crops,
+            key=f"{prefix}_classifier_checkpoint",
+            help="Use a ResNet ingredient classifier checkpoint here, not in the YOLO detector model field.",
+        )
+    else:
+        checkpoint_text = ""
+        st.caption("No classifier checkpoints found under apps/vision-lab/checkpoints/classifiers/ingredient.")
+
+    top_k = st.slider(
+        "Classifier top-k",
+        1,
+        10,
+        5,
+        disabled=not classify_crops,
+        key=f"{prefix}_classifier_top_k",
+    )
+    min_confidence = st.slider(
+        "Relabel confidence threshold",
+        0.0,
+        1.0,
+        0.35,
+        0.05,
+        disabled=not classify_crops,
+        key=f"{prefix}_classifier_min_confidence",
+        help="Below this, the YOLO label stays primary but classifier predictions are still shown in JSON.",
+    )
+    relabel_detections = st.checkbox(
+        "Use classifier label for inventory/tracking",
+        value=False,
+        disabled=not classify_crops,
+        key=f"{prefix}_classifier_relabel_detections",
+        help="The benchmark showed relabeling reduced identity accuracy, so this defaults off.",
+    )
+    return {
+        "enabled": classify_crops,
+        "checkpoint_path": Path(checkpoint_text) if checkpoint_text else None,
+        "top_k": top_k,
+        "min_confidence": min_confidence,
+        "relabel_detections": relabel_detections,
+    }
 
 
 def crop_detection(image: Image.Image, detection) -> Image.Image:
@@ -215,27 +299,142 @@ def classify_ingredient_image(
         for probability, class_index in zip(values.tolist(), indices.tolist())
     ]
 
+
+def classify_video_detections(
+    result,
+    frame_paths: dict[int, str],
+    checkpoint_path: Path,
+    top_k: int,
+    min_confidence: float,
+    relabel_detections: bool,
+) -> dict:
+    if not checkpoint_path.exists():
+        return {
+            "enabled": False,
+            "reason": f"Missing classifier checkpoint: {checkpoint_path}",
+            "classified_detection_count": 0,
+        }
+
+    classified_detection_count = 0
+    relabeled_detection_count = 0
+
+    for frame_result in result.frames:
+        image_path = frame_paths.get(frame_result.frame_id)
+        if not image_path:
+            continue
+
+        image = Image.open(image_path).convert("RGB")
+        for detection in frame_result.detections:
+            crop = crop_detection(image, detection)
+            if crop is None:
+                continue
+
+            prediction_dicts = classify_ingredient_image(
+                crop,
+                checkpoint_path=checkpoint_path,
+                top_k=top_k,
+            )
+            predictions = [
+                ClassificationPrediction(
+                    label=str(prediction["label"]),
+                    probability=float(prediction["probability"]),
+                )
+                for prediction in prediction_dicts
+            ]
+            if relabel_detections:
+                previous_label = detection.label
+                apply_classification_to_detection(
+                    detection,
+                    predictions,
+                    min_confidence=min_confidence,
+                )
+                if detection.label != previous_label:
+                    relabeled_detection_count += 1
+            else:
+                detection.classification_predictions = predictions
+            classified_detection_count += 1
+
+    return {
+        "enabled": True,
+        "checkpoint": str(checkpoint_path),
+        "top_k": top_k,
+        "min_confidence": min_confidence,
+        "relabel_detections": relabel_detections,
+        "classified_detection_count": classified_detection_count,
+        "relabeled_detection_count": relabeled_detection_count,
+    }
+
+
+def refresh_scan_summary(result) -> None:
+    detections = [detection for frame in result.frames for detection in frame.detections]
+    result.summary.detection_count = len(detections)
+    result.summary.track_candidate_count = sum(
+        detection.inventory_policy == "track" for detection in detections
+    )
+    result.summary.review_candidate_count = sum(
+        detection.inventory_policy == "review" for detection in detections
+    )
+    result.summary.ignored_detection_count = sum(
+        detection.inventory_policy == "ignore" for detection in detections
+    )
+    result.summary.detected_labels = sorted({detection.label for detection in detections})
+
 with st.sidebar:
     st.subheader("Pipeline")
+    pipeline_version = st.selectbox(
+        "Pipeline version",
+        options=["v1", "v2"],
+        index=1,
+        help="v1 is the current fallback. v2 adds object/session candidates before inventory stacking.",
+    )
     detector_name = st.selectbox(
         "Detector",
         options=["mock", "yolo"],
+        index=1,
         help="Use mock for contract testing and YOLO for basic real image detection.",
     )
-    model_name = st.text_input(
-        "YOLO model",
-        value=DEFAULT_DETECTION_MODEL,
-        help="Ultralytics model name or local .pt path. First use may download weights.",
+    yolo_detection_models = available_yolo_detection_models()
+    yolo_model_options = [str(path) for path in yolo_detection_models]
+    custom_yolo_option = "Custom YOLO model path/name"
+    if DEFAULT_DETECTION_MODEL not in yolo_model_options:
+        yolo_model_options.insert(0, DEFAULT_DETECTION_MODEL)
+    yolo_model_options.append(custom_yolo_option)
+    yolo_model_preset = st.selectbox(
+        "YOLO detector model",
+        options=yolo_model_options,
+        index=yolo_model_options.index(DEFAULT_DETECTION_MODEL),
         disabled=detector_name != "yolo",
+        help="Use YOLO detection checkpoints here. ResNet classifier best_model.pt belongs in crop-classifier controls.",
     )
+    if yolo_model_preset == custom_yolo_option:
+        model_name = st.text_input(
+            "Custom YOLO model",
+            value=DEFAULT_DETECTION_MODEL,
+            help="Ultralytics YOLO model name or local YOLO detection .pt path.",
+            disabled=detector_name != "yolo",
+        )
+    else:
+        model_name = yolo_model_preset
+        st.caption(f"Detector model: `{model_name}`")
+    if detector_name == "yolo" and model_name.endswith("best_model.pt"):
+        st.warning(
+            "`best_model.pt` is the ResNet crop classifier. Use a YOLO detector `.pt` here, "
+            "then enable crop classification inside the BoundingBox tabs."
+        )
+    if detector_name == "yolo":
+        st.info(
+            "Benchmark default: use the v005b Open Images detector first. Keep ResNet crop classification off unless you are testing it deliberately."
+        )
     pipeline = VisionPipeline(detector_name=detector_name, model_name=model_name)
     pipeline_config = pipeline.describe_pipeline()
     st.code(
         json.dumps(
             {
                 "provider": pipeline_config.provider,
+                "pipeline_version": pipeline_version,
                 "stage": pipeline_config.stage,
-                "tracking_enabled": pipeline_config.tracking_enabled,
+                "tracking_enabled": pipeline_version == "v2"
+                or pipeline_config.tracking_enabled,
                 "embeddings_enabled": pipeline_config.embeddings_enabled,
             },
             indent=2,
@@ -275,18 +474,17 @@ with st.sidebar:
         st.caption("Inventory is empty.")
 
 
-tab_single, tab_classifier, tab_segmentation, tab_live, tab_video, tab_batch = st.tabs(
-    [
-        "Single Frame",
-        "Ingredient Classifier",
-        "Segmentation",
-        "Live Camera",
-        "Video Scan",
-        "Scenario Scan",
-    ]
-)
+tab_bbox, tab_mock_scenario = st.tabs(["BoundingBox", "Mock Scenario"])
 
-with tab_single:
+with tab_bbox:
+    tab_bbox_stream, tab_bbox_photo, tab_bbox_video = st.tabs(
+        ["Video Streaming", "Photo Upload", "Video Upload"]
+    )
+
+tab_seg_stream = tab_seg_photo = tab_seg_video = st.empty()
+
+with tab_bbox_photo:
+    st.subheader("BoundingBox Photo Detection")
     left, right = st.columns([1, 1.2])
 
     with left:
@@ -324,6 +522,8 @@ with tab_single:
             0.05,
             help="Higher values can preserve more nearby same-class boxes, which may help when two identical items sit close together.",
         )
+        st.divider()
+        photo_classifier = render_classifier_controls("photo_detection", default_enabled=False)
         run_single = st.button("Run Single-Frame Detection", use_container_width=True)
 
     with right:
@@ -363,14 +563,48 @@ with tab_single:
                 st.error(str(exc))
                 st.stop()
 
+            photo_classification = {
+                "enabled": False,
+                "reason": "Crop classification was not requested for this scan.",
+            }
+            if photo_classifier["enabled"]:
+                if photo_classifier["checkpoint_path"] is None:
+                    st.error("Classifier checkpoint path is required.")
+                    st.stop()
+                photo_classification = classify_video_detections(
+                    result=result,
+                    frame_paths={1: image_path} if image_path else {},
+                    checkpoint_path=photo_classifier["checkpoint_path"],
+                    top_k=photo_classifier["top_k"],
+                    min_confidence=photo_classifier["min_confidence"],
+                    relabel_detections=photo_classifier["relabel_detections"],
+                )
+                refresh_scan_summary(result)
+
             st.subheader("Summary")
             metric_a, metric_b, metric_c = st.columns(3)
             metric_a.metric("Detections", result.summary.detection_count)
             metric_b.metric("Track", result.summary.track_candidate_count)
             metric_c.metric("Review", result.summary.review_candidate_count)
+            if photo_classification["enabled"]:
+                class_a, class_b = st.columns(2)
+                class_a.metric(
+                    "Classified crops",
+                    photo_classification["classified_detection_count"],
+                )
+                class_b.metric(
+                    "Relabeled detections",
+                    photo_classification["relabeled_detection_count"],
+                )
+            else:
+                st.caption(photo_classification["reason"])
 
             detections = result.frames[0].detections
-            resolved_items = resolve_single_frame(detections, inventory_items)
+            if pipeline_version == "v2":
+                versioned_result = resolve_scan_v2(result, inventory_items)
+            else:
+                versioned_result = resolve_photo_v1(result, inventory_items)
+            resolved_items = versioned_result.resolved_items
             label_statuses = build_label_status_map(resolved_items)
 
             if auto_apply_inventory:
@@ -405,6 +639,27 @@ with tab_single:
                 use_container_width=True,
             )
 
+            if pipeline_version == "v2":
+                st.subheader("Pipeline v2 Inventory Candidates")
+                st.dataframe(
+                    [
+                        {
+                            "candidate_id": candidate.candidate_id,
+                            "canonical_label": candidate.canonical_label,
+                            "display_label": candidate.display_label,
+                            "status": candidate.status,
+                            "likely_count": candidate.likely_count,
+                            "confidence": candidate.confidence,
+                            "evidence_frames": ", ".join(
+                                str(frame_id) for frame_id in candidate.evidence_frames
+                            ),
+                            "observations": candidate.observation_count,
+                        }
+                        for candidate in versioned_result.candidates
+                    ],
+                    use_container_width=True,
+                )
+
             st.subheader("Detections")
             st.dataframe(
                 [
@@ -427,9 +682,14 @@ with tab_single:
             )
 
             st.subheader("Response JSON")
-            st.json(result.to_dict(), expanded=2)
+            photo_payload = result.to_dict()
+            photo_payload["classification"] = photo_classification
+            photo_payload["pipeline_resolution"] = versioned_result.to_dict()
+            st.json(photo_payload, expanded=2)
 
-with tab_classifier:
+with tab_bbox_photo:
+    st.divider()
+    st.subheader("BoundingBox Crop Classification")
     runs = available_classifier_runs()
     if not runs:
         st.info(
@@ -545,7 +805,7 @@ with tab_classifier:
                 0.05,
                 disabled=source_mode in {"Full image", "Grid fallback crops"},
             )
-            run_classifier = st.button("Test Ingredient Classifier", use_container_width=True)
+            run_classifier = st.button("Run BoundingBox Crop Classification", use_container_width=True)
 
         with right:
             if run_classifier:
@@ -779,142 +1039,105 @@ with tab_classifier:
                     result_payload["yolo_detection_count"] = detection_result.summary.detection_count
                 st.json(result_payload, expanded=2)
 
-with tab_segmentation:
-    left, right = st.columns([1, 1.2])
-
-    with left:
-        segmentation_image = st.file_uploader(
-            "Segmentation test image",
-            type=["png", "jpg", "jpeg", "webp"],
-            key="segmentation_image",
-        )
-        segmentation_model_name = st.text_input(
-            "YOLO segmentation model",
-            value=DEFAULT_SEGMENTATION_MODEL,
-            help="Use an Ultralytics segmentation checkpoint. Detection-only models will not return masks.",
-        )
-        segmentation_confidence = st.slider(
-            "Segmentation confidence threshold",
-            0.05,
-            0.95,
-            0.25,
-            0.05,
-            help="Raise this to reduce weak masks; lower it to inspect missed small objects.",
-        )
-        segmentation_nms_iou = st.slider(
-            "Segmentation NMS IoU threshold",
-            0.1,
-            0.95,
-            0.7,
-            0.05,
-            help="Higher values preserve more nearby overlapping masks.",
-        )
-        segmentation_max_masks = st.slider("Max masks", 1, 50, 20)
-        min_mask_area_percent = st.slider(
-            "Minimum mask area",
-            0.0,
-            10.0,
-            0.0,
-            0.1,
-            help="Hide tiny masks by approximate percent of model input area.",
-        )
-        show_masked_crops = st.checkbox(
-            "Show transparent masked crops",
-            value=True,
-            help="Useful for judging whether segmentation is cleaner than box crops.",
-        )
-        run_segmentation = st.button("Test Segmentation", use_container_width=True)
-
-    with right:
-        if run_segmentation:
-            if segmentation_image is None:
-                st.error("Upload an image first.")
-                st.stop()
-
-            image = load_image_from_bytes(segmentation_image.getvalue())
-
-            try:
-                segmentations = run_yolo_segmentation(
-                    image=image,
-                    model_name=segmentation_model_name,
-                    confidence_threshold=segmentation_confidence,
-                    nms_iou_threshold=segmentation_nms_iou,
-                    max_masks=segmentation_max_masks,
-                    min_mask_area_percent=min_mask_area_percent,
+if ENABLE_SEGMENTATION_LAB:
+    with tab_seg_photo:
+        st.subheader("Segmentation Photo Upload")
+        left, right = st.columns([1, 1.2])
+    
+        with left:
+            segmentation_image = st.file_uploader(
+                "Segmentation test image",
+                type=["png", "jpg", "jpeg", "webp"],
+                key="segmentation_image",
+            )
+            segmentation_model_name = st.text_input(
+                "YOLO segmentation model",
+                value=DEFAULT_SEGMENTATION_MODEL,
+                help="Use an Ultralytics segmentation checkpoint. Detection-only models will not return masks.",
+            )
+            segmentation_confidence = st.slider(
+                "Segmentation confidence threshold",
+                0.05,
+                0.95,
+                0.25,
+                0.05,
+                help="Raise this to reduce weak masks; lower it to inspect missed small objects.",
+            )
+            segmentation_nms_iou = st.slider(
+                "Segmentation NMS IoU threshold",
+                0.1,
+                0.95,
+                0.7,
+                0.05,
+                help="Higher values preserve more nearby overlapping masks.",
+            )
+            segmentation_max_masks = st.slider("Max masks", 1, 50, 20)
+            min_mask_area_percent = st.slider(
+                "Minimum mask area",
+                0.0,
+                10.0,
+                0.0,
+                0.1,
+                help="Hide tiny masks by approximate percent of model input area.",
+            )
+            show_masked_crops = st.checkbox(
+                "Show transparent masked crops",
+                value=True,
+                help="Useful for judging whether segmentation is cleaner than box crops.",
+            )
+            run_segmentation = st.button("Test Segmentation", use_container_width=True)
+    
+        with right:
+            if run_segmentation:
+                if segmentation_image is None:
+                    st.error("Upload an image first.")
+                    st.stop()
+    
+                image = load_image_from_bytes(segmentation_image.getvalue())
+    
+                try:
+                    segmentations = run_yolo_segmentation(
+                        image=image,
+                        model_name=segmentation_model_name,
+                        confidence_threshold=segmentation_confidence,
+                        nms_iou_threshold=segmentation_nms_iou,
+                        max_masks=segmentation_max_masks,
+                        min_mask_area_percent=min_mask_area_percent,
+                    )
+                except Exception as exc:
+                    st.error(str(exc))
+                    st.stop()
+    
+                if not segmentations:
+                    st.warning(
+                        "No masks were returned. Check that the model is a segmentation checkpoint, "
+                        "or lower the confidence / mask-area threshold."
+                    )
+                    st.image(image, caption="Original image", use_container_width=True)
+                    st.stop()
+    
+                metric_a, metric_b, metric_c = st.columns(3)
+                metric_a.metric("Masks", len(segmentations))
+                metric_b.metric(
+                    "Avg confidence",
+                    f"{sum(item['confidence'] for item in segmentations) / len(segmentations):.2f}",
                 )
-            except Exception as exc:
-                st.error(str(exc))
-                st.stop()
-
-            if not segmentations:
-                st.warning(
-                    "No masks were returned. Check that the model is a segmentation checkpoint, "
-                    "or lower the confidence / mask-area threshold."
+                metric_c.metric(
+                    "Largest mask",
+                    f"{max(item['mask_area_percent'] for item in segmentations):.2f}%",
                 )
-                st.image(image, caption="Original image", use_container_width=True)
-                st.stop()
-
-            metric_a, metric_b, metric_c = st.columns(3)
-            metric_a.metric("Masks", len(segmentations))
-            metric_b.metric(
-                "Avg confidence",
-                f"{sum(item['confidence'] for item in segmentations) / len(segmentations):.2f}",
-            )
-            metric_c.metric(
-                "Largest mask",
-                f"{max(item['mask_area_percent'] for item in segmentations):.2f}%",
-            )
-
-            st.image(
-                draw_segmentation_results(image, segmentations),
-                caption="Segmentation overlay",
-                use_container_width=True,
-            )
-
-            st.subheader("Segmentation Results")
-            st.dataframe(
-                [
-                    {
-                        "mask": item["index"],
-                        "label": item["label"],
-                        "confidence": item["confidence"],
-                        "mask_area_percent": item["mask_area_percent"],
-                        "bbox_pixels": item["bbox_pixels"],
-                        "polygon_points": len(item.get("polygon") or []),
-                    }
-                    for item in segmentations
-                ],
-                use_container_width=True,
-                hide_index=True,
-            )
-
-            st.subheader("Instance Crops")
-            for row_start in range(0, len(segmentations), 3):
-                columns = st.columns(3)
-                for column, item in zip(columns, segmentations[row_start : row_start + 3]):
-                    with column:
-                        st.image(
-                            segmentation_crop(image, item),
-                            caption=f"{item['index']}. {item['label']} box crop",
-                            use_container_width=True,
-                        )
-                        if show_masked_crops:
-                            st.image(
-                                segmentation_masked_crop(image, item),
-                                caption=f"{item['index']}. masked crop",
-                                use_container_width=True,
-                            )
-
-            st.subheader("Segmentation JSON")
-            st.json(
-                {
-                    "model": segmentation_model_name,
-                    "confidence_threshold": segmentation_confidence,
-                    "nms_iou_threshold": segmentation_nms_iou,
-                    "mask_count": len(segmentations),
-                    "segmentations": [
+    
+                st.image(
+                    draw_segmentation_results(image, segmentations),
+                    caption="Segmentation overlay",
+                    use_container_width=True,
+                )
+    
+                st.subheader("Segmentation Results")
+                st.dataframe(
+                    [
                         {
-                            "index": item["index"],
+                            "mask": item["index"],
                             "label": item["label"],
                             "confidence": item["confidence"],
                             "mask_area_percent": item["mask_area_percent"],
@@ -923,11 +1146,253 @@ with tab_segmentation:
                         }
                         for item in segmentations
                     ],
-                },
-                expanded=2,
+                    use_container_width=True,
+                    hide_index=True,
+                )
+    
+                st.subheader("Instance Crops")
+                for row_start in range(0, len(segmentations), 3):
+                    columns = st.columns(3)
+                    for column, item in zip(columns, segmentations[row_start : row_start + 3]):
+                        with column:
+                            st.image(
+                                segmentation_crop(image, item),
+                                caption=f"{item['index']}. {item['label']} box crop",
+                                use_container_width=True,
+                            )
+                            if show_masked_crops:
+                                st.image(
+                                    segmentation_masked_crop(image, item),
+                                    caption=f"{item['index']}. masked crop",
+                                    use_container_width=True,
+                                )
+    
+                st.subheader("Segmentation JSON")
+                st.json(
+                    {
+                        "model": segmentation_model_name,
+                        "confidence_threshold": segmentation_confidence,
+                        "nms_iou_threshold": segmentation_nms_iou,
+                        "mask_count": len(segmentations),
+                        "segmentations": [
+                            {
+                                "index": item["index"],
+                                "label": item["label"],
+                                "confidence": item["confidence"],
+                                "mask_area_percent": item["mask_area_percent"],
+                                "bbox_pixels": item["bbox_pixels"],
+                                "polygon_points": len(item.get("polygon") or []),
+                            }
+                            for item in segmentations
+                        ],
+                    },
+                    expanded=2,
+                )
+    
+    with tab_seg_video:
+        st.subheader("Segmentation Video Upload")
+        seg_video_left, seg_video_right = st.columns([1, 1.2])
+    
+        with seg_video_left:
+            segmentation_video = st.file_uploader(
+                "Segmentation video",
+                type=["mp4", "mov", "avi", "mkv"],
+                key="segmentation_video_uploader",
             )
-
-with tab_video:
+            segmentation_video_model = st.text_input(
+                "YOLO segmentation model",
+                value=DEFAULT_SEGMENTATION_MODEL,
+                key="segmentation_video_model",
+            )
+            segmentation_video_fps = st.slider(
+                "Sample frames per second",
+                0.5,
+                5.0,
+                1.0,
+                0.5,
+                key="segmentation_video_fps",
+            )
+            segmentation_video_max_frames = st.slider(
+                "Max sampled frames",
+                1,
+                60,
+                12,
+                key="segmentation_video_max_frames",
+            )
+            segmentation_video_confidence = st.slider(
+                "Segmentation confidence threshold",
+                0.05,
+                0.95,
+                0.25,
+                0.05,
+                key="segmentation_video_confidence",
+            )
+            segmentation_video_nms_iou = st.slider(
+                "Segmentation NMS IoU threshold",
+                0.1,
+                0.95,
+                0.7,
+                0.05,
+                key="segmentation_video_nms_iou",
+            )
+            segmentation_video_max_masks = st.slider(
+                "Max masks per frame",
+                1,
+                50,
+                20,
+                key="segmentation_video_max_masks",
+            )
+            segmentation_video_min_area = st.slider(
+                "Minimum mask area",
+                0.0,
+                10.0,
+                0.0,
+                0.1,
+                key="segmentation_video_min_area",
+            )
+            run_segmentation_video = st.button(
+                "Run Segmentation Video",
+                use_container_width=True,
+            )
+    
+        with seg_video_right:
+            if run_segmentation_video:
+                if segmentation_video is None:
+                    st.error("Upload a video clip first.")
+                    st.stop()
+    
+                with tempfile.NamedTemporaryFile(
+                    delete=False,
+                    suffix=Path(segmentation_video.name).suffix or ".mp4",
+                ) as video_handle:
+                    video_handle.write(segmentation_video.getvalue())
+                    video_path = video_handle.name
+    
+                frame_output_dir = tempfile.mkdtemp(prefix="chef_vision_seg_frames_")
+    
+                try:
+                    extraction = extract_sampled_frames(
+                        video_path=video_path,
+                        output_dir=frame_output_dir,
+                        target_fps=segmentation_video_fps,
+                        max_frames=segmentation_video_max_frames,
+                    )
+                    if not extraction.frames:
+                        raise ValueError("No frames were extracted from the uploaded video.")
+    
+                    frame_results = []
+                    for sampled in extraction.frames:
+                        image = Image.open(sampled.image_path).convert("RGB")
+                        segmentations = run_yolo_segmentation(
+                            image=image,
+                            model_name=segmentation_video_model,
+                            confidence_threshold=segmentation_video_confidence,
+                            nms_iou_threshold=segmentation_video_nms_iou,
+                            max_masks=segmentation_video_max_masks,
+                            min_mask_area_percent=segmentation_video_min_area,
+                        )
+                        frame_results.append(
+                            {
+                                "frame": sampled,
+                                "image": image,
+                                "segmentations": segmentations,
+                            }
+                        )
+                except Exception as exc:
+                    st.error(str(exc))
+                    st.stop()
+    
+                total_masks = sum(len(item["segmentations"]) for item in frame_results)
+                labels = sorted(
+                    {
+                        segmentation["label"]
+                        for item in frame_results
+                        for segmentation in item["segmentations"]
+                    }
+                )
+                summary_a, summary_b, summary_c = st.columns(3)
+                summary_a.metric("Sampled frames", len(frame_results))
+                summary_b.metric("Total masks", total_masks)
+                summary_c.metric("Labels", len(labels))
+    
+                st.subheader("Frame Results")
+                st.dataframe(
+                    [
+                        {
+                            "frame_id": item["frame"].frame_id,
+                            "timestamp_ms": item["frame"].timestamp_ms,
+                            "masks": len(item["segmentations"]),
+                            "labels": ", ".join(
+                                sorted(
+                                    {
+                                        segmentation["label"]
+                                        for segmentation in item["segmentations"]
+                                    }
+                                )
+                            ),
+                        }
+                        for item in frame_results
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                )
+    
+                st.subheader("Preview Frames")
+                preview_count = min(4, len(frame_results))
+                preview_columns = st.columns(preview_count or 1)
+                for column, item in zip(preview_columns, frame_results[:preview_count]):
+                    with column:
+                        st.image(
+                            draw_segmentation_results(
+                                item["image"],
+                                item["segmentations"],
+                            ),
+                            caption=f"Frame {item['frame'].frame_id} @ {item['frame'].timestamp_ms} ms",
+                            use_container_width=True,
+                        )
+    
+                st.subheader("Segmentation Video JSON")
+                st.json(
+                    {
+                        "model": segmentation_video_model,
+                        "sampled_frame_count": len(frame_results),
+                        "total_masks": total_masks,
+                        "detected_labels": labels,
+                        "frames": [
+                            {
+                                "frame_id": item["frame"].frame_id,
+                                "timestamp_ms": item["frame"].timestamp_ms,
+                                "mask_count": len(item["segmentations"]),
+                                "segmentations": [
+                                    {
+                                        "index": segmentation["index"],
+                                        "label": segmentation["label"],
+                                        "confidence": segmentation["confidence"],
+                                        "mask_area_percent": segmentation[
+                                            "mask_area_percent"
+                                        ],
+                                        "bbox_pixels": segmentation["bbox_pixels"],
+                                        "polygon_points": len(
+                                            segmentation.get("polygon") or []
+                                        ),
+                                    }
+                                    for segmentation in item["segmentations"]
+                                ],
+                            }
+                            for item in frame_results
+                        ],
+                    },
+                    expanded=2,
+                )
+    
+    with tab_seg_stream:
+        st.subheader("Segmentation Video Streaming")
+        st.info(
+            "Segmentation streaming is intentionally held as the next step. "
+            "Use Segmentation -> Video Upload first to validate masks on sampled frames before adding live WebRTC segmentation."
+        )
+    
+with tab_bbox_video:
     if detector_name != "yolo":
         st.info("Video scan is intended for the `yolo` detector. Switch the detector to `yolo` to test real clips.")
     else:
@@ -971,6 +1436,8 @@ with tab_video:
                 key="video_nms_iou_threshold",
                 help="Raise this when identical nearby items get merged into one box.",
             )
+            st.divider()
+            video_classifier = render_classifier_controls("video_detection", default_enabled=False)
             run_video = st.button("Run Video Detection", use_container_width=True)
 
         with right:
@@ -1020,9 +1487,37 @@ with tab_video:
                     st.error(str(exc))
                     st.stop()
 
-                provisional_tracks = build_provisional_tracks(result)
-                instance_estimates = estimate_distinct_instances(provisional_tracks)
-                resolved_items = resolve_video_scan(instance_estimates, inventory_items)
+                frame_lookup = {
+                    sampled.frame_id: sampled.image_path for sampled in extraction.frames
+                }
+                video_classification = {
+                    "enabled": False,
+                    "reason": "Crop classification was not requested for this scan.",
+                }
+                if video_classifier["enabled"]:
+                    if video_classifier["checkpoint_path"] is None:
+                        st.error("Classifier checkpoint path is required.")
+                        st.stop()
+                    video_classification = classify_video_detections(
+                        result=result,
+                        frame_paths=frame_lookup,
+                        checkpoint_path=video_classifier["checkpoint_path"],
+                        top_k=video_classifier["top_k"],
+                        min_confidence=video_classifier["min_confidence"],
+                        relabel_detections=video_classifier["relabel_detections"],
+                    )
+                    refresh_scan_summary(result)
+
+                if pipeline_version == "v2":
+                    versioned_result = resolve_scan_v2(result, inventory_items)
+                    provisional_tracks = versioned_result.tracks
+                    instance_estimates = estimate_distinct_instances(provisional_tracks)
+                    resolved_items = versioned_result.resolved_items
+                else:
+                    versioned_result = resolve_video_v1(result, inventory_items)
+                    provisional_tracks = build_provisional_tracks(result)
+                    instance_estimates = estimate_distinct_instances(provisional_tracks)
+                    resolved_items = versioned_result.resolved_items
                 label_statuses = build_label_status_map(resolved_items)
 
                 if auto_apply_inventory:
@@ -1039,6 +1534,19 @@ with tab_video:
                 summary_c.metric("Source fps", extraction.summary.source_fps)
                 summary_d.metric("Duration ms", extraction.summary.duration_ms)
 
+                if video_classification["enabled"]:
+                    class_a, class_b = st.columns(2)
+                    class_a.metric(
+                        "Classified crops",
+                        video_classification["classified_detection_count"],
+                    )
+                    class_b.metric(
+                        "Relabeled detections",
+                        video_classification["relabeled_detection_count"],
+                    )
+                else:
+                    st.caption(video_classification["reason"])
+
                 st.subheader("Frame Results")
                 st.dataframe(
                     [
@@ -1046,6 +1554,11 @@ with tab_video:
                             "frame_id": frame.frame_id,
                             "timestamp_ms": frame.timestamp_ms,
                             "labels": ", ".join(detection.label for detection in frame.detections),
+                            "classifier_top_labels": ", ".join(
+                                detection.classification_predictions[0].label
+                                for detection in frame.detections
+                                if detection.classification_predictions
+                            ),
                             "detections": len(frame.detections),
                             "track": sum(
                                 detection.inventory_policy == "track"
@@ -1134,13 +1647,31 @@ with tab_video:
                     use_container_width=True,
                 )
 
+                if pipeline_version == "v2":
+                    st.subheader("Pipeline v2 Inventory Candidates")
+                    st.dataframe(
+                        [
+                            {
+                                "candidate_id": candidate.candidate_id,
+                                "canonical_label": candidate.canonical_label,
+                                "display_label": candidate.display_label,
+                                "status": candidate.status,
+                                "likely_count": candidate.likely_count,
+                                "confidence": candidate.confidence,
+                                "evidence_frames": ", ".join(
+                                    str(frame_id) for frame_id in candidate.evidence_frames
+                                ),
+                                "observations": candidate.observation_count,
+                            }
+                            for candidate in versioned_result.candidates
+                        ],
+                        use_container_width=True,
+                    )
+
                 st.subheader("Best Detection Thumbnails")
                 best_detections = best_detections_by_label(result)
                 if best_detections:
                     best_columns = st.columns(min(4, len(best_detections)))
-                    frame_lookup = {
-                        sampled.frame_id: sampled.image_path for sampled in extraction.frames
-                    }
                     for column, best in zip(best_columns, best_detections):
                         with column:
                             image_path = frame_lookup.get(best.frame_id)
@@ -1186,13 +1717,19 @@ with tab_video:
                         )
 
                 st.subheader("Video Response JSON")
-                st.json(result.to_dict(), expanded=2)
+                video_payload = result.to_dict()
+                video_payload["classification"] = video_classification
+                video_payload["pipeline_resolution"] = versioned_result.to_dict()
+                st.json(video_payload, expanded=2)
 
-with tab_live:
+with tab_bbox_stream:
     if detector_name != "yolo":
         st.info("Live camera is intended for the `yolo` detector. Switch the detector to `yolo` to test webcam streaming.")
     else:
         st.write("Browser camera -> WebRTC -> YOLO -> overlay")
+        st.caption(
+            f"Live uses the active detector model: `{model_name}`. Crop classification is disabled for live streaming to keep frame latency manageable."
+        )
         session_buffer: LiveSessionBuffer = st.session_state.live_session_buffer
         live_col_a, live_col_b = st.columns(2)
         with live_col_a:
@@ -1348,7 +1885,7 @@ with tab_live:
                 use_container_width=True,
             )
 
-with tab_batch:
+with tab_mock_scenario:
     if detector_name != "mock":
         st.info(
             "Scenario scan is mock-only right now. Switch the detector to `mock` for canned multi-frame testing."
@@ -1363,7 +1900,7 @@ with tab_batch:
             "Include ignored detections in scenario",
             value=False,
         )
-        run_scenario = st.button("Run Scenario Scan", use_container_width=True)
+        run_scenario = st.button("Run Mock Scenario", use_container_width=True)
 
         if run_scenario:
             frames = [

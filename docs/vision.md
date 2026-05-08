@@ -13,6 +13,7 @@ scan session -> frame observations -> closed-set detections
 What is in scope now:
 
 - object detection only
+- canonical labels resolved before detector training
 - a stable API contract for scan sessions
 - frame-level observations
 - class-level `track` vs `review` vs `ignore` routing
@@ -28,7 +29,7 @@ What is intentionally still out of scope for this stage:
 - embeddings / re-identification
 - open-vocabulary fallback
 - OCR / barcode enrichment
-- meal segmentation
+- segmentation/masks
 - production-grade inventory persistence in the main backend
 - embedding-based identity matching
 - robust duplicate resolution across long camera gaps
@@ -72,9 +73,13 @@ Next inventory UI
   -> Nest /api/v1/vision/detect/media
   -> Python FastAPI sidecar
   -> YOLO object crop proposals
-  -> crop classifier top-k predictions
   -> grouped detections, crop thumbnails, top-k picker, and annotated frame
 ```
+
+The current detector convention is YOLO11 through the Python sidecar default, currently resolving to `yolo11n_ingredient_detector_chef-detector-v005b-openimages-filtered` when that checkpoint is present.
+The current crop-classifier convention is `resnet18_ingredient_crops_5000_modal_frozen_v2`.
+
+In the product UI, photo and video scans send YOLO detections through that ResNet18 crop classifier for top-k review suggestions, with a conservative relabel threshold. Live camera scans keep the classifier off while streaming so the user can start once, continuously see YOLO boxes, stop, and then review generic detections such as bottles, cans, jars, and containers before adding anything.
 
 The UI remains a review workflow. It shows the user what was found and lets them add selected items instead of automatically writing raw detections into inventory.
 
@@ -100,12 +105,14 @@ The Python lab currently extends that basic detection-only path with:
 ```text
 image | video | live stream
   -> YOLO detections
-  -> optional classifier crop ranking
+  -> optional classifier crop ranking for lab experiments
   -> provisional tracks
   -> distinct-instance estimates
   -> resolved items
   -> optional local inventory apply
 ```
+
+Pipeline v2 keeps this detection-only product direction but adds an explicit object/session candidate layer before inventory resolution. See `docs/vision-pipeline-v2.md`.
 
 A later production stage should extend the full flow like this:
 
@@ -145,6 +152,10 @@ The Python lab currently uses inventory-aware overlay colors:
 - yellow: review item
 - gray: ignored item
 
+Annotated bounding-box images are rendered by `apps/vision-lab/chef_vision/render.py`. The renderer uses image-size-aware label text, thicker box outlines, and a TrueType font fallback so labels remain readable in Streamlit and in the product inventory scan modal.
+
+The product inventory modal shows the annotated frame in the normal scan flow and provides an inspect view for opening that frame at a larger scrollable size. This is intentionally a product UI affordance; model labels should not be shrunk into unreadable badges in the review workflow.
+
 This is a practical MVP rule set. It is still mostly label-based rather than true physical-object identity.
 
 ## Current Caveat
@@ -157,7 +168,7 @@ The most important current limitation is that inventory matching is still mostly
 
 This is useful for product iteration, but it is not yet the final object identity system.
 
-Another important caveat: classification is only as good as the crop proposal. If generic YOLO returns `container`, the classifier may still identify the crop as `basmati rice`, but if YOLO misses parsley entirely then the classifier never sees parsley. The next architecture improvement is an ingredient-aware detector trained from the imported XML boxes and evaluated against the current generic `yolo11n.pt` baseline.
+Another important caveat: classification is only as good as the crop proposal. If generic YOLO returns `container`, the classifier may still identify the crop as `basmati rice`, but if YOLO misses parsley entirely then the classifier never sees parsley. The next architecture improvement is an ingredient-aware detector trained from imported XML boxes after source labels are canonicalized through `packages/shared/vision-label-mappings.json`. Packaging words such as `jar`, `bag`, `box`, and `bottle` should become metadata hints where possible, not separate ingredient classes.
 
 ## Current Local Dev Stack
 

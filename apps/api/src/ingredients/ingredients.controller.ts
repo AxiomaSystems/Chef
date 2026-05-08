@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -15,6 +16,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalRequestActorGuard } from '../auth/request-actor.guard';
 import { AddKitchenInventoryItemDto } from './dto/add-kitchen-inventory-item.dto';
+import { UpdateKitchenInventoryItemDto } from './dto/update-kitchen-inventory-item.dto';
 import { IngredientsService } from './ingredients.service';
 
 @Controller('api/v1')
@@ -42,6 +44,16 @@ export class IngredientsController {
     @Body() input: AddKitchenInventoryItemDto,
   ): Promise<KitchenInventoryItem> {
     return this.ingredientsService.addInventoryItem(user.sub, input);
+  }
+
+  @Patch('me/kitchen-inventory/:id')
+  @UseGuards(JwtAuthGuard)
+  updateKitchenInventoryItem(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() input: UpdateKitchenInventoryItemDto,
+  ): Promise<KitchenInventoryItem> {
+    return this.ingredientsService.updateInventoryItem(user.sub, id, input);
   }
 
   @Delete('me/kitchen-inventory/:id')

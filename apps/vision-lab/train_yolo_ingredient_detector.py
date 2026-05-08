@@ -7,7 +7,7 @@ from chef_vision.checkpoints import INGREDIENT_DETECTOR_CHECKPOINTS_DIR
 
 
 APP_DIR = Path(__file__).resolve().parent
-DEFAULT_DATA_YAML = APP_DIR / "data" / "ingredient_detection_dataset" / "data.yaml"
+DEFAULT_DATA_YAML = APP_DIR / "data" / "datasets" / "bounding-box" / "food-ingredient-yolo" / "data.yaml"
 
 
 def parse_args() -> argparse.Namespace:
@@ -20,6 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--project", type=Path, default=INGREDIENT_DETECTOR_CHECKPOINTS_DIR)
     parser.add_argument("--name", default="yolo11n_ingredient_detector")
+    parser.add_argument("--exist-ok", action=argparse.BooleanOptionalAction, default=True)
     return parser.parse_args()
 
 
@@ -39,6 +40,7 @@ def main() -> None:
         device=None if args.device == "auto" else args.device,
         project=str(args.project),
         name=args.name,
+        exist_ok=args.exist_ok,
     )
 
 

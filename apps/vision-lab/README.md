@@ -18,7 +18,7 @@ It exists so we can iterate on kitchen detection, scan-session logic, overlays, 
 - `chef_vision/`: shared pipeline, ontology, detector interface, and overlay rendering
 - `data/runtime_inventory.json`: local runtime inventory store for lab scans
 
-The current detector is intentionally a mock stage-1 detector. It stabilizes the scan-session contract and lets us test inventory-facing behavior before YOLO or other models are wired in.
+The active lab path is BoundingBox detection plus optional crop classification. Segmentation experiments can remain for historical comparison, but they are no longer the product direction.
 
 ## Quick Start
 
@@ -49,6 +49,8 @@ apps/vision-lab/checkpoints/
 ```
 
 See `apps/vision-lab/checkpoints/README.md` for the exact expected paths.
+
+Generated datasets and preview sheets live under `apps/vision-lab/data/`, which is local ignored scratch space. Use `apps/vision-lab/DATASETS.md` for the canonical bounding-box dataset layout.
 
 If you also want the live webcam path, install the optional live extras:
 
@@ -86,6 +88,40 @@ If the module import path gives trouble from repo root on Windows, use:
 $env:PYTHONPATH="apps/vision-lab"
 .\.venv\Scripts\python.exe -m uvicorn fastapi_app:app --reload --app-dir apps/vision-lab
 ```
+
+## Railway Deployment
+
+Deploy the vision sidecar as a separate Railway service from the same repo:
+
+- Source repo: `AxiomaSystems/Chef`
+- Root directory: `apps/vision-lab`
+- Builder: Dockerfile
+- Dockerfile path: `Dockerfile`
+- Healthcheck path: `/health`
+- Public networking: enabled
+
+Railway injects `PORT`; the Dockerfile starts:
+
+```sh
+uvicorn fastapi_app:app --host 0.0.0.0 --port ${PORT:-8000}
+```
+
+After the sidecar has a public URL, set the API service env var:
+
+```text
+VISION_API_BASE_URL=https://<vision-sidecar>.up.railway.app
+```
+
+Then redeploy the API service. The web app already proxies media uploads through
+the Nest API route `/api/v1/vision/detect/media`.
+
+The Docker image includes `yolo11n.pt` from this directory for the demo path.
+Custom detector/classifier checkpoints are still artifact-managed separately and
+should be added through a later storage/artifact flow, not committed directly.
+
+The image installs a small set of Debian runtime libraries required by OpenCV
+and Ultralytics on `python:3.11-slim`, including `libxcb1`, `libx11-6`,
+`libgl1`, `libglib2.0-0`, and `libgomp1`.
 
 ## Recommended Architecture
 
@@ -150,13 +186,31 @@ Inventory is stored locally at:
 apps/vision-lab/data/runtime_inventory.json
 ```
 
-## Current Video Path
+## Current Streamlit Modes
+
+The active Streamlit work should stay in the bounding-box family. Choose `v1` or `v2` in the sidebar:
+
+```text
+BoundingBox
+  - Video Streaming
+  - Photo Upload
+  - Video Upload
+```
+
+Pipeline v1 is the fallback path. Pipeline v2 adds object/session candidates before inventory stacking so video and frame-by-frame scans do not treat every detection as a new pantry item.
+
+Segmentation tabs are hidden by default behind `ENABLE_SEGMENTATION_LAB = False` in `app.py`. Do not train or promote segmentation checkpoints for the inventory product flow unless there is a separate, explicit decision to reopen that path.
+
+See `docs/vision-pipeline-v2.md` for the full system design and dataset automation flow.
+
+## Current BoundingBox Video Path
 
 The Streamlit lab now supports uploaded video scanning:
 
 - upload a short kitchen clip
 - choose a frame sampling rate
-- run YOLO on the sampled frames
+- choose a YOLO detector checkpoint for boxes
+- optionally classify each detected crop with an ingredient classifier checkpoint
 - review per-frame detections and preview overlays
 - inspect label persistence summaries across the clip
 - inspect best-detection thumbnails by label
@@ -165,7 +219,7 @@ The Streamlit lab now supports uploaded video scanning:
 
 This is not full live streaming yet. It is the practical bridge from image detection to stream-oriented detection.
 
-## Current Live Camera Step
+## Current BoundingBox Live Camera Step
 
 The Streamlit lab also now supports a first live webcam path:
 

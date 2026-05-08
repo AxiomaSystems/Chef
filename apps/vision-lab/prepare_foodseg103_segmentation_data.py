@@ -14,7 +14,7 @@ from PIL import Image
 
 
 APP_DIR = Path(__file__).resolve().parent
-DEFAULT_OUTPUT_DIR = APP_DIR / "data" / "foodseg103_segmentation_dataset"
+DEFAULT_OUTPUT_DIR = APP_DIR / "data" / "datasets" / "segmentation" / "foodseg103-fridge"
 DATASET_ID = "EduardoPacheco/FoodSeg103"
 
 FOODSEG103_CLASSES = {

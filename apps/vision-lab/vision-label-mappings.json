@@ -1,0 +1,628 @@
+{
+  "version": 1,
+  "notes": [
+    "Development mapping file for shared Chef vision labels.",
+    "Long-term canonical ingredients should live in the database; this file keeps the vision adapter, API, and UI contract aligned while the model pipeline is still evolving."
+  ],
+  "default_boxes": [
+    {
+      "x": 0.14,
+      "y": 0.18,
+      "width": 0.22,
+      "height": 0.38
+    },
+    {
+      "x": 0.42,
+      "y": 0.2,
+      "width": 0.2,
+      "height": 0.34
+    },
+    {
+      "x": 0.66,
+      "y": 0.24,
+      "width": 0.18,
+      "height": 0.28
+    },
+    {
+      "x": 0.22,
+      "y": 0.58,
+      "width": 0.26,
+      "height": 0.24
+    },
+    {
+      "x": 0.56,
+      "y": 0.56,
+      "width": 0.24,
+      "height": 0.3
+    }
+  ],
+  "classes": [
+    {
+      "id": "onion",
+      "label": "onion",
+      "aliases": ["onion", "yellow onion", "red onion"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "carrot",
+      "label": "carrot",
+      "aliases": ["carrot", "carrots"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "banana",
+      "label": "banana",
+      "aliases": ["banana", "bananas"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "apple",
+      "label": "apple",
+      "aliases": ["apple", "apples"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "tomato",
+      "label": "tomato",
+      "aliases": ["tomato", "tomatoes"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "broccoli",
+      "label": "broccoli",
+      "aliases": ["broccoli"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "cabbage",
+      "label": "cabbage",
+      "aliases": ["cabbage"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "orange",
+      "label": "orange",
+      "aliases": ["orange", "oranges"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "avocado",
+      "label": "avocado",
+      "aliases": ["avocado", "avocados"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "cucumber",
+      "label": "cucumber",
+      "aliases": ["cucumber", "cucumbers"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "garlic",
+      "label": "garlic",
+      "aliases": ["garlic", "garlic clove", "garlic cloves"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "lemon",
+      "label": "lemon",
+      "aliases": ["lemon", "lemons"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "lettuce",
+      "label": "lettuce",
+      "aliases": ["lettuce"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "mushroom",
+      "label": "mushroom",
+      "aliases": [
+        "mushroom",
+        "mushrooms",
+        "white button mushroom",
+        "white_button_mushroom",
+        "shiitake",
+        "shiitake mushroom",
+        "oyster mushroom",
+        "king oyster mushroom",
+        "enoki mushroom"
+      ],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "pepper",
+      "label": "pepper",
+      "aliases": ["pepper", "peppers", "bell pepper", "chili pepper"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "potato",
+      "label": "potato",
+      "aliases": ["potato", "potatoes"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "strawberry",
+      "label": "strawberry",
+      "aliases": ["strawberry", "strawberries"],
+      "category": "produce",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "egg_carton",
+      "label": "egg carton",
+      "aliases": ["egg carton", "egg tray", "eggs"],
+      "category": "packaged_food",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "milk_carton",
+      "label": "milk carton",
+      "aliases": ["milk carton", "milk jug", "milk"],
+      "category": "packaged_food",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "cereal_box",
+      "label": "cereal box",
+      "aliases": ["cereal box", "cereal"],
+      "category": "packaged_food",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "rice_bag",
+      "label": "rice bag",
+      "aliases": ["rice bag", "bag of rice", "rice"],
+      "category": "packaged_food",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "flour_bag",
+      "label": "flour bag",
+      "aliases": ["flour bag", "bag of flour", "flour"],
+      "category": "packaged_food",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "spice_bottle",
+      "label": "spice bottle",
+      "aliases": ["spice bottle", "spice jar", "seasoning bottle"],
+      "category": "container",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "olive_oil_bottle",
+      "label": "olive oil bottle",
+      "aliases": ["olive oil bottle", "olive oil", "oil bottle"],
+      "category": "container",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "soda_can",
+      "label": "soda can",
+      "aliases": ["soda can", "can of soda", "soft drink can"],
+      "category": "packaged_food",
+      "granularity": "exact",
+      "inventory_policy": "track",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "unknown_packaged_food",
+      "label": "unknown packaged food",
+      "aliases": [
+        "unknown packaged food",
+        "packaged food",
+        "canned food",
+        "dried food",
+        "instant noodles",
+        "instant drink",
+        "seasoner",
+        "seasoning",
+        "puffed food"
+      ],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "fresh_produce",
+      "label": "fresh produce",
+      "aliases": [
+        "fresh produce",
+        "produce",
+        "fruit",
+        "vegetable",
+        "ingredient"
+      ],
+      "category": "produce",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "produce_item",
+      "label": "produce item",
+      "aliases": ["produce item", "fruit item", "vegetable item"],
+      "category": "produce",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_bag",
+      "label": "food bag",
+      "aliases": ["food bag", "bagged food", "ingredient bag"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_box",
+      "label": "food box",
+      "aliases": ["food box", "boxed food", "ingredient box"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_bottle",
+      "label": "food bottle",
+      "aliases": ["food bottle", "ingredient bottle"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_can",
+      "label": "food can",
+      "aliases": ["food can", "canned food", "ingredient can"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_carton",
+      "label": "food carton",
+      "aliases": ["food carton", "ingredient carton"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_jar",
+      "label": "food jar",
+      "aliases": ["food jar", "ingredient jar"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "food_packet",
+      "label": "food packet",
+      "aliases": ["food packet", "packaged ingredient"],
+      "category": "packaged_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "prepared_food",
+      "label": "prepared food",
+      "aliases": ["prepared food", "cooked food", "meal", "leftovers"],
+      "category": "prepared_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "bottle",
+      "label": "bottle",
+      "aliases": ["bottle", "water bottle"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "can",
+      "label": "can",
+      "aliases": ["can", "tin can"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "box",
+      "label": "box",
+      "aliases": ["box", "cardboard box"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "bag",
+      "label": "bag",
+      "aliases": ["bag", "plastic bag", "paper bag"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "carton",
+      "label": "carton",
+      "aliases": ["carton"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "jar",
+      "label": "jar",
+      "aliases": ["jar", "glass jar"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "packet",
+      "label": "packet",
+      "aliases": ["packet", "package", "pouch"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "container",
+      "label": "container",
+      "aliases": ["container", "plastic container"],
+      "category": "container",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "leftovers_container",
+      "label": "leftovers container",
+      "aliases": [
+        "leftovers",
+        "leftovers container",
+        "meal prep container",
+        "food container"
+      ],
+      "category": "prepared_food",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "plate",
+      "label": "plate",
+      "aliases": ["plate", "dish"],
+      "category": "kitchenware",
+      "granularity": "generic",
+      "inventory_policy": "ignore",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "bowl",
+      "label": "bowl",
+      "aliases": ["bowl"],
+      "category": "kitchenware",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "cup",
+      "label": "cup",
+      "aliases": ["cup", "glass"],
+      "category": "kitchenware",
+      "granularity": "generic",
+      "inventory_policy": "ignore",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "mug",
+      "label": "mug",
+      "aliases": ["mug"],
+      "category": "kitchenware",
+      "granularity": "generic",
+      "inventory_policy": "ignore",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "utensil",
+      "label": "utensil",
+      "aliases": ["utensil", "fork", "knife", "spoon"],
+      "category": "kitchenware",
+      "granularity": "generic",
+      "inventory_policy": "ignore",
+      "stage_1_enabled": true
+    },
+    {
+      "id": "unknown_kitchen_item",
+      "label": "unknown kitchen item",
+      "aliases": ["unknown", "unknown kitchen item"],
+      "category": "unknown",
+      "granularity": "generic",
+      "inventory_policy": "review",
+      "stage_1_enabled": true
+    }
+  ],
+  "training_label_mappings": {
+    "unmapped_label_policy": "exclude",
+    "package_terms": {
+      "bag": "bag",
+      "box": "box",
+      "bottle": "bottle",
+      "can": "can",
+      "carton": "carton",
+      "container": "container",
+      "jar": "jar",
+      "jug": "jug",
+      "packet": "packet",
+      "package": "package",
+      "pouch": "pouch"
+    },
+    "source_label_overrides": {
+      "bag of flour": {
+        "class_id": "flour_bag",
+        "package": "bag"
+      },
+      "bag of rice": {
+        "class_id": "rice_bag",
+        "package": "bag"
+      },
+      "cereal": "cereal_box",
+      "cereal box": {
+        "class_id": "cereal_box",
+        "package": "box"
+      },
+      "canned food": {
+        "class_id": "unknown_packaged_food",
+        "package": "can"
+      },
+      "dried food": "unknown_packaged_food",
+      "dried fruit": "unknown_packaged_food",
+      "egg tray": "egg_carton",
+      "eggs": "egg_carton",
+      "flour": "flour_bag",
+      "flour bag": {
+        "class_id": "flour_bag",
+        "package": "bag"
+      },
+      "milk": "milk_carton",
+      "milk carton": {
+        "class_id": "milk_carton",
+        "package": "carton"
+      },
+      "milk jug": {
+        "class_id": "milk_carton",
+        "package": "jug"
+      },
+      "oil bottle": "olive_oil_bottle",
+      "instant drink": "unknown_packaged_food",
+      "instant noodles": "unknown_packaged_food",
+      "packaged food": "unknown_packaged_food",
+      "puffed food": "unknown_packaged_food",
+      "rice": "rice_bag",
+      "rice bag": {
+        "class_id": "rice_bag",
+        "package": "bag"
+      },
+      "seasoning bottle": "spice_bottle",
+      "seasoner": "spice_bottle",
+      "spice jar": "spice_bottle",
+      "tomato jar": {
+        "class_id": "tomato",
+        "package": "jar"
+      },
+      "tomatoes jar": {
+        "class_id": "tomato",
+        "package": "jar"
+      }
+    }
+  },
+  "model_mappings": {
+    "coco": {
+      "apple": "apple",
+      "banana": "banana",
+      "bottle": "bottle",
+      "broccoli": "broccoli",
+      "bowl": "bowl",
+      "carrot": "carrot",
+      "cup": "cup",
+      "fork": "utensil",
+      "knife": "utensil",
+      "orange": "orange",
+      "plate": "plate",
+      "sandwich": "unknown_kitchen_item",
+      "spoon": "utensil",
+      "wine glass": "ignore"
+    }
+  },
+  "pipeline_notes": [
+    "Stage 1 is detection only.",
+    "Use inventory_policy to route detections into add, review, or ignore workflows.",
+    "The shared mapping file is a transitional source of truth until the database owns the canonical ingredient ontology."
+  ]
+}
