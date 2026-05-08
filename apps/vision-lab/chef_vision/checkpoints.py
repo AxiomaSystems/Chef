@@ -15,10 +15,15 @@ LEGACY_INGREDIENT_CLASSIFIER_RUNS_DIR = LEGACY_DATA_DIR / "ingredient_classifier
 LEGACY_FOODSEG_SEGMENTER_RUNS_DIR = LEGACY_DATA_DIR / "foodseg103_segmenter_runs"
 
 DEFAULT_CLASSIFIER_RUN = "resnet18_ingredient_crops_5000_modal_frozen_v2"
+DEFAULT_INGREDIENT_DETECTOR_RUN = "yolo11n_ingredient_detector_chef-detector-v005b-openimages-filtered"
 DEFAULT_FOODSEG_SEGMENTER_RUN = "yolo11n_foodseg103_segmenter_modal"
 
 
 def default_yolo_model(model_name: str = "yolo11n.pt") -> str:
+    trained_detector = ingredient_detector_checkpoint_path()
+    if trained_detector.exists():
+        return str(trained_detector)
+
     local_model = BASE_MODEL_DIR / model_name
     return str(local_model) if local_model.exists() else model_name
 
@@ -34,6 +39,12 @@ def default_segmentation_model(model_name: str = "yolo11n-seg.pt") -> str:
 
 def classifier_checkpoint_path(run_name: str = DEFAULT_CLASSIFIER_RUN) -> Path:
     return INGREDIENT_CLASSIFIER_CHECKPOINTS_DIR / run_name / "best_model.pt"
+
+
+def ingredient_detector_checkpoint_path(
+    run_name: str = DEFAULT_INGREDIENT_DETECTOR_RUN,
+) -> Path:
+    return INGREDIENT_DETECTOR_CHECKPOINTS_DIR / run_name / "weights" / "best.pt"
 
 
 def legacy_classifier_checkpoint_path(run_name: str = DEFAULT_CLASSIFIER_RUN) -> Path:
@@ -77,3 +88,18 @@ def available_classifier_runs() -> list[Path]:
             if path.is_dir() and (path / "best_model.pt").exists():
                 run_dirs[path.name] = path
     return [run_dirs[name] for name in sorted(run_dirs)]
+
+
+def available_yolo_detection_models() -> list[Path]:
+    models: dict[str, Path] = {}
+
+    if INGREDIENT_DETECTOR_CHECKPOINTS_DIR.exists():
+        for best_path in sorted(INGREDIENT_DETECTOR_CHECKPOINTS_DIR.glob("*/weights/best.pt")):
+            models[str(best_path)] = best_path
+
+    if BASE_MODEL_DIR.exists():
+        for model_path in sorted(BASE_MODEL_DIR.glob("*.pt")):
+            if "-seg" not in model_path.stem:
+                models[str(model_path)] = model_path
+
+    return list(models.values())

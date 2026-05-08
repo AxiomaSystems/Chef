@@ -9,28 +9,21 @@ The folder structure is tracked, but checkpoint binaries are ignored by Git. Sha
 ```text
 apps/vision-lab/checkpoints/
 |-- base/
-|   |-- yolo11n.pt
-|   `-- yolo11n-seg.pt
+|   `-- yolo11n.pt
 |-- classifiers/
 |   `-- ingredient/
 |       `-- resnet18_ingredient_crops_5000_modal_frozen_v2/
 |           `-- best_model.pt
-|-- detectors/
+`-- detectors/
 |   `-- ingredient/
 |       `-- yolo11n_ingredient_detector_modal/
 |           `-- weights/
 |               `-- best.pt
-`-- segmenters/
-    `-- foodseg103/
-        `-- yolo11n_foodseg103_segmenter_modal/
-            `-- weights/
-                `-- best.pt
 ```
 
 ## Runtime Defaults
 
-- General YOLO detection first looks for `checkpoints/base/yolo11n.pt`, then falls back to the Ultralytics model name `yolo11n.pt`.
-- YOLO segmentation first looks for `checkpoints/segmenters/foodseg103/yolo11n_foodseg103_segmenter_modal/weights/best.pt`, then `checkpoints/base/yolo11n-seg.pt`, then falls back to `yolo11n-seg.pt`.
+- General YOLO detection first looks for `checkpoints/detectors/ingredient/yolo11n_ingredient_detector_modal/weights/best.pt`, then `checkpoints/base/yolo11n.pt`, then falls back to the Ultralytics model name `yolo11n.pt`.
 - Ingredient classification first looks for `checkpoints/classifiers/ingredient/resnet18_ingredient_crops_5000_modal_frozen_v2/best_model.pt`.
 
 ## Training Convention
@@ -39,9 +32,10 @@ Training scripts should write shareable runtime checkpoints here:
 
 - ingredient classifiers: `checkpoints/classifiers/ingredient/<run-name>/best_model.pt`
 - ingredient YOLO detectors: `checkpoints/detectors/ingredient/<run-name>/weights/best.pt`
-- FoodSeg103 segmenters: `checkpoints/segmenters/foodseg103/<run-name>/weights/best.pt`
 
 Keep raw datasets, previews, temporary imports, and exploratory run output under `apps/vision-lab/data/`. That directory is local scratch and remains ignored.
+
+Segmentation checkpoints can stay in local scratch or artifact history for comparison, but they are no longer part of the active product checkpoint manifest.
 
 ## Updating Shared Checkpoints
 

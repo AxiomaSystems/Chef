@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
+import { PasswordInput } from "@/components/auth/password-input";
 import { signupAction, type SignupActionState } from "./actions";
 
 const INITIAL_STATE: SignupActionState = {};
@@ -59,9 +60,8 @@ export function SignupForm() {
         <span className="text-sm font-medium text-[#1a1c1a]">
           Password
         </span>
-        <input
+        <PasswordInput
           className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-white/80 px-4 text-[#1a1c1a] outline-none ring-0 transition placeholder:text-[#85736c] focus:border-[#895032]"
-          type="password"
           name="password"
           autoComplete="new-password"
           placeholder="At least 8 characters"

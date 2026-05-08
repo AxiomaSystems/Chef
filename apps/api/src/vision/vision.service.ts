@@ -13,6 +13,9 @@ import type { AnalyzeVisionMediaDto } from './dto/analyze-vision-media.dto';
 import { buildVisionPipelineConfig } from './vision.constants';
 import { MockVisionDetectorProvider } from './mock-vision-detector.provider';
 
+const DEFAULT_MEDIA_DETECTOR = 'yolo';
+const DEFAULT_CLASSIFIER_RUN = 'resnet18_ingredient_crops_5000_modal_frozen_v2';
+
 export type UploadedVisionMedia = {
   buffer: Buffer;
   mimetype?: string;
@@ -81,21 +84,23 @@ export class VisionService {
     formData.set('media_kind', input.media_kind ?? 'photo');
     formData.set(
       'detector',
-      input.detector ?? process.env.VISION_DETECTOR ?? 'yolo',
+      input.detector ?? process.env.VISION_DETECTOR ?? DEFAULT_MEDIA_DETECTOR,
     );
-    formData.set(
-      'model_name',
-      input.model_name ?? process.env.VISION_YOLO_MODEL ?? 'yolo11n.pt',
-    );
+    const modelName = input.model_name ?? process.env.VISION_YOLO_MODEL;
+    if (modelName) {
+      formData.set('model_name', modelName);
+    }
     formData.set(
       'classify_crops',
-      String(input.classify_crops ?? process.env.VISION_CLASSIFY_CROPS ?? true),
+      String(
+        input.classify_crops ?? process.env.VISION_CLASSIFY_CROPS ?? false,
+      ),
     );
     formData.set(
       'classifier_run',
       input.classifier_run ??
         process.env.VISION_CLASSIFIER_RUN ??
-        'resnet18_ingredient_crops_5000_modal_frozen_v2',
+        DEFAULT_CLASSIFIER_RUN,
     );
     if (
       input.classifier_checkpoint ??

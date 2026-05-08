@@ -4,39 +4,109 @@
     "category": "produce",
     "inventory_policy": "track",
     "estimated_count": 3,
-    "max_confidence": 0.75,
+    "max_confidence": 0.73,
     "source": "single_frame_scan",
-    "first_added_at": "2026-04-29T15:56:13.884972+00:00",
-    "last_seen_at": "2026-04-30T20:42:41.286223+00:00"
+    "first_added_at": "2026-05-06T09:18:29.590587+00:00",
+    "last_seen_at": "2026-05-07T17:52:37.690889+00:00"
   },
   {
-    "label": "banana",
+    "label": "avocado",
     "category": "produce",
     "inventory_policy": "track",
-    "estimated_count": 6,
-    "max_confidence": 0.91,
+    "estimated_count": 1,
+    "max_confidence": 0.72,
     "source": "single_frame_scan",
-    "first_added_at": "2026-04-24T16:01:55.719451+00:00",
-    "last_seen_at": "2026-04-29T15:56:13.884972+00:00"
+    "first_added_at": "2026-05-07T17:29:21.568576+00:00",
+    "last_seen_at": "2026-05-07T17:52:22.360023+00:00"
   },
   {
-    "label": "olive oil bottle",
-    "category": "container",
+    "label": "broccoli",
+    "category": "produce",
     "inventory_policy": "track",
-    "estimated_count": 1,
-    "max_confidence": 0.91,
+    "estimated_count": 3,
+    "max_confidence": 1.0,
     "source": "single_frame_scan",
-    "first_added_at": "2026-04-24T16:01:28.745404+00:00",
-    "last_seen_at": "2026-05-02T05:21:57.455747+00:00"
+    "first_added_at": "2026-05-06T09:18:29.590587+00:00",
+    "last_seen_at": "2026-05-07T17:52:37.690889+00:00"
   },
   {
-    "label": "spice bottle",
-    "category": "container",
+    "label": "cabbage",
+    "category": "produce",
     "inventory_policy": "track",
     "estimated_count": 1,
-    "max_confidence": 0.91,
+    "max_confidence": 0.51,
     "source": "single_frame_scan",
-    "first_added_at": "2026-04-24T16:01:28.745404+00:00",
-    "last_seen_at": "2026-05-02T05:21:57.455747+00:00"
+    "first_added_at": "2026-05-06T18:14:14.144055+00:00",
+    "last_seen_at": "2026-05-06T18:14:14.144055+00:00"
+  },
+  {
+    "label": "carrot",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 4,
+    "max_confidence": 0.8,
+    "source": "live_session",
+    "first_added_at": "2026-05-07T17:51:50.815240+00:00",
+    "last_seen_at": "2026-05-07T17:51:50.815240+00:00"
+  },
+  {
+    "label": "cilantro",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.74,
+    "source": "single_frame_scan",
+    "first_added_at": "2026-05-07T17:29:21.568576+00:00",
+    "last_seen_at": "2026-05-07T17:52:22.360023+00:00"
+  },
+  {
+    "label": "cucumber",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 10,
+    "max_confidence": 0.92,
+    "source": "live_session",
+    "first_added_at": "2026-05-07T17:51:50.815240+00:00",
+    "last_seen_at": "2026-05-07T17:51:50.815240+00:00"
+  },
+  {
+    "label": "jalapeno",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.52,
+    "source": "single_frame_scan",
+    "first_added_at": "2026-05-07T17:30:03.484840+00:00",
+    "last_seen_at": "2026-05-07T17:52:22.360023+00:00"
+  },
+  {
+    "label": "orange",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.68,
+    "source": "live_session",
+    "first_added_at": "2026-05-07T17:51:50.815240+00:00",
+    "last_seen_at": "2026-05-07T17:51:50.815240+00:00"
+  },
+  {
+    "label": "pepper",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.29,
+    "source": "live_session",
+    "first_added_at": "2026-05-07T17:51:50.815240+00:00",
+    "last_seen_at": "2026-05-07T17:51:50.815240+00:00"
+  },
+  {
+    "label": "tomato",
+    "category": "produce",
+    "inventory_policy": "track",
+    "estimated_count": 1,
+    "max_confidence": 0.3,
+    "source": "live_session",
+    "first_added_at": "2026-05-07T17:51:50.815240+00:00",
+    "last_seen_at": "2026-05-07T17:51:50.815240+00:00"
   }
 ]

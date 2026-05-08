@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from io import BytesIO
 
-from PIL import Image, ImageColor, ImageDraw
+from PIL import Image, ImageColor, ImageDraw, ImageFont
 
 from chef_vision.contracts import Detection
 
@@ -34,6 +34,10 @@ def draw_detections(
     rendered = image.copy()
     draw = ImageDraw.Draw(rendered)
     width, height = rendered.size
+    font = _label_font(width, height)
+    padding_x = max(8, round(min(width, height) * 0.012))
+    padding_y = max(5, round(min(width, height) * 0.008))
+    box_width = max(4, round(min(width, height) * 0.006))
 
     for detection in detections:
         left = int(detection.bbox.x * width)
@@ -47,11 +51,29 @@ def draw_detections(
         badge = status or detection.inventory_policy
         label = f"{detection.label} {detection.confidence:.2f} [{badge}]"
 
-        draw.rectangle((left, top, right, bottom), outline=color, width=4)
+        draw.rectangle((left, top, right, bottom), outline=color, width=box_width)
 
-        text_anchor_top = max(0, top - 22)
-        draw.rectangle((left, text_anchor_top, min(width, left + 220), top), fill=color)
-        draw.text((left + 6, text_anchor_top + 3), label, fill=(255, 255, 255))
+        text_bbox = draw.textbbox((0, 0), label, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+        badge_width = min(width - left, text_width + padding_x * 2)
+        badge_height = text_height + padding_y * 2
+        text_anchor_top = top - badge_height
+        if text_anchor_top < 0:
+            text_anchor_top = top
+        text_anchor_bottom = min(height, text_anchor_top + badge_height)
+        text_anchor_right = min(width, left + badge_width)
+
+        draw.rectangle(
+            (left, text_anchor_top, text_anchor_right, text_anchor_bottom),
+            fill=color,
+        )
+        draw.text(
+            (left + padding_x, text_anchor_top + padding_y - text_bbox[1]),
+            label,
+            fill=(255, 255, 255),
+            font=font,
+        )
 
     return rendered
 
@@ -68,3 +90,19 @@ def draw_detections_on_bgr_array(
         label_statuses=label_statuses,
     )
     return rendered_rgb.copy()
+
+
+def _label_font(width: int, height: int) -> ImageFont.ImageFont:
+    font_size = max(24, min(64, round(min(width, height) * 0.045)))
+    candidates = [
+        "C:/Windows/Fonts/arialbd.ttf",
+        "C:/Windows/Fonts/arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for candidate in candidates:
+        try:
+            return ImageFont.truetype(candidate, font_size)
+        except OSError:
+            continue
+    return ImageFont.load_default()

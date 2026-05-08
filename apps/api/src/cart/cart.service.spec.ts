@@ -1,4 +1,7 @@
-import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { BaseRecipe } from '@cart/shared';
 import { AggregationService } from '../aggregation/aggregation.service';
 import { CartExportService } from '../cart-export/cart-export.service';
@@ -88,31 +91,37 @@ describe('CartService', () => {
       deleteDraft: jest.fn(),
       findDraftsByUser: jest.fn(),
       findDraftById: jest.fn(),
-      createCart: jest.fn().mockImplementation(async ({ userId, name, retailer, selections, dishes }) => ({
-        id: 'cart-1',
-        user_id: userId,
-        name,
-        retailer,
-        selections,
-        dishes,
-        overview: [],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })),
+      createCart: jest
+        .fn()
+        .mockImplementation(
+          async ({ userId, name, retailer, selections, dishes }) => ({
+            id: 'cart-1',
+            user_id: userId,
+            name,
+            retailer,
+            selections,
+            dishes,
+            overview: [],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }),
+        ),
       updateCart: jest.fn(),
       deleteCart: jest.fn(),
       upsertIngredientReview: jest.fn(),
       findCartsByUser: jest.fn(),
       findCartById: jest.fn(),
       findIngredientReviewByCartId: jest.fn().mockResolvedValue(null),
-      createShoppingCart: jest.fn().mockImplementation(async ({ userId, cartId, shoppingCart }) => ({
-        id: 'shopping-cart-1',
-        user_id: userId,
-        cart_id: cartId,
-        ...shoppingCart,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })),
+      createShoppingCart: jest
+        .fn()
+        .mockImplementation(async ({ userId, cartId, shoppingCart }) => ({
+          id: 'shopping-cart-1',
+          user_id: userId,
+          cart_id: cartId,
+          ...shoppingCart,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })),
       findShoppingCartsByUser: jest.fn(),
       findShoppingCartHistoryByUser: jest.fn(),
       findShoppingCartById: jest.fn(),
@@ -129,16 +138,15 @@ describe('CartService', () => {
     } as unknown as jest.Mocked<CartExportService>;
 
     ingredientsService = {
+      listInventory: jest.fn().mockResolvedValue([]),
       listInventoryIngredientSlugs: jest.fn().mockResolvedValue(new Set()),
-      normalizeSlug: jest
-        .fn()
-        .mockImplementation((value: string) =>
-          value
-            .trim()
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, ''),
-        ),
+      normalizeSlug: jest.fn().mockImplementation((value: string) =>
+        value
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, ''),
+      ),
     } as unknown as jest.Mocked<IngredientsService>;
 
     service = new CartService(
@@ -215,7 +223,9 @@ describe('CartService', () => {
   });
 
   it('requires shopping location before generating a Kroger shopping cart', async () => {
-    (userContextService.resolveActorUserShoppingContext as jest.Mock).mockResolvedValue({
+    (
+      userContextService.resolveActorUserShoppingContext as jest.Mock
+    ).mockResolvedValue({
       id: 'user-1',
       preferredZipCode: null,
       preferredLocationLabel: null,
@@ -254,7 +264,9 @@ describe('CartService', () => {
 
     await expect(
       service.createShoppingCart('cart-1', { retailer: 'kroger' }),
-    ).rejects.toThrow('Set your shopping location first before using Kroger search.');
+    ).rejects.toThrow(
+      'Set your shopping location first before using Kroger search.',
+    );
   });
 
   it('fails clearly when Kroger credentials are missing', () => {
@@ -366,6 +378,74 @@ describe('CartService', () => {
     );
   });
 
+  it('deducts matching kitchen inventory quantities before product matching', async () => {
+    cartPersistenceService.findCartById.mockResolvedValue({
+      id: 'cart-1',
+      user_id: 'user-1',
+      name: 'Weekly dinner plan',
+      retailer: 'walmart',
+      selections: [],
+      dishes: [
+        {
+          id: 'recipe-1',
+          name: recipe.name,
+          cuisine: recipe.cuisine.label,
+          servings: recipe.servings,
+          ingredients: recipe.ingredients,
+          steps: recipe.steps,
+          tags: recipe.tags.map((tag) => tag.name),
+        },
+      ],
+      overview: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    ingredientsService.listInventory.mockResolvedValue([
+      {
+        id: 'inventory-rice',
+        user_id: 'user-1',
+        ingredient_id: 'ingredient-rice',
+        ingredient: {
+          id: 'ingredient-rice',
+          canonical_name: 'rice',
+          slug: 'rice',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        estimated_amount: 1,
+        unit: 'cup',
+        source: 'manual',
+        confidence: 'high',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]);
+
+    await service.createShoppingCart('cart-1', { retailer: 'walmart' });
+
+    const createdShoppingCart =
+      cartPersistenceService.createShoppingCart.mock.calls[0][0].shoppingCart;
+    expect(createdShoppingCart.overview).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonical_ingredient: 'rice',
+          inventory_amount: 1,
+          inventory_unit: 'cup',
+          remaining_to_buy: 1,
+          deduction_possible: true,
+        }),
+      ]),
+    );
+    expect(createdShoppingCart.matched_items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonical_ingredient: 'rice',
+          needed_amount: 1,
+        }),
+      ]),
+    );
+  });
+
   it('creates an Instacart handoff shopping cart without product matching', async () => {
     cartExportService.createHandoff.mockResolvedValue({
       externalUrl: 'https://www.instacart.com/store/products/example',
@@ -414,6 +494,60 @@ describe('CartService', () => {
         retailer: 'instacart',
       }),
     );
+  });
+
+  it('does not persist a shopping cart when Instacart handoff is unavailable', async () => {
+    cartExportService.getProviderReadiness.mockReturnValue({
+      retailer: 'instacart',
+      status: 'missing_credentials',
+      isAvailable: false,
+    });
+    cartPersistenceService.findCartById.mockResolvedValue({
+      id: 'cart-1',
+      user_id: 'user-1',
+      name: 'Weekly dinner plan',
+      retailer: 'instacart',
+      selections: [
+        {
+          recipe_id: 'recipe-1',
+          recipe_type: 'base',
+          quantity: 1,
+        },
+      ],
+      dishes: [
+        {
+          id: 'recipe-1',
+          name: recipe.name,
+          cuisine: recipe.cuisine.label,
+          servings: recipe.servings,
+          ingredients: recipe.ingredients,
+          steps: recipe.steps,
+          tags: recipe.tags.map((tag) => tag.name),
+        },
+      ],
+      overview: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    await expect(
+      service.createShoppingCart('cart-1', { retailer: 'instacart' }),
+    ).rejects.toThrow(
+      'Instacart handoff is unavailable because provider credentials are missing.',
+    );
+    expect(cartExportService.createHandoff).not.toHaveBeenCalled();
+    expect(cartPersistenceService.createShoppingCart).not.toHaveBeenCalled();
+  });
+
+  it('rejects Instacart product search with an actionable handoff message', async () => {
+    await expect(
+      service.searchRetailerProducts('instacart', 'rice'),
+    ).rejects.toThrow(
+      'Instacart product search is not supported yet. Generate an Instacart handoff from a cart instead.',
+    );
+    expect(
+      userContextService.resolveActorUserShoppingContext,
+    ).not.toHaveBeenCalled();
   });
 
   it('lists shopping cart history summaries', async () => {

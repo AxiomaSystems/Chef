@@ -8,16 +8,18 @@ from pathlib import PurePosixPath
 
 import modal
 
-from chef_vision.checkpoints import INGREDIENT_DETECTOR_CHECKPOINTS_DIR
-
 
 APP_NAME = "chef-ingredient-detector-training"
 VOLUME_NAME = "chef-ingredient-vision-data"
 VOL_MOUNT = PurePosixPath("/mnt/chef-vision")
 REMOTE_CODE_DIR = PurePosixPath("/root/vision-lab")
 LOCAL_APP_DIR = Path(__file__).resolve().parent
-DEFAULT_LOCAL_DATA_DIR = LOCAL_APP_DIR / "data" / "ingredient_detection_dataset"
-DEFAULT_LOCAL_OUTPUT_DIR = INGREDIENT_DETECTOR_CHECKPOINTS_DIR
+DEFAULT_LOCAL_DATA_DIR = LOCAL_APP_DIR / "data" / "datasets" / "bounding-box" / "food-ingredient-yolo"
+DEFAULT_LOCAL_OUTPUT_DIR = LOCAL_APP_DIR / "checkpoints" / "detectors" / "ingredient"
+
+for import_path in (LOCAL_APP_DIR, Path(str(REMOTE_CODE_DIR))):
+    if str(import_path) not in sys.path:
+        sys.path.insert(0, str(import_path))
 
 
 volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
@@ -30,6 +32,7 @@ image = (
         "torchvision>=0.20,<1.0",
         "ultralytics>=8.4,<9.0",
     )
+    .env({"PYTHONPATH": str(REMOTE_CODE_DIR)})
     .add_local_dir(
         LOCAL_APP_DIR,
         remote_path=str(REMOTE_CODE_DIR),
@@ -46,11 +49,11 @@ app = modal.App(APP_NAME, image=image)
 
 
 def remote_dataset_dir() -> PurePosixPath:
-    return VOL_MOUNT / "ingredient_detection_dataset"
+    return VOL_MOUNT / "datasets" / "bounding-box" / "food-ingredient-yolo"
 
 
 def remote_runs_dir() -> PurePosixPath:
-    return VOL_MOUNT / "ingredient_detector_runs"
+    return VOL_MOUNT / "runs" / "bounding-box" / "ingredient-detector"
 
 
 def normalize_remote_data_yaml() -> Path:
@@ -83,7 +86,7 @@ def upload_dataset(local_data_dir: Path) -> None:
 
     print(f"Uploading {local_data_dir} to Modal volume {VOLUME_NAME}...", flush=True)
     with volume.batch_upload(force=True) as batch:
-        batch.put_directory(str(local_data_dir), "/ingredient_detection_dataset")
+        batch.put_directory(str(local_data_dir), f"/{remote_dataset_dir().relative_to(VOL_MOUNT)}")
     print("Upload complete.", flush=True)
 
 
@@ -93,20 +96,32 @@ def download_run(run_name: str, local_output_dir: Path) -> None:
     weights_dir.mkdir(parents=True, exist_ok=True)
 
     files = [
-        "args.yaml",
-        "results.csv",
-        "weights/best.pt",
-        "weights/last.pt",
+        ("args.yaml", False),
+        ("results.csv", False),
+        ("weights/best.pt", True),
+        ("weights/last.pt", True),
     ]
-    for filename in files:
-        remote_path = f"/ingredient_detector_runs/{run_name}/{filename}"
+    for filename, required in files:
+        remote_path = f"/{remote_runs_dir().relative_to(VOL_MOUNT)}/{run_name}/{filename}"
         local_path = output_dir / filename
+        temp_path = local_path.with_suffix(local_path.suffix + ".download")
         local_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with local_path.open("wb") as target:
+            with temp_path.open("wb") as target:
                 volume.read_file_into_fileobj(remote_path, target)
-            print(f"Downloaded {local_path}", flush=True)
+            if temp_path.stat().st_size == 0:
+                temp_path.unlink(missing_ok=True)
+                message = f"Remote file is empty or missing: {remote_path}"
+                if required:
+                    raise RuntimeError(message)
+                print(f"Skipped empty remote file: {remote_path}", flush=True)
+                continue
+            temp_path.replace(local_path)
+            print(f"Downloaded {local_path} ({local_path.stat().st_size} bytes)", flush=True)
         except FileNotFoundError:
+            temp_path.unlink(missing_ok=True)
+            if required:
+                raise RuntimeError(f"Missing required remote file: {remote_path}") from None
             print(f"Skipped missing remote file: {remote_path}", flush=True)
 
 
@@ -143,6 +158,7 @@ def train_detector_remote(
         str(remote_runs_dir()),
         "--name",
         run_name,
+        "--exist-ok",
     ]
 
     # Ultralytics accepts patience through CLI/config more easily than this local wrapper;
@@ -161,6 +177,7 @@ def train_detector_remote(
             f"project={remote_runs_dir()}",
             f"name={run_name}",
             f"patience={patience}",
+            "exist_ok=True",
         ]
 
     subprocess.run(command, cwd=str(REMOTE_CODE_DIR), check=True)

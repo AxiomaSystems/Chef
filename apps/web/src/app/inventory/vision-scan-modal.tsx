@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   KitchenInventoryItem,
   VisionDetection,
@@ -24,6 +24,12 @@ type DetectionGroup = {
   thumbnail?: string;
 };
 
+const DEFAULT_VISION_DETECTOR = "yolo";
+const DEFAULT_VISION_CLASSIFIER_RUN =
+  "resnet18_ingredient_crops_5000_modal_frozen_v2";
+const LIVE_SCAN_INTERVAL_MS = 1200;
+const CLASSIFIER_RELABEL_MIN_CONFIDENCE = "0.85";
+
 export function VisionScanModal({
   mode,
   onClose,
@@ -36,16 +42,24 @@ export function VisionScanModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const liveScanAbortRef = useRef<AbortController | null>(null);
+  const liveScanInFlightRef = useRef(false);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [result, setResult] = useState<VisionScanResponse | null>(null);
   const [expandedLabel, setExpandedLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isLiveScanning, setIsLiveScanning] = useState(false);
+  const [lastLiveScanAt, setLastLiveScanAt] = useState<number | null>(null);
   const [addingKey, setAddingKey] = useState<string | null>(null);
+  const [focusedFrame, setFocusedFrame] = useState<{
+    src: string;
+    label: string;
+  } | null>(null);
   const [selectedLabels, setSelectedLabels] = useState<Record<string, string>>(
     {},
   );
   const [manualLabels, setManualLabels] = useState<Record<string, string>>({});
-  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (mode !== "camera") return undefined;
@@ -74,6 +88,8 @@ export function VisionScanModal({
 
     return () => {
       mounted = false;
+      liveScanAbortRef.current?.abort();
+      setIsLiveScanning(false);
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, [mode]);
@@ -98,12 +114,19 @@ export function VisionScanModal({
   const frames = result?.frames ?? [];
   const detections = frames.flatMap((frame) => frame.detections);
   const detectionGroups = groupDetections(detections, labelForDetection);
+  const trackableGroups = detectionGroups.filter(isTrackableGroup);
   const expandedGroup =
     detectionGroups.find((group) => group.label === expandedLabel) ??
     detectionGroups[0];
   const primaryAnnotatedFrame = frames.find(
     (frame) => frame.annotated_image_data_url,
   );
+  const latestCameraFrame =
+    mode === "camera" ? frames[frames.length - 1] : undefined;
+  const expectedClassificationOff =
+    result?.classification?.enabled === false &&
+    result.classification.reason ===
+      "Crop classification was not requested for this scan.";
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -119,12 +142,14 @@ export function VisionScanModal({
     });
     setResult(null);
     setExpandedLabel(null);
+    setFocusedFrame(null);
     setSelectedLabels({});
     setManualLabels({});
     setError(null);
+    setLastLiveScanAt(null);
   }
 
-  async function getScanMedia() {
+  const getScanMedia = useCallback(async () => {
     if (preview?.file) {
       return {
         blob: preview.file,
@@ -152,56 +177,142 @@ export function VisionScanModal({
       blob,
       fileName: `camera-${Date.now()}.jpg`,
     };
-  }
+  }, [mode, preview?.file]);
+
+  const submitScan = useCallback(
+    async ({ live = false }: { live?: boolean } = {}) => {
+      if (live && liveScanInFlightRef.current) return false;
+      if (live) {
+        liveScanInFlightRef.current = true;
+      } else {
+        setIsScanning(true);
+      }
+
+      const controller = new AbortController();
+      if (live) liveScanAbortRef.current = controller;
+
+      try {
+        const media = await getScanMedia();
+
+        if (!media) {
+          setError("Choose a photo/video or allow camera access first.");
+          return false;
+        }
+
+        const formData = new FormData();
+        formData.set("media", media.blob, media.fileName);
+        formData.set("media_kind", mode);
+        formData.set("detector", DEFAULT_VISION_DETECTOR);
+        formData.set("classifier_run", DEFAULT_VISION_CLASSIFIER_RUN);
+        formData.set("classify_crops", String(mode !== "camera"));
+        formData.set("classifier_top_k", "5");
+        formData.set(
+          "classifier_min_confidence",
+          CLASSIFIER_RELABEL_MIN_CONFIDENCE,
+        );
+        formData.set("use_full_image_fallback", "false");
+        formData.set("use_grid_fallback", "false");
+        formData.set("grid_max_crops", "24");
+        formData.set("grid_max_additions", "8");
+        formData.set("max_detections_per_frame", "20");
+        formData.set("confidence_threshold", "0.2");
+        formData.set("sampled_fps", "1");
+        formData.set("max_frames", mode === "video" ? "12" : "1");
+
+        const response = await fetch("/api/vision/analyze", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          setError(payload?.message ?? "Vision scan failed.");
+          return false;
+        }
+
+        const nextResult = payload as VisionScanResponse;
+        exposeVisionScanDebug(nextResult);
+        setResult(nextResult);
+        if (live) {
+          setLastLiveScanAt(Date.now());
+        }
+        const firstLabel = nextResult.frames
+          .flatMap((frame) => frame.detections)
+          .find(Boolean)?.label;
+        setExpandedLabel((current) => current ?? firstLabel ?? null);
+        return true;
+      } catch (scanError) {
+        if ((scanError as DOMException).name !== "AbortError") {
+          setError("Vision scan failed.");
+        }
+        return false;
+      } finally {
+        if (liveScanAbortRef.current === controller) {
+          liveScanAbortRef.current = null;
+        }
+        if (live) {
+          liveScanInFlightRef.current = false;
+        } else {
+          setIsScanning(false);
+        }
+      }
+    },
+    [getScanMedia, mode],
+  );
+
+  useEffect(() => {
+    if (!isLiveScanning || mode !== "camera" || preview?.kind !== "camera") {
+      return undefined;
+    }
+
+    let stopped = false;
+    let timer: number | null = null;
+
+    async function scanLoop() {
+      const ok = await submitScan({ live: true });
+      if (stopped) return;
+      if (!ok) {
+        setIsLiveScanning(false);
+        return;
+      }
+      timer = window.setTimeout(scanLoop, LIVE_SCAN_INTERVAL_MS);
+    }
+
+    void scanLoop();
+
+    return () => {
+      stopped = true;
+      if (timer !== null) window.clearTimeout(timer);
+      liveScanAbortRef.current?.abort();
+      liveScanInFlightRef.current = false;
+    };
+  }, [isLiveScanning, mode, preview?.kind, submitScan]);
 
   function runScan() {
     setError(null);
     setResult(null);
     setExpandedLabel(null);
+    setFocusedFrame(null);
     setSelectedLabels({});
     setManualLabels({});
-    startTransition(async () => {
-      const media = await getScanMedia();
+    void submitScan();
+  }
 
-      if (!media) {
-        setError("Choose a photo/video or allow camera access first.");
-        return;
-      }
+  function startLiveScan() {
+    setError(null);
+    setResult(null);
+    setExpandedLabel(null);
+    setFocusedFrame(null);
+    setSelectedLabels({});
+    setManualLabels({});
+    setLastLiveScanAt(null);
+    setIsLiveScanning(true);
+  }
 
-      const formData = new FormData();
-      formData.set("media", media.blob, media.fileName);
-      formData.set("media_kind", mode);
-      formData.set("detector", "yolo");
-      formData.set("classify_crops", "true");
-      formData.set("classifier_top_k", "5");
-      formData.set("use_full_image_fallback", "false");
-      formData.set("use_grid_fallback", "false");
-      formData.set("grid_max_crops", "24");
-      formData.set("grid_max_additions", "8");
-      formData.set("max_detections_per_frame", "20");
-      formData.set("confidence_threshold", "0.2");
-      formData.set("sampled_fps", "1");
-      formData.set("max_frames", mode === "video" ? "12" : "1");
-
-      const response = await fetch("/api/vision/analyze", {
-        method: "POST",
-        body: formData,
-      });
-      const payload = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        setError(payload?.message ?? "Vision scan failed.");
-        return;
-      }
-
-      const nextResult = payload as VisionScanResponse;
-      exposeVisionScanDebug(nextResult);
-      setResult(nextResult);
-      const firstLabel = nextResult.frames
-        .flatMap((frame) => frame.detections)
-        .find(Boolean)?.label;
-      setExpandedLabel(firstLabel ?? null);
-    });
+  function stopLiveScan() {
+    liveScanAbortRef.current?.abort();
+    setIsLiveScanning(false);
   }
 
   async function addDetection(label: string, key: string) {
@@ -271,15 +382,16 @@ export function VisionScanModal({
   }
 
   async function addAllGroups() {
-    for (const group of detectionGroups.filter(
-      (entry) => entry.detections[0]?.inventory_policy === "track",
-    )) {
+    for (const group of trackableGroups) {
       await addGroup(group);
     }
   }
 
   function handleClose() {
+    liveScanAbortRef.current?.abort();
+    setIsLiveScanning(false);
     streamRef.current?.getTracks().forEach((track) => track.stop());
+    setFocusedFrame(null);
     onClose();
   }
 
@@ -311,13 +423,52 @@ export function VisionScanModal({
 
           <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
             <div className="relative flex aspect-[4/3] max-h-[56vh] min-h-0 w-full items-center justify-center overflow-hidden rounded-2xl bg-black sm:aspect-video lg:aspect-[4/3]">
-              {primaryAnnotatedFrame?.annotated_image_data_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={primaryAnnotatedFrame.annotated_image_data_url}
-                  alt="Detected items with bounding boxes"
-                  className="absolute inset-0 h-full w-full object-contain"
-                />
+              {mode === "camera" ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="absolute inset-0 h-full w-full object-fill"
+                  />
+                  {latestCameraFrame && (
+                    <CameraDetectionOverlay
+                      detections={latestCameraFrame.detections}
+                      labelForDetection={labelForDetection}
+                    />
+                  )}
+                  <div className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
+                    {isLiveScanning
+                      ? "Live scanning"
+                      : lastLiveScanAt
+                        ? "Live scan paused"
+                        : "Camera ready"}
+                  </div>
+                </>
+              ) : primaryAnnotatedFrame?.annotated_image_data_url ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={primaryAnnotatedFrame.annotated_image_data_url}
+                    alt="Detected items with bounding boxes"
+                    className="absolute inset-0 h-full w-full object-contain"
+                  />
+                  <button
+                    onClick={() =>
+                      setFocusedFrame({
+                        src: primaryAnnotatedFrame.annotated_image_data_url!,
+                        label: "Detected items",
+                      })
+                    }
+                    className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-black/70 px-3 py-1.5 text-xs font-bold text-white backdrop-blur hover:bg-black/85"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      open_in_full
+                    </span>
+                    Inspect
+                  </button>
+                </>
               ) : preview?.kind === "image" && preview.url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -330,14 +481,6 @@ export function VisionScanModal({
                   src={preview.url}
                   controls
                   className="absolute inset-0 h-full w-full object-contain"
-                />
-              ) : mode === "camera" ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : (
                 <button
@@ -384,20 +527,39 @@ export function VisionScanModal({
                 </div>
               )}
 
-              <button
-                onClick={runScan}
-                disabled={isPending || (!preview && mode !== "camera")}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-on-surface py-3 text-sm font-bold text-white disabled:opacity-50"
-              >
-                <span
-                  className={`material-symbols-outlined text-[18px] ${
-                    isPending ? "animate-spin" : ""
+              {mode === "camera" ? (
+                <button
+                  onClick={isLiveScanning ? stopLiveScan : startLiveScan}
+                  disabled={!preview}
+                  className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50 ${
+                    isLiveScanning ? "bg-red-600" : "bg-on-surface"
                   }`}
                 >
-                  {isPending ? "refresh" : "center_focus_strong"}
-                </span>
-                {isPending ? "Looking..." : "Find items"}
-              </button>
+                  <span
+                    className={`material-symbols-outlined text-[18px] ${
+                      isLiveScanning ? "animate-spin" : ""
+                    }`}
+                  >
+                    {isLiveScanning ? "stop_circle" : "play_circle"}
+                  </span>
+                  {isLiveScanning ? "Stop live scan" : "Start live scan"}
+                </button>
+              ) : (
+                <button
+                  onClick={runScan}
+                  disabled={isScanning || !preview}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-on-surface py-3 text-sm font-bold text-white disabled:opacity-50"
+                >
+                  <span
+                    className={`material-symbols-outlined text-[18px] ${
+                      isScanning ? "animate-spin" : ""
+                    }`}
+                  >
+                    {isScanning ? "refresh" : "center_focus_strong"}
+                  </span>
+                  {isScanning ? "Looking..." : "Find items"}
+                </button>
+              )}
 
               {result && (
                 <div className="grid grid-cols-2 gap-2">
@@ -410,8 +572,15 @@ export function VisionScanModal({
               )}
 
               {error && <p className="text-sm text-red-600">{error}</p>}
+              {mode === "camera" && result && (
+                <p className="rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-xs font-semibold text-outline">
+                  Stop the live scan to review containers, cans, bottles, and
+                  anything generic before adding it.
+                </p>
+              )}
               {result?.classification &&
-                result.classification.enabled === false && (
+                result.classification.enabled === false &&
+                !expectedClassificationOff && (
                   <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
                     Suggestions are unavailable:{" "}
                     {result.classification.reason ?? "classifier did not run"}
@@ -429,13 +598,13 @@ export function VisionScanModal({
                     Check the items before adding them to your kitchen.
                   </p>
                 </div>
-                {detectionGroups.length > 0 && (
+                {trackableGroups.length > 0 && (
                   <button
                     onClick={() => void addAllGroups()}
                     disabled={addingKey !== null}
                     className="w-full rounded-full bg-primary-fixed-dim px-4 py-2 text-xs font-bold text-on-primary-fixed disabled:opacity-60 sm:w-auto"
                   >
-                    Add everything shown
+                    Add trackable items
                   </button>
                 )}
               </div>
@@ -466,7 +635,8 @@ export function VisionScanModal({
                             {group.count}x {group.label}
                           </p>
                           <p className="text-xs text-outline">
-                            best {bestConfidence(group)}%
+                            {statusLabelForGroup(group)} · best{" "}
+                            {bestConfidence(group)}%
                           </p>
                         </div>
                         <span className="material-symbols-outlined text-[18px] text-outline">
@@ -487,17 +657,23 @@ export function VisionScanModal({
                             Check each item we found
                           </p>
                         </div>
-                        <button
-                          onClick={() => void addGroup(expandedGroup)}
-                          disabled={
-                            addingKey === `group-${expandedGroup.label}`
-                          }
-                          className="rounded-full bg-primary-fixed-dim px-3 py-1.5 text-xs font-bold text-on-primary-fixed disabled:opacity-60"
-                        >
-                          {addingKey === `group-${expandedGroup.label}`
-                            ? "Adding"
-                            : `Add ${expandedGroup.count}x`}
-                        </button>
+                        {isTrackableGroup(expandedGroup) ? (
+                          <button
+                            onClick={() => void addGroup(expandedGroup)}
+                            disabled={
+                              addingKey === `group-${expandedGroup.label}`
+                            }
+                            className="rounded-full bg-primary-fixed-dim px-3 py-1.5 text-xs font-bold text-on-primary-fixed disabled:opacity-60"
+                          >
+                            {addingKey === `group-${expandedGroup.label}`
+                              ? "Adding"
+                              : `Add ${expandedGroup.count}x`}
+                          </button>
+                        ) : (
+                          <span className="rounded-full border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-outline">
+                            Review
+                          </span>
+                        )}
                       </div>
                       <div className="max-h-[22rem] overflow-y-auto divide-y divide-outline-variant/30">
                         {expandedGroup.detections.map((detection, index) => (
@@ -564,12 +740,22 @@ export function VisionScanModal({
                           key={frame.frame_id}
                           className="w-48 shrink-0 overflow-hidden rounded-xl bg-black"
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={frame.annotated_image_data_url}
-                            alt={`Frame ${frame.frame_id}`}
-                            className="h-28 w-full object-contain"
-                          />
+                          <button
+                            onClick={() =>
+                              setFocusedFrame({
+                                src: frame.annotated_image_data_url!,
+                                label: `Frame ${frame.frame_id}`,
+                              })
+                            }
+                            className="block h-28 w-full"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={frame.annotated_image_data_url}
+                              alt={`Frame ${frame.frame_id}`}
+                              className="h-28 w-full object-contain"
+                            />
+                          </button>
                         </div>
                       ))}
                   </div>
@@ -579,6 +765,32 @@ export function VisionScanModal({
           )}
         </div>
       </div>
+      {focusedFrame && (
+        <div className="fixed inset-0 z-[60] bg-black/95 p-3 sm:p-6">
+          <div className="flex h-full flex-col gap-3">
+            <div className="flex items-center justify-between gap-3 text-white">
+              <p className="text-sm font-bold">{focusedFrame.label}</p>
+              <button
+                onClick={() => setFocusedFrame(null)}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20"
+                aria-label="Close inspected frame"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto rounded-xl bg-black">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={focusedFrame.src}
+                alt={focusedFrame.label}
+                className="mx-auto h-auto w-auto max-w-none object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -621,10 +833,65 @@ function bestConfidence(group: DetectionGroup) {
   );
 }
 
+function isTrackableGroup(group: DetectionGroup) {
+  return group.detections.some(
+    (detection) => detection.inventory_policy === "track",
+  );
+}
+
+function statusLabelForGroup(group: DetectionGroup) {
+  if (isTrackableGroup(group)) return "ready to add";
+  if (
+    group.detections.some((detection) => detection.inventory_policy === "review")
+  ) {
+    return "needs review";
+  }
+  return "ignored";
+}
+
 function titleForMode(mode: VisionMode) {
   if (mode === "camera") return "Live scan";
   if (mode === "video") return "Video upload";
   return "Photo upload";
+}
+
+function CameraDetectionOverlay({
+  detections,
+  labelForDetection,
+}: {
+  detections: VisionDetection[];
+  labelForDetection: (detection: VisionDetection) => string;
+}) {
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      {detections.map((detection) => {
+        const label = labelForDetection(detection);
+        const review = detection.inventory_policy === "review";
+        return (
+          <div
+            key={detection.observation_id}
+            className={`absolute rounded-md border-2 ${
+              review ? "border-amber-300" : "border-lime-300"
+            }`}
+            style={{
+              left: `${detection.bbox.x * 100}%`,
+              top: `${detection.bbox.y * 100}%`,
+              width: `${detection.bbox.width * 100}%`,
+              height: `${detection.bbox.height * 100}%`,
+            }}
+          >
+            <span
+              className={`absolute left-0 top-0 max-w-full -translate-y-full truncate rounded-t-md px-2 py-0.5 text-[11px] font-bold text-black ${
+                review ? "bg-amber-300" : "bg-lime-300"
+              }`}
+            >
+              {label} {Math.round(detection.confidence * 100)}%
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function DetectionThumb({ src, label }: { src?: string; label: string }) {
