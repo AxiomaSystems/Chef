@@ -119,6 +119,10 @@ The Docker image includes `yolo11n.pt` from this directory for the demo path.
 Custom detector/classifier checkpoints are still artifact-managed separately and
 should be added through a later storage/artifact flow, not committed directly.
 
+The image installs a small set of Debian runtime libraries required by OpenCV
+and Ultralytics on `python:3.11-slim`, including `libxcb1`, `libx11-6`,
+`libgl1`, `libglib2.0-0`, and `libgomp1`.
+
 ## Recommended Architecture
 
 For the next phase, the cleanest split is:
