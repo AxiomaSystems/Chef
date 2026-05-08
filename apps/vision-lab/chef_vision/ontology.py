@@ -7,7 +7,8 @@ from pathlib import Path
 from .contracts import BoundingBox, PipelineConfig, VisionClassDefinition
 
 
-MAPPING_FILE = "packages/shared/vision-label-mappings.json"
+MAPPING_FILE = Path("packages/shared/vision-label-mappings.json")
+LOCAL_MAPPING_FILE = "vision-label-mappings.json"
 
 
 def _load_mapping_file() -> dict:
@@ -23,12 +24,22 @@ def _load_mapping_file() -> dict:
 
 def _mapping_file_candidates() -> list[Path]:
     env_path = os.environ.get("CHEF_VISION_LABEL_MAPPINGS")
-    candidates = [
+    module_path = Path(__file__).resolve()
+    app_dir = module_path.parents[1]
+    candidates: list[Path | None] = [
         Path(env_path) if env_path else None,
-        Path(__file__).resolve().parents[3] / MAPPING_FILE,
+        app_dir / LOCAL_MAPPING_FILE,
+        Path.cwd() / LOCAL_MAPPING_FILE,
         Path.cwd() / MAPPING_FILE,
-        Path.cwd().parents[1] / MAPPING_FILE if len(Path.cwd().parents) > 1 else None,
     ]
+
+    if len(module_path.parents) > 3:
+        candidates.append(module_path.parents[3] / MAPPING_FILE)
+
+    cwd = Path.cwd()
+    if len(cwd.parents) > 1:
+        candidates.append(cwd.parents[1] / MAPPING_FILE)
+
     return [candidate for candidate in candidates if candidate is not None]
 
 
