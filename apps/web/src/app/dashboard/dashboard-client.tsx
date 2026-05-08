@@ -1,13 +1,26 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { BaseRecipe, Cart, ShoppingCart, User } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
-import { HeroRecipe } from "./hero-recipe";
-import { CartSidebarCards } from "./cart-sidebar-cards";
-import { QuickRecipes } from "./quick-recipes";
-import { submitDraftFlowAction, createShoppingCartAction } from "@/app/home-actions";
+import { RecipeImage } from "@/components/ui/recipe-image";
+import {
+  submitDraftFlowAction,
+  createShoppingCartAction,
+} from "@/app/home-actions";
+
+function primaryBadge(recipe: BaseRecipe) {
+  return (
+    recipe.tags.find((tag) => tag.kind === "dietary_badge")?.name ??
+    recipe.cuisine.label
+  );
+}
+
+function minutesFor(recipe: BaseRecipe) {
+  return Math.max(20, recipe.steps.length * 7);
+}
 
 export function DashboardClient({
   user,
@@ -21,14 +34,20 @@ export function DashboardClient({
   shoppingCarts: ShoppingCart[];
 }) {
   const router = useRouter();
-  const [selections, setSelections] = useState<Map<string, BaseRecipe>>(new Map());
+  const [selections, setSelections] = useState<Map<string, BaseRecipe>>(
+    new Map(),
+  );
   const [buildError, setBuildError] = useState<string | undefined>();
   const [isBuilding, startBuilding] = useTransition();
 
   const firstName = user?.name?.split(" ")[0] ?? "there";
   const featuredRecipe = recipes[0] ?? null;
-  const latestShoppingCart = shoppingCarts[0] ?? null;
-  const browseRecipes = recipes.slice(1); // exclude featured from grid
+  const forYouRecipes = recipes.slice(1, 7);
+  const trendingRecipes =
+    recipes.slice(7, 13).length > 0
+      ? recipes.slice(7, 13)
+      : recipes.slice(0, 6);
+  const quickFilters = ["Quick & Easy", "High Protein", "Veggie"];
 
   function handleAddToCart(recipe: BaseRecipe) {
     setSelections((prev) => {
@@ -66,7 +85,10 @@ export function DashboardClient({
         return;
       }
 
-      const scResult = await createShoppingCartAction(cartResult.resourceId, "kroger");
+      const scResult = await createShoppingCartAction(
+        cartResult.resourceId,
+        "kroger",
+      );
       if (scResult.error) {
         setBuildError(scResult.error);
         return;
@@ -78,46 +100,223 @@ export function DashboardClient({
 
   return (
     <AppShell>
-      <div className="px-6 py-8 max-w-6xl mx-auto space-y-10">
-        {/* Greeting */}
-        <section className="space-y-1">
-          <h2 className="text-headline-lg text-on-surface font-bold">Welcome, {firstName}!</h2>
-          <p className="text-body-lg text-outline">What are you planning to cook this week?</p>
+      <div className="mx-auto max-w-6xl space-y-8 px-5 pb-36 pt-6 sm:px-6 lg:pb-10 lg:pt-8">
+        <section className="space-y-5">
+          <div>
+            <p className="text-body-md font-semibold text-outline">
+              Hi, {firstName}
+            </p>
+            <h1 className="mt-1 max-w-sm text-[2.7rem] font-black leading-[0.96] text-on-surface sm:max-w-xl sm:text-headline-lg">
+              What are we cooking{" "}
+              <span className="text-primary-fixed-dim">today?</span>
+            </h1>
+          </div>
+
+          <Link
+            href="/recipes"
+            className="flex min-h-12 items-center gap-3 rounded-full border border-outline-variant/35 bg-white px-4 text-body-sm text-outline shadow-sm"
+          >
+            <span className="material-symbols-outlined text-[20px]">
+              search
+            </span>
+            Search recipes, ingredients...
+          </Link>
+
+          <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+            {quickFilters.map((filter, index) => (
+              <Link
+                key={filter}
+                href="/recipes"
+                className={`shrink-0 rounded-full px-4 py-2 text-label-md font-bold ${
+                  index === 0
+                    ? "bg-primary-fixed-dim text-on-primary-fixed"
+                    : index === 1
+                      ? "bg-secondary-container text-on-secondary-container"
+                      : "bg-[#dff0cf] text-[#46632f]"
+                }`}
+              >
+                {filter}
+              </Link>
+            ))}
+          </div>
         </section>
 
-        {/* Bento grid */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          {featuredRecipe ? (
-            <HeroRecipe recipe={featuredRecipe} onAddToCart={handleAddToCart} />
-          ) : (
-            <section className="md:col-span-8">
-              <div className="bg-surface-container rounded-4xl min-h-105 flex items-center justify-center">
-                <p className="text-body-md text-outline">No recipes yet — check back soon.</p>
+        {featuredRecipe ? (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-headline-sm text-on-surface">For You</h2>
+              <Link
+                href="/recipes"
+                className="text-label-md font-bold text-outline"
+              >
+                See all
+              </Link>
+            </div>
+
+            <Link
+              href={`/recipes/${featuredRecipe.id}`}
+              className="group relative block min-h-[18rem] overflow-hidden rounded-[2rem] bg-primary-fixed-dim shadow-[0_16px_34px_rgba(243,148,71,0.22)] sm:min-h-[24rem]"
+            >
+              <div className="absolute inset-y-0 right-0 w-[72%] overflow-hidden rounded-l-[7rem] bg-white/20">
+                <RecipeImage
+                  src={featuredRecipe.cover_image_url}
+                  alt={featuredRecipe.name}
+                  seed={featuredRecipe.id}
+                  className="h-full w-full"
+                  imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
               </div>
-            </section>
-          )}
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(243,148,71,0.96)_0%,rgba(243,148,71,0.74)_42%,rgba(243,148,71,0.1)_100%)]" />
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleAddToCart(featuredRecipe);
+                }}
+                className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white text-primary shadow-sm"
+                aria-label="Add featured recipe to cart"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  favorite
+                </span>
+              </button>
+              <div className="absolute bottom-0 left-0 max-w-[68%] p-5 text-white sm:p-7">
+                <p className="mb-3 inline-flex rounded-full bg-white/18 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em]">
+                  {primaryBadge(featuredRecipe)}
+                </p>
+                <h2 className="text-[2rem] font-black leading-[0.96] sm:text-[2.8rem]">
+                  {featuredRecipe.name}
+                </h2>
+                <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold">
+                  <span className="rounded-full bg-white/18 px-2.5 py-1">
+                    {minutesFor(featuredRecipe)} min
+                  </span>
+                  {featuredRecipe.nutrition_data?.calories ? (
+                    <span className="rounded-full bg-white/18 px-2.5 py-1">
+                      {featuredRecipe.nutrition_data.calories} kcal
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </Link>
+          </section>
+        ) : null}
 
-          <CartSidebarCards
-            latestShoppingCart={latestShoppingCart}
-            cartCount={carts.length}
-            shoppingCartCount={shoppingCarts.length}
-          />
-        </div>
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-headline-sm text-on-surface">Trending Now</h2>
+            <Link
+              href="/recipes"
+              className="text-label-md font-bold text-outline"
+            >
+              See all
+            </Link>
+          </div>
+          <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 sm:mx-0 sm:grid sm:grid-cols-3 sm:px-0 lg:grid-cols-6">
+            {trendingRecipes.map((recipe) => (
+              <Link
+                key={recipe.id}
+                href={`/recipes/${recipe.id}`}
+                className="w-[8.5rem] shrink-0 rounded-[1.35rem] border border-outline-variant/35 bg-white p-2 shadow-sm sm:w-auto"
+              >
+                <div className="aspect-square overflow-hidden rounded-[1.05rem] bg-surface-container">
+                  <RecipeImage
+                    src={recipe.cover_image_url}
+                    alt={recipe.name}
+                    seed={recipe.id}
+                    className="h-full w-full"
+                    imgClassName="h-full w-full object-cover"
+                  />
+                </div>
+                <h3 className="mt-2 line-clamp-2 min-h-[2.1rem] text-center text-[12px] font-bold leading-tight text-on-surface">
+                  {recipe.name}
+                </h3>
+              </Link>
+            ))}
+          </div>
+        </section>
 
-        {/* Recipe grid */}
-        <QuickRecipes
-          recipes={browseRecipes.length > 0 ? browseRecipes : recipes}
-          onAddToCart={handleAddToCart}
-        />
+        <section className="grid gap-3 sm:grid-cols-3">
+          <Link
+            href="/meal-plan"
+            className="rounded-[1.35rem] bg-white p-4 shadow-sm"
+          >
+            <span className="material-symbols-outlined text-primary">
+              calendar_month
+            </span>
+            <p className="mt-3 text-label-lg text-on-surface">Plan the week</p>
+            <p className="mt-1 text-body-sm text-outline">
+              {carts.length} drafts ready
+            </p>
+          </Link>
+          <Link
+            href="/shopping"
+            className="rounded-[1.35rem] bg-white p-4 shadow-sm"
+          >
+            <span className="material-symbols-outlined text-primary">
+              shopping_cart
+            </span>
+            <p className="mt-3 text-label-lg text-on-surface">Shopping lists</p>
+            <p className="mt-1 text-body-sm text-outline">
+              {shoppingCarts.length} active carts
+            </p>
+          </Link>
+          <Link
+            href="/inventory"
+            className="rounded-[1.35rem] bg-white p-4 shadow-sm"
+          >
+            <span className="material-symbols-outlined text-primary">
+              inventory_2
+            </span>
+            <p className="mt-3 text-label-lg text-on-surface">
+              Kitchen inventory
+            </p>
+            <p className="mt-1 text-body-sm text-outline">
+              Check what you have
+            </p>
+          </Link>
+        </section>
+
+        {forYouRecipes.length > 0 ? (
+          <section className="space-y-3">
+            <h2 className="text-headline-sm text-on-surface">More to Cook</h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {forYouRecipes.map((recipe) => (
+                <Link
+                  key={recipe.id}
+                  href={`/recipes/${recipe.id}`}
+                  className="flex gap-3 rounded-[1.35rem] bg-white p-3 shadow-sm"
+                >
+                  <RecipeImage
+                    src={recipe.cover_image_url}
+                    alt={recipe.name}
+                    seed={recipe.id}
+                    className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-surface-container"
+                    imgClassName="h-full w-full object-cover"
+                  />
+                  <span className="min-w-0 py-1">
+                    <span className="line-clamp-2 text-label-lg text-on-surface">
+                      {recipe.name}
+                    </span>
+                    <span className="mt-2 flex items-center gap-2 text-body-sm text-outline">
+                      <span>{minutesFor(recipe)} min</span>
+                      <span>{recipe.servings} servings</span>
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
 
-      {/* Cart builder bar */}
       {selections.size > 0 && (
-        <div className="fixed bottom-20 lg:bottom-0 left-0 right-0 z-40 flex justify-center px-4 pb-4 lg:pb-6 pointer-events-none">
+        <div className="fixed bottom-20 left-0 right-0 z-40 flex justify-center px-4 pb-4 lg:bottom-0 lg:pb-6 pointer-events-none">
           <div className="bg-on-surface rounded-2xl shadow-2xl p-4 flex items-center gap-4 w-full max-w-lg pointer-events-auto">
             <div className="flex-1 min-w-0">
               <p className="text-label-lg text-white font-semibold">
-                {selections.size} recipe{selections.size !== 1 ? "s" : ""} selected
+                {selections.size} recipe{selections.size !== 1 ? "s" : ""}{" "}
+                selected
               </p>
               <div className="flex gap-1.5 mt-1 flex-wrap">
                 {Array.from(selections.values()).map((recipe) => (
@@ -126,13 +325,19 @@ export function DashboardClient({
                     onClick={() => removeSelection(recipe.id)}
                     className="flex items-center gap-1 bg-white/10 text-white text-[11px] font-medium px-2 py-0.5 rounded-full hover:bg-white/20 transition-colors"
                   >
-                    {recipe.name.length > 20 ? recipe.name.slice(0, 20) + "…" : recipe.name}
-                    <span className="material-symbols-outlined text-[12px]">close</span>
+                    {recipe.name.length > 20
+                      ? recipe.name.slice(0, 20) + "..."
+                      : recipe.name}
+                    <span className="material-symbols-outlined text-[12px]">
+                      close
+                    </span>
                   </button>
                 ))}
               </div>
               {buildError && (
-                <p className="text-primary-fixed-dim text-body-sm mt-1">{buildError}</p>
+                <p className="text-primary-fixed-dim text-body-sm mt-1">
+                  {buildError}
+                </p>
               )}
             </div>
             <button
@@ -142,12 +347,16 @@ export function DashboardClient({
             >
               {isBuilding ? (
                 <>
-                  <span className="material-symbols-outlined text-[18px] animate-spin">refresh</span>
-                  Building…
+                  <span className="material-symbols-outlined text-[18px] animate-spin">
+                    refresh
+                  </span>
+                  Building...
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
+                  <span className="material-symbols-outlined text-[18px]">
+                    shopping_cart
+                  </span>
                   Generate Cart
                 </>
               )}

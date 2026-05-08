@@ -4,7 +4,6 @@ import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
-import { RecipeDetailOverlay } from "@/components/recipes/recipe-detail-overlay";
 import { RecipeCreateModal } from "@/components/recipes/recipe-create-modal";
 import {
   submitDraftFlowAction,
@@ -46,7 +45,6 @@ export function RecipesClient({
   const [search, setSearch] = useState("");
   const [activeCuisine, setActiveCuisine] = useState<string | null>(null);
   const [activeTag, setActiveTag] = useState<string | null>(null);
-  const [selectedRecipe, setSelectedRecipe] = useState<BaseRecipe | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<BaseRecipe | null>(null);
   const [showCreate, setShowCreate] = useState(openCreateOnLoad);
   const [selections, setSelections] = useState<Map<string, BaseRecipe>>(
@@ -120,7 +118,6 @@ export function RecipesClient({
   }
 
   function handleAddToCart(recipe: BaseRecipe) {
-    setSelectedRecipe(null);
     setSelections((prev) => {
       const next = new Map(prev);
       next.set(recipe.id, recipe);
@@ -428,7 +425,7 @@ export function RecipesClient({
                 <div
                   key={recipe.id}
                   className="group cursor-pointer space-y-2"
-                  onClick={() => setSelectedRecipe(recipeToOpen)}
+                  onClick={() => router.push(`/recipes/${recipeToOpen.id}`)}
                 >
                   {/* Image */}
                   <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-container">
@@ -531,22 +528,6 @@ export function RecipesClient({
       </div>
 
       {/* ── Modals & overlays ────────────────────────────────── */}
-      {selectedRecipe && (
-        <RecipeDetailOverlay
-          recipe={selectedRecipe}
-          onClose={() => setSelectedRecipe(null)}
-          onAddToCart={handleAddToCart}
-          onEdit={(recipe) => {
-            setSelectedRecipe(null);
-            setEditingRecipe(recipe);
-          }}
-          onDeleted={(id) => {
-            setRecipes((prev) => prev.filter((r) => r.id !== id));
-            setSelectedRecipe(null);
-          }}
-        />
-      )}
-
       {showCreate && (
         <RecipeCreateModal
           cuisines={cuisines}
@@ -578,7 +559,6 @@ export function RecipesClient({
                   )
                 : [updatedRecipe, ...prev];
             });
-            setSelectedRecipe(updatedRecipe);
             setEditingRecipe(null);
           }}
         />
