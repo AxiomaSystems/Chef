@@ -2,7 +2,7 @@
 
 Date: 2026-05-08
 Audience: Enoch / frontend UI
-Branch: `piero/flexible-inventory-items`
+Branch: `piero/vision-observations-api`
 
 ## What Changed
 
@@ -99,8 +99,52 @@ For vision scan review:
 - let the user discard
 - only attach `ingredient_id` when the user explicitly picks or confirms a canonical match
 
-## What Is Not Ready Yet
+## Vision Observation API
 
-There is no persisted `VisionObservation` API yet.
+There is now a persisted `VisionObservation` API.
 
-The current backend supports reviewed inventory items, but not a full observation audit trail. Until Phase 2 exists, frontend can still create/update inventory rows directly after review.
+Create observation:
+
+```http
+POST /api/v1/vision/observations
+```
+
+```json
+{
+  "detected_label": "bottle",
+  "proposed_name": "olive oil bottle",
+  "canonical_slug": "olive-oil",
+  "detector_model": "yolo-v-next",
+  "confidence": 0.82,
+  "bbox": { "x": 0.1, "y": 0.2, "width": 0.3, "height": 0.4 },
+  "raw_payload": {}
+}
+```
+
+List observations:
+
+```http
+GET /api/v1/vision/observations
+```
+
+Add reviewed observation to inventory:
+
+```http
+POST /api/v1/vision/observations/:id/add-to-inventory
+```
+
+```json
+{
+  "display_name": "olive oil bottle",
+  "estimated_amount": 1,
+  "unit": "bottle"
+}
+```
+
+Discard reviewed observation:
+
+```http
+POST /api/v1/vision/observations/:id/discard
+```
+
+Use this for review cards: create/hold observation evidence, then add or discard after user confirmation.
