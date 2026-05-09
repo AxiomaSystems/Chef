@@ -3,7 +3,7 @@
 Date: 2026-05-08
 Owner: papostigo
 Vision owner: Gallo
-Status: Phase 1 backend implemented
+Status: Phase 2 backend implemented
 
 ## Decision
 
@@ -300,10 +300,10 @@ Phase 1:
 
 Phase 2:
 
-- add `VisionObservation`
-- add mapper/shared types
-- expose minimal observation endpoints
-- keep UI optional until Enoch is ready
+- add `VisionObservation`: implemented
+- add mapper/shared types: implemented
+- expose minimal observation endpoints: implemented
+- keep UI optional until Enoch is ready: implemented
 
 Phase 3:
 
@@ -357,15 +357,15 @@ First PR:
 
 Second PR:
 
-- `VisionObservation` model and API
+- `VisionObservation` model and API: implemented
 
 Third PR:
 
 - wire vision scan review into observations/inventory.
 
-## Phase 1 Implementation Notes
+## Phase 1 And 2 Implementation Notes
 
-Implemented in `piero/flexible-inventory-items`:
+Implemented across `piero/flexible-inventory-items` and `piero/vision-observations-api`:
 
 - `KitchenInventoryItem.ingredientId` is now nullable.
 - `KitchenInventoryItem.displayName` and `normalizedName` are required user-facing inventory fields.
@@ -374,7 +374,8 @@ Implemented in `piero/flexible-inventory-items`:
 - Freeform/manual inventory items can be created with `display_name` and no canonical `ingredient_id`.
 - Existing compatibility paths still accept `ingredient_id`, `canonical_name`, and legacy `label`.
 - Cart inventory deduction still prefers `ingredient_id`; unresolved rows without an ingredient are ignored by canonical deduction.
-- `VisionObservation` is intentionally not implemented yet.
+- `VisionObservation` is now implemented as a backend persistence/API layer.
+- Observation action endpoints can add reviewed items to inventory or discard detections.
 - No YOLO runtime, training, dataset, or checkpoint behavior changed in this phase.
 
 Handoffs:

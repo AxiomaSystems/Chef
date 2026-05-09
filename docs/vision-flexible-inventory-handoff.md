@@ -2,7 +2,7 @@
 
 Date: 2026-05-08
 Audience: Gallo / vision work
-Branch: `piero/flexible-inventory-items`
+Branch: `piero/vision-observations-api`
 
 ## What Changed
 
@@ -26,14 +26,15 @@ This means the app can store things like:
 
 This branch does not change YOLO behavior.
 
-It does not:
+It still does not:
 
 - add YOLO classes
 - change checkpoints
 - train from user input
 - turn user inventory names into dataset labels
 - require model outputs to use database IDs
-- add `VisionObservation` yet
+
+It now does add persisted `VisionObservation` rows for backend/user review state.
 
 ## Safe Integration Rule
 
@@ -65,6 +66,13 @@ Important:
 
 ## Current Backend Behavior
 
+Vision observation endpoints now exist:
+
+- `POST /api/v1/vision/observations`
+- `GET /api/v1/vision/observations`
+- `POST /api/v1/vision/observations/:id/add-to-inventory`
+- `POST /api/v1/vision/observations/:id/discard`
+
 Inventory endpoints now support:
 
 - create freeform item with `display_name`
@@ -79,13 +87,8 @@ Cart deduction:
 - falls back by canonical/name matching only where the cart aggregation supports it
 - ignores unresolved inventory items for canonical deduction
 
-## Next Backend Phase
+## Next Integration Phase
 
-The next backend step should be a real `VisionObservation` table and endpoint set:
+The next integration step is letting the vision scan UI create observations from reviewed detection cards, then call add/discard actions after user review.
 
-- `POST /api/v1/vision/observations`
-- `GET /api/v1/vision/observations`
-- `POST /api/v1/vision/observations/:id/add-to-inventory`
-- `POST /api/v1/vision/observations/:id/discard`
-
-That phase should store model metadata separately from accepted inventory.
+This should not feed user-entered names back into YOLO training automatically.
