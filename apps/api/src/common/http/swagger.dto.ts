@@ -180,6 +180,9 @@ export class RecipeStepResponseDto {
 }
 
 export class DishIngredientResponseDto {
+  @ApiPropertyOptional({ example: 'ingredient-rice' })
+  ingredient_id?: string;
+
   @ApiProperty({ example: 'rice' })
   canonical_ingredient!: string;
 
@@ -963,12 +966,7 @@ export class RetailerCapabilityResponseDto {
   requires_api_key!: boolean;
 
   @ApiProperty({
-    enum: [
-      'configured',
-      'missing_credentials',
-      'disabled',
-      'partner_required',
-    ],
+    enum: ['configured', 'missing_credentials', 'disabled', 'partner_required'],
     example: 'configured',
   })
   status!: string;

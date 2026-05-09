@@ -351,19 +351,23 @@ model RecipeTag {
 }
 
 model DishIngredient {
-  id                  String     @id @default(cuid())
+  id                  String      @id @default(cuid())
   baseRecipeId        String
+  ingredientId        String?
   canonicalIngredient String
   amount              Float
   unit                String
   displayIngredient   String?
   preparation         String?
-  optional            Boolean    @default(false)
+  optional            Boolean     @default(false)
   ingredientGroup     String?
   sortOrder           Int
-  baseRecipe          BaseRecipe @relation(fields: [baseRecipeId], references: [id], onDelete: Cascade)
+  baseRecipe          BaseRecipe  @relation(fields: [baseRecipeId], references: [id], onDelete: Cascade)
+  ingredient          Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
 
   @@index([baseRecipeId, sortOrder])
+  @@index([ingredientId])
+  @@index([baseRecipeId, ingredientId])
 }
 
 model Ingredient {
@@ -376,6 +380,7 @@ model Ingredient {
   visionLabels          Json?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+  dishIngredients       DishIngredient[]
   kitchenInventoryItems KitchenInventoryItem[]
   foodRules             UserFoodRule[]
   pantryStaples         UserPantryStaple[]

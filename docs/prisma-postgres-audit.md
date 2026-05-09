@@ -65,6 +65,28 @@ Why these are safe:
 - indexes match existing query order/filter patterns
 - failure risk is low compared with normalization or constraint changes
 
+Linked recipe ingredient rows to canonical ingredients:
+
+- `DishIngredient.ingredientId`
+- relation to `Ingredient` with `onDelete: SetNull`
+- indexes for `ingredientId` and `(baseRecipeId, ingredientId)`
+- migration backfills confident matches by normalized slug
+- seed flow creates canonical ingredients before recipes and links seeded recipe ingredients
+- recipe API keeps `canonical_ingredient` as the required string snapshot
+- recipe API can now return optional `ingredient_id`
+
+Migration:
+
+- `apps/api/prisma/migrations/20260508090000_link_dish_ingredients_to_ingredients/migration.sql`
+
+Why this is safe:
+
+- nullable column
+- no destructive data changes
+- no required frontend changes
+- unknown ingredients remain valid with `ingredientId = null`
+- cart and shopping-cart snapshots are unchanged
+
 ## Current Strong Areas
 
 ### Auth
@@ -181,7 +203,36 @@ Options after launch:
 
 Do not add this before launch unless ingredient search performance or quality becomes a measured blocker.
 
-### 3. Checkout profile is JSON-backed
+### 3. Recipe ingredients now have a canonical ingredient bridge
+
+The app already has an `Ingredient` table and important user-owned surfaces already reference it:
+
+- `KitchenInventoryItem.ingredientId`
+- `UserFoodRule.ingredientId`
+- `UserPantryStaple.ingredientId`
+
+`DishIngredient` now stores nullable `ingredientId` while keeping `canonicalIngredient` as the required string snapshot. This gives recipe ingredients a stable bridge to `Ingredient` without breaking generated/imported recipe payloads or existing frontend assumptions.
+
+Current behavior:
+
+- recipe create/update resolves known ingredient strings by slug
+- unknown ingredient strings are still accepted with `ingredientId = null`
+- saved/forked system recipes preserve existing `ingredientId`
+- recipe responses may include optional `ingredient_id`
+- carts and shopping carts remain JSON snapshots
+
+Remaining work:
+
+- improve alias resolution beyond slug matching
+- optionally backfill/report unresolved ingredients as catalog quality improves
+- let cart aggregation prefer `ingredient_id` where available
+- keep YOLO/checkpoints/training owned by Gallo; backend should only provide stable canonical mappings
+
+Spec:
+
+- `docs/specs/ingredient-canonicalization.md`
+
+### 4. Checkout profile is JSON-backed
 
 `savedAddresses` and `paymentCards` live on `User` as JSON.
 
@@ -200,7 +251,7 @@ Future model:
 
 Do not implement until checkout becomes a real product surface.
 
-### 4. Cart selections and matched items are JSON snapshots
+### 5. Cart selections and matched items are JSON snapshots
 
 `Cart.selections`, `Cart.dishes`, `ShoppingCart.overview`, and `ShoppingCart.matchedItems` are JSON.
 
@@ -213,7 +264,7 @@ Normalize only if the product needs:
 - partial update concurrency by line item
 - order/history reconstruction beyond the saved snapshot
 
-### 5. Legacy onboarding preference arrays remain on `User`
+### 6. Legacy onboarding preference arrays remain on `User`
 
 The legacy onboarding fields are still mostly JSON/string fields on `User`.
 
@@ -267,7 +318,8 @@ Some JSON fields may contain money, nutrition, or address-like data. If those be
 ### After launch
 
 1. Decide checkout data model: keep JSON prototype or split into `UserAddress` / `UserPaymentMethod`.
-2. Decide ingredient search strategy: prefix search, trigram search, or normalized aliases.
-3. Decide recipe visibility and owner deletion policy.
-4. Migrate onboarding/account settings toward profile memory as source of truth.
-5. Consider typed shopping-cart line items only when analytics, concurrency, or history require it.
+2. Improve ingredient aliases/search: prefix search, trigram search, or normalized alias rows.
+3. Let cart aggregation and inventory deduction prefer `ingredient_id` where available.
+4. Decide recipe visibility and owner deletion policy.
+5. Migrate onboarding/account settings toward profile memory as source of truth.
+6. Consider typed shopping-cart line items only when analytics, concurrency, or history require it.
