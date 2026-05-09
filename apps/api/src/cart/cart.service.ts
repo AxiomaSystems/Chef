@@ -556,13 +556,23 @@ export class CartService {
 
     const inventoryItems = await this.ingredientsService.listInventory(userId);
     const inventoryByIngredientId = new Map(
-      inventoryItems.map((item) => [item.ingredient_id, item]),
+      inventoryItems.flatMap((item) =>
+        item.ingredient_id ? [[item.ingredient_id, item] as const] : [],
+      ),
     );
     const inventoryBySlug = new Map(
-      inventoryItems.map((item) => [
-        this.ingredientsService.normalizeSlug(item.ingredient.canonical_name),
-        item,
-      ]),
+      inventoryItems.flatMap((item) =>
+        item.ingredient
+          ? [
+              [
+                this.ingredientsService.normalizeSlug(
+                  item.ingredient.canonical_name,
+                ),
+                item,
+              ] as const,
+            ]
+          : [],
+      ),
     );
 
     return overview.map((ingredient) => {
