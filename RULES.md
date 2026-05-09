@@ -183,7 +183,7 @@ A good branch should answer:
 
 The integration branch is not a dumping ground.
 
-Before merging into `demo/2`, ask:
+Before merging into `dev`, ask:
 
 - is the scope coherent?
 - does it overlap active work from someone else?
