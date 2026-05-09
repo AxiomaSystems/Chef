@@ -64,11 +64,15 @@ export class CartService {
     actorUserId?: string,
   ) {
     const actor = await this.userContextService.resolveActorUser(actorUserId);
-    const updated = await this.cartPersistenceService.updateDraft(actor.id, id, {
-      name: input.name,
-      selections: input.selections,
-      retailer: input.retailer,
-    });
+    const updated = await this.cartPersistenceService.updateDraft(
+      actor.id,
+      id,
+      {
+        name: input.name,
+        selections: input.selections,
+        retailer: input.retailer,
+      },
+    );
 
     if (updated.count === 0) {
       throw new NotFoundException(`Cart draft ${id} not found`);
@@ -108,14 +112,20 @@ export class CartService {
     actorUserId?: string,
   ): Promise<ShoppingCart> {
     const actor =
-      await this.userContextService.resolveActorUserShoppingContext(actorUserId);
+      await this.userContextService.resolveActorUserShoppingContext(
+        actorUserId,
+      );
 
     const syntheticDish = {
       name: 'Restock Items',
       ingredients: items
         .map((name) => name.trim().toLowerCase())
         .filter(Boolean)
-        .map((name) => ({ canonical_ingredient: name, amount: 1, unit: 'unit' })),
+        .map((name) => ({
+          canonical_ingredient: name,
+          amount: 1,
+          unit: 'unit',
+        })),
       steps: [],
     };
 
@@ -133,7 +143,10 @@ export class CartService {
   async createCart(input: CreateCartDto, actorUserId?: string): Promise<Cart> {
     const actor = await this.userContextService.resolveActorUser(actorUserId);
     const recipeIds = input.selections.map((selection) => selection.recipe_id);
-    const recipes = await this.recipeService.findManyByIds(recipeIds, actorUserId);
+    const recipes = await this.recipeService.findManyByIds(
+      recipeIds,
+      actorUserId,
+    );
     const dishes = buildDishesFromSelections(recipes, input);
 
     const cart = await this.cartPersistenceService.createCart({
@@ -149,7 +162,10 @@ export class CartService {
 
   async updateCart(id: string, input: UpdateCartDto, actorUserId?: string) {
     const actor = await this.userContextService.resolveActorUser(actorUserId);
-    const existing = await this.cartPersistenceService.findCartById(actor.id, id);
+    const existing = await this.cartPersistenceService.findCartById(
+      actor.id,
+      id,
+    );
 
     if (!existing) {
       throw new NotFoundException(`Cart ${id} not found`);
@@ -213,7 +229,10 @@ export class CartService {
     actorUserId?: string,
   ): Promise<IngredientReview> {
     const actor = await this.userContextService.resolveActorUser(actorUserId);
-    const cart = await this.cartPersistenceService.findCartById(actor.id, cartId);
+    const cart = await this.cartPersistenceService.findCartById(
+      actor.id,
+      cartId,
+    );
 
     if (!cart) {
       throw new NotFoundException(`Cart ${cartId} not found`);
@@ -233,6 +252,7 @@ export class CartService {
       cart_id: cartId,
       items: this.applyIngredientReview(overview, persisted?.items ?? []).map(
         (ingredient) => ({
+          ingredient_id: ingredient.ingredient_id,
           canonical_ingredient: ingredient.canonical_ingredient,
           total_amount: ingredient.reviewed_amount ?? ingredient.total_amount,
           unit: ingredient.reviewed_unit ?? ingredient.unit,
@@ -253,7 +273,10 @@ export class CartService {
     actorUserId?: string,
   ): Promise<IngredientReview> {
     const actor = await this.userContextService.resolveActorUser(actorUserId);
-    const cart = await this.cartPersistenceService.findCartById(actor.id, cartId);
+    const cart = await this.cartPersistenceService.findCartById(
+      actor.id,
+      cartId,
+    );
 
     if (!cart) {
       throw new NotFoundException(`Cart ${cartId} not found`);
@@ -264,7 +287,9 @@ export class CartService {
       this.aggregationService.compute(cart.dishes).overview,
     );
     const reviewInputs = new Map(
-      input.items.map((item) => [this.buildIngredientReviewKey(item), item]),
+      input.items.flatMap((item) =>
+        this.buildIngredientReviewKeys(item).map((key) => [key, item] as const),
+      ),
     );
 
     for (const item of input.items) {
@@ -277,10 +302,11 @@ export class CartService {
 
     const items = overview.map((ingredient) => {
       const reviewInput = reviewInputs.get(
-        this.buildIngredientReviewKey(ingredient),
+        this.findIngredientReviewKey(reviewInputs, ingredient),
       );
       const action = reviewInput?.action ?? 'buy';
       const item: IngredientReview['items'][number] = {
+        ingredient_id: ingredient.ingredient_id,
         canonical_ingredient: ingredient.canonical_ingredient,
         total_amount: ingredient.total_amount,
         unit: ingredient.unit,
@@ -298,10 +324,11 @@ export class CartService {
       return item;
     });
     const knownKeys = new Set(
-      overview.map((item) => this.buildIngredientReviewKey(item)),
+      overview.flatMap((item) => this.buildIngredientReviewKeys(item)),
     );
     const unknownItem = input.items.find(
-      (item) => !knownKeys.has(this.buildIngredientReviewKey(item)),
+      (item) =>
+        !this.buildIngredientReviewKeys(item).some((key) => knownKeys.has(key)),
     );
 
     if (unknownItem) {
@@ -322,8 +349,13 @@ export class CartService {
     actorUserId?: string,
   ): Promise<ShoppingCart> {
     const actor =
-      await this.userContextService.resolveActorUserShoppingContext(actorUserId);
-    const cart = await this.cartPersistenceService.findCartById(actor.id, cartId);
+      await this.userContextService.resolveActorUserShoppingContext(
+        actorUserId,
+      );
+    const cart = await this.cartPersistenceService.findCartById(
+      actor.id,
+      cartId,
+    );
 
     if (!cart) {
       throw new NotFoundException(`Cart ${cartId} not found`);
@@ -362,7 +394,8 @@ export class CartService {
       input.retailer === 'instacart'
         ? ingredientsToBuy.map((ingredient) => ({
             ...mapMissingIngredientMatch(ingredient),
-            notes: 'Instacart will resolve this item on the generated shopping list page.',
+            notes:
+              'Instacart will resolve this item on the generated shopping list page.',
           }))
         : await this.matchingService.matchIngredients(
             ingredientsToBuy,
@@ -433,14 +466,15 @@ export class CartService {
       throw new NotFoundException(`Shopping cart ${id} not found`);
     }
 
-    const matchedItems = (input.matched_items as MatchedIngredientProduct[]).map(
-      (item) => ({
-        ...item,
-        kind: item.kind ?? 'ingredient_match',
-      }),
-    );
+    const matchedItems = (
+      input.matched_items as MatchedIngredientProduct[]
+    ).map((item) => ({
+      ...item,
+      kind: item.kind ?? 'ingredient_match',
+    }));
 
-    const estimatedSubtotal = this.matchingService.estimateSubtotal(matchedItems);
+    const estimatedSubtotal =
+      this.matchingService.estimateSubtotal(matchedItems);
 
     const updated = await this.cartPersistenceService.updateShoppingCart(
       actor.id,
@@ -482,7 +516,9 @@ export class CartService {
     }
 
     const actor =
-      await this.userContextService.resolveActorUserShoppingContext(actorUserId);
+      await this.userContextService.resolveActorUserShoppingContext(
+        actorUserId,
+      );
     const searchContext = this.buildRetailerSearchContext(
       retailer,
       actor.preferredZipCode,
@@ -519,6 +555,9 @@ export class CartService {
     }
 
     const inventoryItems = await this.ingredientsService.listInventory(userId);
+    const inventoryByIngredientId = new Map(
+      inventoryItems.map((item) => [item.ingredient_id, item]),
+    );
     const inventoryBySlug = new Map(
       inventoryItems.map((item) => [
         this.ingredientsService.normalizeSlug(item.ingredient.canonical_name),
@@ -527,9 +566,15 @@ export class CartService {
     );
 
     return overview.map((ingredient) => {
-      const inventoryItem = inventoryBySlug.get(
-        this.ingredientsService.normalizeSlug(ingredient.canonical_ingredient),
-      );
+      const inventoryItem =
+        (ingredient.ingredient_id
+          ? inventoryByIngredientId.get(ingredient.ingredient_id)
+          : undefined) ??
+        inventoryBySlug.get(
+          this.ingredientsService.normalizeSlug(
+            ingredient.canonical_ingredient,
+          ),
+        );
       const inventoryAmount = inventoryItem?.estimated_amount;
       const inventoryUnit = inventoryItem?.unit?.trim() || undefined;
       const remaining =
@@ -558,12 +603,14 @@ export class CartService {
     reviewItems: IngredientReview['items'],
   ): AggregatedIngredient[] {
     const reviewByIngredient = new Map(
-      reviewItems.map((item) => [this.buildIngredientReviewKey(item), item]),
+      reviewItems.flatMap((item) =>
+        this.buildIngredientReviewKeys(item).map((key) => [key, item] as const),
+      ),
     );
 
     return overview.map((ingredient) => {
       const review = reviewByIngredient.get(
-        this.buildIngredientReviewKey(ingredient),
+        this.findIngredientReviewKey(reviewByIngredient, ingredient),
       );
       if (!review) {
         return {
@@ -582,7 +629,8 @@ export class CartService {
       }
 
       if (review.action === 'adjust') {
-        const reviewedAmount = review.adjusted_amount ?? ingredient.total_amount;
+        const reviewedAmount =
+          review.adjusted_amount ?? ingredient.total_amount;
         const reviewedUnit = review.adjusted_unit?.trim() || ingredient.unit;
 
         return {
@@ -593,7 +641,8 @@ export class CartService {
           reviewed_amount: reviewedAmount,
           reviewed_unit: reviewedUnit,
           remaining_to_buy:
-            ingredient.deduction_possible && ingredient.inventory_amount !== undefined
+            ingredient.deduction_possible &&
+            ingredient.inventory_amount !== undefined
               ? this.calculateRemainingToBuy(
                   reviewedAmount,
                   reviewedUnit,
@@ -613,12 +662,58 @@ export class CartService {
 
   private buildIngredientReviewKey(
     item:
-      | Pick<AggregatedIngredient, 'canonical_ingredient' | 'unit'>
-      | Pick<UpdateIngredientReviewItemRequest, 'canonical_ingredient' | 'unit'>,
+      | Pick<
+          AggregatedIngredient,
+          'ingredient_id' | 'canonical_ingredient' | 'unit'
+        >
+      | Pick<
+          UpdateIngredientReviewItemRequest,
+          'ingredient_id' | 'canonical_ingredient' | 'unit'
+        >,
   ): string {
     return `${item.canonical_ingredient.trim().toLowerCase()}::${item.unit
       .trim()
       .toLowerCase()}`;
+  }
+
+  private buildIngredientReviewKeys(
+    item:
+      | Pick<
+          AggregatedIngredient,
+          'ingredient_id' | 'canonical_ingredient' | 'unit'
+        >
+      | Pick<
+          UpdateIngredientReviewItemRequest,
+          'ingredient_id' | 'canonical_ingredient' | 'unit'
+        >,
+  ): string[] {
+    const unit = item.unit.trim().toLowerCase();
+    const keys = item.ingredient_id
+      ? [`ingredient:${item.ingredient_id}::${unit}`]
+      : [];
+
+    keys.push(this.buildIngredientReviewKey(item));
+
+    return keys;
+  }
+
+  private findIngredientReviewKey<T>(
+    reviewByIngredient: Map<string, T>,
+    item:
+      | Pick<
+          AggregatedIngredient,
+          'ingredient_id' | 'canonical_ingredient' | 'unit'
+        >
+      | Pick<
+          UpdateIngredientReviewItemRequest,
+          'ingredient_id' | 'canonical_ingredient' | 'unit'
+        >,
+  ): string {
+    return (
+      this.buildIngredientReviewKeys(item).find((key) =>
+        reviewByIngredient.has(key),
+      ) ?? this.buildIngredientReviewKeys(item)[0]
+    );
   }
 
   private calculateRemainingToBuy(
@@ -725,7 +820,8 @@ export class CartService {
         );
       }
 
-      const krogerReadiness = this.matchingService.getProviderReadiness('kroger');
+      const krogerReadiness =
+        this.matchingService.getProviderReadiness('kroger');
 
       if (!krogerReadiness.isAvailable) {
         throw new ServiceUnavailableException(

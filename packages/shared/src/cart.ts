@@ -2,10 +2,7 @@ import type {
   AggregatedIngredient,
   AggregatedIngredientSource,
 } from "./aggregation";
-import type {
-  MatchedIngredientProduct,
-  Retailer,
-} from "./product";
+import type { MatchedIngredientProduct, Retailer } from "./product";
 import type { Dish } from "./recipe";
 
 export type CartSelectionAdaptationRequest = {
@@ -49,13 +46,10 @@ export type CreateShoppingCartRequest = {
   retailer: Retailer;
 };
 
-export type IngredientReviewAction =
-  | "buy"
-  | "already_have"
-  | "skip"
-  | "adjust";
+export type IngredientReviewAction = "buy" | "already_have" | "skip" | "adjust";
 
 export type IngredientReviewItem = {
+  ingredient_id?: string;
   canonical_ingredient: string;
   total_amount: number;
   unit: string;
@@ -73,6 +67,7 @@ export type IngredientReview = {
 };
 
 export type UpdateIngredientReviewItemRequest = {
+  ingredient_id?: string;
   canonical_ingredient: string;
   unit: string;
   action: IngredientReviewAction;

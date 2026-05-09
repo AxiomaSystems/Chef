@@ -811,6 +811,9 @@ export class AggregatedIngredientResponseDto {
 }
 
 export class IngredientReviewItemResponseDto {
+  @ApiPropertyOptional({ example: 'ingredient-rice' })
+  ingredient_id?: string;
+
   @ApiProperty({ example: 'rice' })
   canonical_ingredient!: string;
 
