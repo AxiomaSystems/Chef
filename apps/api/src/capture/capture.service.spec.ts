@@ -38,6 +38,7 @@ function captureRecord(overrides: Record<string, unknown> = {}) {
     needsReview: true,
     sourceUrl: null,
     sourceTextSnippet: 'ingredients: pasta',
+    savedRecipeId: null,
     attribution: { attribution_label: 'Generated from pasted text' },
     recipePreview: importedRecipe,
     assumptions: [],
@@ -57,10 +58,18 @@ describe('CaptureService', () => {
     capture: {
       create: jest.Mock;
       findFirst: jest.Mock;
+      update: jest.Mock;
+    };
+    cuisine: {
+      findUnique: jest.Mock;
     };
   };
   let aiService: {
     importRecipeFromCapture: jest.Mock;
+  };
+  let recipeService: {
+    create: jest.Mock;
+    findOne: jest.Mock;
   };
   let service: CaptureService;
 
@@ -69,12 +78,24 @@ describe('CaptureService', () => {
       capture: {
         create: jest.fn(),
         findFirst: jest.fn(),
+        update: jest.fn(),
+      },
+      cuisine: {
+        findUnique: jest.fn(),
       },
     };
     aiService = {
       importRecipeFromCapture: jest.fn(),
     };
-    service = new CaptureService(prisma as never, aiService as never);
+    recipeService = {
+      create: jest.fn(),
+      findOne: jest.fn(),
+    };
+    service = new CaptureService(
+      prisma as never,
+      aiService as never,
+      recipeService as never,
+    );
 
     aiService.importRecipeFromCapture.mockResolvedValue({
       source_url: 'chef-capture://pasted-text',
@@ -90,6 +111,14 @@ describe('CaptureService', () => {
     prisma.capture.create.mockImplementation(({ data }) =>
       Promise.resolve(captureRecord(data)),
     );
+    prisma.cuisine.findUnique.mockImplementation(({ where }) =>
+      Promise.resolve(
+        where.slug === 'italian' || where.slug === 'other'
+          ? { id: `cuisine-${where.slug}` }
+          : null,
+      ),
+    );
+    recipeService.create.mockResolvedValue({ id: 'recipe-1' });
   });
 
   it('creates a reviewable pasted-text capture without treating status as result kind', async () => {
@@ -168,5 +197,43 @@ describe('CaptureService', () => {
     expect(prisma.capture.findFirst).toHaveBeenCalledWith({
       where: { id: 'missing', userId: 'user-1' },
     });
+  });
+
+  it('saves a capture recipe preview as a user-owned recipe', async () => {
+    prisma.capture.findFirst.mockResolvedValue(captureRecord());
+
+    const recipe = await service.saveCaptureAsRecipe('user-1', 'capture-1');
+
+    expect(recipeService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Spicy Rigatoni',
+        cuisine_id: 'cuisine-italian',
+        ingredients: expect.arrayContaining([
+          expect.objectContaining({ canonical_ingredient: 'rigatoni' }),
+        ]),
+      }),
+      'user-1',
+    );
+    expect(prisma.capture.update).toHaveBeenCalledWith({
+      where: { id: 'capture-1' },
+      data: {
+        status: 'saved',
+        savedRecipeId: 'recipe-1',
+      },
+    });
+    expect(recipe).toEqual({ id: 'recipe-1' });
+  });
+
+  it('returns the existing saved recipe for an already-saved capture', async () => {
+    prisma.capture.findFirst.mockResolvedValue(
+      captureRecord({ savedRecipeId: 'recipe-1', status: 'saved' }),
+    );
+    recipeService.findOne.mockResolvedValue({ id: 'recipe-1' });
+
+    await expect(
+      service.saveCaptureAsRecipe('user-1', 'capture-1'),
+    ).resolves.toEqual({ id: 'recipe-1' });
+
+    expect(recipeService.create).not.toHaveBeenCalled();
   });
 });

@@ -57,6 +57,7 @@ export type Capture = {
   status: CaptureStatus;
   confidence: CaptureConfidence;
   needs_review: boolean;
+  saved_recipe_id?: string;
   source_url?: string;
   source_text_snippet?: string;
   source_attribution: CaptureSourceAttribution;

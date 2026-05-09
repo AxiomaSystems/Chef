@@ -24,6 +24,7 @@ The current implementation creates persisted capture drafts through:
 
 - `POST /api/v1/captures`
 - `GET /api/v1/captures/:id`
+- `POST /api/v1/captures/:id/save-recipe`
 
 Every capture is owned by a user and requires auth.
 
@@ -99,11 +100,25 @@ The `Capture` table stores:
 
 The recipe preview is intentionally draft-shaped so the next product slice can add explicit review/save behavior before creating a canonical recipe.
 
+## Save As Recipe
+
+Reviewed captures can be saved into the normal recipe system.
+
+`POST /api/v1/captures/:id/save-recipe`:
+
+- requires capture ownership
+- requires a recipe preview
+- creates a user-owned, non-system `BaseRecipe`
+- links the capture to the saved recipe through `savedRecipeId`
+- marks the capture as `saved`
+- returns the existing recipe if the capture was already saved
+
+This keeps raw Capture data separate from the user's canonical recipe library while still making Capture useful end-to-end.
+
 ## Future Integration
 
 Next backend slices should build on this instead of adding parallel import flows:
 
-- save reviewed capture as recipe
 - generate grocery list/cart from reviewed capture
 - attach image/video assets through CDN-backed storage
 - feed screenshots/photos/videos through OCR or vision sidecars

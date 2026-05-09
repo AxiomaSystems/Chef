@@ -4,9 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type {
+  BaseRecipe,
   Capture,
   CaptureConfidence,
   CaptureInputKind,
+  CaptureRecipePreview,
   CaptureResultKind,
   CaptureSourceAttribution,
   CaptureSourceKind,
@@ -18,6 +20,8 @@ import type {
   AiRecipeImportPlatform,
 } from '../ai/ai.types';
 import { PrismaService } from '../prisma/prisma.service';
+import type { CreateRecipeDto } from '../recipe/dto/create-recipe.dto';
+import { RecipeService } from '../recipe/recipe.service';
 import { CreateCaptureDto } from './dto/create-capture.dto';
 import { mapCapture } from './capture.mapper';
 
@@ -33,6 +37,7 @@ export class CaptureService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
+    private readonly recipeService: RecipeService,
   ) {}
 
   async createCapture(
@@ -132,6 +137,47 @@ export class CaptureService {
     return mapCapture(capture);
   }
 
+  async saveCaptureAsRecipe(userId: string, id: string): Promise<BaseRecipe> {
+    const capture = await this.prisma.capture.findFirst({
+      where: { id, userId },
+    });
+
+    if (!capture) {
+      throw new NotFoundException(`Capture ${id} not found`);
+    }
+
+    if (capture.savedRecipeId) {
+      return this.recipeService.findOne(capture.savedRecipeId, userId);
+    }
+
+    if (capture.status === 'discarded' || capture.status === 'failed') {
+      throw new BadRequestException(
+        'Only reviewable captures can be saved as recipes',
+      );
+    }
+
+    const preview = capture.recipePreview as CaptureRecipePreview | null;
+    if (!preview) {
+      throw new BadRequestException('Capture does not include a recipe draft');
+    }
+
+    const cuisineId = await this.resolveCuisineId(preview.cuisine);
+    const recipe = await this.recipeService.create(
+      buildRecipeInput(preview, cuisineId),
+      userId,
+    );
+
+    await this.prisma.capture.update({
+      where: { id: capture.id },
+      data: {
+        status: 'saved',
+        savedRecipeId: recipe.id,
+      },
+    });
+
+    return recipe;
+  }
+
   supportedResultKinds() {
     return SUPPORTED_RESULT_KINDS;
   }
@@ -155,6 +201,56 @@ export class CaptureService {
 
     throw new BadRequestException('Provide a url or text capture input');
   }
+
+  private async resolveCuisineId(label: string): Promise<string> {
+    const cuisine =
+      (await this.prisma.cuisine.findUnique({
+        where: { slug: normalizeSlug(label) },
+      })) ??
+      (await this.prisma.cuisine.findUnique({
+        where: { slug: 'other' },
+      }));
+
+    if (!cuisine) {
+      throw new BadRequestException('Cuisine catalog is not seeded');
+    }
+
+    return cuisine.id;
+  }
+}
+
+function buildRecipeInput(
+  preview: CaptureRecipePreview,
+  cuisineId: string,
+): CreateRecipeDto {
+  return {
+    name: preview.name,
+    cuisine_id: cuisineId,
+    description: preview.description,
+    nutrition_data: preview.nutrition_estimate ?? undefined,
+    servings: preview.servings,
+    ingredients: preview.ingredients.map((ingredient) => ({
+      canonical_ingredient: ingredient.canonical_ingredient,
+      amount: ingredient.amount,
+      unit: ingredient.unit,
+      display_ingredient: ingredient.display_ingredient,
+      preparation: ingredient.preparation,
+      optional: ingredient.optional,
+      group: ingredient.group,
+    })),
+    steps: preview.steps.map((step) => ({
+      step: step.step,
+      what_to_do: step.what_to_do,
+    })),
+  };
+}
+
+function normalizeSlug(input: string) {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function resolveSourceKind(
