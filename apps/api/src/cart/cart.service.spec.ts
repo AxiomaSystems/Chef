@@ -407,6 +407,8 @@ describe('CartService', () => {
         id: 'inventory-rice',
         user_id: 'user-1',
         ingredient_id: 'ingredient-rice',
+        display_name: 'rice',
+        normalized_name: 'rice',
         ingredient: {
           id: 'ingredient-rice',
           canonical_name: 'rice',
@@ -418,6 +420,7 @@ describe('CartService', () => {
         unit: 'cup',
         source: 'manual',
         confidence: 'high',
+        review_status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
@@ -482,6 +485,8 @@ describe('CartService', () => {
         id: 'inventory-rice',
         user_id: 'user-1',
         ingredient_id: 'ingredient-rice',
+        display_name: 'rice',
+        normalized_name: 'rice',
         ingredient: {
           id: 'ingredient-rice',
           canonical_name: 'rice',
@@ -493,6 +498,7 @@ describe('CartService', () => {
         unit: 'cup',
         source: 'manual',
         confidence: 'high',
+        review_status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },

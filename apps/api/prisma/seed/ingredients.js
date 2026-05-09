@@ -1,51 +1,51 @@
-const { systemRecipes } = require("./data/system-recipes");
-const { userRecipes } = require("./data/user-recipes");
+const { systemRecipes } = require('./data/system-recipes');
+const { userRecipes } = require('./data/user-recipes');
 
 const DEMO_KITCHEN_SLUGS = new Set([
-  "rice",
-  "egg",
-  "bread",
-  "soy-sauce",
-  "red-wine-vinegar",
-  "olive-oil",
-  "salt",
-  "black-pepper",
+  'rice',
+  'egg',
+  'bread',
+  'soy-sauce',
+  'red-wine-vinegar',
+  'olive-oil',
+  'salt',
+  'black-pepper',
 ]);
 
 function normalizeName(name) {
-  return name.trim().replace(/\s+/g, " ").toLowerCase();
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 function normalizeSlug(name) {
   return normalizeName(name)
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function inferCategory(name) {
   const value = normalizeName(name);
 
   if (/(chicken|beef|fish|sirloin|fillet)/.test(value)) {
-    return "protein";
+    return 'protein';
   }
 
   if (/(milk|cheese|egg)/.test(value)) {
-    return "dairy-eggs";
+    return 'dairy-eggs';
   }
 
   if (/(lime|onion|cilantro|corn|tomato|potato|aji)/.test(value)) {
-    return "produce";
+    return 'produce';
   }
 
   if (/(rice|bread|fries)/.test(value)) {
-    return "pantry";
+    return 'pantry';
   }
 
   if (/(sauce|vinegar|paste|pecan)/.test(value)) {
-    return "pantry";
+    return 'pantry';
   }
 
-  return "other";
+  return 'other';
 }
 
 function ingredientSeedsFromRecipes() {
@@ -107,22 +107,35 @@ async function seedIngredients(prisma, devUserId) {
   });
 
   for (const ingredient of pantryIngredients) {
-    await prisma.kitchenInventoryItem.upsert({
+    const existing = await prisma.kitchenInventoryItem.findFirst({
       where: {
-        userId_ingredientId: {
-          userId: devUserId,
-          ingredientId: ingredient.id,
-        },
-      },
-      update: {
-        source: "seed",
-        confidence: "high",
-      },
-      create: {
         userId: devUserId,
         ingredientId: ingredient.id,
-        source: "seed",
-        confidence: "high",
+        reviewStatus: 'active',
+      },
+    });
+
+    if (existing) {
+      await prisma.kitchenInventoryItem.update({
+        where: { id: existing.id },
+        data: {
+          displayName: ingredient.canonicalName,
+          normalizedName: normalizeName(ingredient.canonicalName),
+          source: 'seed',
+          confidence: 'high',
+        },
+      });
+      continue;
+    }
+
+    await prisma.kitchenInventoryItem.create({
+      data: {
+        userId: devUserId,
+        ingredientId: ingredient.id,
+        displayName: ingredient.canonicalName,
+        normalizedName: normalizeName(ingredient.canonicalName),
+        source: 'seed',
+        confidence: 'high',
       },
     });
   }
