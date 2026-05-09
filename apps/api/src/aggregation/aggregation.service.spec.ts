@@ -47,6 +47,44 @@ describe('AggregationService', () => {
     ]);
   });
 
+  it('aggregates by ingredient id before display name when available', () => {
+    const result = service.compute([
+      {
+        name: 'Dish A',
+        ingredients: [
+          {
+            ingredient_id: 'ingredient-rice',
+            canonical_ingredient: 'white rice',
+            amount: 1,
+            unit: 'cup',
+          },
+        ],
+        steps: [],
+      },
+      {
+        name: 'Dish B',
+        ingredients: [
+          {
+            ingredient_id: 'ingredient-rice',
+            canonical_ingredient: 'rice',
+            amount: 2,
+            unit: 'cup',
+          },
+        ],
+        steps: [],
+      },
+    ]);
+
+    expect(result.overview).toEqual([
+      expect.objectContaining({
+        ingredient_id: 'ingredient-rice',
+        canonical_ingredient: 'white rice',
+        total_amount: 3,
+        unit: 'cup',
+      }),
+    ]);
+  });
+
   it('does not merge ingredients with different units', () => {
     const result = service.compute([
       {
@@ -68,6 +106,9 @@ describe('AggregationService', () => {
     ]);
 
     expect(result.overview).toHaveLength(2);
-    expect(result.overview.map((item) => item.unit).sort()).toEqual(['cup', 'ml']);
+    expect(result.overview.map((item) => item.unit).sort()).toEqual([
+      'cup',
+      'ml',
+    ]);
   });
 });
