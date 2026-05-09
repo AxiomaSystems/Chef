@@ -1,6 +1,7 @@
 import { RecipeRepository } from './recipe.repository';
 import { UserContextService } from '../user/user-context.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { IngredientsService } from '../ingredients/ingredients.service';
 
 describe('RecipeRepository visibility', () => {
   let repository: RecipeRepository;
@@ -14,6 +15,10 @@ describe('RecipeRepository visibility', () => {
   let userContextService: {
     resolveActorUser: jest.Mock;
     resolveOptionalActorUser: jest.Mock;
+  };
+  let ingredientsService: {
+    normalizeSlug: jest.Mock;
+    resolveIngredientIdsBySlugs: jest.Mock;
   };
 
   beforeEach(() => {
@@ -30,14 +35,29 @@ describe('RecipeRepository visibility', () => {
       resolveOptionalActorUser: jest.fn(),
     };
 
+    ingredientsService = {
+      normalizeSlug: jest.fn((value: string) =>
+        value
+          .trim()
+          .replace(/\s+/g, ' ')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, ''),
+      ),
+      resolveIngredientIdsBySlugs: jest.fn().mockResolvedValue(new Map()),
+    };
+
     repository = new RecipeRepository(
       prisma as unknown as PrismaService,
       userContextService as unknown as UserContextService,
+      ingredientsService as unknown as IngredientsService,
     );
   });
 
   it('lists system and owned recipes for user A', async () => {
-    userContextService.resolveOptionalActorUser.mockResolvedValue({ id: 'user-a' });
+    userContextService.resolveOptionalActorUser.mockResolvedValue({
+      id: 'user-a',
+    });
 
     await repository.findMany('user-a');
 
@@ -51,7 +71,9 @@ describe('RecipeRepository visibility', () => {
   });
 
   it('lists system and owned recipes for user B', async () => {
-    userContextService.resolveOptionalActorUser.mockResolvedValue({ id: 'user-b' });
+    userContextService.resolveOptionalActorUser.mockResolvedValue({
+      id: 'user-b',
+    });
 
     await repository.findMany('user-b');
 
@@ -65,7 +87,9 @@ describe('RecipeRepository visibility', () => {
   });
 
   it('lists system and owned recipes for admin', async () => {
-    userContextService.resolveOptionalActorUser.mockResolvedValue({ id: 'admin-1' });
+    userContextService.resolveOptionalActorUser.mockResolvedValue({
+      id: 'admin-1',
+    });
 
     await repository.findMany('admin-1');
 
@@ -159,7 +183,10 @@ describe('RecipeRepository visibility', () => {
         steps: [],
       });
 
-    const result = await repository.saveSystemRecipe('recipe-system-1', 'user-a');
+    const result = await repository.saveSystemRecipe(
+      'recipe-system-1',
+      'user-a',
+    );
 
     expect(prisma.baseRecipe.create).not.toHaveBeenCalled();
     expect(result).toMatchObject({
@@ -228,7 +255,10 @@ describe('RecipeRepository visibility', () => {
       name: 'PrismaClientKnownRequestError',
     });
 
-    const result = await repository.saveSystemRecipe('recipe-system-1', 'user-a');
+    const result = await repository.saveSystemRecipe(
+      'recipe-system-1',
+      'user-a',
+    );
 
     expect(result).toMatchObject({
       created: false,

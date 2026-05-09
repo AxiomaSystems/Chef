@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import type { BaseRecipe } from '@cart/shared';
 import { Prisma } from '../../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,12 +16,14 @@ import {
   buildVisibleRecipeWhere,
 } from './recipe.persistence.mapper';
 import { UserContextService } from '../user/user-context.service';
+import { IngredientsService } from '../ingredients/ingredients.service';
 
 @Injectable()
 export class RecipeRepository {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userContextService: UserContextService,
+    private readonly ingredientsService: IngredientsService,
   ) {}
 
   private resolveOptionalActorUser(
@@ -31,14 +37,12 @@ export class RecipeRepository {
   }
 
   private isUniqueConstraintError(error: unknown): boolean {
-    return (
-      error instanceof Prisma.PrismaClientKnownRequestError
-        ? error.code === 'P2002'
-        : typeof error === 'object' &&
+    return error instanceof Prisma.PrismaClientKnownRequestError
+      ? error.code === 'P2002'
+      : typeof error === 'object' &&
           error !== null &&
           'code' in error &&
-          error.code === 'P2002'
-    );
+          error.code === 'P2002';
   }
 
   private findExistingFork(ownerUserId: string, sourceRecipeId: string) {
@@ -103,14 +107,40 @@ export class RecipeRepository {
     return cuisine.id;
   }
 
-  async create(input: CreateRecipeDto, actorUserId?: string): Promise<BaseRecipe> {
+  private async resolveIngredientIdsByIndex(
+    ingredients?: Array<{ canonical_ingredient: string }>,
+  ): Promise<Array<string | undefined> | undefined> {
+    if (!ingredients) {
+      return undefined;
+    }
+
+    const slugs = ingredients.map((ingredient) =>
+      this.ingredientsService.normalizeSlug(ingredient.canonical_ingredient),
+    );
+    const ingredientIdsBySlug =
+      await this.ingredientsService.resolveIngredientIdsBySlugs(slugs);
+
+    return slugs.map((slug) => ingredientIdsBySlug.get(slug));
+  }
+
+  async create(
+    input: CreateRecipeDto,
+    actorUserId?: string,
+  ): Promise<BaseRecipe> {
     const actor = await this.resolveActorUser(actorUserId);
     const tagIds = await this.validateTagIdsForActor(actor.id, input.tag_ids);
     const cuisineId = await this.validateCuisineId(input.cuisine_id);
+    const ingredientIdsByIndex = await this.resolveIngredientIdsByIndex(
+      input.ingredients,
+    );
 
     const recipe = await this.prisma.baseRecipe.create({
       data: {
-        ...buildCreateRecipeData({ ...input, cuisine_id: cuisineId }, actor.id),
+        ...buildCreateRecipeData(
+          { ...input, cuisine_id: cuisineId },
+          actor.id,
+          ingredientIdsByIndex,
+        ),
         recipeTags: {
           create: tagIds.map((tagId) => ({
             tag: {
@@ -238,14 +268,20 @@ export class RecipeRepository {
       input.cuisine_id !== undefined
         ? await this.validateCuisineId(input.cuisine_id)
         : undefined;
+    const ingredientIdsByIndex = await this.resolveIngredientIdsByIndex(
+      input.ingredients,
+    );
 
     const recipe = await this.prisma.baseRecipe.update({
       where: { id },
       data: {
-        ...buildUpdateRecipeData({
-          ...input,
-          ...(cuisineId !== undefined ? { cuisine_id: cuisineId } : {}),
-        }),
+        ...buildUpdateRecipeData(
+          {
+            ...input,
+            ...(cuisineId !== undefined ? { cuisine_id: cuisineId } : {}),
+          },
+          ingredientIdsByIndex,
+        ),
         ...(tagIds !== null
           ? {
               recipeTags: {
@@ -331,6 +367,7 @@ export class RecipeRepository {
           },
           ingredients: {
             create: sourceRecipe.ingredients.map((ingredient) => ({
+              ingredientId: ingredient.ingredientId,
               canonicalIngredient: ingredient.canonicalIngredient,
               amount: ingredient.amount,
               unit: ingredient.unit,
@@ -363,7 +400,10 @@ export class RecipeRepository {
       return { recipe: mapBaseRecipe(savedRecipe), created: true };
     } catch (error) {
       if (this.isUniqueConstraintError(error)) {
-        const concurrentFork = await this.findExistingFork(actor.id, sourceRecipe.id);
+        const concurrentFork = await this.findExistingFork(
+          actor.id,
+          sourceRecipe.id,
+        );
 
         if (concurrentFork) {
           return { recipe: mapBaseRecipe(concurrentFork), created: false };

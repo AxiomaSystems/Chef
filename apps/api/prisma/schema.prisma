@@ -298,6 +298,7 @@ model UserFoodRule {
   @@unique([userId, dedupeKey])
   @@index([userId, kind])
   @@index([userId, strictness])
+  @@index([userId, strictness, createdAt])
   @@index([userId, active, startsAt, expiresAt])
   @@index([ingredientId])
   @@index([tagId])
@@ -321,6 +322,7 @@ model UserGoal {
   @@unique([userId, goal, timeframe])
   @@index([userId, active, priority])
   @@index([userId, active, startsAt, expiresAt])
+  @@index([userId, priority, createdAt])
 }
 
 model UserPantryStaple {
@@ -335,6 +337,7 @@ model UserPantryStaple {
 
   @@id([userId, ingredientId])
   @@index([ingredientId])
+  @@index([userId, createdAt])
 }
 
 model RecipeTag {
@@ -348,19 +351,23 @@ model RecipeTag {
 }
 
 model DishIngredient {
-  id                  String     @id @default(cuid())
+  id                  String      @id @default(cuid())
   baseRecipeId        String
+  ingredientId        String?
   canonicalIngredient String
   amount              Float
   unit                String
   displayIngredient   String?
   preparation         String?
-  optional            Boolean    @default(false)
+  optional            Boolean     @default(false)
   ingredientGroup     String?
   sortOrder           Int
-  baseRecipe          BaseRecipe @relation(fields: [baseRecipeId], references: [id], onDelete: Cascade)
+  baseRecipe          BaseRecipe  @relation(fields: [baseRecipeId], references: [id], onDelete: Cascade)
+  ingredient          Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
 
   @@index([baseRecipeId, sortOrder])
+  @@index([ingredientId])
+  @@index([baseRecipeId, ingredientId])
 }
 
 model Ingredient {
@@ -373,6 +380,7 @@ model Ingredient {
   visionLabels          Json?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+  dishIngredients       DishIngredient[]
   kitchenInventoryItems KitchenInventoryItem[]
   foodRules             UserFoodRule[]
   pantryStaples         UserPantryStaple[]
@@ -397,6 +405,7 @@ model KitchenInventoryItem {
 
   @@unique([userId, ingredientId])
   @@index([userId, createdAt])
+  @@index([userId, updatedAt])
   @@index([ingredientId])
 }
 

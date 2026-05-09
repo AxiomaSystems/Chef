@@ -73,6 +73,32 @@ export class IngredientsService {
     });
   }
 
+  async resolveIngredientIdsBySlugs(
+    slugs: string[],
+  ): Promise<Map<string, string>> {
+    const uniqueSlugs = Array.from(new Set(slugs.filter(Boolean)));
+
+    if (uniqueSlugs.length === 0) {
+      return new Map();
+    }
+
+    const ingredients = await this.prisma.ingredient.findMany({
+      where: {
+        slug: {
+          in: uniqueSlugs,
+        },
+      },
+      select: {
+        id: true,
+        slug: true,
+      },
+    });
+
+    return new Map(
+      ingredients.map((ingredient) => [ingredient.slug, ingredient.id]),
+    );
+  }
+
   async listInventory(userId: string): Promise<KitchenInventoryItem[]> {
     const items = await this.prisma.kitchenInventoryItem.findMany({
       where: { userId },
