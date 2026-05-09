@@ -88,6 +88,51 @@ describe('Chef Capture (e2e)', () => {
     expect(getResponse.body.id).toBe(createResponse.body.id);
   });
 
+  it('saves a capture draft as a visible user recipe', async () => {
+    const token = await registerUser();
+
+    const createResponse = await request(app.getHttpServer())
+      .post('/api/v1/captures')
+      .set('authorization', `Bearer ${token}`)
+      .send({
+        text: 'ingredients: pasta, tomato, cream\nsteps: cook pasta and toss with sauce',
+      })
+      .expect(201);
+
+    const saveResponse = await request(app.getHttpServer())
+      .post(`/api/v1/captures/${createResponse.body.id}/save-recipe`)
+      .set('authorization', `Bearer ${token}`)
+      .expect(201);
+
+    expect(saveResponse.body).toEqual(
+      expect.objectContaining({
+        id: expect.any(String),
+        owner_user_id: expect.any(String),
+        is_system_recipe: false,
+        name: expect.any(String),
+      }),
+    );
+    expect(saveResponse.body.ingredients.length).toBeGreaterThan(0);
+    expect(saveResponse.body.steps.length).toBeGreaterThan(0);
+
+    const savedCapture = await request(app.getHttpServer())
+      .get(`/api/v1/captures/${createResponse.body.id}`)
+      .set('authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(savedCapture.body).toEqual(
+      expect.objectContaining({
+        status: 'saved',
+        saved_recipe_id: saveResponse.body.id,
+      }),
+    );
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/recipes/${saveResponse.body.id}`)
+      .set('authorization', `Bearer ${token}`)
+      .expect(200);
+  });
+
   it('requires authentication for capture endpoints', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/captures')

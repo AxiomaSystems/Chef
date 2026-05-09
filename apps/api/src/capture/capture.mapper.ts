@@ -13,6 +13,7 @@ type CaptureRecord = {
   status: Capture['status'];
   confidence: Capture['confidence'];
   needsReview: boolean;
+  savedRecipeId: string | null;
   sourceUrl: string | null;
   sourceTextSnippet: string | null;
   attribution: unknown;
@@ -36,7 +37,8 @@ export function mapCapture(input: CaptureRecord): Capture {
     result_kind: input.resultKind,
     status: input.status,
     confidence: input.confidence,
-    needs_review: true,
+    needs_review: input.needsReview,
+    saved_recipe_id: input.savedRecipeId ?? undefined,
     source_url: input.sourceUrl ?? undefined,
     source_text_snippet: input.sourceTextSnippet ?? undefined,
     source_attribution: input.attribution as CaptureSourceAttribution,
