@@ -148,3 +148,15 @@ POST /api/v1/vision/observations/:id/discard
 ```
 
 Use this for review cards: create/hold observation evidence, then add or discard after user confirmation.
+
+## Current Web Bridge
+
+`apps/web/src/app/inventory/vision-scan-modal.tsx` now persists a `VisionObservation` before adding a reviewed detection/group to inventory.
+
+The bridge intentionally does not redesign the modal. It preserves the existing add buttons and routes them through:
+
+1. `POST /api/v1/vision/observations`
+2. `POST /api/v1/vision/observations/:id/add-to-inventory`
+3. `GET /api/v1/me/kitchen-inventory` to return the created item to the existing UI state
+
+This gives backend a review/audit trail without changing Gallo's detector or forcing Enoch into a UI rewrite.
