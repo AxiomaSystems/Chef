@@ -64,6 +64,48 @@ export class AiService {
     });
   }
 
+  async importRecipeFromCapture(input: {
+    url?: string;
+    text?: string;
+  }): Promise<AiRecipeImportResult> {
+    const supplementalText = input.text?.trim() ?? '';
+
+    if (input.url) {
+      const extracted = await extractRecipeSource(input.url, supplementalText);
+
+      return this.provider.importRecipe({
+        request: {
+          url: input.url,
+          supplemental_text: supplementalText || undefined,
+        },
+        platform: extracted.platform,
+        source_title: extracted.sourceTitle,
+        source_creator: extracted.sourceCreator,
+        source_description: extracted.sourceDescription,
+        extracted_text: extracted.extractedText,
+        extraction_notes: extracted.extractionNotes,
+      });
+    }
+
+    const sourceTitle = deriveTitleFromText(supplementalText);
+    const sourceDescription = supplementalText.slice(0, 280);
+
+    return this.provider.importRecipe({
+      request: {
+        url: 'chef-capture://pasted-text',
+        supplemental_text: supplementalText,
+      },
+      platform: 'generic',
+      source_title: sourceTitle,
+      source_creator: null,
+      source_description: sourceDescription,
+      extracted_text: supplementalText.slice(0, 12000),
+      extraction_notes: [
+        'Structured from pasted user text. No external source was fetched.',
+      ],
+    });
+  }
+
   chat(input: AiChatDto): Promise<AiChatResult> {
     return this.provider.chat({
       message: input.message,
@@ -185,6 +227,15 @@ function deriveTitleFromUrl(url: string) {
   } catch {
     return 'Imported recipe';
   }
+}
+
+function deriveTitleFromText(text: string) {
+  const firstLine = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+
+  return firstLine?.slice(0, 80) || 'Captured cooking idea';
 }
 
 function extractMetadata(html: string) {
