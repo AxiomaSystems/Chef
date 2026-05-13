@@ -3,7 +3,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Ingredient, KitchenInventoryItem } from '@cart/shared';
+import {
+  inferIngredientCategory,
+  inferInventoryAmount,
+  inferInventoryUnit,
+  normalizeIngredientName,
+  normalizeIngredientSlug,
+  type Ingredient,
+  type KitchenInventoryItem,
+} from '@cart/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddKitchenInventoryItemDto } from './dto/add-kitchen-inventory-item.dto';
 import { UpdateKitchenInventoryItemDto } from './dto/update-kitchen-inventory-item.dto';
@@ -14,13 +22,11 @@ export class IngredientsService {
   constructor(private readonly prisma: PrismaService) {}
 
   normalizeName(name: string): string {
-    return name.trim().replace(/\s+/g, ' ').toLowerCase();
+    return normalizeIngredientName(name);
   }
 
   normalizeSlug(name: string): string {
-    return this.normalizeName(name)
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    return normalizeIngredientSlug(name);
   }
 
   async listIngredients(query?: string): Promise<Ingredient[]> {
@@ -62,10 +68,14 @@ export class IngredientsService {
       where: { slug },
       update: {
         canonicalName: normalizedName,
+        category: inferIngredientCategory(normalizedName),
+        defaultUnit: inferInventoryUnit(normalizedName),
       },
       create: {
         canonicalName: normalizedName,
         slug,
+        category: inferIngredientCategory(normalizedName),
+        defaultUnit: inferInventoryUnit(normalizedName),
         aliases: [],
         visionLabels: [],
       },
@@ -148,6 +158,13 @@ export class IngredientsService {
       throw new BadRequestException('Inventory item name is required');
     }
 
+    const unit =
+      input.unit?.trim() ||
+      ingredient?.defaultUnit ||
+      inferInventoryUnit(displayName);
+    const estimatedAmount =
+      input.estimated_amount ?? inferInventoryAmount(unit);
+
     const item = await this.prisma.kitchenInventoryItem.create({
       data: {
         userId,
@@ -155,8 +172,8 @@ export class IngredientsService {
         displayName,
         normalizedName: this.normalizeName(displayName),
         label: input.label?.trim() || undefined,
-        estimatedAmount: input.estimated_amount ?? undefined,
-        unit: input.unit?.trim() || undefined,
+        estimatedAmount,
+        unit,
         source: 'manual',
         confidence: ingredient ? 'high' : 'medium',
         reviewStatus: input.review_status ?? 'active',

@@ -45,6 +45,9 @@
       "argon2",
       "prisma",
       "unrs-resolver"
+    ],
+    "ignoredBuiltDependencies": [
+      "sharp"
     ]
   },
   "keywords": [],

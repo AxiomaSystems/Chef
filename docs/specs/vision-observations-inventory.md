@@ -380,5 +380,5 @@ Implemented across `piero/flexible-inventory-items` and `piero/vision-observatio
 
 Handoffs:
 
-- Gallo/vision: `docs/vision-flexible-inventory-handoff.md`
-- Enoch/frontend: `docs/frontend-flexible-inventory-handoff.md`
+- Gallo/vision historical handoff: `docs/archive/vision-flexible-inventory-handoff.md`
+- Enoch/frontend historical handoff: `docs/archive/frontend-flexible-inventory-handoff.md`
