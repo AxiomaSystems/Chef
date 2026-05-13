@@ -60,8 +60,8 @@ describe('IngredientsService inventory', () => {
       displayName: 'mystery green jar',
       normalizedName: 'mystery green jar',
       label: null,
-      estimatedAmount: null,
-      unit: null,
+      estimatedAmount: 1,
+      unit: 'jar',
       source: 'manual',
       confidence: 'medium',
       reviewStatus: 'active',
@@ -80,6 +80,8 @@ describe('IngredientsService inventory', () => {
           ingredientId: undefined,
           displayName: 'Mystery Green Jar',
           normalizedName: 'mystery green jar',
+          estimatedAmount: 1,
+          unit: 'jar',
           confidence: 'medium',
           reviewStatus: 'active',
         }),
@@ -90,6 +92,8 @@ describe('IngredientsService inventory', () => {
         ingredient_id: undefined,
         ingredient: undefined,
         display_name: 'mystery green jar',
+        estimated_amount: 1,
+        unit: 'jar',
         review_status: 'active',
       }),
     );
@@ -127,7 +131,44 @@ describe('IngredientsService inventory', () => {
           ingredientId: ingredient.id,
           displayName: 'olive oil bottle',
           normalizedName: 'olive oil bottle',
+          estimatedAmount: 1,
+          unit: 'unit',
           confidence: 'high',
+        }),
+      }),
+    );
+  });
+
+  it('uses linked ingredient defaults when quantity and unit are omitted', async () => {
+    prisma.ingredient.findUnique.mockResolvedValue(ingredient);
+    prisma.kitchenInventoryItem.create.mockResolvedValue({
+      id: 'inventory-1',
+      userId: 'user-1',
+      ingredientId: ingredient.id,
+      ingredient,
+      displayName: 'rice',
+      normalizedName: 'rice',
+      label: null,
+      estimatedAmount: 1,
+      unit: 'cup',
+      source: 'manual',
+      confidence: 'high',
+      reviewStatus: 'active',
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    await service.addInventoryItem('user-1', {
+      ingredient_id: ingredient.id,
+    });
+
+    expect(prisma.kitchenInventoryItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          ingredientId: ingredient.id,
+          displayName: 'rice',
+          estimatedAmount: 1,
+          unit: 'cup',
         }),
       }),
     );

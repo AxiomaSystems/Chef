@@ -1,5 +1,11 @@
 const { systemRecipes } = require('./data/system-recipes');
 const { userRecipes } = require('./data/user-recipes');
+const {
+  inferIngredientCategory,
+  inferInventoryAmount,
+  normalizeIngredientName,
+  normalizeIngredientSlug,
+} = require('../../../../packages/shared/dist');
 
 const DEMO_KITCHEN_SLUGS = new Set([
   'rice',
@@ -13,39 +19,11 @@ const DEMO_KITCHEN_SLUGS = new Set([
 ]);
 
 function normalizeName(name) {
-  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+  return normalizeIngredientName(name);
 }
 
 function normalizeSlug(name) {
-  return normalizeName(name)
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-function inferCategory(name) {
-  const value = normalizeName(name);
-
-  if (/(chicken|beef|fish|sirloin|fillet)/.test(value)) {
-    return 'protein';
-  }
-
-  if (/(milk|cheese|egg)/.test(value)) {
-    return 'dairy-eggs';
-  }
-
-  if (/(lime|onion|cilantro|corn|tomato|potato|aji)/.test(value)) {
-    return 'produce';
-  }
-
-  if (/(rice|bread|fries)/.test(value)) {
-    return 'pantry';
-  }
-
-  if (/(sauce|vinegar|paste|pecan)/.test(value)) {
-    return 'pantry';
-  }
-
-  return 'other';
+  return normalizeIngredientSlug(name);
 }
 
 function ingredientSeedsFromRecipes() {
@@ -64,7 +42,7 @@ function ingredientSeedsFromRecipes() {
       ingredients.set(slug, {
         canonicalName,
         slug,
-        category: inferCategory(canonicalName),
+        category: inferIngredientCategory(canonicalName),
         defaultUnit: ingredient.unit,
       });
     }
@@ -121,6 +99,8 @@ async function seedIngredients(prisma, devUserId) {
         data: {
           displayName: ingredient.canonicalName,
           normalizedName: normalizeName(ingredient.canonicalName),
+          estimatedAmount: inferInventoryAmount(ingredient.defaultUnit),
+          unit: ingredient.defaultUnit,
           source: 'seed',
           confidence: 'high',
         },
@@ -134,6 +114,8 @@ async function seedIngredients(prisma, devUserId) {
         ingredientId: ingredient.id,
         displayName: ingredient.canonicalName,
         normalizedName: normalizeName(ingredient.canonicalName),
+        estimatedAmount: inferInventoryAmount(ingredient.defaultUnit),
+        unit: ingredient.defaultUnit,
         source: 'seed',
         confidence: 'high',
       },

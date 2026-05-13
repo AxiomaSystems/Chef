@@ -2,7 +2,13 @@
 
 import { useState, useTransition, useMemo } from "react";
 import Image from "next/image";
-import type { KitchenInventoryItem } from "@cart/shared";
+import {
+  displayIngredientCategory,
+  inferInventoryAmount,
+  inferInventoryUnit,
+  INVENTORY_UNIT_OPTIONS,
+  type KitchenInventoryItem,
+} from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { CameraModal } from "./camera-modal";
 import {
@@ -295,6 +301,7 @@ const INGREDIENT_CATALOG: { category: string; items: string[] }[] = [
     ],
   },
 ];
+
 type VisionMode = "photo" | "video" | "camera";
 
 // ─── Ingredient image ─────────────────────────────────────────────────────────
@@ -329,30 +336,25 @@ function IngredientImage({ name, size }: { name: string; size: number }) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function toTitleCase(str: string) {
-  return str
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(" ");
-}
-
 function realToDisplay(item: KitchenInventoryItem): DisplayItem {
-  const amount =
-    item.estimated_amount != null
-      ? `${item.estimated_amount} ${item.unit ?? "unit"}`.trim()
-      : "In stock";
   const rawCategory = item.ingredient?.category?.trim();
+  const name =
+    item.display_name ||
+    item.label ||
+    item.ingredient?.canonical_name ||
+    "Inventory item";
+  const unit =
+    item.unit ?? item.ingredient?.default_unit ?? inferInventoryUnit(name);
+  const estimatedAmount = item.estimated_amount ?? inferInventoryAmount(unit);
+  const amount = `${estimatedAmount} ${unit}`.trim();
+
   return {
     id: item.id,
-    name:
-      item.display_name ||
-      item.label ||
-      item.ingredient?.canonical_name ||
-      "Inventory item",
-    category: rawCategory ? toTitleCase(rawCategory) : "Other",
+    name,
+    category: displayIngredientCategory(name, rawCategory),
     quantity: amount,
-    estimatedAmount: item.estimated_amount,
-    unit: item.unit,
+    estimatedAmount,
+    unit,
   };
 }
 
@@ -392,12 +394,15 @@ function IngredientPicker({
 
   async function handleCheck(name: string) {
     if (existingNames.has(name.toLowerCase()) || adding.has(name)) return;
-    const parsedAmount = Number(amountByName[name]);
+    const defaultUnit = inferInventoryUnit(name);
+    const unit = unitByName[name]?.trim() || defaultUnit;
+    const parsedAmount = Number(
+      amountByName[name] ?? String(inferInventoryAmount(unit)),
+    );
     const estimatedAmount =
       Number.isFinite(parsedAmount) && parsedAmount > 0
         ? parsedAmount
-        : undefined;
-    const unit = unitByName[name]?.trim() || undefined;
+        : inferInventoryAmount(unit);
     setAdding((prev) => new Set(prev).add(name));
     await onAdd(name, { estimatedAmount, unit });
     setAdding((prev) => {
@@ -484,6 +489,8 @@ function IngredientPicker({
                 {group.items.map((name) => {
                   const inKitchen = existingNames.has(name.toLowerCase());
                   const isAdding = adding.has(name);
+                  const selectedUnit =
+                    unitByName[name] ?? inferInventoryUnit(name);
                   return (
                     <div
                       key={name}
@@ -518,7 +525,10 @@ function IngredientPicker({
                             type="number"
                             min="0"
                             step="0.1"
-                            value={amountByName[name] ?? ""}
+                            value={
+                              amountByName[name] ??
+                              String(inferInventoryAmount(selectedUnit))
+                            }
                             onChange={(e) =>
                               setAmountByName((prev) => ({
                                 ...prev,
@@ -528,17 +538,23 @@ function IngredientPicker({
                             placeholder="Qty"
                             className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-white text-xs outline-none focus:border-primary"
                           />
-                          <input
-                            value={unitByName[name] ?? ""}
+                          <select
+                            value={selectedUnit}
                             onChange={(e) =>
                               setUnitByName((prev) => ({
                                 ...prev,
                                 [name]: e.target.value,
                               }))
                             }
-                            placeholder="unit"
                             className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-white text-xs outline-none focus:border-primary"
-                          />
+                            aria-label={`Unit for ${name}`}
+                          >
+                            {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       )}
                       {/* Checkbox / state */}
@@ -691,7 +707,10 @@ export function InventoryClient({
     remove();
   }
 
-  async function handleQuantitySave(item: DisplayItem) {
+  async function handleQuantitySave(
+    item: DisplayItem,
+    overrides: { unit?: string } = {},
+  ) {
     const rawAmount =
       amountDrafts[item.id] ?? String(item.estimatedAmount ?? "");
     const parsedAmount = Number(rawAmount);
@@ -699,7 +718,8 @@ export function InventoryClient({
       rawAmount.trim() && Number.isFinite(parsedAmount) && parsedAmount >= 0
         ? parsedAmount
         : null;
-    const unit = (unitDrafts[item.id] ?? item.unit ?? "").trim() || null;
+    const unit =
+      (overrides.unit ?? unitDrafts[item.id] ?? item.unit ?? "").trim() || null;
 
     setSavingId(item.id);
     const result = await updateInventoryItemAction(item.id, {
@@ -998,18 +1018,27 @@ export function InventoryClient({
                               placeholder="Qty"
                               className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
                             />
-                            <input
+                            <select
                               value={unitDrafts[item.id] ?? item.unit ?? ""}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const nextUnit = e.target.value;
                                 setUnitDrafts((prev) => ({
                                   ...prev,
-                                  [item.id]: e.target.value,
-                                }))
-                              }
-                              onBlur={() => void handleQuantitySave(item)}
-                              placeholder="unit"
+                                  [item.id]: nextUnit,
+                                }));
+                                void handleQuantitySave(item, {
+                                  unit: nextUnit,
+                                });
+                              }}
                               className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
-                            />
+                              aria-label={`Unit for ${item.name}`}
+                            >
+                              {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                                <option key={unit} value={unit}>
+                                  {unit}
+                                </option>
+                              ))}
+                            </select>
                             {savingId === item.id && (
                               <span className="material-symbols-outlined text-outline text-[16px] animate-spin">
                                 refresh
