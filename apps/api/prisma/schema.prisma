@@ -52,6 +52,55 @@ enum KitchenInventoryConfidence {
   high
 }
 
+enum InventoryReviewStatus {
+  pending
+  active
+  discarded
+  archived
+}
+
+enum VisionObservationAction {
+  pending
+  added_to_inventory
+  renamed
+  discarded
+  resolved_to_ingredient
+}
+
+enum CaptureInputKind {
+  url
+  text
+}
+
+enum CaptureSourceKind {
+  recipe_url
+  social_url
+  pasted_text
+  unknown
+}
+
+enum CaptureResultKind {
+  exact_recipe_import
+  partial_recipe_import
+  reconstructed_recipe
+  inspired_recipe
+}
+
+enum CaptureStatus {
+  processing
+  ready_for_review
+  needs_more_info
+  failed
+  saved
+  discarded
+}
+
+enum CaptureConfidence {
+  low
+  medium
+  high
+}
+
 enum MealType {
   breakfast
   lunch
@@ -148,9 +197,11 @@ model User {
   cartDrafts                CartDraft[]
   carts                     Cart[]
   shoppingCarts             ShoppingCart[]
+  captures                  Capture[]
   preferredCuisines         UserPreferredCuisine[]
   preferredTags             UserPreferredTag[]
   kitchenInventoryItems     KitchenInventoryItem[]
+  visionObservations        VisionObservation[]
   mealPlans                 MealPlan[]
   foodRules                 UserFoodRule[]
   goals                     UserGoal[]
@@ -209,6 +260,7 @@ model BaseRecipe {
   ingredients        DishIngredient[]
   recipeTags         RecipeTag[]
   steps              RecipeStep[]
+  sourceCapture      Capture?
 
   @@unique([ownerUserId, forkedFromRecipeId])
   @@index([ownerUserId, createdAt])
@@ -298,6 +350,7 @@ model UserFoodRule {
   @@unique([userId, dedupeKey])
   @@index([userId, kind])
   @@index([userId, strictness])
+  @@index([userId, strictness, createdAt])
   @@index([userId, active, startsAt, expiresAt])
   @@index([ingredientId])
   @@index([tagId])
@@ -321,6 +374,7 @@ model UserGoal {
   @@unique([userId, goal, timeframe])
   @@index([userId, active, priority])
   @@index([userId, active, startsAt, expiresAt])
+  @@index([userId, priority, createdAt])
 }
 
 model UserPantryStaple {
@@ -335,6 +389,7 @@ model UserPantryStaple {
 
   @@id([userId, ingredientId])
   @@index([ingredientId])
+  @@index([userId, createdAt])
 }
 
 model RecipeTag {
@@ -348,19 +403,23 @@ model RecipeTag {
 }
 
 model DishIngredient {
-  id                  String     @id @default(cuid())
+  id                  String      @id @default(cuid())
   baseRecipeId        String
+  ingredientId        String?
   canonicalIngredient String
   amount              Float
   unit                String
   displayIngredient   String?
   preparation         String?
-  optional            Boolean    @default(false)
+  optional            Boolean     @default(false)
   ingredientGroup     String?
   sortOrder           Int
-  baseRecipe          BaseRecipe @relation(fields: [baseRecipeId], references: [id], onDelete: Cascade)
+  baseRecipe          BaseRecipe  @relation(fields: [baseRecipeId], references: [id], onDelete: Cascade)
+  ingredient          Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
 
   @@index([baseRecipeId, sortOrder])
+  @@index([ingredientId])
+  @@index([baseRecipeId, ingredientId])
 }
 
 model Ingredient {
@@ -373,6 +432,7 @@ model Ingredient {
   visionLabels          Json?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+  dishIngredients       DishIngredient[]
   kitchenInventoryItems KitchenInventoryItem[]
   foodRules             UserFoodRule[]
   pantryStaples         UserPantryStaple[]
@@ -384,20 +444,54 @@ model Ingredient {
 model KitchenInventoryItem {
   id              String                     @id @default(cuid())
   userId          String
-  ingredientId    String
+  ingredientId    String?
+  displayName     String
+  normalizedName  String
   label           String?
   estimatedAmount Float?
   unit            String?
   source          KitchenInventorySource     @default(manual)
   confidence      KitchenInventoryConfidence @default(medium)
+  reviewStatus    InventoryReviewStatus      @default(active)
   createdAt       DateTime                   @default(now())
   updatedAt       DateTime                   @updatedAt
   user            User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ingredient      Ingredient                 @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  ingredient      Ingredient?                @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
+  observations    VisionObservation[]
 
-  @@unique([userId, ingredientId])
+  @@index([userId, reviewStatus, updatedAt])
+  @@index([userId, normalizedName])
   @@index([userId, createdAt])
+  @@index([userId, updatedAt])
   @@index([ingredientId])
+}
+
+model VisionObservation {
+  id              String                  @id @default(cuid())
+  userId          String?
+  inventoryItemId String?
+  detectedLabel   String
+  proposedName    String?
+  canonicalSlug   String?
+  detectorModel   String?
+  classifierModel String?
+  modelName       String?
+  confidence      Float?
+  imageRef        String?
+  cropRef         String?
+  bbox            Json?
+  rawPayload      Json?
+  action          VisionObservationAction @default(pending)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  user            User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  inventoryItem   KitchenInventoryItem?   @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([inventoryItemId])
+  @@index([detectedLabel])
+  @@index([canonicalSlug])
+  @@index([action, createdAt])
 }
 
 model RecipeStep {
@@ -485,4 +579,35 @@ model MealPlan {
 
   @@unique([userId, weekStart])
   @@index([userId, weekStart])
+}
+
+model Capture {
+  id                String            @id @default(cuid())
+  userId            String
+  inputKind         CaptureInputKind
+  sourceKind        CaptureSourceKind
+  resultKind        CaptureResultKind
+  status            CaptureStatus     @default(ready_for_review)
+  confidence        CaptureConfidence @default(medium)
+  needsReview       Boolean           @default(true)
+  savedRecipeId     String?           @unique
+  sourceUrl         String?
+  sourceTextSnippet String?
+  attribution       Json
+  recipePreview     Json?
+  assumptions       Json
+  missingInfo       Json
+  nextActions       Json
+  extractionNotes   Json
+  shortSnippets     Json
+  errorMessage      String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  savedRecipe       BaseRecipe?       @relation(fields: [savedRecipeId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([userId, status, createdAt])
+  @@index([savedRecipeId])
+  @@index([sourceKind, createdAt])
 }

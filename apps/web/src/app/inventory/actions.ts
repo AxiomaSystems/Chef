@@ -4,7 +4,12 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { buildApiUrl, ACCESS_TOKEN_COOKIE } from "@/lib/auth";
-import type { KitchenInventoryItem } from "@cart/shared";
+import type {
+  AddVisionObservationToInventoryRequest,
+  CreateVisionObservationRequest,
+  KitchenInventoryItem,
+  VisionObservation,
+} from "@cart/shared";
 
 export async function createRestockCartAction(
   itemNames: string[],
@@ -64,6 +69,85 @@ export async function addInventoryItemAction(
 
   revalidatePath("/inventory");
   return { data: await res.json() };
+}
+
+export async function createVisionObservationAction(
+  input: CreateVisionObservationRequest,
+): Promise<{ data?: VisionObservation; error?: string }> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
+  if (!token) return { error: "Not authenticated" };
+
+  const res = await fetch(buildApiUrl("/vision/observations"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(input),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    return { error: body.message ?? "Failed to save vision observation" };
+  }
+
+  return { data: await res.json() };
+}
+
+export async function addVisionObservationToInventoryAction(
+  observationId: string,
+  input: AddVisionObservationToInventoryRequest,
+): Promise<{ data?: KitchenInventoryItem; error?: string }> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
+  if (!token) return { error: "Not authenticated" };
+
+  const res = await fetch(
+    buildApiUrl(`/vision/observations/${observationId}/add-to-inventory`),
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(input),
+      cache: "no-store",
+    },
+  );
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    return { error: body.message ?? "Failed to add vision item" };
+  }
+
+  const observation = (await res.json()) as VisionObservation;
+  const inventoryItemId = observation.inventory_item_id;
+
+  if (!inventoryItemId) {
+    return { error: "Vision observation did not create inventory" };
+  }
+
+  const inventoryRes = await fetch(buildApiUrl("/me/kitchen-inventory"), {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+
+  if (!inventoryRes.ok) {
+    const body = await inventoryRes.json().catch(() => ({}));
+    return { error: body.message ?? "Failed to load created inventory item" };
+  }
+
+  const items = (await inventoryRes.json()) as KitchenInventoryItem[];
+  const item = items.find((candidate) => candidate.id === inventoryItemId);
+
+  if (!item) {
+    return { error: "Created inventory item was not returned by inventory" };
+  }
+
+  revalidatePath("/inventory");
+  return { data: item };
 }
 
 export async function updateInventoryItemAction(

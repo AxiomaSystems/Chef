@@ -1,5 +1,5 @@
-import type { Cuisine } from './cuisine';
-import type { Tag } from './tag';
+import type { Cuisine } from "./cuisine";
+import type { Tag } from "./tag";
 
 export type RecipeNutritionData = {
   calories?: number;
@@ -17,6 +17,7 @@ export type RecipeStep = {
 };
 
 export type DishIngredient = {
+  ingredient_id?: string;
   canonical_ingredient: string;
   amount: number;
   unit: string;

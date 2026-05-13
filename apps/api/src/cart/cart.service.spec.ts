@@ -41,6 +41,7 @@ describe('CartService', () => {
     servings: 4,
     ingredients: [
       {
+        ingredient_id: 'ingredient-rice',
         canonical_ingredient: 'rice',
         amount: 2,
         unit: 'cup',
@@ -358,6 +359,7 @@ describe('CartService', () => {
     expect(createdShoppingCart.overview).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
+          ingredient_id: 'ingredient-rice',
           canonical_ingredient: 'rice',
           in_kitchen: true,
           review_action: 'already_have',
@@ -405,6 +407,8 @@ describe('CartService', () => {
         id: 'inventory-rice',
         user_id: 'user-1',
         ingredient_id: 'ingredient-rice',
+        display_name: 'rice',
+        normalized_name: 'rice',
         ingredient: {
           id: 'ingredient-rice',
           canonical_name: 'rice',
@@ -416,6 +420,7 @@ describe('CartService', () => {
         unit: 'cup',
         source: 'manual',
         confidence: 'high',
+        review_status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
@@ -441,6 +446,75 @@ describe('CartService', () => {
         expect.objectContaining({
           canonical_ingredient: 'rice',
           needed_amount: 1,
+        }),
+      ]),
+    );
+  });
+
+  it('deducts kitchen inventory by ingredient id before falling back to name matching', async () => {
+    cartPersistenceService.findCartById.mockResolvedValue({
+      id: 'cart-1',
+      user_id: 'user-1',
+      name: 'Weekly dinner plan',
+      retailer: 'walmart',
+      selections: [],
+      dishes: [
+        {
+          id: 'recipe-1',
+          name: recipe.name,
+          cuisine: recipe.cuisine.label,
+          servings: recipe.servings,
+          ingredients: [
+            {
+              ingredient_id: 'ingredient-rice',
+              canonical_ingredient: 'white rice',
+              amount: 2,
+              unit: 'cup',
+            },
+          ],
+          steps: recipe.steps,
+          tags: recipe.tags.map((tag) => tag.name),
+        },
+      ],
+      overview: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    ingredientsService.listInventory.mockResolvedValue([
+      {
+        id: 'inventory-rice',
+        user_id: 'user-1',
+        ingredient_id: 'ingredient-rice',
+        display_name: 'rice',
+        normalized_name: 'rice',
+        ingredient: {
+          id: 'ingredient-rice',
+          canonical_name: 'rice',
+          slug: 'rice',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        estimated_amount: 1,
+        unit: 'cup',
+        source: 'manual',
+        confidence: 'high',
+        review_status: 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]);
+
+    await service.createShoppingCart('cart-1', { retailer: 'walmart' });
+
+    const createdShoppingCart =
+      cartPersistenceService.createShoppingCart.mock.calls[0][0].shoppingCart;
+    expect(createdShoppingCart.overview).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ingredient_id: 'ingredient-rice',
+          canonical_ingredient: 'white rice',
+          inventory_amount: 1,
+          remaining_to_buy: 1,
         }),
       ]),
     );
