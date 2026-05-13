@@ -2,19 +2,25 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { buildApiUrl, ACCESS_TOKEN_COOKIE } from "@/lib/auth";
 import type {
   AddVisionObservationToInventoryRequest,
   CreateVisionObservationRequest,
   KitchenInventoryItem,
+  ShoppingCart,
   VisionObservation,
 } from "@cart/shared";
 
+export type RestockCartItemInput = {
+  name: string;
+  amount: number;
+  unit: string;
+};
+
 export async function createRestockCartAction(
-  itemNames: string[],
+  items: RestockCartItemInput[],
   retailer = "kroger",
-): Promise<{ error?: string }> {
+): Promise<{ data?: ShoppingCart; error?: string }> {
   const cookieStore = await cookies();
   const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
   if (!token) return { error: "Not authenticated" };
@@ -25,7 +31,7 @@ export async function createRestockCartAction(
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ retailer, items: itemNames }),
+    body: JSON.stringify({ retailer, items }),
     cache: "no-store",
   });
 
@@ -35,7 +41,7 @@ export async function createRestockCartAction(
   }
 
   revalidatePath("/shopping");
-  redirect("/shopping");
+  return { data: await res.json() };
 }
 
 export async function addInventoryItemAction(

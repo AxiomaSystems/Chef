@@ -2,14 +2,15 @@
 
 import { useState, useTransition, useMemo } from "react";
 import Image from "next/image";
-import type { KitchenInventoryItem } from "@cart/shared";
+import type { KitchenInventoryItem, ShoppingCart } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
+import { ShoppingCartDetailOverlay } from "@/components/planning/shopping-cart-detail-overlay";
 import { CameraModal } from "./camera-modal";
 import {
-  removeInventoryItemAction,
   createRestockCartAction,
   addInventoryItemAction,
   updateInventoryItemAction,
+  type RestockCartItemInput,
 } from "./actions";
 import { VisionScanModal } from "./vision-scan-modal";
 
@@ -895,10 +896,20 @@ export function InventoryClient({
   const [items, setItems] = useState<DisplayItem[]>(
     realItems.map(realToDisplay),
   );
-  const [removingId, setRemovingId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [selectedRestockIds, setSelectedRestockIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({});
   const [unitDrafts, setUnitDrafts] = useState<Record<string, string>>({});
+  const [restockAmountDrafts, setRestockAmountDrafts] = useState<
+    Record<string, string>
+  >({});
+  const [lastRestockCart, setLastRestockCart] = useState<ShoppingCart | null>(
+    null,
+  );
+  const [activeShoppingCart, setActiveShoppingCart] =
+    useState<ShoppingCart | null>(null);
   const [restockError, setRestockError] = useState<string | undefined>();
   const [isRestocking, startRestock] = useTransition();
 
@@ -933,6 +944,11 @@ export function InventoryClient({
     },
     {},
   );
+  const restockNeededItems = items.filter(
+    (item) =>
+      (item.estimatedAmount ?? 0) === 0 || selectedRestockIds.has(item.id),
+  );
+  const isBuildingCart = isRestocking;
 
   async function handlePickerAdd(
     name: string,
@@ -948,22 +964,14 @@ export function InventoryClient({
     setItems((prev) => [realToDisplay(item), ...prev]);
   }
 
-  function handleRemove(id: string) {
-    setRemovingId(id);
-    const remove = async () => {
-      await removeInventoryItemAction(id);
-      setItems((prev) => prev.filter((i) => i.id !== id));
-      setRemovingId(null);
-    };
-    remove();
-  }
-
   async function handleQuantitySave(
     item: DisplayItem,
-    overrides: { unit?: string } = {},
+    overrides: { unit?: string; estimatedAmount?: number } = {},
   ) {
     const rawAmount =
-      amountDrafts[item.id] ?? String(item.estimatedAmount ?? "");
+      overrides.estimatedAmount === undefined
+        ? (amountDrafts[item.id] ?? String(item.estimatedAmount ?? ""))
+        : String(overrides.estimatedAmount);
     const parsedAmount = Number(rawAmount);
     const estimatedAmount =
       rawAmount.trim() && Number.isFinite(parsedAmount) && parsedAmount >= 0
@@ -993,13 +1001,78 @@ export function InventoryClient({
     setSavingId(null);
   }
 
+  function handleToggleRestock(item: DisplayItem) {
+    setRestockError(undefined);
+    setSelectedRestockIds((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(item.id)) {
+        next.delete(item.id);
+      } else {
+        next.add(item.id);
+      }
+
+      return next;
+    });
+  }
+
+  function restockAmountFor(item: DisplayItem) {
+    const parsed = Number(restockAmountDrafts[item.id]);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+  }
+
+  function setRestockAmount(item: DisplayItem, amount: number) {
+    setRestockAmountDrafts((prev) => ({
+      ...prev,
+      [item.id]: String(Math.max(1, amount)),
+    }));
+  }
+
+  function adjustRestockAmount(item: DisplayItem, delta: number) {
+    setRestockAmount(item, restockAmountFor(item) + delta);
+  }
+
+  function restockItemsForCart(): RestockCartItemInput[] {
+    return restockNeededItems.map((item) => ({
+      name: item.name.trim(),
+      amount: restockAmountFor(item),
+      unit: item.unit ?? "unit",
+    }));
+  }
+
+  function adjustInventoryQuantity(item: DisplayItem, delta: number) {
+    const currentDraft = amountDrafts[item.id];
+    const current =
+      currentDraft === undefined
+        ? (item.estimatedAmount ?? 0)
+        : Number(currentDraft);
+    const nextAmount = Math.max(
+      0,
+      Number.isFinite(current) ? current + delta : delta,
+    );
+
+    setAmountDrafts((prev) => ({
+      ...prev,
+      [item.id]: String(nextAmount),
+    }));
+    void handleQuantitySave(item, { estimatedAmount: nextAmount });
+  }
+
   function handleAddToCart() {
-    if (items.length === 0) return;
+    const restockItems = restockItemsForCart().filter((item) => item.name);
+    if (restockItems.length === 0) return;
+
     setRestockError(undefined);
     startRestock(async () => {
-      const names = items.map((i) => i.name);
-      const result = await createRestockCartAction(names);
-      if (result?.error) setRestockError(result.error);
+      const result = await createRestockCartAction(restockItems);
+      if (result?.error) {
+        setRestockError(result.error);
+        return;
+      }
+      if (result.data) {
+        setLastRestockCart(result.data);
+        setActiveShoppingCart(result.data);
+      }
     });
   }
 
@@ -1087,20 +1160,21 @@ export function InventoryClient({
               <div className="flex items-center justify-between mb-4">
                 <span className="font-bold text-on-surface">Quick Restock</span>
                 <span className="bg-primary-fixed-dim text-on-primary-fixed text-[11px] font-bold px-2.5 py-1 rounded-full">
-                  {items.length} ITEMS
+                  {restockNeededItems.length}{" "}
+                  {restockNeededItems.length === 1 ? "ITEM" : "ITEMS"}
                 </span>
               </div>
 
-              {items.length === 0 ? (
+              {restockNeededItems.length === 0 ? (
                 <p className="text-sm text-outline flex-1 flex items-center">
-                  Add ingredients to get started.
+                  Set an ingredient quantity to 0 when it needs restocking.
                 </p>
               ) : (
                 <div className="space-y-3 flex-1">
-                  {items.slice(0, 4).map((item) => (
+                  {restockNeededItems.slice(0, 4).map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between"
+                      className="flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-7 h-7 rounded-full overflow-hidden bg-surface-container shrink-0 relative">
@@ -1118,14 +1192,53 @@ export function InventoryClient({
                           {item.name}
                         </span>
                       </div>
-                      <span className="text-xs font-medium ml-2 shrink-0 text-outline">
-                        {item.quantity}
-                      </span>
+                      <div className="flex shrink-0 items-center gap-1 rounded-full bg-surface-container-low px-1.5 py-1">
+                        <button
+                          type="button"
+                          onClick={() => adjustRestockAmount(item, -1)}
+                          className="flex h-6 w-6 items-center justify-center rounded-full text-outline hover:bg-surface-container-high hover:text-on-surface"
+                          aria-label={`Decrease ${item.name} order amount`}
+                        >
+                          <span className="material-symbols-outlined text-[15px]">
+                            remove
+                          </span>
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={restockAmountDrafts[item.id] ?? "1"}
+                          onChange={(event) =>
+                            setRestockAmountDrafts((prev) => ({
+                              ...prev,
+                              [item.id]: event.target.value,
+                            }))
+                          }
+                          onBlur={() =>
+                            setRestockAmount(item, restockAmountFor(item))
+                          }
+                          className="h-6 w-12 bg-transparent text-center text-xs font-semibold text-on-surface outline-none"
+                          aria-label={`${item.name} order amount`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => adjustRestockAmount(item, 1)}
+                          className="flex h-6 w-6 items-center justify-center rounded-full text-outline hover:bg-surface-container-high hover:text-on-surface"
+                          aria-label={`Increase ${item.name} order amount`}
+                        >
+                          <span className="material-symbols-outlined text-[15px]">
+                            add
+                          </span>
+                        </button>
+                        <span className="min-w-8 text-xs font-medium text-outline">
+                          {item.unit ?? "unit"}
+                        </span>
+                      </div>
                     </div>
                   ))}
-                  {items.length > 4 && (
+                  {restockNeededItems.length > 4 && (
                     <p className="text-xs text-outline">
-                      +{items.length - 4} more
+                      +{restockNeededItems.length - 4} more
                     </p>
                   )}
                 </div>
@@ -1136,10 +1249,10 @@ export function InventoryClient({
               )}
               <button
                 onClick={handleAddToCart}
-                disabled={isRestocking || items.length === 0}
+                disabled={isBuildingCart || restockNeededItems.length === 0}
                 className="mt-4 w-full bg-on-surface text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-on-surface/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                {isRestocking ? (
+                {isBuildingCart ? (
                   <>
                     <span className="material-symbols-outlined text-[16px] animate-spin">
                       refresh
@@ -1147,8 +1260,16 @@ export function InventoryClient({
                     Building cart…
                   </>
                 ) : (
-                  "Add All to Cart"
+                  "Restock Zero-Qty Items"
                 )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveShoppingCart(lastRestockCart)}
+                disabled={!lastRestockCart}
+                className="mt-2 w-full rounded-xl border border-outline-variant py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-low disabled:opacity-50"
+              >
+                Edit Cart
               </button>
             </div>
           </div>
@@ -1224,9 +1345,7 @@ export function InventoryClient({
                     {groupItems.map((item) => (
                       <div
                         key={item.id}
-                        className={`flex items-center gap-3 px-4 py-3 transition-opacity ${
-                          removingId === item.id ? "opacity-40" : ""
-                        }`}
+                        className="flex items-center gap-3 px-4 py-3"
                       >
                         <div className="w-10 h-10 rounded-xl overflow-hidden bg-surface-container-low shrink-0 relative">
                           <IngredientImage name={item.name} size={40} />
@@ -1251,6 +1370,17 @@ export function InventoryClient({
 
                         <div className="flex items-center gap-2.5 shrink-0">
                           <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => adjustInventoryQuantity(item, -1)}
+                              disabled={savingId === item.id}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-low text-outline transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
+                              aria-label={`Decrease ${item.name} quantity`}
+                            >
+                              <span className="material-symbols-outlined text-[16px]">
+                                remove
+                              </span>
+                            </button>
                             <input
                               type="number"
                               min="0"
@@ -1269,6 +1399,17 @@ export function InventoryClient({
                               placeholder="Qty"
                               className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
                             />
+                            <button
+                              type="button"
+                              onClick={() => adjustInventoryQuantity(item, 1)}
+                              disabled={savingId === item.id}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-low text-outline transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
+                              aria-label={`Increase ${item.name} quantity`}
+                            >
+                              <span className="material-symbols-outlined text-[16px]">
+                                add
+                              </span>
+                            </button>
                             <select
                               value={unitDrafts[item.id] ?? item.unit ?? ""}
                               onChange={(e) => {
@@ -1297,11 +1438,23 @@ export function InventoryClient({
                             )}
                           </div>
                           <button
-                            onClick={() => handleRemove(item.id)}
-                            className="p-1 rounded-full text-outline hover:text-error hover:bg-error-container/30 transition-colors"
+                            type="button"
+                            onClick={() => handleToggleRestock(item)}
+                            disabled={isBuildingCart}
+                            aria-pressed={
+                              selectedRestockIds.has(item.id) ||
+                              (item.estimatedAmount ?? 0) === 0
+                            }
+                            aria-label={`Add ${item.name} to Quick Restock`}
+                            className={`p-1.5 rounded-full transition-colors disabled:opacity-50 ${
+                              selectedRestockIds.has(item.id) ||
+                              (item.estimatedAmount ?? 0) === 0
+                                ? "text-primary bg-primary-container/40 hover:bg-primary-container/60"
+                                : "text-outline hover:text-primary hover:bg-primary-container/30"
+                            }`}
                           >
                             <span className="material-symbols-outlined text-[16px]">
-                              delete
+                              add_shopping_cart
                             </span>
                           </button>
                         </div>
@@ -1335,6 +1488,12 @@ export function InventoryClient({
           existingNames={existingNames}
           onAdd={handlePickerAdd}
           onClose={() => setIngredientPickerOpen(false)}
+        />
+      )}
+      {activeShoppingCart && (
+        <ShoppingCartDetailOverlay
+          shoppingCart={activeShoppingCart}
+          onClose={() => setActiveShoppingCart(null)}
         />
       )}
     </>

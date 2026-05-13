@@ -107,7 +107,7 @@ export class CartService {
   }
 
   async createRestockCart(
-    items: string[],
+    items: Array<string | { name: string; amount?: number; unit?: string }>,
     retailer: Retailer,
     actorUserId?: string,
   ): Promise<ShoppingCart> {
@@ -119,12 +119,32 @@ export class CartService {
     const syntheticDish = {
       name: 'Restock Items',
       ingredients: items
-        .map((name) => name.trim().toLowerCase())
-        .filter(Boolean)
-        .map((name) => ({
-          canonical_ingredient: name,
-          amount: 1,
-          unit: 'unit',
+        .map((item) => {
+          if (typeof item === 'string') {
+            return {
+              name: item,
+              amount: 1,
+              unit: 'unit',
+            };
+          }
+
+          return {
+            name: item.name,
+            amount: item.amount ?? 1,
+            unit: item.unit ?? 'unit',
+          };
+        })
+        .map((item) => ({
+          name: item.name.trim().toLowerCase(),
+          amount:
+            Number.isFinite(item.amount) && item.amount > 0 ? item.amount : 1,
+          unit: item.unit.trim() || 'unit',
+        }))
+        .filter((item) => item.name)
+        .map((item) => ({
+          canonical_ingredient: item.name,
+          amount: item.amount,
+          unit: item.unit,
         })),
       steps: [],
     };
