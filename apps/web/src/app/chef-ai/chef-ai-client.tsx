@@ -294,17 +294,20 @@ export function ChefAIClient({ recipes }: { recipes: BaseRecipe[] }) {
     setIsTyping(true);
     setMode("chat");
 
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: "ai",
-          content: getMockResponse(text, context, handsFreeMode),
-        },
-      ]);
-      setIsTyping(false);
-    }, 1000 + Math.random() * 700);
+    setTimeout(
+      () => {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: "ai",
+            content: getMockResponse(text, context, handsFreeMode),
+          },
+        ]);
+        setIsTyping(false);
+      },
+      1000 + Math.random() * 700,
+    );
   }
 
   function handleLinkSubmit() {
@@ -386,12 +389,12 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
   return (
     <AppShell topBarTitle="Chef AI">
       <div
-        className="flex flex-col bg-[#fdf8f3]"
+        className="flex flex-col bg-[#fff8ef]"
         style={{ height: "calc(100svh - 52px)" }}
       >
         <div
           className="shrink-0 px-5 py-4"
-          style={{ background: "linear-gradient(120deg, #f39447, #ffa070)" }}
+          style={{ background: "linear-gradient(120deg, #fe8e17, #fe8e17)" }}
         >
           <div className="mx-auto flex max-w-7xl items-start justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
@@ -426,7 +429,9 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
                     ? "link"
                     : "kitchen"}
               </span>
-              <span className="truncate text-sm font-medium">{contextLabel}</span>
+              <span className="truncate text-sm font-medium">
+                {contextLabel}
+              </span>
               {context.type !== "none" && (
                 <button
                   onClick={clearContext}
@@ -442,8 +447,8 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
         </div>
 
         <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-4 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:px-5">
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-[#f1dfcf] bg-white shadow-[0_12px_40px_rgba(188,118,57,0.08)]">
-            <div className="flex items-center justify-between gap-3 border-b border-[#f3e6db] px-4 py-3 sm:px-5">
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-[#c0dedf] bg-white shadow-[0_12px_40px_rgba(60,154,158,0.08)]">
+            <div className="flex items-center justify-between gap-3 border-b border-[#c0dedf] px-4 py-3 sm:px-5">
               <div>
                 <p className="text-sm font-semibold text-on-surface">
                   Kitchen chat
@@ -454,7 +459,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="rounded-full bg-[#fff2e8] px-3 py-1 text-xs font-medium text-[#b96b2f]">
+                <div className="rounded-full bg-[#fff2e3] px-3 py-1 text-xs font-medium text-[#f4790d]">
                   {contextLabel}
                 </div>
                 {context.type !== "none" && (
@@ -471,7 +476,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto bg-[#fffaf6] px-4 py-4 sm:px-5">
+            <div className="min-h-0 flex-1 overflow-y-auto bg-[#fff8ef] px-4 py-4 sm:px-5">
               <div className="mx-auto flex max-w-3xl flex-col gap-4">
                 {messages.map((msg) => (
                   <div
@@ -529,7 +534,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
           </section>
 
           <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto">
-            <section className="rounded-[24px] border border-[#f1dfcf] bg-white p-4 shadow-sm">
+            <section className="rounded-[24px] border border-[#c0dedf] bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-on-surface">
@@ -544,13 +549,17 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
               <div className="grid gap-2">
                 <button
                   onClick={() =>
-                    setMode((prev) => (prev === "link-input" ? "chat" : "link-input"))
+                    setMode((prev) =>
+                      prev === "link-input" ? "chat" : "link-input",
+                    )
                   }
-                  className="flex items-center gap-3 rounded-2xl border border-[#f3dfd2] bg-[#fff9f4] px-3 py-3 text-left transition hover:border-primary/35 hover:bg-[#fff3e8]"
+                  className="flex items-center gap-3 rounded-2xl border border-[#c0dedf] bg-[#fff8ef] px-3 py-3 text-left transition hover:border-primary/35 hover:bg-[#fff2e3]"
                 >
                   <div
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl"
-                    style={{ background: "linear-gradient(135deg, #ec4899, #f97316)" }}
+                    style={{
+                      background: "linear-gradient(135deg, #ec4899, #f4790d)",
+                    }}
                   >
                     <span className="material-symbols-outlined text-[18px] text-white">
                       link
@@ -568,7 +577,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
 
                 <button
                   onClick={() => setRecipePickerOpen(true)}
-                  className="flex items-center gap-3 rounded-2xl border border-[#f3dfd2] bg-[#fff9f4] px-3 py-3 text-left transition hover:border-primary/35 hover:bg-[#fff3e8]"
+                  className="flex items-center gap-3 rounded-2xl border border-[#c0dedf] bg-[#fff8ef] px-3 py-3 text-left transition hover:border-primary/35 hover:bg-[#fff2e3]"
                 >
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-fixed-dim">
                     <span className="material-symbols-outlined text-[18px] text-white">
@@ -597,7 +606,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
                         className="flex h-6 w-6 items-center justify-center rounded-full text-white"
                         style={{
                           background:
-                            "linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)",
+                            "linear-gradient(135deg, #833ab4, #fd1d1d, #f4be6b)",
                         }}
                       >
                         <InstagramIcon />
@@ -650,7 +659,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
               )}
             </section>
 
-            <section className="rounded-[24px] border border-[#f1dfcf] bg-white p-4 shadow-sm">
+            <section className="rounded-[24px] border border-[#c0dedf] bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-on-surface">
@@ -663,7 +672,9 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
                 <button
                   onClick={activateHandsFreeMode}
                   className={`relative flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition ${
-                    handsFreeMode ? "bg-primary-fixed-dim" : "bg-surface-container"
+                    handsFreeMode
+                      ? "bg-primary-fixed-dim"
+                      : "bg-surface-container"
                   }`}
                   aria-pressed={handsFreeMode}
                   aria-label="Toggle hands-free mode"
@@ -676,9 +687,9 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
                 </button>
               </div>
 
-              <div className="rounded-2xl bg-[#fff6ef] p-3">
+              <div className="rounded-2xl bg-[#fff8ef] p-3">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#ffe1cb] text-[#bb6f35]">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#fff2e3] text-[#f4790d]">
                     <span className="material-symbols-outlined text-[20px]">
                       mic
                     </span>
@@ -700,7 +711,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
                       if (!handsFreeMode) setHandsFreeMode(true);
                       sendMessage("Guide me one step at a time.");
                     }}
-                    className="rounded-xl border border-[#f1d7c3] bg-white px-3 py-2 text-left text-xs font-medium text-on-surface transition hover:border-primary/35"
+                    className="rounded-xl border border-[#c0dedf] bg-white px-3 py-2 text-left text-xs font-medium text-on-surface transition hover:border-primary/35"
                   >
                     Next step mode
                   </button>
@@ -709,7 +720,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
                       if (!handsFreeMode) setHandsFreeMode(true);
                       sendMessage("Repeat the last step.");
                     }}
-                    className="rounded-xl border border-[#f1d7c3] bg-white px-3 py-2 text-left text-xs font-medium text-on-surface transition hover:border-primary/35"
+                    className="rounded-xl border border-[#c0dedf] bg-white px-3 py-2 text-left text-xs font-medium text-on-surface transition hover:border-primary/35"
                   >
                     Repeat
                   </button>
@@ -718,16 +729,18 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
                       if (!handsFreeMode) setHandsFreeMode(true);
                       sendMessage("What can I prep while I wait?");
                     }}
-                    className="rounded-xl border border-[#f1d7c3] bg-white px-3 py-2 text-left text-xs font-medium text-on-surface transition hover:border-primary/35"
+                    className="rounded-xl border border-[#c0dedf] bg-white px-3 py-2 text-left text-xs font-medium text-on-surface transition hover:border-primary/35"
                   >
                     While I wait
                   </button>
                   <button
                     onClick={() => {
                       if (!handsFreeMode) setHandsFreeMode(true);
-                      sendMessage("Keep instructions short and spoken-friendly.");
+                      sendMessage(
+                        "Keep instructions short and spoken-friendly.",
+                      );
                     }}
-                    className="rounded-xl border border-[#f1d7c3] bg-white px-3 py-2 text-left text-xs font-medium text-on-surface transition hover:border-primary/35"
+                    className="rounded-xl border border-[#c0dedf] bg-white px-3 py-2 text-left text-xs font-medium text-on-surface transition hover:border-primary/35"
                   >
                     Spoken style
                   </button>
@@ -735,7 +748,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
               </div>
             </section>
 
-            <section className="rounded-[24px] border border-[#f1dfcf] bg-white p-4 shadow-sm">
+            <section className="rounded-[24px] border border-[#c0dedf] bg-white p-4 shadow-sm">
               <p className="mb-3 text-sm font-semibold text-on-surface">
                 Suggested prompts
               </p>
@@ -745,7 +758,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
                     key={chip}
                     onClick={() => sendMessage(chip)}
                     disabled={isTyping}
-                    className="rounded-full border border-outline-variant/45 bg-[#fffaf6] px-3.5 py-2 text-sm font-medium text-on-surface-variant transition hover:border-primary/35 hover:text-primary disabled:opacity-50"
+                    className="rounded-full border border-outline-variant/45 bg-[#fff8ef] px-3.5 py-2 text-sm font-medium text-on-surface-variant transition hover:border-primary/35 hover:text-primary disabled:opacity-50"
                   >
                     {chip}
                   </button>
@@ -755,12 +768,12 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
           </aside>
         </div>
 
-        <div className="shrink-0 border-t border-outline-variant/20 bg-[#fdf8f3] px-4 pb-24 pt-2 lg:px-5 lg:pb-4">
+        <div className="shrink-0 border-t border-outline-variant/20 bg-[#fff8ef] px-4 pb-24 pt-2 lg:px-5 lg:pb-4">
           <div className="mx-auto flex max-w-7xl flex-col gap-2">
-            <div className="rounded-[26px] border border-[#f1dfcf] bg-white px-4 py-3 shadow-sm">
+            <div className="rounded-[26px] border border-[#c0dedf] bg-white px-4 py-3 shadow-sm">
               <div className="flex items-center gap-2">
                 {handsFreeMode && (
-                  <div className="hidden rounded-full bg-[#fff2e8] px-3 py-1 text-xs font-medium text-[#b96b2f] sm:block">
+                  <div className="hidden rounded-full bg-[#fff2e3] px-3 py-1 text-xs font-medium text-[#f4790d] sm:block">
                     Short replies enabled
                   </div>
                 )}
@@ -785,7 +798,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
                   onClick={activateHandsFreeMode}
                   className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
                     handsFreeMode
-                      ? "bg-[#ffe3d0] text-[#bb6f35]"
+                      ? "bg-[#fff2e3] text-[#f4790d]"
                       : "bg-surface-container-low text-outline"
                   }`}
                   aria-label="Toggle hands-free mode"

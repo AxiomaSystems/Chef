@@ -31,10 +31,10 @@ export function ChipSingleSelect<T extends string>({
             }}
             className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 py-2 text-label-md font-semibold shadow-sm transition-all duration-200 active:scale-[0.97] ${
               isDisabled
-                ? "cursor-not-allowed border-[#e8ddd7] bg-[#f5efeb] text-[#a99a91] opacity-55 shadow-none"
+                ? "cursor-not-allowed border-[#c0dedf] bg-[#fff8ef] text-[#5f8689] opacity-55 shadow-none"
                 : isSelected
-                ? "border-[#895032] bg-[#895032] text-white shadow-[0_12px_24px_-18px_rgba(137,80,50,0.9)]"
-                : "border-[#e8ddd7] bg-white/72 text-[#52443d] hover:-translate-y-0.5 hover:border-[#d2c799] hover:bg-[#fbf3dc]"
+                  ? "border-[#f4790d] bg-[#f4790d] text-white shadow-[0_12px_24px_-18px_rgba(60,154,158,0.9)]"
+                  : "border-[#c0dedf] bg-white/72 text-[#315f62] hover:-translate-y-0.5 hover:border-[#f4be6b] hover:bg-[#fff2e3]"
             }`}
           >
             {isSelected ? (

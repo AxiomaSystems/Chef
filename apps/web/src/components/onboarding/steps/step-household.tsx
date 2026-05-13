@@ -26,7 +26,7 @@ export function StepHousehold({
   return (
     <div className="grid gap-8">
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           Who are you cooking for?
         </p>
         <ChipSingleSelect
@@ -38,7 +38,7 @@ export function StepHousehold({
       </div>
 
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           Any kids in the household?
         </p>
         <ChipSingleSelect

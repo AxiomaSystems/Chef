@@ -15,7 +15,7 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface-bright/95 border-t border-outline-variant/30 grid grid-cols-5 items-center px-2 py-2 z-50 shadow-[0_-10px_30px_rgba(137,80,50,0.08)] backdrop-blur-md">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface-bright/95 border-t border-outline-variant/30 grid grid-cols-5 items-center px-2 py-2 z-50 shadow-[0_-10px_30px_rgba(60,154,158,0.08)] backdrop-blur-md">
       {navItems.map(({ href, icon, label }) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
@@ -27,7 +27,7 @@ export function BottomNav() {
             }`}
           >
             {label === "Create" ? (
-              <span className="grid h-12 w-12 -translate-y-3 place-items-center rounded-full bg-primary-fixed-dim text-on-primary-fixed shadow-[0_10px_24px_rgba(243,148,71,0.34)]">
+              <span className="grid h-12 w-12 -translate-y-3 place-items-center rounded-full bg-primary-fixed-dim text-on-primary-fixed shadow-[0_10px_24px_rgba(244,121,13,0.34)]">
                 <span className="material-symbols-outlined text-[28px] leading-none">
                   {icon}
                 </span>

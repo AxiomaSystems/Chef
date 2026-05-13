@@ -31,7 +31,7 @@ export function StepDiscoveryFriction({
   return (
     <div className="grid gap-8">
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           Where do you usually discover recipes?
         </p>
         <ChipMultiSelect
@@ -43,7 +43,7 @@ export function StepDiscoveryFriction({
       </div>
 
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           What&apos;s your biggest cooking frustration?
         </p>
         <ChipSingleSelect

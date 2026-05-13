@@ -108,283 +108,333 @@ export function ImportClient({ cuisines }: { cuisines: Cuisine[] }) {
 
     return (
       <AppShell topBarTitle="Import Recipe">
-      <div className="mx-auto max-w-3xl px-6 pt-6 pb-40 space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
-              Recipe imported
-            </p>
-            <h1 className="mt-1 text-headline-lg font-bold text-on-surface">
-              {recipe.name}
-            </h1>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="flex items-center gap-1.5 rounded-full bg-secondary-container/40 px-3 py-1 text-label-sm text-on-secondary-container">
-                <span className="material-symbols-outlined text-[14px]">
-                  {platformIcon}
+        <div className="mx-auto max-w-3xl px-6 pt-6 pb-40 space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
+                Recipe imported
+              </p>
+              <h1 className="mt-1 text-headline-lg font-bold text-on-surface">
+                {recipe.name}
+              </h1>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="flex items-center gap-1.5 rounded-full bg-secondary-container/40 px-3 py-1 text-label-sm text-on-secondary-container">
+                  <span className="material-symbols-outlined text-[14px]">
+                    {platformIcon}
+                  </span>
+                  {platformLabel}
+                  {imported.source_creator
+                    ? ` · ${imported.source_creator}`
+                    : ""}
                 </span>
-                {platformLabel}
-                {imported.source_creator ? ` · ${imported.source_creator}` : ""}
-              </span>
-              <span className="rounded-full bg-surface-container-low px-3 py-1 text-label-sm text-on-surface-variant">
-                {recipe.servings} servings
-              </span>
+                <span className="rounded-full bg-surface-container-low px-3 py-1 text-label-sm text-on-surface-variant">
+                  {recipe.servings} servings
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={reset}
+              className="shrink-0 rounded-full border border-outline-variant/60 px-4 py-2 text-label-sm text-on-surface-variant transition-colors hover:bg-surface-container-low"
+            >
+              Start over
+            </button>
+          </div>
+
+          {recipe.description && (
+            <p className="mb-6 text-body-md text-on-surface-variant">
+              {recipe.description}
+            </p>
+          )}
+
+          {nutrition &&
+            (nutrition.calories ??
+              nutrition.protein_g ??
+              nutrition.carbs_g ??
+              nutrition.fat_g) && (
+              <div className="mb-6 flex flex-wrap gap-3">
+                {nutrition.calories && (
+                  <div className="rounded-2xl bg-[#fff2e3] px-4 py-3 text-center">
+                    <p className="text-label-sm text-on-surface-variant">
+                      Calories
+                    </p>
+                    <p className="text-lg font-bold text-primary">
+                      {nutrition.calories}
+                    </p>
+                  </div>
+                )}
+                {nutrition.protein_g && (
+                  <div className="rounded-2xl bg-[#fff2e3] px-4 py-3 text-center">
+                    <p className="text-label-sm text-on-surface-variant">
+                      Protein
+                    </p>
+                    <p className="text-lg font-bold text-secondary">
+                      {nutrition.protein_g}g
+                    </p>
+                  </div>
+                )}
+                {nutrition.carbs_g && (
+                  <div className="rounded-2xl bg-surface-container-low px-4 py-3 text-center">
+                    <p className="text-label-sm text-on-surface-variant">
+                      Carbs
+                    </p>
+                    <p className="text-lg font-bold text-on-surface">
+                      {nutrition.carbs_g}g
+                    </p>
+                  </div>
+                )}
+                {nutrition.fat_g && (
+                  <div className="rounded-2xl bg-surface-container-low px-4 py-3 text-center">
+                    <p className="text-label-sm text-on-surface-variant">Fat</p>
+                    <p className="text-lg font-bold text-on-surface">
+                      {nutrition.fat_g}g
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div className="rounded-[24px] border border-outline-variant/20 bg-white p-5 shadow-sm">
+              <h2 className="mb-4 text-label-lg font-semibold text-on-surface">
+                Ingredients
+                <span className="ml-2 text-label-sm font-normal text-outline">
+                  {recipe.ingredients.length} items
+                </span>
+              </h2>
+              <ul className="space-y-2">
+                {recipe.ingredients.map((ingredient, i) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-2 text-body-sm text-on-surface"
+                  >
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/40" />
+                    <span>
+                      <span className="font-medium">
+                        {ingredient.amount} {ingredient.unit}
+                      </span>{" "}
+                      {ingredient.display_ingredient ??
+                        ingredient.canonical_ingredient}
+                      {ingredient.preparation
+                        ? `, ${ingredient.preparation}`
+                        : ""}
+                      {ingredient.optional && (
+                        <span className="ml-1 text-[10px] text-outline">
+                          (optional)
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-[24px] border border-outline-variant/20 bg-white p-5 shadow-sm">
+              <h2 className="mb-4 text-label-lg font-semibold text-on-surface">
+                Steps
+                <span className="ml-2 text-label-sm font-normal text-outline">
+                  {recipe.steps.length} steps
+                </span>
+              </h2>
+              <ol className="space-y-3">
+                {recipe.steps.map((step) => (
+                  <li key={step.step} className="flex gap-3 text-body-sm">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-label-sm font-semibold text-primary">
+                      {step.step}
+                    </span>
+                    <p className="text-on-surface-variant">{step.what_to_do}</p>
+                  </li>
+                ))}
+              </ol>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={reset}
-            className="shrink-0 rounded-full border border-outline-variant/60 px-4 py-2 text-label-sm text-on-surface-variant transition-colors hover:bg-surface-container-low"
-          >
-            Start over
-          </button>
-        </div>
 
-        {recipe.description && (
-          <p className="mb-6 text-body-md text-on-surface-variant">
-            {recipe.description}
-          </p>
-        )}
+          {error && (
+            <p className="mt-4 rounded-2xl border border-error/20 bg-error-container/30 px-4 py-3 text-sm text-error">
+              {error}
+            </p>
+          )}
 
-        {nutrition &&
-          (nutrition.calories ??
-            nutrition.protein_g ??
-            nutrition.carbs_g ??
-            nutrition.fat_g) && (
-            <div className="mb-6 flex flex-wrap gap-3">
-              {nutrition.calories && (
-                <div className="rounded-2xl bg-[#fff2e2] px-4 py-3 text-center">
-                  <p className="text-label-sm text-on-surface-variant">Calories</p>
-                  <p className="text-lg font-bold text-primary">{nutrition.calories}</p>
-                </div>
-              )}
-              {nutrition.protein_g && (
-                <div className="rounded-2xl bg-[#fff9dc] px-4 py-3 text-center">
-                  <p className="text-label-sm text-on-surface-variant">Protein</p>
-                  <p className="text-lg font-bold text-secondary">{nutrition.protein_g}g</p>
-                </div>
-              )}
-              {nutrition.carbs_g && (
-                <div className="rounded-2xl bg-surface-container-low px-4 py-3 text-center">
-                  <p className="text-label-sm text-on-surface-variant">Carbs</p>
-                  <p className="text-lg font-bold text-on-surface">{nutrition.carbs_g}g</p>
-                </div>
-              )}
-              {nutrition.fat_g && (
-                <div className="rounded-2xl bg-surface-container-low px-4 py-3 text-center">
-                  <p className="text-label-sm text-on-surface-variant">Fat</p>
-                  <p className="text-lg font-bold text-on-surface">{nutrition.fat_g}g</p>
-                </div>
-              )}
+          {imported.extraction_notes.length > 0 && (
+            <div className="mt-4 rounded-2xl border border-outline-variant/30 bg-surface-container-low px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-outline">
+                Import notes
+              </p>
+              <ul className="mt-1 space-y-1">
+                {imported.extraction_notes.map((note, i) => (
+                  <li key={i} className="text-xs text-on-surface-variant">
+                    {note}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 
-        <div className="grid gap-6 sm:grid-cols-2">
-          <div className="rounded-[24px] border border-outline-variant/20 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-label-lg font-semibold text-on-surface">
-              Ingredients
-              <span className="ml-2 text-label-sm font-normal text-outline">
-                {recipe.ingredients.length} items
-              </span>
-            </h2>
-            <ul className="space-y-2">
-              {recipe.ingredients.map((ingredient, i) => (
-                <li
-                  key={i}
-                  className="flex items-start gap-2 text-body-sm text-on-surface"
-                >
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/40" />
-                  <span>
-                    <span className="font-medium">
-                      {ingredient.amount} {ingredient.unit}
-                    </span>{" "}
-                    {ingredient.display_ingredient ??
-                      ingredient.canonical_ingredient}
-                    {ingredient.preparation
-                      ? `, ${ingredient.preparation}`
-                      : ""}
-                    {ingredient.optional && (
-                      <span className="ml-1 text-[10px] text-outline">
-                        (optional)
-                      </span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="rounded-[24px] border border-outline-variant/20 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-label-lg font-semibold text-on-surface">
-              Steps
-              <span className="ml-2 text-label-sm font-normal text-outline">
-                {recipe.steps.length} steps
-              </span>
-            </h2>
-            <ol className="space-y-3">
-              {recipe.steps.map((step) => (
-                <li key={step.step} className="flex gap-3 text-body-sm">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-label-sm font-semibold text-primary">
-                    {step.step}
-                  </span>
-                  <p className="text-on-surface-variant">{step.what_to_do}</p>
-                </li>
-              ))}
-            </ol>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={saveRecipe}
+              disabled={isSaving}
+              className="rounded-full bg-primary px-8 py-3 text-label-lg font-semibold text-on-primary shadow-[0_10px_24px_rgba(244,121,13,0.25)] transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {isSaving ? "Saving…" : "Save to my Recipes"}
+            </button>
+            <button
+              type="button"
+              onClick={reset}
+              className="rounded-full px-5 py-3 text-label-lg text-on-surface-variant transition-colors hover:bg-surface-container-low"
+            >
+              Discard
+            </button>
           </div>
         </div>
-
-        {error && (
-          <p className="mt-4 rounded-2xl border border-error/20 bg-error-container/30 px-4 py-3 text-sm text-error">
-            {error}
-          </p>
-        )}
-
-        {imported.extraction_notes.length > 0 && (
-          <div className="mt-4 rounded-2xl border border-outline-variant/30 bg-surface-container-low px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-outline">
-              Import notes
-            </p>
-            <ul className="mt-1 space-y-1">
-              {imported.extraction_notes.map((note, i) => (
-                <li key={i} className="text-xs text-on-surface-variant">
-                  {note}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={saveRecipe}
-            disabled={isSaving}
-            className="rounded-full bg-primary px-8 py-3 text-label-lg font-semibold text-on-primary shadow-[0_10px_24px_rgba(243,148,71,0.25)] transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            {isSaving ? "Saving…" : "Save to my Recipes"}
-          </button>
-          <button
-            type="button"
-            onClick={reset}
-            className="rounded-full px-5 py-3 text-label-lg text-on-surface-variant transition-colors hover:bg-surface-container-low"
-          >
-            Discard
-          </button>
-        </div>
-      </div>
       </AppShell>
     );
   }
 
   return (
     <AppShell topBarTitle="Import Recipe">
-    <div className="mx-auto max-w-2xl space-y-5 px-4 pb-40 pt-5 sm:space-y-6 sm:px-6 sm:pt-6">
-      <div>
-        <h1 className="text-headline-lg font-bold text-on-surface">Import a Recipe</h1>
-        <p className="mt-1 text-body-md text-on-surface-variant">
-          Paste a link from YouTube, TikTok, or Instagram and Chef will extract the recipe for you.
+      <div className="mx-auto max-w-2xl space-y-5 px-4 pb-40 pt-5 sm:space-y-6 sm:px-6 sm:pt-6">
+        <div>
+          <h1 className="text-headline-lg font-bold text-on-surface">
+            Import a Recipe
+          </h1>
+          <p className="mt-1 text-body-md text-on-surface-variant">
+            Paste a link from YouTube, TikTok, or Instagram and Chef will
+            extract the recipe for you.
+          </p>
+        </div>
+
+        <div className="rounded-[24px] border border-outline-variant/20 bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-6">
+          <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
+                <rect width="24" height="24" rx="5" fill="#FF0000" />
+                <path fill="white" d="M9.5 7.5l7 4.5-7 4.5V7.5z" />
+              </svg>
+              <span className="truncate">YouTube</span>
+            </span>
+            <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
+              <svg
+                viewBox="0 0 24 24"
+                width="15"
+                height="15"
+                fill="currentColor"
+              >
+                <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.5a8.18 8.18 0 004.78 1.52V6.56a4.85 4.85 0 01-1.01.13z" />
+              </svg>
+              <span className="truncate">TikTok</span>
+            </span>
+            <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
+                <defs>
+                  <linearGradient
+                    id="ig-grad"
+                    x1="0"
+                    y1="24"
+                    x2="24"
+                    y2="0"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop stopColor="#f9ce34" />
+                    <stop offset="0.5" stopColor="#ee2a7b" />
+                    <stop offset="1" stopColor="#6228d7" />
+                  </linearGradient>
+                </defs>
+                <rect
+                  x="2"
+                  y="2"
+                  width="20"
+                  height="20"
+                  rx="6"
+                  stroke="url(#ig-grad)"
+                  strokeWidth="2"
+                />
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="4.5"
+                  stroke="url(#ig-grad)"
+                  strokeWidth="2"
+                />
+                <circle cx="17.5" cy="6.5" r="1.2" fill="url(#ig-grad)" />
+              </svg>
+              <span className="truncate">Instagram</span>
+            </span>
+            <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
+              <span className="material-symbols-outlined text-[14px]">
+                link
+              </span>
+              <span className="truncate">Any link</span>
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label
+                htmlFor="recipe-url"
+                className="mb-1.5 block text-label-sm font-medium text-on-surface"
+              >
+                Recipe link
+              </label>
+              <input
+                id="recipe-url"
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    importRecipe();
+                  }
+                }}
+                placeholder="https://youtube.com/watch?v=..."
+                className="w-full rounded-2xl border border-outline-variant/70 bg-white px-4 py-3 text-body-md text-on-surface outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="supplemental"
+                className="mb-1.5 block text-label-sm font-medium text-on-surface"
+              >
+                Caption or transcript{" "}
+                <span className="font-normal text-outline">
+                  (optional — helps with TikTok & Instagram)
+                </span>
+              </label>
+              <textarea
+                id="supplemental"
+                value={supplementalText}
+                onChange={(e) => setSupplementalText(e.target.value)}
+                rows={4}
+                placeholder="Paste the video caption, description, or transcript here…"
+                className="w-full resize-none rounded-2xl border border-outline-variant/70 bg-white px-4 py-3 text-body-md text-on-surface outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
+              />
+            </div>
+
+            {error && (
+              <p className="rounded-2xl border border-error/20 bg-error-container/30 px-4 py-3 text-sm text-error">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={importRecipe}
+              disabled={!url.trim() || isImporting}
+              className="w-full rounded-2xl bg-primary py-3.5 text-label-lg font-semibold text-on-primary shadow-[0_10px_24px_rgba(244,121,13,0.2)] transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {isImporting ? "Importing…" : "Import Recipe"}
+            </button>
+          </div>
+        </div>
+
+        <p className="text-xs text-outline">
+          YouTube works best. For TikTok and Instagram, pasting the caption or
+          transcript improves accuracy.
         </p>
       </div>
-
-      <div className="rounded-[24px] border border-outline-variant/20 bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-6">
-        <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
-              <rect width="24" height="24" rx="5" fill="#FF0000" />
-              <path fill="white" d="M9.5 7.5l7 4.5-7 4.5V7.5z" />
-            </svg>
-            <span className="truncate">YouTube</span>
-          </span>
-          <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
-              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.5a8.18 8.18 0 004.78 1.52V6.56a4.85 4.85 0 01-1.01.13z" />
-            </svg>
-            <span className="truncate">TikTok</span>
-          </span>
-          <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
-              <defs>
-                <linearGradient id="ig-grad" x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#f9ce34" />
-                  <stop offset="0.5" stopColor="#ee2a7b" />
-                  <stop offset="1" stopColor="#6228d7" />
-                </linearGradient>
-              </defs>
-              <rect x="2" y="2" width="20" height="20" rx="6" stroke="url(#ig-grad)" strokeWidth="2" />
-              <circle cx="12" cy="12" r="4.5" stroke="url(#ig-grad)" strokeWidth="2" />
-              <circle cx="17.5" cy="6.5" r="1.2" fill="url(#ig-grad)" />
-            </svg>
-            <span className="truncate">Instagram</span>
-          </span>
-          <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-label-sm text-on-surface-variant">
-            <span className="material-symbols-outlined text-[14px]">link</span>
-            <span className="truncate">Any link</span>
-          </span>
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <label
-              htmlFor="recipe-url"
-              className="mb-1.5 block text-label-sm font-medium text-on-surface"
-            >
-              Recipe link
-            </label>
-            <input
-              id="recipe-url"
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  importRecipe();
-                }
-              }}
-              placeholder="https://youtube.com/watch?v=..."
-              className="w-full rounded-2xl border border-outline-variant/70 bg-white px-4 py-3 text-body-md text-on-surface outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="supplemental"
-              className="mb-1.5 block text-label-sm font-medium text-on-surface"
-            >
-              Caption or transcript{" "}
-              <span className="font-normal text-outline">(optional — helps with TikTok & Instagram)</span>
-            </label>
-            <textarea
-              id="supplemental"
-              value={supplementalText}
-              onChange={(e) => setSupplementalText(e.target.value)}
-              rows={4}
-              placeholder="Paste the video caption, description, or transcript here…"
-              className="w-full resize-none rounded-2xl border border-outline-variant/70 bg-white px-4 py-3 text-body-md text-on-surface outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/10"
-            />
-          </div>
-
-          {error && (
-            <p className="rounded-2xl border border-error/20 bg-error-container/30 px-4 py-3 text-sm text-error">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="button"
-            onClick={importRecipe}
-            disabled={!url.trim() || isImporting}
-            className="w-full rounded-2xl bg-primary py-3.5 text-label-lg font-semibold text-on-primary shadow-[0_10px_24px_rgba(243,148,71,0.2)] transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {isImporting ? "Importing…" : "Import Recipe"}
-          </button>
-        </div>
-      </div>
-
-      <p className="text-xs text-outline">
-        YouTube works best. For TikTok and Instagram, pasting the caption or transcript improves accuracy.
-      </p>
-    </div>
     </AppShell>
   );
 }

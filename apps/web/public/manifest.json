@@ -7,7 +7,7 @@
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#fffdfa",
-  "theme_color": "#f39447",
+  "theme_color": "#fe8e17",
   "categories": ["food", "lifestyle"],
   "icons": [
     {

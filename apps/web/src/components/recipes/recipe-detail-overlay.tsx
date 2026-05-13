@@ -108,7 +108,7 @@ function MobileNutritionPanel({ recipe }: { recipe: BaseRecipe }) {
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <div className="flex min-h-[190px] flex-1 flex-col justify-center gap-4 bg-[#211811] px-5 py-5 text-white">
+    <div className="flex min-h-[190px] flex-1 flex-col justify-center gap-4 bg-[#132326] px-5 py-5 text-white">
       <div>
         <p className="text-label-sm uppercase tracking-[0.16em] text-white/54">
           Recipe details
@@ -224,7 +224,7 @@ function IngredientsSection({ recipe }: { recipe: BaseRecipe }) {
         <h3 className="text-[1.6rem] font-bold tracking-tight text-on-surface">
           Ingredients
         </h3>
-        <span className="rounded-full bg-[#fff1e4] px-3 py-1.5 text-label-sm font-semibold text-primary">
+        <span className="rounded-full bg-[#fff2e3] px-3 py-1.5 text-label-sm font-semibold text-primary">
           {recipe.ingredients.length} items
         </span>
       </div>
@@ -233,9 +233,9 @@ function IngredientsSection({ recipe }: { recipe: BaseRecipe }) {
         {recipe.ingredients.map((ingredient, index) => (
           <div
             key={`${ingredient.canonical_ingredient}-${index}`}
-            className="flex items-start gap-3 rounded-[1.4rem] border border-[#efe2d6] bg-white px-3 py-3 shadow-[0_10px_30px_rgba(137,80,50,0.04)] sm:px-4 sm:py-3.5"
+            className="flex items-start gap-3 rounded-[1.4rem] border border-[#c0dedf] bg-white px-3 py-3 shadow-[0_10px_30px_rgba(60,154,158,0.04)] sm:px-4 sm:py-3.5"
           >
-            <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-[#e2cbbd]" />
+            <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-[#c0dedf]" />
 
             <div className="min-w-0 flex-1">
               <p className="text-body-sm font-medium text-on-surface">
@@ -248,7 +248,7 @@ function IngredientsSection({ recipe }: { recipe: BaseRecipe }) {
               )}
             </div>
 
-            <span className="shrink-0 rounded-full bg-[#fff8f1] px-2.5 py-1 text-[11px] text-outline sm:text-label-sm">
+            <span className="shrink-0 rounded-full bg-[#fff8ef] px-2.5 py-1 text-[11px] text-outline sm:text-label-sm">
               {ingredient.amount} {ingredient.unit}
             </span>
           </div>
@@ -262,13 +262,13 @@ function PreparationSection({ recipe }: { recipe: BaseRecipe }) {
   const hasSteps = recipe.steps.length > 0;
 
   return (
-    <div className="space-y-5 bg-[radial-gradient(circle_at_top_right,rgba(243,148,71,0.12),transparent_24%),linear-gradient(180deg,#fffdfa_0%,#fff8f2_100%)] p-4 sm:space-y-6 sm:p-8">
+    <div className="space-y-5 bg-[radial-gradient(circle_at_top_right,rgba(244,121,13,0.12),transparent_24%),linear-gradient(180deg,#fffdfa_0%,#fff8ef_100%)] p-4 sm:space-y-6 sm:p-8">
       <div className="flex items-center gap-3">
         <h3 className="text-[1.6rem] font-bold tracking-tight text-on-surface">
           Preparation
         </h3>
         {hasSteps && (
-          <span className="rounded-full bg-[#fff1e4] px-3 py-1.5 text-label-sm font-semibold text-primary">
+          <span className="rounded-full bg-[#fff2e3] px-3 py-1.5 text-label-sm font-semibold text-primary">
             {recipe.steps.length} steps
           </span>
         )}
@@ -280,7 +280,7 @@ function PreparationSection({ recipe }: { recipe: BaseRecipe }) {
           return (
             <div
               key={step.step}
-              className="flex gap-3 rounded-[1.5rem] border border-[#f2e5da] bg-white/76 p-3 sm:gap-4 sm:p-4"
+              className="flex gap-3 rounded-[1.5rem] border border-[#c0dedf] bg-white/76 p-3 sm:gap-4 sm:p-4"
             >
               <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-fixed-dim/20 text-label-lg font-black text-primary">
                 {step.step}
@@ -356,7 +356,7 @@ function RecipeDetailOverlayContent({
         onClick={onClose}
       />
 
-      <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-[#fffdf9] shadow-2xl sm:h-auto sm:max-h-[92vh] sm:max-w-6xl sm:rounded-[1.5rem]">
+      <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-[#fffdfa] shadow-2xl sm:h-auto sm:max-h-[92vh] sm:max-w-6xl sm:rounded-[1.5rem]">
         <button
           onClick={onClose}
           className="absolute left-4 top-4 z-20 flex items-center gap-1.5 rounded-full bg-black/24 px-3.5 py-2 text-label-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-black/34 lg:hidden"
@@ -369,7 +369,7 @@ function RecipeDetailOverlayContent({
 
         <div className="min-h-0 flex-1 lg:hidden">
           <div className="recipe-modal-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto scroll-smooth">
-            <section className="recipe-modal-scrollbar flex h-full w-full shrink-0 snap-start flex-col overflow-y-auto bg-[#211811]">
+            <section className="recipe-modal-scrollbar flex h-full w-full shrink-0 snap-start flex-col overflow-y-auto bg-[#132326]">
               <RecipeHero
                 recipe={currentRecipe}
                 badges={badges}
@@ -384,7 +384,7 @@ function RecipeDetailOverlayContent({
               <IngredientsSection recipe={currentRecipe} />
             </section>
 
-            <section className="recipe-modal-scrollbar h-full w-full shrink-0 snap-start overflow-y-auto bg-[#fff8f2]">
+            <section className="recipe-modal-scrollbar h-full w-full shrink-0 snap-start overflow-y-auto bg-[#fff8ef]">
               <PreparationSection recipe={currentRecipe} />
             </section>
           </div>
@@ -397,12 +397,12 @@ function RecipeDetailOverlayContent({
             onClose={onClose}
           />
 
-          <div className="border-b border-[#ecdfd2] bg-white px-6 py-3">
+          <div className="border-b border-[#c0dedf] bg-white px-6 py-3">
             <NutritionStrip recipe={currentRecipe} />
           </div>
 
           <div className="grid min-h-0 grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)]">
-            <div className="border-r border-[#ecdfd2]">
+            <div className="border-r border-[#c0dedf]">
               <IngredientsSection recipe={currentRecipe} />
             </div>
             <PreparationSection recipe={currentRecipe} />
@@ -425,7 +425,7 @@ function RecipeDetailOverlayContent({
             {hasSteps && (
               <button
                 onClick={handleStartPreparation}
-                className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#f39447] px-5 py-2.5 text-label-lg font-bold text-on-primary shadow-sm transition-all hover:brightness-95 active:scale-[0.98]"
+                className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#fe8e17] px-5 py-2.5 text-label-lg font-bold text-on-primary shadow-sm transition-all hover:brightness-95 active:scale-[0.98]"
               >
                 <span className="material-symbols-outlined text-[18px]">
                   play_arrow

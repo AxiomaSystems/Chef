@@ -28,10 +28,12 @@ export function StepGoalsNutrition({
   return (
     <div className="grid gap-8">
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           What are you trying to achieve with Chef?
         </p>
-        <p className="text-body-sm text-[#85736c]">Pick everything that applies.</p>
+        <p className="text-body-sm text-[#5f8689]">
+          Pick everything that applies.
+        </p>
         <ChipMultiSelect
           options={GOAL_PRIORITY_VALUES}
           selected={goalPriorities}
@@ -41,7 +43,7 @@ export function StepGoalsNutrition({
       </div>
 
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           How closely do you track nutrition?
         </p>
         <ChipSingleSelect

@@ -219,7 +219,9 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
     utterance.onend = () => {
       if (localSpeechUtteranceRef.current === utterance) {
         localSpeechUtteranceRef.current = null;
-        setMode((current) => (current === "disconnected" ? current : "listening"));
+        setMode((current) =>
+          current === "disconnected" ? current : "listening",
+        );
       }
     };
     utterance.onerror = utterance.onend;
@@ -630,7 +632,7 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
   const { label, icon, ring } = modeConfig[mode];
 
   return (
-    <div className="fixed inset-0 z-80 flex flex-col bg-[#0f0a05] text-white">
+    <div className="fixed inset-0 z-80 flex flex-col bg-[#132326] text-white">
       <div className="flex items-center justify-between px-6 pb-4 pt-6">
         <div className="flex items-center gap-3">
           <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400/70">

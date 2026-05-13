@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useActionState } from "react";
 import Link from "next/link";
@@ -14,7 +14,7 @@ function SubmitButton() {
   return (
     <button
       type="submit"
-      className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#895032] px-6 text-sm font-semibold text-[#faf9f6] transition hover:bg-[#1a1c1a] disabled:cursor-not-allowed disabled:opacity-70"
+      className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#f4790d] px-6 text-sm font-semibold text-[#fff8ef] transition hover:bg-[#132326] disabled:cursor-not-allowed disabled:opacity-70"
       disabled={pending}
     >
       {pending ? "Creating account..." : "Create account"}
@@ -28,11 +28,9 @@ export function SignupForm() {
   return (
     <form action={formAction} className="grid gap-4">
       <label className="grid gap-2">
-        <span className="text-sm font-medium text-[#1a1c1a]">
-          Name
-        </span>
+        <span className="text-sm font-medium text-[#132326]">Name</span>
         <input
-          className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-white/80 px-4 text-[#1a1c1a] outline-none ring-0 transition placeholder:text-[#85736c] focus:border-[#895032]"
+          className="min-h-12 rounded-2xl border border-[#c0dedf] bg-white/80 px-4 text-[#132326] outline-none ring-0 transition placeholder:text-[#5f8689] focus:border-[#f4790d]"
           type="text"
           name="name"
           autoComplete="name"
@@ -43,11 +41,9 @@ export function SignupForm() {
       </label>
 
       <label className="grid gap-2">
-        <span className="text-sm font-medium text-[#1a1c1a]">
-          Email
-        </span>
+        <span className="text-sm font-medium text-[#132326]">Email</span>
         <input
-          className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-white/80 px-4 text-[#1a1c1a] outline-none ring-0 transition placeholder:text-[#85736c] focus:border-[#895032]"
+          className="min-h-12 rounded-2xl border border-[#c0dedf] bg-white/80 px-4 text-[#132326] outline-none ring-0 transition placeholder:text-[#5f8689] focus:border-[#f4790d]"
           type="email"
           name="email"
           autoComplete="email"
@@ -57,11 +53,9 @@ export function SignupForm() {
       </label>
 
       <label className="grid gap-2">
-        <span className="text-sm font-medium text-[#1a1c1a]">
-          Password
-        </span>
+        <span className="text-sm font-medium text-[#132326]">Password</span>
         <PasswordInput
-          className="min-h-12 rounded-2xl border border-[#d7c2b9] bg-white/80 px-4 text-[#1a1c1a] outline-none ring-0 transition placeholder:text-[#85736c] focus:border-[#895032]"
+          className="min-h-12 rounded-2xl border border-[#c0dedf] bg-white/80 px-4 text-[#132326] outline-none ring-0 transition placeholder:text-[#5f8689] focus:border-[#f4790d]"
           name="password"
           autoComplete="new-password"
           placeholder="At least 8 characters"
@@ -78,11 +72,11 @@ export function SignupForm() {
 
       <SubmitButton />
 
-      <p className="text-sm leading-6 text-[#85736c]">
+      <p className="text-sm leading-6 text-[#5f8689]">
         Already have an account?{" "}
         <Link
           href="/login"
-          className="font-semibold text-[#1a1c1a] underline decoration-[#895032]/45 underline-offset-4"
+          className="font-semibold text-[#132326] underline decoration-[#f4790d]/45 underline-offset-4"
         >
           Sign in
         </Link>

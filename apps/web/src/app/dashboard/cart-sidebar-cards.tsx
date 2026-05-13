@@ -30,7 +30,7 @@ export function CartSidebarCards({
 }) {
   return (
     <div className="md:col-span-4 flex flex-col gap-6">
-      <div className="bg-white p-6 rounded-[2rem] shadow-[0_4px_20px_rgba(137,80,50,0.08)] border border-outline-variant/20 flex-1">
+      <div className="bg-white p-6 rounded-[2rem] shadow-[0_4px_20px_rgba(60,154,158,0.08)] border border-outline-variant/20 flex-1">
         <div className="flex justify-between items-center mb-5">
           <h4 className="text-headline-sm font-semibold text-on-surface">
             Your Carts
@@ -92,8 +92,9 @@ export function CartSidebarCards({
               shopping_cart
             </span>
             <p className="text-body-sm text-outline">
-              No shopping carts yet. Generate one from your meal plan or recipes.
-            </p> 
+              No shopping carts yet. Generate one from your meal plan or
+              recipes.
+            </p>
           </div>
         )}
       </div>

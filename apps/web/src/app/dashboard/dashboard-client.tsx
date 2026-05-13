@@ -132,7 +132,7 @@ export function DashboardClient({
                     ? "bg-primary-fixed-dim text-on-primary-fixed"
                     : index === 1
                       ? "bg-secondary-container text-on-secondary-container"
-                      : "bg-[#dff0cf] text-[#46632f]"
+                      : "bg-[#c0dedf] text-[#073b3e]"
                 }`}
               >
                 {filter}
@@ -155,7 +155,7 @@ export function DashboardClient({
 
             <Link
               href={`/recipes/${featuredRecipe.id}`}
-              className="group relative block min-h-[18rem] overflow-hidden rounded-[2rem] bg-primary-fixed-dim shadow-[0_16px_34px_rgba(243,148,71,0.22)] sm:min-h-[24rem]"
+              className="group relative block min-h-[18rem] overflow-hidden rounded-[2rem] bg-primary-fixed-dim shadow-[0_16px_34px_rgba(244,121,13,0.22)] sm:min-h-[24rem]"
             >
               <div className="absolute inset-y-0 right-0 w-[72%] overflow-hidden rounded-l-[7rem] bg-white/20">
                 <RecipeImage
@@ -166,7 +166,7 @@ export function DashboardClient({
                   imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               </div>
-              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(243,148,71,0.96)_0%,rgba(243,148,71,0.74)_42%,rgba(243,148,71,0.1)_100%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(244,121,13,0.96)_0%,rgba(244,121,13,0.74)_42%,rgba(244,121,13,0.1)_100%)]" />
               <button
                 type="button"
                 onClick={(event) => {

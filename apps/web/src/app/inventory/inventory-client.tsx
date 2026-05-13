@@ -760,7 +760,7 @@ export function InventoryClient({
               <div className="relative z-10 flex gap-3 mt-4 flex-wrap">
                 <button
                   onClick={() => setVisionMode("camera")}
-                  className="flex items-center gap-2 bg-white text-[#1a1c1a] font-semibold text-sm px-4 py-2.5 rounded-full shadow hover:bg-white/90 transition-colors"
+                  className="flex items-center gap-2 bg-white text-[#132326] font-semibold text-sm px-4 py-2.5 rounded-full shadow hover:bg-white/90 transition-colors"
                 >
                   <span className="material-symbols-outlined text-[18px]">
                     center_focus_strong
@@ -799,7 +799,7 @@ export function InventoryClient({
                   aria-expanded={ingredientPickerOpen}
                   className={`flex items-center gap-2 font-semibold text-sm px-4 py-2.5 rounded-full border transition-colors ${
                     ingredientPickerOpen
-                      ? "bg-white text-[#1a1c1a] border-white shadow hover:bg-white/90"
+                      ? "bg-white text-[#132326] border-white shadow hover:bg-white/90"
                       : "bg-white/15 text-white border-white/30 hover:bg-white/25"
                   }`}
                 >

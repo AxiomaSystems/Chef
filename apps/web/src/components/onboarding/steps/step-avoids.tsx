@@ -27,7 +27,7 @@ export function StepAvoids({
   return (
     <div className="grid gap-7">
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           Ingredients to avoid
         </p>
         <ChipMultiSelect
@@ -39,7 +39,7 @@ export function StepAvoids({
       </div>
 
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           Textures you dislike
         </p>
         <ChipMultiSelect

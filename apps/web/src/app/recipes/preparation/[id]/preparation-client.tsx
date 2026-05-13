@@ -30,11 +30,7 @@ function estimatePrepMinutes(recipe: BaseRecipe) {
   return Math.max(recipe.steps.length * 8, 15);
 }
 
-export function RecipePreparationClient({
-  recipe,
-}: {
-  recipe: BaseRecipe;
-}) {
+export function RecipePreparationClient({ recipe }: { recipe: BaseRecipe }) {
   const [started, setStarted] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [activeStep, setActiveStep] = useState(0);
@@ -78,26 +74,26 @@ export function RecipePreparationClient({
 
     if (!total) {
       return [
-        { label: "Carbs", color: "bg-[#f4a340]", width: 34 },
-        { label: "Fat", color: "bg-[#f2d978]", width: 33 },
-        { label: "Protein", color: "bg-[#d7d2cb]", width: 33 },
+        { label: "Carbs", color: "bg-[#fe8e17]", width: 34 },
+        { label: "Fat", color: "bg-[#f4be6b]", width: 33 },
+        { label: "Protein", color: "bg-[#c0dedf]", width: 33 },
       ];
     }
 
     return [
       {
         label: "Carbs",
-        color: "bg-[#f4a340]",
+        color: "bg-[#fe8e17]",
         width: Math.max(12, Math.round((carbs / total) * 100)),
       },
       {
         label: "Fat",
-        color: "bg-[#f2d978]",
+        color: "bg-[#f4be6b]",
         width: Math.max(12, Math.round((fat / total) * 100)),
       },
       {
         label: "Protein",
-        color: "bg-[#d7d2cb]",
+        color: "bg-[#c0dedf]",
         width: Math.max(12, Math.round((protein / total) * 100)),
       },
     ];
@@ -144,12 +140,14 @@ export function RecipePreparationClient({
           href="/recipes"
           className="mb-6 inline-flex items-center gap-2 text-label-lg text-on-surface-variant transition-colors hover:text-primary"
         >
-          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+          <span className="material-symbols-outlined text-[18px]">
+            arrow_back
+          </span>
           Back to Collection
         </Link>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="overflow-hidden rounded-[32px] bg-white shadow-[0_4px_20px_rgba(255,179,71,0.08)] lg:col-span-8">
+          <div className="overflow-hidden rounded-[32px] bg-white shadow-[0_4px_20px_rgba(244,190,107,0.08)] lg:col-span-8">
             <div className="relative h-[23rem] w-full">
               <RecipeImage
                 src={recipe.cover_image_url}
@@ -186,7 +184,7 @@ export function RecipePreparationClient({
           </div>
 
           <div className="grid grid-cols-2 gap-4 lg:col-span-4">
-            <div className="rounded-[28px] bg-[#fff2e2] p-6 text-center">
+            <div className="rounded-[28px] bg-[#fff2e3] p-6 text-center">
               <span className="material-symbols-outlined mb-2 text-[24px] text-primary">
                 local_fire_department
               </span>
@@ -195,7 +193,7 @@ export function RecipePreparationClient({
               </p>
               <p className="text-label-md text-on-surface-variant">Calories</p>
             </div>
-            <div className="rounded-[28px] bg-[#fff9dc] p-6 text-center">
+            <div className="rounded-[28px] bg-[#fff2e3] p-6 text-center">
               <span className="material-symbols-outlined mb-2 text-[24px] text-secondary">
                 fitness_center
               </span>
@@ -215,7 +213,9 @@ export function RecipePreparationClient({
               <span className="material-symbols-outlined mb-2 text-[24px] text-outline">
                 group
               </span>
-              <p className="text-headline-md text-on-surface">{recipe.servings}</p>
+              <p className="text-headline-md text-on-surface">
+                {recipe.servings}
+              </p>
               <p className="text-label-md text-on-surface-variant">Servings</p>
             </div>
             <div className="col-span-2 rounded-[28px] border border-outline-variant/20 bg-white p-6">
@@ -231,8 +231,13 @@ export function RecipePreparationClient({
               </div>
               <div className="mt-3 flex flex-wrap gap-4 text-label-md text-on-surface-variant">
                 {macroSegments.map((segment) => (
-                  <div key={segment.label} className="flex items-center gap-1.5">
-                    <span className={`h-2.5 w-2.5 rounded-full ${segment.color}`} />
+                  <div
+                    key={segment.label}
+                    className="flex items-center gap-1.5"
+                  >
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${segment.color}`}
+                    />
                     {segment.label}
                   </div>
                 ))}
@@ -245,7 +250,9 @@ export function RecipePreparationClient({
           <div className="lg:col-span-4">
             <div className="sticky top-24">
               <div className="mb-6 flex items-center justify-between gap-3">
-                <h2 className="text-headline-sm text-on-surface">Ingredients</h2>
+                <h2 className="text-headline-sm text-on-surface">
+                  Ingredients
+                </h2>
                 <div className="flex items-center gap-2">
                   <span className="rounded-lg bg-secondary-container/30 px-3 py-1 text-label-sm text-on-secondary-container">
                     {checkedCount}/{recipe.ingredients.length} ready
@@ -279,7 +286,7 @@ export function RecipePreparationClient({
                       onClick={() => toggleIngredient(ingredientKey)}
                       className={`flex w-full items-center gap-3 rounded-[22px] border p-4 text-left shadow-sm transition-all ${
                         checked
-                          ? "border-secondary-container bg-[#fff6dc]"
+                          ? "border-secondary-container bg-[#fff2e3]"
                           : "border-transparent bg-white hover:border-outline-variant/30"
                       }`}
                     >
@@ -325,17 +332,20 @@ export function RecipePreparationClient({
           </div>
 
           <div className="lg:col-span-8">
-            <div className="mb-6 rounded-[28px] border border-outline-variant/20 bg-white p-6 shadow-[0_4px_20px_rgba(255,179,71,0.08)]">
+            <div className="mb-6 rounded-[28px] border border-outline-variant/20 bg-white p-6 shadow-[0_4px_20px_rgba(244,190,107,0.08)]">
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
                 <div>
-                  <h2 className="text-headline-sm text-on-surface">Preparation</h2>
+                  <h2 className="text-headline-sm text-on-surface">
+                    Preparation
+                  </h2>
                   <p className="mt-2 max-w-2xl text-body-md text-on-surface-variant">
-                    Work through the recipe one step at a time with a focused cooking view.
+                    Work through the recipe one step at a time with a focused
+                    cooking view.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-[22px] bg-[#fff5e8] p-4">
+                  <div className="rounded-[22px] bg-[#fff2e3] p-4">
                     <p className="text-label-sm uppercase tracking-[0.14em] text-primary">
                       Active Timer
                     </p>
@@ -351,7 +361,9 @@ export function RecipePreparationClient({
                       Progress
                     </p>
                     <p className="mt-2 text-headline-md text-on-surface">
-                      {recipe.steps.length ? `${activeStep + 1}/${recipe.steps.length}` : "0/0"}
+                      {recipe.steps.length
+                        ? `${activeStep + 1}/${recipe.steps.length}`
+                        : "0/0"}
                     </p>
                     <p className="mt-1 text-body-sm text-on-surface-variant">
                       {ingredientCompletion}% ingredients checked
@@ -373,7 +385,7 @@ export function RecipePreparationClient({
             </div>
 
             {currentStep ? (
-              <div className="rounded-[28px] border border-[#f0d4b8] bg-[linear-gradient(135deg,#fff8ee_0%,#fff1dc_100%)] p-6 shadow-[0_18px_50px_rgba(243,148,71,0.18)]">
+              <div className="rounded-[28px] border border-[#f4be6b] bg-[linear-gradient(135deg,#fff8ef_0%,#fff2e3_100%)] p-6 shadow-[0_18px_50px_rgba(244,121,13,0.18)]">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex gap-4">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-label-lg text-on-primary">
@@ -397,7 +409,9 @@ export function RecipePreparationClient({
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setActiveStep((step) => Math.max(0, step - 1))}
+                      onClick={() =>
+                        setActiveStep((step) => Math.max(0, step - 1))
+                      }
                       disabled={activeStep === 0}
                       className="rounded-full border border-outline-variant bg-white px-4 py-2 text-label-md text-on-surface-variant transition-colors hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -454,7 +468,9 @@ export function RecipePreparationClient({
                         isActive ? "bg-white/70" : ""
                       }`}
                     >
-                      <h4 className="text-label-lg text-primary">{copy.title}</h4>
+                      <h4 className="text-label-lg text-primary">
+                        {copy.title}
+                      </h4>
                       {copy.body ? (
                         <p className="mt-2 text-body-md text-on-surface-variant">
                           {copy.body}
@@ -468,7 +484,8 @@ export function RecipePreparationClient({
 
             <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-outline-variant/20 pt-8">
               <p className="text-body-sm text-on-surface-variant">
-                {recipe.ingredients.length} ingredients - {recipe.servings} servings
+                {recipe.ingredients.length} ingredients - {recipe.servings}{" "}
+                servings
                 {nutrition.calories ? ` - ${nutrition.calories} kcal` : ""}
               </p>
 
@@ -489,13 +506,15 @@ export function RecipePreparationClient({
                   onClick={() => setHandsFreeOpen(true)}
                   className="flex items-center gap-2 rounded-full border border-outline-variant bg-white px-5 py-2.5 text-label-lg text-on-surface transition-colors hover:bg-surface-container-low"
                 >
-                  <span className="material-symbols-outlined text-[18px]">mic</span>
+                  <span className="material-symbols-outlined text-[18px]">
+                    mic
+                  </span>
                   Hands-free
                 </button>
                 <button
                   type="button"
                   onClick={startPreparation}
-                  className="rounded-full bg-primary px-7 py-2.5 text-label-lg text-on-primary shadow-[0_10px_24px_rgba(243,148,71,0.25)] transition-opacity hover:opacity-90"
+                  className="rounded-full bg-primary px-7 py-2.5 text-label-lg text-on-primary shadow-[0_10px_24px_rgba(244,121,13,0.25)] transition-opacity hover:opacity-90"
                 >
                   {started ? "Restart Preparation" : "Start Preparation"}
                 </button>

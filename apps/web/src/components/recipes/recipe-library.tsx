@@ -1,12 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
-import type {
-  BaseRecipe,
-  Cart,
-  Retailer,
-  ShoppingCart,
-} from "@cart/shared";
+import type { BaseRecipe, Cart, Retailer, ShoppingCart } from "@cart/shared";
 import { NewDraftOverlay } from "@/components/dashboard/new-draft-overlay";
 import type { DashboardCartDraft } from "@/components/dashboard/drafts-and-carts-section";
 import { PlanningDetailOverlay } from "@/components/planning/planning-detail-overlay";
@@ -37,9 +32,7 @@ export function RecipeLibrary(props: {
   }>({ selections: [], mode: "create" });
   const [isBuilderOpen, setBuilderOpen] = useState(false);
   const [activeDetail, setActiveDetail] = useState<
-    | { type: "draft"; id: string }
-    | { type: "cart"; id: string }
-    | null
+    { type: "draft"; id: string } | { type: "cart"; id: string } | null
   >(null);
   const [activeShoppingCart, setActiveShoppingCart] =
     useState<ShoppingCart | null>(null);
@@ -94,9 +87,9 @@ export function RecipeLibrary(props: {
       mode: "create" | "edit-draft" | "edit-cart" = "create",
       resourceId?: string,
     ) => {
-    setBuilderSeed((current) => current + 1);
-    setBuilderConfig({ selections, name, retailer, mode, resourceId });
-    setBuilderOpen(true);
+      setBuilderSeed((current) => current + 1);
+      setBuilderConfig({ selections, name, retailer, mode, resourceId });
+      setBuilderOpen(true);
     },
     [],
   );
@@ -137,13 +130,15 @@ export function RecipeLibrary(props: {
     activeDetail?.type === "draft"
       ? {
           type: "draft" as const,
-          draft: props.drafts.find((draft) => draft.id === activeDetail.id) ?? null,
+          draft:
+            props.drafts.find((draft) => draft.id === activeDetail.id) ?? null,
           recipes: props.recipes,
         }
       : activeDetail?.type === "cart"
         ? {
             type: "cart" as const,
-            cart: props.carts.find((cart) => cart.id === activeDetail.id) ?? null,
+            cart:
+              props.carts.find((cart) => cart.id === activeDetail.id) ?? null,
             recipes: props.recipes,
           }
         : null;
@@ -155,14 +150,14 @@ export function RecipeLibrary(props: {
 
   return (
     <>
-      <section className="rounded-[2rem] border border-[#d7c2b9] bg-white/60 p-6 shadow-sm backdrop-blur-sm">
+      <section className="rounded-[2rem] border border-[#c0dedf] bg-white/60 p-6 shadow-sm backdrop-blur-sm">
         <div className="grid gap-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="font-sans font-bold text-4xl leading-none text-[#1a1c1a]">
+              <h1 className="font-sans font-bold text-4xl leading-none text-[#132326]">
                 Recipe library
               </h1>
-              <p className="mt-2 text-sm text-[#85736c]">
+              <p className="mt-2 text-sm text-[#5f8689]">
                 Browse the visible shelf, scan dietary badges, and pull dishes
                 into a cart when you are ready to plan.
               </p>
@@ -176,7 +171,7 @@ export function RecipeLibrary(props: {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search dishes"
-                className="min-h-11 w-full rounded-full border border-[#d7c2b9] bg-[#faf9f6]/78 px-4 text-sm text-[#1a1c1a] outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032]"
+                className="min-h-11 w-full rounded-full border border-[#c0dedf] bg-[#fff8ef]/78 px-4 text-sm text-[#132326] outline-none transition placeholder:text-[#5f8689]/72 focus:border-[#f4790d]"
               />
             </label>
           </div>
@@ -188,8 +183,8 @@ export function RecipeLibrary(props: {
                 onClick={() => setSelectedTag(null)}
                 className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${
                   selectedTag === null
-                    ? "border-[#895032] bg-[#895032] text-[#faf9f6]"
-                    : "border-[#d7c2b9] bg-[#faf9f6]/72 text-[#85736c] hover:bg-white"
+                    ? "border-[#f4790d] bg-[#f4790d] text-[#fff8ef]"
+                    : "border-[#c0dedf] bg-[#fff8ef]/72 text-[#5f8689] hover:bg-white"
                 }`}
               >
                 All tags
@@ -205,8 +200,8 @@ export function RecipeLibrary(props: {
                   }
                   className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${
                     selectedTag === tag.id
-                      ? "border-[#895032] bg-[#895032]/14 text-[#1a1c1a]"
-                      : "border-[#d7c2b9] bg-[#faf9f6]/72 text-[#85736c] hover:bg-white"
+                      ? "border-[#f4790d] bg-[#f4790d]/14 text-[#132326]"
+                      : "border-[#c0dedf] bg-[#fff8ef]/72 text-[#5f8689] hover:bg-white"
                   }`}
                 >
                   {tag.name}
@@ -216,7 +211,7 @@ export function RecipeLibrary(props: {
                 <button
                   type="button"
                   onClick={() => setShowAllTags((current) => !current)}
-                  className="rounded-full border border-[#d7c2b9] bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#895032] transition hover:bg-white"
+                  className="rounded-full border border-[#c0dedf] bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#f4790d] transition hover:bg-white"
                 >
                   {showAllTags ? "Show less" : "Show all"}
                 </button>
@@ -234,9 +229,9 @@ export function RecipeLibrary(props: {
                     key={recipe.id}
                     type="button"
                     onClick={() => setActiveRecipeId(recipe.id)}
-                    className="overflow-hidden rounded-[1.35rem] border border-[#d7c2b9] bg-[#faf9f6]/72 text-left transition hover:border-[#895032]/28 hover:bg-white/82"
+                    className="overflow-hidden rounded-[1.35rem] border border-[#c0dedf] bg-[#fff8ef]/72 text-left transition hover:border-[#f4790d]/28 hover:bg-white/82"
                   >
-                    <div className="relative h-28 overflow-hidden border-b border-[#d7c2b9]">
+                    <div className="relative h-28 overflow-hidden border-b border-[#c0dedf]">
                       <RecipeImage
                         src={recipe.cover_image_url}
                         alt={recipe.name}
@@ -249,7 +244,7 @@ export function RecipeLibrary(props: {
                           {badges.map((badge) => (
                             <span
                               key={badge.id}
-                              className="rounded-full border border-[#d7c2b9] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#895032]"
+                              className="rounded-full border border-[#c0dedf] bg-[rgba(255,248,239,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#f4790d]"
                             >
                               {badge.name}
                             </span>
@@ -261,19 +256,19 @@ export function RecipeLibrary(props: {
                     <div className="grid gap-2 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#895032]">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#f4790d]">
                             {recipe.cuisine.label}
                           </p>
-                          <h2 className="mt-2 font-sans font-bold text-[1.9rem] leading-[0.94] text-[#1a1c1a]">
+                          <h2 className="mt-2 font-sans font-bold text-[1.9rem] leading-[0.94] text-[#132326]">
                             {recipe.name}
                           </h2>
                         </div>
-                        <span className="text-xs text-[#85736c]">
+                        <span className="text-xs text-[#5f8689]">
                           {recipe.servings} servings
                         </span>
                       </div>
 
-                      <p className="line-clamp-2 text-sm leading-6 text-[#85736c]">
+                      <p className="line-clamp-2 text-sm leading-6 text-[#5f8689]">
                         {recipe.description?.trim() || "No description yet."}
                       </p>
                     </div>
@@ -282,11 +277,11 @@ export function RecipeLibrary(props: {
               })}
             </div>
           ) : (
-            <div className="rounded-[1.55rem] border border-dashed border-[#d7c2b9] bg-[#faf9f6]/52 px-5 py-6">
-              <div className="text-lg font-semibold text-[#1a1c1a]">
+            <div className="rounded-[1.55rem] border border-dashed border-[#c0dedf] bg-[#fff8ef]/52 px-5 py-6">
+              <div className="text-lg font-semibold text-[#132326]">
                 No recipes match this view
               </div>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-[#85736c]">
+              <p className="mt-2 max-w-xl text-sm leading-6 text-[#5f8689]">
                 Try another search term or remove the current tag filter.
               </p>
             </div>
@@ -295,7 +290,7 @@ export function RecipeLibrary(props: {
       </section>
 
       <RecipeDetailOverlay
-        recipe={activeRecipeId ? recipeMap.get(activeRecipeId) ?? null : null}
+        recipe={activeRecipeId ? (recipeMap.get(activeRecipeId) ?? null) : null}
         onClose={() => setActiveRecipeId(null)}
         onAddToCart={handleAddToCart}
       />

@@ -35,9 +35,7 @@ function getUnitPrice(item: MatchedIngredientProduct) {
   }
 
   if (item.estimated_line_total !== undefined) {
-    return (
-      item.estimated_line_total / Math.max(item.selected_quantity ?? 1, 1)
-    );
+    return item.estimated_line_total / Math.max(item.selected_quantity ?? 1, 1);
   }
 
   return 0;
@@ -98,9 +96,8 @@ export function CheckoutClient({
   const addresses = checkoutProfile.saved_addresses;
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     () =>
-      (addresses.find((address) => address.isDefault) ??
-        addresses[0] ??
-        null)?.id ?? null,
+      (addresses.find((address) => address.isDefault) ?? addresses[0] ?? null)
+        ?.id ?? null,
   );
   const [showAddressPicker, setShowAddressPicker] = useState(false);
   const selectedAddress =
@@ -149,7 +146,9 @@ export function CheckoutClient({
               </span>
               Checkout
             </p>
-            <h1 className="mt-4 text-headline-lg text-on-surface">{cartName}</h1>
+            <h1 className="mt-4 text-headline-lg text-on-surface">
+              {cartName}
+            </h1>
             <p className="mt-2 max-w-2xl text-body-md text-on-surface-variant">
               Review your grocery list, make last-minute quantity changes, and
               finish your order with {retailerLabel(shoppingCart.retailer)}.
@@ -168,7 +167,7 @@ export function CheckoutClient({
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_380px]">
           <section className="space-y-6">
-            <div className="rounded-[28px] border border-outline-variant/30 bg-white p-4 shadow-[0_10px_45px_-18px_rgba(137,80,50,0.18)] sm:p-6">
+            <div className="rounded-[28px] border border-outline-variant/30 bg-white p-4 shadow-[0_10px_45px_-18px_rgba(60,154,158,0.18)] sm:p-6">
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-headline-sm text-on-surface">
@@ -317,8 +316,10 @@ export function CheckoutClient({
           </section>
 
           <aside className="space-y-5">
-            <div className="rounded-[28px] border border-outline-variant/25 bg-surface-container-low p-6 shadow-[0_12px_40px_-20px_rgba(137,80,50,0.18)]">
-              <h2 className="text-headline-sm text-on-surface">Order Summary</h2>
+            <div className="rounded-[28px] border border-outline-variant/25 bg-surface-container-low p-6 shadow-[0_12px_40px_-20px_rgba(60,154,158,0.18)]">
+              <h2 className="text-headline-sm text-on-surface">
+                Order Summary
+              </h2>
 
               <div className="mt-6 space-y-3 border-b border-outline-variant/25 pb-5">
                 <div className="flex items-center justify-between text-body-md text-on-surface-variant">
@@ -546,7 +547,8 @@ export function CheckoutClient({
                         </div>
                         <div>
                           <p className="text-body-md text-on-surface">
-                            {selectedCard.cardType} ending in {selectedCard.lastFour}
+                            {selectedCard.cardType} ending in{" "}
+                            {selectedCard.lastFour}
                           </p>
                           <p className="text-body-sm text-outline">
                             {selectedCard.name} | Exp {selectedCard.expiry}
@@ -568,7 +570,7 @@ export function CheckoutClient({
                   icon="arrow_forward"
                   iconPosition="right"
                   onClick={completeCheckout}
-                  className="rounded-[22px] bg-[#ffb38e] text-[#6d391d] hover:bg-[#ffcfb6]"
+                  className="rounded-[22px] bg-[#f4be6b] text-[#351800] hover:bg-[#f4be6b]"
                 >
                   {shoppingCart.external_url
                     ? "Complete Checkout"
@@ -589,7 +591,7 @@ export function CheckoutClient({
               </div>
             </div>
 
-            <div className="rounded-[24px] border border-secondary-container/60 bg-[#f7f1d9] p-5">
+            <div className="rounded-[24px] border border-secondary-container/60 bg-[#fff8ef] p-5">
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary-container text-on-secondary-container">
                   <span className="material-symbols-outlined text-[20px]">

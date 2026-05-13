@@ -53,7 +53,7 @@ export function RecipeDetailPageClient({ recipe }: { recipe: BaseRecipe }) {
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-36 pt-4 sm:px-6 lg:pb-10 lg:pt-8">
-      <article className="overflow-hidden rounded-[2rem] bg-[#fffdf9] shadow-[0_18px_60px_rgba(137,80,50,0.12)] lg:rounded-[2.25rem]">
+      <article className="overflow-hidden rounded-[2rem] bg-[#fffdfa] shadow-[0_18px_60px_rgba(60,154,158,0.12)] lg:rounded-[2.25rem]">
         <section className="relative">
           <div className="relative h-[21rem] overflow-hidden bg-surface-container sm:h-[30rem]">
             <RecipeImage
@@ -98,7 +98,7 @@ export function RecipeDetailPageClient({ recipe }: { recipe: BaseRecipe }) {
           {nutritionCards.map((item) => (
             <div
               key={item.label}
-              className="relative bg-white px-2 py-4 text-center shadow-[0_10px_28px_rgba(137,80,50,0.08)] first:rounded-l-2xl last:rounded-r-2xl"
+              className="relative bg-white px-2 py-4 text-center shadow-[0_10px_28px_rgba(60,154,158,0.08)] first:rounded-l-2xl last:rounded-r-2xl"
             >
               <p className="text-[1.05rem] font-black leading-tight text-on-surface sm:text-headline-sm">
                 {item.value}
@@ -183,11 +183,11 @@ export function RecipeDetailPageClient({ recipe }: { recipe: BaseRecipe }) {
           )}
         </section>
 
-        <section className="sticky bottom-0 border-t border-outline-variant/25 bg-[#fffdf9]/95 px-4 py-4 backdrop-blur-sm sm:px-7">
+        <section className="sticky bottom-0 border-t border-outline-variant/25 bg-[#fffdfa]/95 px-4 py-4 backdrop-blur-sm sm:px-7">
           <button
             type="button"
             onClick={() => setHandsFreeOpen(true)}
-            className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-primary-fixed-dim px-5 py-3 text-label-lg font-black text-on-primary-fixed shadow-[0_12px_28px_rgba(243,148,71,0.25)]"
+            className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-primary-fixed-dim px-5 py-3 text-label-lg font-black text-on-primary-fixed shadow-[0_12px_28px_rgba(244,121,13,0.25)]"
           >
             <span className="material-symbols-outlined text-[20px]">mic</span>
             Start hands-free mode

@@ -34,7 +34,7 @@ export function StepFavorites({
   return (
     <div className="grid gap-7">
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           Go-to proteins
         </p>
         <ChipMultiSelect
@@ -46,7 +46,7 @@ export function StepFavorites({
       </div>
 
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           Flavors you want more often
         </p>
         <ChipMultiSelect
@@ -58,7 +58,7 @@ export function StepFavorites({
       </div>
 
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           Spice tolerance
         </p>
         <ChipSingleSelect

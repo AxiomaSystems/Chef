@@ -2,10 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { BaseRecipe } from "@cart/shared";
-import {
-  askChefAction,
-  type ChefChatMessage,
-} from "@/app/ai-actions";
+import { askChefAction, type ChefChatMessage } from "@/app/ai-actions";
 import { ChatMarkdown } from "@/components/ai/chat-markdown";
 
 const DEFAULT_PROMPTS = [
@@ -133,14 +130,18 @@ export function PreparationChefAssistant({
           content: result.message ?? "I could not generate a useful answer.",
         },
       ]);
-      setFollowUps(result.followUpPrompts?.length ? result.followUpPrompts : DEFAULT_PROMPTS);
+      setFollowUps(
+        result.followUpPrompts?.length
+          ? result.followUpPrompts
+          : DEFAULT_PROMPTS,
+      );
       setSafetyNotes(result.safetyNotes ?? []);
     });
   }
 
   return (
     <>
-      <div className="rounded-[24px] border border-[#ecd8c6] bg-[linear-gradient(135deg,#fffaf4_0%,#fff2e3_100%)] p-4 shadow-[0_12px_30px_rgba(227,154,78,0.12)]">
+      <div className="rounded-[24px] border border-[#c0dedf] bg-[linear-gradient(135deg,#fff8ef_0%,#fff2e3_100%)] p-4 shadow-[0_12px_30px_rgba(244,121,13,0.12)]">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
@@ -150,7 +151,8 @@ export function PreparationChefAssistant({
               Recipe-aware help when you actually need it
             </h3>
             <p className="mt-2 max-w-xl text-body-sm leading-6 text-on-surface-variant">
-              Chef understands the full recipe, full ingredient list, full preparation flow, and where you currently are.
+              Chef understands the full recipe, full ingredient list, full
+              preparation flow, and where you currently are.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-on-surface-variant">
@@ -170,7 +172,7 @@ export function PreparationChefAssistant({
             <button
               type="button"
               onClick={() => setIsOpen(true)}
-              className="rounded-[20px] bg-primary px-5 py-3 text-center text-label-lg text-on-primary shadow-[0_10px_24px_rgba(243,148,71,0.25)] transition-opacity hover:opacity-90"
+              className="rounded-[20px] bg-primary px-5 py-3 text-center text-label-lg text-on-primary shadow-[0_10px_24px_rgba(244,121,13,0.25)] transition-opacity hover:opacity-90"
             >
               Ask Chef about this recipe
             </button>
@@ -182,7 +184,9 @@ export function PreparationChefAssistant({
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-outline">
               Current position
             </p>
-            <p className="mt-2 text-sm leading-6 text-on-surface">{currentStepText}</p>
+            <p className="mt-2 text-sm leading-6 text-on-surface">
+              {currentStepText}
+            </p>
           </div>
         ) : null}
       </div>
@@ -194,17 +198,21 @@ export function PreparationChefAssistant({
             onClick={() => setIsOpen(false)}
           />
 
-          <section className="fixed left-1/2 top-1/2 z-[70] flex h-[min(860px,calc(100vh-2.5rem))] w-[min(1220px,calc(100vw-2.5rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[36px] border border-[#ecd9c9] bg-white shadow-[0_36px_120px_rgba(52,30,12,0.22)]">
+          <section className="fixed left-1/2 top-1/2 z-[70] flex h-[min(860px,calc(100vh-2.5rem))] w-[min(1220px,calc(100vw-2.5rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[36px] border border-[#c0dedf] bg-white shadow-[0_36px_120px_rgba(52,30,12,0.22)]">
             <div className="grid h-full min-h-0 w-full grid-cols-[340px_minmax(0,1fr)]">
-              <aside className="flex min-h-0 flex-col border-r border-[#efdfd2] bg-[#fffaf6]">
+              <aside className="flex min-h-0 flex-col border-r border-[#c0dedf] bg-[#fff8ef]">
                 <div
-                  className="border-b border-[#efdfd2] px-5 py-5"
-                  style={{ background: "linear-gradient(160deg, #fff5ec, #fffdf9)" }}
+                  className="border-b border-[#c0dedf] px-5 py-5"
+                  style={{
+                    background: "linear-gradient(160deg, #fff2e3, #fffdfa)",
+                  }}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-fixed-dim text-on-primary-fixed shadow-sm">
-                        <span className="material-symbols-outlined text-[22px]">restaurant</span>
+                        <span className="material-symbols-outlined text-[22px]">
+                          restaurant
+                        </span>
                       </div>
                       <div>
                         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
@@ -225,49 +233,63 @@ export function PreparationChefAssistant({
                       className="flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
                       aria-label="Close Chef recipe assistant"
                     >
-                      <span className="material-symbols-outlined text-[19px]">close</span>
+                      <span className="material-symbols-outlined text-[19px]">
+                        close
+                      </span>
                     </button>
                   </div>
 
-                  <div className="mt-4 rounded-[24px] border border-[#efd8c7] bg-white px-4 py-3 shadow-sm">
+                  <div className="mt-4 rounded-[24px] border border-[#c0dedf] bg-white px-4 py-3 shadow-sm">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-outline">
                       Current position
                     </p>
                     <p className="mt-2 text-sm font-semibold text-on-surface">
-                      {currentStepText ? `Step ${currentStepNumber}` : "No active step"}
+                      {currentStepText
+                        ? `Step ${currentStepNumber}`
+                        : "No active step"}
                     </p>
                     <p className="mt-1 text-xs leading-5 text-outline">
-                      {currentStepText ?? "Start preparation to show where you are in the full recipe flow."}
+                      {currentStepText ??
+                        "Start preparation to show where you are in the full recipe flow."}
                     </p>
                   </div>
 
                   <div className="mt-4">
-                    <div className="rounded-[20px] border border-[#efd8c7] bg-white px-4 py-3 shadow-sm">
+                    <div className="rounded-[20px] border border-[#c0dedf] bg-white px-4 py-3 shadow-sm">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-outline">
                         Ingredients
                       </p>
                       <p className="mt-2 text-lg font-semibold text-on-surface">
                         {checkedCount}/{recipe.ingredients.length}
                       </p>
-                      <p className="mt-1 text-xs text-outline">Checked so far</p>
+                      <p className="mt-1 text-xs text-outline">
+                        Checked so far
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
-                  <div className="rounded-[24px] border border-[#efdfd2] bg-white p-4 shadow-sm">
-                    <p className="text-sm font-semibold text-on-surface">Recipe context</p>
+                  <div className="rounded-[24px] border border-[#c0dedf] bg-white p-4 shadow-sm">
+                    <p className="text-sm font-semibold text-on-surface">
+                      Recipe context
+                    </p>
                     <div className="mt-3 space-y-2 text-xs leading-5 text-on-surface-variant">
                       <p>{recipe.cuisine.label}</p>
                       <p>{recipe.servings} servings</p>
-                      <p>{recipe.ingredients.length} ingredients available to reference</p>
+                      <p>
+                        {recipe.ingredients.length} ingredients available to
+                        reference
+                      </p>
                       <p>{recipe.steps.length} steps available to reference</p>
                       <p>{ingredientCompletion}% ingredient readiness</p>
                     </div>
                   </div>
 
-                  <div className="rounded-[24px] border border-[#efdfd2] bg-white p-4 shadow-sm">
-                    <p className="text-sm font-semibold text-on-surface">Try asking</p>
+                  <div className="rounded-[24px] border border-[#c0dedf] bg-white p-4 shadow-sm">
+                    <p className="text-sm font-semibold text-on-surface">
+                      Try asking
+                    </p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {DEFAULT_PROMPTS.map((item) => (
                         <button
@@ -286,7 +308,7 @@ export function PreparationChefAssistant({
               </aside>
 
               <div className="flex min-h-0 flex-col bg-white">
-                <header className="border-b border-[#efdfd2] px-6 py-5">
+                <header className="border-b border-[#c0dedf] px-6 py-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
@@ -296,12 +318,15 @@ export function PreparationChefAssistant({
                         Cooking help across the whole recipe
                       </h3>
                       <p className="mt-1 text-sm text-outline">
-                        {recipe.name} · Step {currentStepNumber} · {ingredientCompletion}% ready
+                        {recipe.name} · Step {currentStepNumber} ·{" "}
+                        {ingredientCompletion}% ready
                       </p>
                     </div>
 
-                    <div className="rounded-full border border-[#ead7c8] bg-[#fff7f1] px-3 py-1.5 text-xs font-medium text-primary-fixed-dim">
-                      {started ? "Preparation active" : "Preparation not started"}
+                    <div className="rounded-full border border-[#c0dedf] bg-[#fff8ef] px-3 py-1.5 text-xs font-medium text-primary-fixed-dim">
+                      {started
+                        ? "Preparation active"
+                        : "Preparation not started"}
                     </div>
                   </div>
                 </header>
@@ -322,7 +347,9 @@ export function PreparationChefAssistant({
                         {message.role === "assistant" ? (
                           <ChatMarkdown content={message.content} />
                         ) : (
-                          <p className="whitespace-pre-wrap">{message.content}</p>
+                          <p className="whitespace-pre-wrap">
+                            {message.content}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -378,7 +405,9 @@ export function PreparationChefAssistant({
                       className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-fixed-dim text-on-primary-fixed hover:bg-primary-fixed disabled:cursor-not-allowed disabled:opacity-50"
                       aria-label="Ask Chef"
                     >
-                      <span className="material-symbols-outlined text-[20px]">send</span>
+                      <span className="material-symbols-outlined text-[20px]">
+                        send
+                      </span>
                     </button>
                   </form>
 

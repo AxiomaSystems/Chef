@@ -33,7 +33,10 @@ function EyeIcon({ isOff }: { isOff: boolean }) {
   );
 }
 
-export function PasswordInput({ className = "", ...props }: PasswordInputProps) {
+export function PasswordInput({
+  className = "",
+  ...props
+}: PasswordInputProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
@@ -45,7 +48,7 @@ export function PasswordInput({ className = "", ...props }: PasswordInputProps) 
       />
       <button
         type="button"
-        className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#895032] transition hover:bg-[#f2e7e1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#895032]"
+        className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#f4790d] transition hover:bg-[#c0dedf] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f4790d]"
         aria-label={isVisible ? "Hide password" : "Show password"}
         aria-pressed={isVisible}
         onClick={() => setIsVisible((current) => !current)}

@@ -1040,7 +1040,7 @@ export function WeeklyMealPlan({
                   value: nutrition.protein_g,
                   target: WEEKLY_TARGETS.protein_g,
                   unit: "g",
-                  color: "bg-[#f59e0b]",
+                  color: "bg-[#fe8e17]",
                 },
                 {
                   label: "Carbs",
@@ -1091,7 +1091,7 @@ export function WeeklyMealPlan({
         </div>
 
         {seasonalPick ? (
-          <div className="rounded-[24px] bg-[#f59e0b] p-5 text-white relative overflow-hidden">
+          <div className="rounded-[24px] bg-[#fe8e17] p-5 text-white relative overflow-hidden">
             <div
               className="absolute inset-0 opacity-10 pointer-events-none"
               style={{

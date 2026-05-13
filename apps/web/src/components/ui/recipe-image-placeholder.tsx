@@ -2,35 +2,27 @@
 
 const PLACEHOLDER_VARIANTS = [
   {
-    shell:
-      "bg-[linear-gradient(135deg,#f7e2c5_0%,#f4efe6_48%,#e7d7c4_100%)]",
-    glow:
-      "bg-[radial-gradient(circle_at_top_left,rgba(243,148,71,0.30),transparent_42%)]",
-    chip: "bg-[#f39447]/18 text-[#6d391d]",
+    shell: "bg-[linear-gradient(135deg,#f4be6b_0%,#fff8ef_48%,#f4be6b_100%)]",
+    glow: "bg-[radial-gradient(circle_at_top_left,rgba(244,121,13,0.30),transparent_42%)]",
+    chip: "bg-[#fe8e17]/18 text-[#351800]",
     icon: "skillet",
   },
   {
-    shell:
-      "bg-[linear-gradient(135deg,#dce9da_0%,#f4f0e6_50%,#cdddc3_100%)]",
-    glow:
-      "bg-[radial-gradient(circle_at_top_left,rgba(115,135,101,0.26),transparent_42%)]",
-    chip: "bg-[#738765]/18 text-[#415238]",
+    shell: "bg-[linear-gradient(135deg,#c0dedf_0%,#fff8ef_50%,#c0dedf_100%)]",
+    glow: "bg-[radial-gradient(circle_at_top_left,rgba(60,154,158,0.26),transparent_42%)]",
+    chip: "bg-[#3c9a9e]/18 text-[#073b3e]",
     icon: "nutrition",
   },
   {
-    shell:
-      "bg-[linear-gradient(135deg,#f0d7cf_0%,#f6eee8_48%,#e8c2b4_100%)]",
-    glow:
-      "bg-[radial-gradient(circle_at_top_left,rgba(136,77,84,0.24),transparent_40%)]",
-    chip: "bg-[#884d54]/16 text-[#5a2f35]",
+    shell: "bg-[linear-gradient(135deg,#c0dedf_0%,#fff8ef_48%,#f4be6b_100%)]",
+    glow: "bg-[radial-gradient(circle_at_top_left,rgba(60,154,158,0.24),transparent_40%)]",
+    chip: "bg-[#3c9a9e]/16 text-[#073b3e]",
     icon: "restaurant",
   },
   {
-    shell:
-      "bg-[linear-gradient(135deg,#efe3b3_0%,#f7f4e8_52%,#e7d9a0_100%)]",
-    glow:
-      "bg-[radial-gradient(circle_at_top_left,rgba(103,94,57,0.24),transparent_40%)]",
-    chip: "bg-[#675e39]/16 text-[#4e4724]",
+    shell: "bg-[linear-gradient(135deg,#f4be6b_0%,#fff8ef_52%,#f4be6b_100%)]",
+    glow: "bg-[radial-gradient(circle_at_top_left,rgba(244,190,107,0.24),transparent_40%)]",
+    chip: "bg-[#3c9a9e]/16 text-[#123b3e]",
     icon: "grocery",
   },
 ];
@@ -83,7 +75,7 @@ export function RecipeImagePlaceholder({
           </span>
         </div>
         <div className="max-w-[80%]">
-          <p className="line-clamp-2 text-sm font-semibold text-[#1a1c1a]/85">
+          <p className="line-clamp-2 text-sm font-semibold text-[#132326]/85">
             {title}
           </p>
         </div>
