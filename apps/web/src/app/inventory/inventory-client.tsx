@@ -24,6 +24,12 @@ type DisplayItem = {
   unit?: string;
 };
 
+type IngredientCatalogEntry = {
+  category: string;
+  defaultUnit: string;
+  defaultAmount: number;
+};
+
 // ─── Ingredient Catalog ───────────────────────────────────────────────────────
 
 const INGREDIENT_CATALOG: { category: string; items: string[] }[] = [
@@ -295,6 +301,251 @@ const INGREDIENT_CATALOG: { category: string; items: string[] }[] = [
     ],
   },
 ];
+
+const UNIT_OPTIONS = [
+  "unit",
+  "lb",
+  "oz",
+  "g",
+  "kg",
+  "cup",
+  "tbsp",
+  "tsp",
+  "bunch",
+  "slice",
+  "can",
+  "jar",
+  "bottle",
+  "carton",
+  "dozen",
+  "ear",
+  "bag",
+];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  protein: "Proteins",
+  proteins: "Proteins",
+  produce: "Produce",
+  vegetable: "Vegetables",
+  vegetables: "Vegetables",
+  fruit: "Fruits",
+  fruits: "Fruits",
+  "dairy-eggs": "Dairy & Eggs",
+  dairy: "Dairy & Eggs",
+  grains: "Grains & Bread",
+  grain: "Grains & Bread",
+  pantry: "Pantry Staples",
+  "pantry-staples": "Pantry Staples",
+  condiments: "Oils & Condiments",
+  "oils-condiments": "Oils & Condiments",
+  spices: "Spices & Herbs",
+  "spices-herbs": "Spices & Herbs",
+  nuts: "Nuts & Seeds",
+  "nuts-seeds": "Nuts & Seeds",
+};
+
+const DEFAULT_AMOUNT_BY_UNIT: Record<string, number> = {
+  unit: 1,
+  lb: 1,
+  oz: 8,
+  g: 500,
+  kg: 1,
+  cup: 1,
+  tbsp: 1,
+  tsp: 1,
+  bunch: 1,
+  slice: 4,
+  can: 1,
+  jar: 1,
+  bottle: 1,
+  carton: 1,
+  dozen: 1,
+  ear: 2,
+  bag: 1,
+};
+
+function normalizeIngredientKey(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function catalogDefaultsFor(
+  name: string,
+  category: string,
+): IngredientCatalogEntry {
+  const key = normalizeIngredientKey(name);
+  const lowerCategory = category.toLowerCase();
+  let defaultUnit = "unit";
+
+  if (
+    /(beef|chicken|pork|turkey|lamb|salmon|tuna|shrimp|fish|cod|crab|lobster|scallop)/.test(
+      key,
+    )
+  ) {
+    defaultUnit = "lb";
+  } else if (/(egg|eggs)/.test(key)) {
+    defaultUnit = "dozen";
+  } else if (/(milk|cream|yogurt|broth|stock|coconut milk)/.test(key)) {
+    defaultUnit = "carton";
+  } else if (
+    /(cheese|butter|tofu|tempeh|bacon|nuts|seeds|almonds|walnuts|cashews|pecans|pistachios)/.test(
+      key,
+    )
+  ) {
+    defaultUnit = "oz";
+  } else if (
+    /(rice|pasta|oats|quinoa|barley|couscous|flour|cornmeal|sugar|lentils|chickpeas|beans)/.test(
+      key,
+    )
+  ) {
+    defaultUnit = "cup";
+  } else if (/(bread|sourdough|tortilla|pita|naan)/.test(key)) {
+    defaultUnit = "slice";
+  } else if (
+    /(cilantro|parsley|basil|chives|dill|rosemary|thyme|sage)/.test(key)
+  ) {
+    defaultUnit = "bunch";
+  } else if (
+    /(oil|sauce|vinegar|ketchup|mustard|mayonnaise|sriracha|honey|syrup)/.test(
+      key,
+    )
+  ) {
+    defaultUnit = "bottle";
+  } else if (/(^| )corn($| )/.test(key)) {
+    defaultUnit = "ear";
+  } else if (/(paste|jam|butter|tapenade|capers|tomatoes)/.test(key)) {
+    defaultUnit = "jar";
+  } else if (
+    lowerCategory.includes("spices") ||
+    /(salt|pepper|cumin|paprika|turmeric|cinnamon|oregano|powder|seeds|extract|saffron|sumac|harissa)/.test(
+      key,
+    )
+  ) {
+    defaultUnit = "jar";
+  }
+
+  return {
+    category,
+    defaultUnit,
+    defaultAmount: DEFAULT_AMOUNT_BY_UNIT[defaultUnit] ?? 1,
+  };
+}
+
+const CATALOG_META = new Map<string, IngredientCatalogEntry>(
+  INGREDIENT_CATALOG.flatMap((group) =>
+    group.items.map((item) => [
+      normalizeIngredientKey(item),
+      catalogDefaultsFor(item, group.category),
+    ]),
+  ),
+);
+
+function inferCatalogMeta(name: string): IngredientCatalogEntry | undefined {
+  const key = normalizeIngredientKey(name);
+  const exact = CATALOG_META.get(key);
+  if (exact) return exact;
+
+  for (const [catalogName, meta] of CATALOG_META) {
+    if (key.includes(catalogName) || catalogName.includes(key)) {
+      return meta;
+    }
+  }
+
+  return undefined;
+}
+
+function inferUnit(name: string, category?: string) {
+  return (
+    inferCatalogMeta(name)?.defaultUnit ??
+    catalogDefaultsFor(name, category ?? "Pantry Staples").defaultUnit
+  );
+}
+
+function inferAmount(name: string, unit: string) {
+  return (
+    inferCatalogMeta(name)?.defaultAmount ?? DEFAULT_AMOUNT_BY_UNIT[unit] ?? 1
+  );
+}
+
+function inferCategoryFromName(name: string) {
+  const key = normalizeIngredientKey(name);
+
+  if (
+    /(chicken|beef|pork|bacon|turkey|lamb|fish|sirloin|fillet|salmon|tuna|shrimp|crab|lobster|scallop|cod|tofu|tempeh|lentil|chickpea|bean|edamame)/.test(
+      key,
+    )
+  ) {
+    return "Proteins";
+  }
+
+  if (
+    /(milk|cheese|egg|cream|yogurt|butter|mozzarella|parmesan|feta|brie|gouda|ricotta|mascarpone)/.test(
+      key,
+    )
+  ) {
+    return "Dairy & Eggs";
+  }
+
+  if (
+    /(apple|banana|lemon|lime|orange|strawberry|blueberry|raspberry|mango|avocado|grape|pineapple|watermelon|peach|pear|plum|kiwi|papaya|coconut|cherry|pomegranate|fig|grapefruit|cantaloupe)/.test(
+      key,
+    )
+  ) {
+    return "Fruits";
+  }
+
+  if (
+    /(onion|garlic|tomato|pepper|broccoli|spinach|kale|carrot|celery|cucumber|zucchini|eggplant|mushroom|asparagus|pea|corn|cauliflower|cabbage|lettuce|arugula|potato|beet|artichoke|leek|bok choy|radish|turnip|parsnip|aji|cilantro|parsley|basil|chive|dill)/.test(
+      key,
+    )
+  ) {
+    return "Vegetables";
+  }
+
+  if (
+    /(rice|bread|fries|pasta|spaghetti|penne|tortilla|oat|quinoa|barley|couscous|breadcrumb|panko|pita|naan|flour|cornmeal)/.test(
+      key,
+    )
+  ) {
+    return "Grains & Bread";
+  }
+
+  if (
+    /(oil|sauce|vinegar|paste|ketchup|mustard|mayonnaise|sriracha|tahini|pesto|broth|stock|canned|sugar|honey|syrup|baking|cornstarch|yeast|cocoa|chocolate|peanut butter|almond butter|jam|tapenade|caper|pecan|almond|walnut|cashew|pistachio|seed)/.test(
+      key,
+    )
+  ) {
+    return "Pantry Staples";
+  }
+
+  if (
+    /(salt|pepper|cumin|paprika|turmeric|cinnamon|oregano|thyme|rosemary|bay|chili|cayenne|powder|ginger|nutmeg|clove|cardamom|coriander|fennel|sage|allspice|anise|vanilla|saffron|curry|masala|zaatar|sumac|harissa|ras el hanout)/.test(
+      key,
+    )
+  ) {
+    return "Spices & Herbs";
+  }
+
+  return undefined;
+}
+
+function displayCategoryFor(name: string, rawCategory?: string) {
+  const catalogCategory = inferCatalogMeta(name)?.category;
+  const normalizedCategory = rawCategory?.trim().toLowerCase();
+
+  if (!normalizedCategory || normalizedCategory === "other") {
+    return catalogCategory ?? inferCategoryFromName(name) ?? "Other";
+  }
+
+  return (
+    CATEGORY_LABELS[normalizedCategory] ?? toTitleCase(rawCategory!.trim())
+  );
+}
 type VisionMode = "photo" | "video" | "camera";
 
 // ─── Ingredient image ─────────────────────────────────────────────────────────
@@ -337,22 +588,24 @@ function toTitleCase(str: string) {
 }
 
 function realToDisplay(item: KitchenInventoryItem): DisplayItem {
-  const amount =
-    item.estimated_amount != null
-      ? `${item.estimated_amount} ${item.unit ?? "unit"}`.trim()
-      : "In stock";
   const rawCategory = item.ingredient?.category?.trim();
+  const name =
+    item.display_name ||
+    item.label ||
+    item.ingredient?.canonical_name ||
+    "Inventory item";
+  const unit =
+    item.unit ?? item.ingredient?.default_unit ?? inferUnit(name, rawCategory);
+  const estimatedAmount = item.estimated_amount ?? inferAmount(name, unit);
+  const amount = `${estimatedAmount} ${unit}`.trim();
+
   return {
     id: item.id,
-    name:
-      item.display_name ||
-      item.label ||
-      item.ingredient?.canonical_name ||
-      "Inventory item",
-    category: rawCategory ? toTitleCase(rawCategory) : "Other",
+    name,
+    category: displayCategoryFor(name, rawCategory),
     quantity: amount,
-    estimatedAmount: item.estimated_amount,
-    unit: item.unit,
+    estimatedAmount,
+    unit,
   };
 }
 
@@ -392,12 +645,15 @@ function IngredientPicker({
 
   async function handleCheck(name: string) {
     if (existingNames.has(name.toLowerCase()) || adding.has(name)) return;
-    const parsedAmount = Number(amountByName[name]);
+    const defaultUnit = inferUnit(name);
+    const unit = unitByName[name]?.trim() || defaultUnit;
+    const parsedAmount = Number(
+      amountByName[name] ?? String(inferAmount(name, unit)),
+    );
     const estimatedAmount =
       Number.isFinite(parsedAmount) && parsedAmount > 0
         ? parsedAmount
-        : undefined;
-    const unit = unitByName[name]?.trim() || undefined;
+        : inferAmount(name, unit);
     setAdding((prev) => new Set(prev).add(name));
     await onAdd(name, { estimatedAmount, unit });
     setAdding((prev) => {
@@ -484,6 +740,8 @@ function IngredientPicker({
                 {group.items.map((name) => {
                   const inKitchen = existingNames.has(name.toLowerCase());
                   const isAdding = adding.has(name);
+                  const selectedUnit =
+                    unitByName[name] ?? inferUnit(name, group.category);
                   return (
                     <div
                       key={name}
@@ -518,7 +776,10 @@ function IngredientPicker({
                             type="number"
                             min="0"
                             step="0.1"
-                            value={amountByName[name] ?? ""}
+                            value={
+                              amountByName[name] ??
+                              String(inferAmount(name, selectedUnit))
+                            }
                             onChange={(e) =>
                               setAmountByName((prev) => ({
                                 ...prev,
@@ -528,17 +789,23 @@ function IngredientPicker({
                             placeholder="Qty"
                             className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-white text-xs outline-none focus:border-primary"
                           />
-                          <input
-                            value={unitByName[name] ?? ""}
+                          <select
+                            value={selectedUnit}
                             onChange={(e) =>
                               setUnitByName((prev) => ({
                                 ...prev,
                                 [name]: e.target.value,
                               }))
                             }
-                            placeholder="unit"
                             className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-white text-xs outline-none focus:border-primary"
-                          />
+                            aria-label={`Unit for ${name}`}
+                          >
+                            {UNIT_OPTIONS.map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       )}
                       {/* Checkbox / state */}
@@ -691,7 +958,10 @@ export function InventoryClient({
     remove();
   }
 
-  async function handleQuantitySave(item: DisplayItem) {
+  async function handleQuantitySave(
+    item: DisplayItem,
+    overrides: { unit?: string } = {},
+  ) {
     const rawAmount =
       amountDrafts[item.id] ?? String(item.estimatedAmount ?? "");
     const parsedAmount = Number(rawAmount);
@@ -699,7 +969,8 @@ export function InventoryClient({
       rawAmount.trim() && Number.isFinite(parsedAmount) && parsedAmount >= 0
         ? parsedAmount
         : null;
-    const unit = (unitDrafts[item.id] ?? item.unit ?? "").trim() || null;
+    const unit =
+      (overrides.unit ?? unitDrafts[item.id] ?? item.unit ?? "").trim() || null;
 
     setSavingId(item.id);
     const result = await updateInventoryItemAction(item.id, {
@@ -998,18 +1269,27 @@ export function InventoryClient({
                               placeholder="Qty"
                               className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
                             />
-                            <input
+                            <select
                               value={unitDrafts[item.id] ?? item.unit ?? ""}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const nextUnit = e.target.value;
                                 setUnitDrafts((prev) => ({
                                   ...prev,
-                                  [item.id]: e.target.value,
-                                }))
-                              }
-                              onBlur={() => void handleQuantitySave(item)}
-                              placeholder="unit"
+                                  [item.id]: nextUnit,
+                                }));
+                                void handleQuantitySave(item, {
+                                  unit: nextUnit,
+                                });
+                              }}
                               className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
-                            />
+                              aria-label={`Unit for ${item.name}`}
+                            >
+                              {UNIT_OPTIONS.map((unit) => (
+                                <option key={unit} value={unit}>
+                                  {unit}
+                                </option>
+                              ))}
+                            </select>
                             {savingId === item.id && (
                               <span className="material-symbols-outlined text-outline text-[16px] animate-spin">
                                 refresh
