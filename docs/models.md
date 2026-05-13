@@ -679,13 +679,16 @@ Interpretation:
 type KitchenInventoryItem = {
   id: string;
   user_id: string;
-  ingredient_id: string;
-  ingredient: Ingredient;
+  ingredient_id?: string;
+  ingredient?: Ingredient;
+  display_name: string;
+  normalized_name: string;
   label?: string;
   estimated_amount?: number;
   unit?: string;
   confidence: "low" | "medium" | "high";
   source: "manual" | "cart" | "vision" | "receipt" | "inferred" | "seed";
+  review_status: "pending" | "active" | "discarded" | "archived";
   created_at: string;
   updated_at: string;
 };
@@ -694,8 +697,11 @@ type KitchenInventoryItem = {
 Interpretation:
 
 - kitchen inventory state starts rough, not exact
-- current demo uses presence/absence only
-- exact quantity tracking is a later capability
+- each row is user-owned inventory and may or may not resolve to a canonical `Ingredient`
+- `display_name` is the user-facing inventory name; `normalized_name` supports backend matching and grouping
+- `estimated_amount` and `unit` are lightweight user-editable quantities, not a full pantry ledger
+- the inventory UI applies default quantities and unit choices for common ingredients when rows are missing explicit values
+- canonical ingredients carry `category` and `default_unit`; the inventory UI falls back to name-based category/unit inference for older or unresolved rows
 - "things I usually have" is valuable before object detection is reliable
 - shopping-cart generation can skip ingredients marked in kitchen
 - future vision detections should flow through review or inventory candidate states before becoming trusted pantry state
@@ -766,7 +772,11 @@ type UserPreferences = {
     longitude?: number;
     kroger_location_id?: string;
   };
-  household_size?: "just_me" | "two_people" | "three_to_four_people" | "five_plus_people";
+  household_size?:
+    | "just_me"
+    | "two_people"
+    | "three_to_four_people"
+    | "five_plus_people";
   kids_profile?: "no_kids" | "toddlers" | "kids_5_to_12" | "teenagers";
   favorite_proteins?: Array<
     | "chicken"
@@ -804,10 +814,17 @@ type UserPreferences = {
     | "30_to_45_min"
     | "up_to_1_hour"
     | "over_1_hour";
-  typical_meal_times?: Array<"breakfast" | "lunch" | "dinner" | "snacks" | "late_night" | "meal_prep">;
+  typical_meal_times?: Array<
+    "breakfast" | "lunch" | "dinner" | "snacks" | "late_night" | "meal_prep"
+  >;
   goal_priorities?: string[];
   calorie_tracking_mode?: "none" | "casual" | "calories" | "full_macros";
-  weekly_budget?: "under_50" | "50_to_100" | "100_to_150" | "150_to_200" | "no_budget_limit";
+  weekly_budget?:
+    | "under_50"
+    | "50_to_100"
+    | "100_to_150"
+    | "150_to_200"
+    | "no_budget_limit";
   preferred_stores?: string[];
   shopping_mode?: "in_store" | "pickup" | "delivery" | "mixed";
   recipe_discovery_sources?: string[];
