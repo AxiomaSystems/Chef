@@ -15,7 +15,7 @@ Useful work in that branch:
 - `apps/api/src/vision/*`: a Nest vision API contract.
 - `packages/shared/src/vision.ts`: shared vision request/response types.
 - `apps/vision-lab/*`: Python experimentation lane for Streamlit, FastAPI, YOLO, video scans, live camera, overlays, provisional tracking, and local runtime inventory.
-- `docs/vision.md` and `docs/vision-progress.md`: useful architecture notes.
+- `docs/vision.md` and `docs/archive/vision-progress.md`: useful architecture notes.
 
 Do not merge blindly:
 
