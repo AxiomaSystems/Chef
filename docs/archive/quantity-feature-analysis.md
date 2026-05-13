@@ -3,6 +3,7 @@
 ## Current Project Structure Overview
 
 ### Backend Architecture
+
 The Chef backend is a NestJS application with these key components:
 
 1. **Data Layer** (Prisma Schema)
@@ -34,7 +35,9 @@ The Chef backend is a NestJS application with these key components:
    ```
 
 ### Frontend Structure
+
 The web app has:
+
 - Recipe selection and meal planning
 - Cart creation and editing
 - Kitchen inventory management at `/inventory`
@@ -47,6 +50,7 @@ The web app has:
 ### ✅ Where Quantities Already Exist
 
 #### 1. **Recipe Level** (`DishIngredient`)
+
 ```prisma
 model DishIngredient {
   amount    Float   // e.g., 2.5
@@ -54,10 +58,12 @@ model DishIngredient {
   ...
 }
 ```
+
 - Used for individual recipe ingredient amounts
 - Tied to recipe servings
 
 #### 2. **Kitchen Inventory** (`KitchenInventoryItem`)
+
 ```prisma
 model KitchenInventoryItem {
   estimatedAmount  Float?  // nullable - user's pantry amount
@@ -65,11 +71,13 @@ model KitchenInventoryItem {
   ...
 }
 ```
+
 - Tracks what the user **already has** at home
 - Confidence level (low, medium, high)
 - Source (manual, cart, vision, receipt, inferred)
 
 #### 3. **Cart Aggregation** (`AggregatedIngredient`)
+
 ```typescript
 type AggregatedIngredient = {
   canonical_ingredient: string;
@@ -98,7 +106,7 @@ private async withKitchenInventory(
 ): Promise<AggregatedIngredient[]> {
   const inventorySlugs =
     await this.ingredientsService.listInventoryIngredientSlugs(userId);
-  
+
   return overview.map((ingredient) => ({
     ...ingredient,
     in_kitchen: inventorySlugs.has(
@@ -110,6 +118,7 @@ private async withKitchenInventory(
 ```
 
 **What's missing:**
+
 - When an ingredient is marked "already_have", the system doesn't:
   1. Check if the user has **enough** of it
   2. Automatically deduct kitchen inventory amount from the needed amount
@@ -121,6 +130,7 @@ private async withKitchenInventory(
 Your idea has strong backend support. Here's what COULD be added:
 
 #### **Enhancement 1: Quantity-Aware Kitchen Check**
+
 ```typescript
 private async withKitchenInventory(
   userId: string,
@@ -128,24 +138,24 @@ private async withKitchenInventory(
 ): Promise<AggregatedIngredient[]> {
   // Get actual kitchen inventory with quantities
   const inventoryItems = await this.ingredientsService.listInventory(userId);
-  
+
   const inventoryMap = new Map(
     inventoryItems.map(item => [
       normalizeSlug(item.ingredient.canonical_name),
       item.estimated_amount,  // ← USE THE QUANTITY
     ])
   );
-  
+
   return overview.map((ingredient) => {
     const inventoryAmount = inventoryMap.get(
       normalizeSlug(ingredient.canonical_ingredient)
     );
-    
+
     const inKitchen = inventoryAmount != null;
-    const stillNeeded = inKitchen 
+    const stillNeeded = inKitchen
       ? Math.max(0, ingredient.total_amount - inventoryAmount)
       : ingredient.total_amount;
-    
+
     return {
       ...ingredient,
       in_kitchen: inKitchen,
@@ -158,13 +168,16 @@ private async withKitchenInventory(
 ```
 
 #### **Enhancement 2: Quantity Review Options**
+
 Currently the review actions are:
+
 - `"buy"` - add all to cart
 - `"already_have"` - exclude from cart (all or nothing)
 - `"skip"` - don't buy
 - `"adjust"` - manually set quantity
 
 **Could add:**
+
 - `"partially_have"` - automatically deduct inventory
   ```typescript
   {
@@ -176,6 +189,7 @@ Currently the review actions are:
   ```
 
 #### **Enhancement 3: Schema Extension**
+
 To properly support this, the schema could be enhanced:
 
 ```prisma
@@ -184,7 +198,7 @@ model IngredientReview {
   action: ReviewAction                    // existing
   adjusted_amount?: Float                 // existing
   adjusted_unit?: String                  // existing
-  
+
   // NEW FIELDS:
   inventory_amount?: Float                // qty deducted
   inventory_unit?: String                 // unit of inventory
@@ -250,6 +264,7 @@ model IngredientReview {
 ## Recommended Implementation Path
 
 ### Phase 1: **Quantity-Aware Display** (Low Risk)
+
 ```typescript
 // Extend AggregatedIngredient to show inventory info
 // No schema changes, just display logic
@@ -260,14 +275,17 @@ model IngredientReview {
 ```
 
 **Backend:**
+
 - Update `withKitchenInventory()` to include actual quantities
 - Extend `AggregatedIngredient` type
 
 **Frontend:**
+
 - Show "You have 1L, need 0.5L more" in ingredient review UI
 - Optional: auto-calculate suggested adjustment
 
 ### Phase 2: **Automatic Deduction** (Medium Risk)
+
 ```typescript
 // When user marks "already_have", auto-calculate remainder
 - If inventory_amount >= needed: exclude entirely
@@ -276,15 +294,18 @@ model IngredientReview {
 ```
 
 **Backend:**
+
 - Enhance review processing logic
 - Add unit conversion utility
 - Handle edge cases (confidence levels, unit mismatches)
 
 **Frontend:**
+
 - Ask user to confirm suggested deductions
 - Show inventory amount breakdown
 
 ### Phase 3: **Smart Inventory Integration** (Higher Risk)
+
 ```typescript
 // Link inventory state to cart state
 // Sync kitchen inventory when user marks items as bought
@@ -295,13 +316,13 @@ model IngredientReview {
 
 ## Code Locations for Implementation
 
-| Component | File | Current Focus |
-|-----------|------|----------------|
-| Aggregation | `apps/api/src/aggregation/aggregation.service.ts` | Sums recipe quantities |
-| Cart Service | `apps/api/src/cart/cart.service.ts` | Manages cart and reviews |
-| Ingredients | `apps/api/src/ingredients/ingredients.service.ts` | Inventory CRUD |
-| Cart Shared Types | `packages/shared/src/aggregation.ts` | Type definitions |
-| Inventory UI | `apps/web/src/app/inventory/inventory-client.tsx` | Displays inventory |
+| Component         | File                                              | Current Focus            |
+| ----------------- | ------------------------------------------------- | ------------------------ |
+| Aggregation       | `apps/api/src/aggregation/aggregation.service.ts` | Sums recipe quantities   |
+| Cart Service      | `apps/api/src/cart/cart.service.ts`               | Manages cart and reviews |
+| Ingredients       | `apps/api/src/ingredients/ingredients.service.ts` | Inventory CRUD           |
+| Cart Shared Types | `packages/shared/src/aggregation.ts`              | Type definitions         |
+| Inventory UI      | `apps/web/src/app/inventory/inventory-client.tsx` | Displays inventory       |
 
 ---
 
@@ -316,6 +337,7 @@ model IngredientReview {
 - **Clear implementation path** from display → calculation → automation
 
 **Next steps:**
+
 1. Define which scenario matters most (auto-deduct? just display? both?)
 2. Identify unit conversion requirements
 3. Prototype Phase 1 (quantity display)
