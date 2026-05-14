@@ -74,6 +74,7 @@ export type AiRecipeImportResult = {
   source_title: string;
   source_creator: string | null;
   source_description: string;
+  source_image_url: string | null;
   imported_recipe: AiRecipePreview;
   extraction_notes: string[];
 };
