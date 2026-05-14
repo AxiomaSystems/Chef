@@ -123,6 +123,10 @@ export class AnalyzeVisionMediaDto {
   ocr_provider?: string;
 
   @IsOptional()
+  @IsIn(['containers_only', 'all_detections', 'intelligent_filtering'])
+  ocr_mode?: 'containers_only' | 'all_detections' | 'intelligent_filtering';
+
+  @IsOptional()
   @Transform(toBoolean)
   @IsBoolean()
   ocr_cache_enabled?: boolean;

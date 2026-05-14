@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import base64
 import shutil
+from uuid import uuid4
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -24,8 +25,10 @@ from chef_vision.classifier import (
 )
 from chef_vision.contracts import (
     BoundingBox,
+    Detection,
     DebugObjectInput,
     FrameInput,
+    FrameResult,
     ScanOptions,
     ScanResponse,
     ScanSummary,
@@ -355,11 +358,68 @@ def refresh_summary(result: ScanResponse) -> None:
     )
 
 
+def build_ocr_only_scan_response(
+    *,
+    scan_session_id: str,
+    frames: list[FrameInput],
+) -> ScanResponse:
+    frame_results = [
+        FrameResult(
+            frame_id=frame.frame_id,
+            frame_ref=frame.frame_ref,
+            zone_id=frame.zone_id,
+            timestamp_ms=frame.timestamp_ms,
+            detections=[
+                Detection(
+                    observation_id=f"ocr_{frame.frame_id}_{uuid4().hex[:8]}",
+                    class_id="ocr_text_region",
+                    label="OCR text",
+                    category="container",
+                    granularity="generic",
+                    inventory_policy="review",
+                    bbox=BoundingBox(x=0, y=0, width=1, height=1),
+                    confidence=1.0,
+                    detector_label="ocr_text_region",
+                    detector_confidence=1.0,
+                )
+            ],
+        )
+        for frame in frames
+    ]
+    pipeline = VisionPipeline(detector_name="mock").describe_pipeline()
+    pipeline.provider = "ocr-only"
+    pipeline.notes = [
+        *pipeline.notes,
+        "OCR-only media scans skip object detection, crop classification, "
+        "segmentation, and object bounding-box review.",
+    ]
+    detections = [
+        detection
+        for frame_result in frame_results
+        for detection in frame_result.detections
+    ]
+    return ScanResponse(
+        scan_session_id=scan_session_id,
+        pipeline=pipeline,
+        frames=frame_results,
+        summary=ScanSummary(
+            frame_count=len(frame_results),
+            detection_count=len(detections),
+            track_candidate_count=0,
+            review_candidate_count=len(detections),
+            ignored_detection_count=0,
+            detected_labels=sorted({detection.label for detection in detections}),
+        ),
+    )
+
+
 app = FastAPI(
     title="Chef Vision Python API",
     version="0.1.0",
     description="Separate Python sidecar for vision experimentation before full product integration.",
 )
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -422,7 +482,11 @@ def detect_media(
 ) -> dict:
     suffix = Path(media.filename or "").suffix.lower()
     if not suffix:
-        suffix = ".mp4" if media.content_type and media.content_type.startswith("video/") else ".jpg"
+        suffix = (
+            ".mp4"
+            if media.content_type and media.content_type.startswith("video/")
+            else ".jpg"
+        )
 
     with TemporaryDirectory(prefix="chef_vision_upload_") as temp_dir:
         temp_path = Path(temp_dir)
@@ -436,7 +500,11 @@ def detect_media(
             max_detections_per_frame=max(1, min(max_detections_per_frame, 50)),
             confidence_threshold=max(0.0, min(confidence_threshold, 1.0)),
         )
-        pipeline = VisionPipeline(detector_name=detector, model_name=model_name)
+        detector_key = detector.strip().lower()
+        ocr_only = detector_key in {"ocr", "ocr-only", "ocr_only"}
+        pipeline = None
+        if not ocr_only:
+            pipeline = VisionPipeline(detector_name=detector, model_name=model_name)
 
         is_video = (
             media_kind == "video"
@@ -470,11 +538,17 @@ def detect_media(
                 )
             ]
 
-        result = pipeline.analyze_scan(
-            scan_session_id=f"media_{media_kind}",
-            frames=frames,
-            options=options,
-        )
+        if ocr_only:
+            result = build_ocr_only_scan_response(
+                scan_session_id=f"media_{media_kind}_ocr",
+                frames=frames,
+            )
+        else:
+            result = pipeline.analyze_scan(
+                scan_session_id=f"media_{media_kind}",
+                frames=frames,
+                options=options,
+            )
         classification = None
         if classify_crops:
             classification = classify_frame_crops(

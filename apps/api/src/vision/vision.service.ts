@@ -212,6 +212,10 @@ export class VisionService {
       input.ocr_provider ?? process.env.VISION_OCR_PROVIDER ?? 'rapidocr',
     );
     formData.set(
+      'ocr_mode',
+      input.ocr_mode ?? process.env.VISION_OCR_MODE ?? 'intelligent_filtering',
+    );
+    formData.set(
       'ocr_cache_enabled',
       String(
         input.ocr_cache_enabled ?? process.env.VISION_OCR_CACHE_ENABLED ?? true,

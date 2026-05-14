@@ -28,6 +28,15 @@ type DetectionGroup = {
   thumbnail?: string;
 };
 
+type OcrQueueItem = {
+  id: string;
+  scanNumber: number;
+  label: string;
+  text: string;
+  detection: VisionDetection;
+  added: boolean;
+};
+
 type VisionOcrSettings = {
   enabled: boolean;
   provider: "rapidocr";
@@ -38,7 +47,6 @@ type VisionOcrSettings = {
 const DEFAULT_VISION_DETECTOR = "yolo";
 const DEFAULT_VISION_CLASSIFIER_RUN =
   "resnet18_ingredient_crops_5000_modal_frozen_v2";
-const LIVE_SCAN_INTERVAL_MS = 1200;
 const CLASSIFIER_RELABEL_MIN_CONFIDENCE = "0.85";
 const OCR_SETTINGS_STORAGE_KEY = "chef_vision_ocr_settings_v1";
 const DEFAULT_OCR_SETTINGS: VisionOcrSettings = {
@@ -60,15 +68,15 @@ export function VisionScanModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const liveScanAbortRef = useRef<AbortController | null>(null);
-  const liveScanInFlightRef = useRef(false);
+  const scanAbortRef = useRef<AbortController | null>(null);
   const [preview, setPreview] = useState<PreviewState | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [result, setResult] = useState<VisionScanResponse | null>(null);
   const [expandedLabel, setExpandedLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [isLiveScanning, setIsLiveScanning] = useState(false);
-  const [lastLiveScanAt, setLastLiveScanAt] = useState<number | null>(null);
+  const [isCameraOcrScanning, setIsCameraOcrScanning] = useState(false);
+  const [lastCameraOcrAt, setLastCameraOcrAt] = useState<number | null>(null);
   const [addingKey, setAddingKey] = useState<string | null>(null);
   const [focusedFrame, setFocusedFrame] = useState<{
     src: string;
@@ -80,6 +88,7 @@ export function VisionScanModal({
   const [manualLabels, setManualLabels] = useState<Record<string, string>>({});
   const [ocrSettings, setOcrSettings] =
     useState<VisionOcrSettings>(DEFAULT_OCR_SETTINGS);
+  const [ocrQueueItems, setOcrQueueItems] = useState<OcrQueueItem[]>([]);
   const [discardedDetectionIds, setDiscardedDetectionIds] = useState<
     Record<string, true>
   >({});
@@ -141,8 +150,7 @@ export function VisionScanModal({
 
     return () => {
       mounted = false;
-      liveScanAbortRef.current?.abort();
-      setIsLiveScanning(false);
+      scanAbortRef.current?.abort();
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, [mode]);
@@ -176,19 +184,19 @@ export function VisionScanModal({
   const primaryAnnotatedFrame = frames.find(
     (frame) => frame.annotated_image_data_url,
   );
-  const latestCameraFrame =
-    mode === "camera" ? frames[frames.length - 1] : undefined;
   const expectedClassificationOff =
     result?.classification?.enabled === false &&
     result.classification.reason ===
       "Crop classification was not requested for this scan.";
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
+    const file = files[0];
     if (!file) return;
 
     if (preview?.url) URL.revokeObjectURL(preview.url);
 
+    setSelectedFiles(files);
     setPreview({
       file,
       fileName: file.name,
@@ -202,65 +210,72 @@ export function VisionScanModal({
     setManualLabels({});
     setDiscardedDetectionIds({});
     setError(null);
-    setLastLiveScanAt(null);
+    setLastCameraOcrAt(null);
   }
 
-  const getScanMedia = useCallback(async () => {
-    if (preview?.file) {
-      return {
-        blob: preview.file,
-        fileName: preview.file.name,
-      };
-    }
+  const getScanMedia = useCallback(
+    async (file?: File) => {
+      const selectedFile = file ?? preview?.file;
 
-    if (mode !== "camera" || !videoRef.current) {
-      return null;
-    }
-
-    const video = videoRef.current;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.92),
-    );
-
-    if (!blob) return null;
-
-    return {
-      blob,
-      fileName: `camera-${Date.now()}.jpg`,
-    };
-  }, [mode, preview?.file]);
-
-  const submitScan = useCallback(
-    async ({ live = false }: { live?: boolean } = {}) => {
-      if (live && liveScanInFlightRef.current) return false;
-      if (live) {
-        liveScanInFlightRef.current = true;
-      } else {
-        setIsScanning(true);
+      if (selectedFile) {
+        return {
+          blob: selectedFile,
+          fileName: selectedFile.name,
+        };
       }
 
+      if (mode !== "camera" || !videoRef.current) {
+        return null;
+      }
+
+      const video = videoRef.current;
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      canvas.getContext("2d")?.drawImage(video, 0, 0);
+
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", 0.92),
+      );
+
+      if (!blob) return null;
+
+      return {
+        blob,
+        fileName: `camera-${Date.now()}.jpg`,
+      };
+    },
+    [mode, preview?.file],
+  );
+
+  const submitScan = useCallback(
+    async ({
+      mediaFile,
+      ocrOnly = false,
+    }: {
+      mediaFile?: File;
+      ocrOnly?: boolean;
+    } = {}) => {
       const controller = new AbortController();
-      if (live) liveScanAbortRef.current = controller;
+      scanAbortRef.current = controller;
 
       try {
-        const media = await getScanMedia();
+        const media = await getScanMedia(mediaFile);
 
         if (!media) {
           setError("Choose a photo/video or allow camera access first.");
-          return false;
+          return null;
         }
 
         const formData = new FormData();
         formData.set("media", media.blob, media.fileName);
         formData.set("media_kind", mode);
-        formData.set("detector", DEFAULT_VISION_DETECTOR);
+        formData.set(
+          "detector",
+          ocrOnly ? "ocr-only" : DEFAULT_VISION_DETECTOR,
+        );
         formData.set("classifier_run", DEFAULT_VISION_CLASSIFIER_RUN);
-        formData.set("classify_crops", "true");
+        formData.set("classify_crops", ocrOnly ? "false" : "true");
         formData.set("classifier_relabel_enabled", "false");
         formData.set("classifier_top_k", "5");
         formData.set(
@@ -271,15 +286,26 @@ export function VisionScanModal({
         formData.set("use_grid_fallback", "false");
         formData.set("grid_max_crops", "24");
         formData.set("grid_max_additions", "8");
-        formData.set("ocr_enabled", String(ocrSettings.enabled));
+        formData.set("ocr_enabled", String(ocrOnly || ocrSettings.enabled));
         formData.set("ocr_provider", ocrSettings.provider);
         formData.set("ocr_cache_enabled", String(ocrSettings.cacheEnabled));
-        formData.set("ocr_container_only", String(ocrSettings.containerOnly));
-        formData.set("ocr_min_confidence", "0.35");
-        formData.set("max_detections_per_frame", "20");
+        formData.set(
+          "ocr_mode",
+          ocrOnly
+            ? "all_detections"
+            : ocrSettings.containerOnly
+              ? "containers_only"
+              : "intelligent_filtering",
+        );
+        formData.set(
+          "ocr_container_only",
+          String(ocrOnly ? false : ocrSettings.containerOnly),
+        );
+        formData.set("ocr_min_confidence", ocrOnly ? "0.2" : "0.35");
+        formData.set("max_detections_per_frame", ocrOnly ? "1" : "20");
         formData.set("confidence_threshold", "0.2");
         formData.set("sampled_fps", "1");
-        formData.set("max_frames", mode === "video" ? "12" : "1");
+        formData.set("max_frames", mode === "video" && !ocrOnly ? "12" : "1");
 
         const response = await fetch("/api/vision/analyze", {
           method: "POST",
@@ -290,66 +316,25 @@ export function VisionScanModal({
 
         if (!response.ok) {
           setError(payload?.message ?? "Vision scan failed.");
-          return false;
+          return null;
         }
 
         const nextResult = payload as VisionScanResponse;
         exposeVisionScanDebug(nextResult);
-        setResult(nextResult);
-        if (live) {
-          setLastLiveScanAt(Date.now());
-        }
-        const firstLabel = nextResult.frames
-          .flatMap((frame) => frame.detections)
-          .find(Boolean)?.label;
-        setExpandedLabel((current) => current ?? firstLabel ?? null);
-        return true;
+        return nextResult;
       } catch (scanError) {
         if ((scanError as DOMException).name !== "AbortError") {
           setError("Vision scan failed.");
         }
-        return false;
+        return null;
       } finally {
-        if (liveScanAbortRef.current === controller) {
-          liveScanAbortRef.current = null;
-        }
-        if (live) {
-          liveScanInFlightRef.current = false;
-        } else {
-          setIsScanning(false);
+        if (scanAbortRef.current === controller) {
+          scanAbortRef.current = null;
         }
       }
     },
     [getScanMedia, mode, ocrSettings],
   );
-
-  useEffect(() => {
-    if (!isLiveScanning || mode !== "camera" || preview?.kind !== "camera") {
-      return undefined;
-    }
-
-    let stopped = false;
-    let timer: number | null = null;
-
-    async function scanLoop() {
-      const ok = await submitScan({ live: true });
-      if (stopped) return;
-      if (!ok) {
-        setIsLiveScanning(false);
-        return;
-      }
-      timer = window.setTimeout(scanLoop, LIVE_SCAN_INTERVAL_MS);
-    }
-
-    void scanLoop();
-
-    return () => {
-      stopped = true;
-      if (timer !== null) window.clearTimeout(timer);
-      liveScanAbortRef.current?.abort();
-      liveScanInFlightRef.current = false;
-    };
-  }, [isLiveScanning, mode, preview?.kind, submitScan]);
 
   function runScan() {
     setError(null);
@@ -359,24 +344,64 @@ export function VisionScanModal({
     setSelectedLabels({});
     setManualLabels({});
     setDiscardedDetectionIds({});
-    void submitScan();
+    setIsScanning(true);
+    void (async () => {
+      try {
+        const files = selectedFiles.length
+          ? selectedFiles
+          : preview?.file
+            ? [preview.file]
+            : [];
+
+        if (mode !== "camera" && files.length === 0) {
+          setError("Choose a photo or video first.");
+          return;
+        }
+
+        const scanResults: VisionScanResponse[] = [];
+        for (const file of files) {
+          const nextResult = await submitScan({ mediaFile: file });
+          if (!nextResult) return;
+          scanResults.push(nextResult);
+        }
+
+        const nextResult = combineVisionScanResults(scanResults);
+        setResult(nextResult);
+        const firstLabel = nextResult?.frames
+          .flatMap((frame) => frame.detections)
+          .find(Boolean)?.label;
+        setExpandedLabel(firstLabel ?? null);
+      } finally {
+        setIsScanning(false);
+      }
+    })();
   }
 
-  function startLiveScan() {
+  function scanCameraOcr() {
     setError(null);
-    setResult(null);
-    setExpandedLabel(null);
-    setFocusedFrame(null);
-    setSelectedLabels({});
-    setManualLabels({});
-    setDiscardedDetectionIds({});
-    setLastLiveScanAt(null);
-    setIsLiveScanning(true);
-  }
+    setIsCameraOcrScanning(true);
+    void (async () => {
+      try {
+        const scanResult = await submitScan({ ocrOnly: true });
+        if (!scanResult) return;
 
-  function stopLiveScan() {
-    liveScanAbortRef.current?.abort();
-    setIsLiveScanning(false);
+        const queueItem = ocrQueueItemFromResult(
+          scanResult,
+          ocrQueueItems.length + 1,
+        );
+        if (!queueItem) {
+          setError(
+            "OCR service returned no scan region. Restart the vision sidecar and try again.",
+          );
+          return;
+        }
+
+        setOcrQueueItems((current) => [...current, queueItem]);
+        setLastCameraOcrAt(Date.now());
+      } finally {
+        setIsCameraOcrScanning(false);
+      }
+    })();
   }
 
   async function addDetection(
@@ -509,9 +534,74 @@ export function VisionScanModal({
     }
   }
 
+  function updateOcrQueueItemLabel(id: string, label: string) {
+    setOcrQueueItems((current) =>
+      current.map((item) => (item.id === id ? { ...item, label } : item)),
+    );
+  }
+
+  function removeOcrQueueItem(id: string) {
+    setOcrQueueItems((current) => current.filter((item) => item.id !== id));
+  }
+
+  async function addOcrQueueItem(item: OcrQueueItem) {
+    const label = item.label.trim();
+    if (!label) {
+      setError("Name the OCR item before adding it.");
+      return;
+    }
+
+    const key = `ocr-${item.id}`;
+    setAddingKey(key);
+    const observation = await createVisionObservationAction(
+      observationPayloadForDetection(item.detection, label, {
+        ocr_scan_item_id: item.id,
+        ocr_scan_number: item.scanNumber,
+        ocr_text: item.text,
+      }),
+    );
+
+    if (!observation.data) {
+      setAddingKey(null);
+      setError(observation.error ?? "Failed to save vision observation.");
+      return;
+    }
+
+    const response = await addVisionObservationToInventoryAction(
+      observation.data.id,
+      {
+        display_name: label,
+        canonical_name: label,
+      },
+    );
+    setAddingKey(null);
+
+    if (response.error) {
+      setError(response.error);
+      return;
+    }
+
+    if (response.data) {
+      onAdded?.(response.data);
+      setOcrQueueItems((current) =>
+        current.map((currentItem) =>
+          currentItem.id === item.id
+            ? { ...currentItem, added: true }
+            : currentItem,
+        ),
+      );
+    }
+  }
+
+  async function addAllOcrQueueItems() {
+    const pendingItems = ocrQueueItems.filter((item) => !item.added);
+    for (const item of pendingItems) {
+      await addOcrQueueItem(item);
+    }
+  }
+
   function handleClose() {
-    liveScanAbortRef.current?.abort();
-    setIsLiveScanning(false);
+    scanAbortRef.current?.abort();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     setFocusedFrame(null);
     onClose();
@@ -539,6 +629,7 @@ export function VisionScanModal({
             ref={fileInputRef}
             type="file"
             accept={mode === "video" ? "video/*" : "image/*"}
+            multiple={mode !== "camera"}
             className="hidden"
             onChange={handleFileChange}
           />
@@ -554,17 +645,11 @@ export function VisionScanModal({
                     muted
                     className="absolute inset-0 h-full w-full object-fill"
                   />
-                  {latestCameraFrame && (
-                    <CameraDetectionOverlay
-                      detections={latestCameraFrame.detections}
-                      labelForDetection={labelForDetection}
-                    />
-                  )}
                   <div className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
-                    {isLiveScanning
-                      ? "Live scanning"
-                      : lastLiveScanAt
-                        ? "Live scan paused"
+                    {isCameraOcrScanning
+                      ? "Reading text"
+                      : lastCameraOcrAt
+                        ? "OCR scan captured"
                         : "Camera ready"}
                   </div>
                 </>
@@ -694,35 +779,40 @@ export function VisionScanModal({
                   <span className="material-symbols-outlined text-[18px]">
                     upload
                   </span>
-                  Select {mode === "photo" ? "photo" : "video"}
+                  Select {mode === "photo" ? "photos" : "videos"}
                 </button>
               )}
 
               {preview?.fileName && (
-                <div className="flex min-w-0 items-center gap-2 rounded-xl border border-outline-variant/40 px-3 py-2 text-xs text-outline">
-                  <span className="material-symbols-outlined text-[16px]">
-                    draft
-                  </span>
-                  <span className="truncate">{preview.fileName}</span>
+                <div className="min-w-0 rounded-xl border border-outline-variant/40 px-3 py-2 text-xs text-outline">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px]">
+                      draft
+                    </span>
+                    <span className="truncate">{preview.fileName}</span>
+                  </div>
+                  {selectedFiles.length > 1 && (
+                    <p className="mt-1 pl-6 font-semibold">
+                      {selectedFiles.length} files selected
+                    </p>
+                  )}
                 </div>
               )}
 
               {mode === "camera" ? (
                 <button
-                  onClick={isLiveScanning ? stopLiveScan : startLiveScan}
-                  disabled={!preview}
-                  className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50 ${
-                    isLiveScanning ? "bg-red-600" : "bg-on-surface"
-                  }`}
+                  onClick={scanCameraOcr}
+                  disabled={!preview || isCameraOcrScanning}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-on-surface py-3 text-sm font-bold text-white disabled:opacity-50"
                 >
                   <span
                     className={`material-symbols-outlined text-[18px] ${
-                      isLiveScanning ? "animate-spin" : ""
+                      isCameraOcrScanning ? "animate-spin" : ""
                     }`}
                   >
-                    {isLiveScanning ? "stop_circle" : "play_circle"}
+                    {isCameraOcrScanning ? "refresh" : "document_scanner"}
                   </span>
-                  {isLiveScanning ? "Stop live scan" : "Start live scan"}
+                  {isCameraOcrScanning ? "Scanning..." : "Scan OCR"}
                 </button>
               ) : (
                 <button
@@ -737,11 +827,15 @@ export function VisionScanModal({
                   >
                     {isScanning ? "refresh" : "center_focus_strong"}
                   </span>
-                  {isScanning ? "Looking..." : "Find items"}
+                  {isScanning
+                    ? "Looking..."
+                    : selectedFiles.length > 1
+                      ? `Find items in ${selectedFiles.length} files`
+                      : "Find items"}
                 </button>
               )}
 
-              {result && (
+              {mode !== "camera" && result && (
                 <div className="grid grid-cols-2 gap-2">
                   <Metric label="Visible objects" value={detections.length} />
                   <Metric label="Item types" value={detectionGroups.length} />
@@ -749,10 +843,9 @@ export function VisionScanModal({
               )}
 
               {error && <p className="text-sm text-red-600">{error}</p>}
-              {mode === "camera" && result && (
+              {mode === "camera" && (
                 <p className="rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-xs font-semibold text-outline">
-                  Stop the live scan to review containers, cans, bottles, and
-                  anything generic before adding it.
+                  Live preview stays on. OCR runs only when you press Scan OCR.
                 </p>
               )}
               {result?.classification &&
@@ -766,7 +859,7 @@ export function VisionScanModal({
             </div>
           </div>
 
-          {result && (
+          {mode !== "camera" && result && (
             <div className="mt-5 space-y-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -971,6 +1064,92 @@ export function VisionScanModal({
               )}
             </div>
           )}
+
+          {mode === "camera" && ocrQueueItems.length > 0 && (
+            <div className="sticky bottom-0 z-10 mt-5 rounded-2xl border border-outline-variant/50 bg-white p-3 shadow-2xl">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-bold text-on-surface">OCR scan list</p>
+                  <p className="text-xs text-outline">
+                    Review names before they become inventory.
+                  </p>
+                </div>
+                <button
+                  onClick={() => void addAllOcrQueueItems()}
+                  disabled={
+                    addingKey !== null ||
+                    ocrQueueItems.every((item) => item.added)
+                  }
+                  className="rounded-full bg-primary-fixed-dim px-4 py-2 text-xs font-bold text-on-primary-fixed disabled:opacity-60"
+                >
+                  Add all
+                </button>
+              </div>
+
+              <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
+                {ocrQueueItems.map((item) => {
+                  const addKey = `ocr-${item.id}`;
+                  return (
+                    <div
+                      key={item.id}
+                      className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2 rounded-xl border border-outline-variant/40 px-3 py-2"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container text-xs font-bold text-outline">
+                        {item.scanNumber}
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <input
+                          value={item.label}
+                          onChange={(event) =>
+                            updateOcrQueueItemLabel(item.id, event.target.value)
+                          }
+                          disabled={item.added}
+                          className="w-full rounded-lg border border-outline-variant/60 bg-white px-3 py-2 text-sm font-semibold text-on-surface disabled:opacity-60"
+                          aria-label={`OCR item ${item.scanNumber} name`}
+                        />
+                        {item.text && (
+                          <p className="line-clamp-2 text-[11px] leading-4 text-outline">
+                            {item.text}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => void addOcrQueueItem(item)}
+                          disabled={
+                            item.added ||
+                            addingKey === addKey ||
+                            !item.label.trim()
+                          }
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant/60 text-on-surface disabled:opacity-50"
+                          aria-label={`Add OCR item ${item.scanNumber}`}
+                          title={`Add OCR item ${item.scanNumber}`}
+                        >
+                          <span className="material-symbols-outlined text-[18px]">
+                            {item.added
+                              ? "check"
+                              : addingKey === addKey
+                                ? "refresh"
+                                : "add"}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => removeOcrQueueItem(item.id)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-outline hover:bg-surface-container"
+                          aria-label={`Remove OCR item ${item.scanNumber}`}
+                          title={`Remove OCR item ${item.scanNumber}`}
+                        >
+                          <span className="material-symbols-outlined text-[18px]">
+                            close
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {focusedFrame && (
@@ -1000,6 +1179,165 @@ export function VisionScanModal({
         </div>
       )}
     </div>
+  );
+}
+
+function combineVisionScanResults(results: VisionScanResponse[]) {
+  if (results.length === 0) return null;
+  if (results.length === 1) return results[0];
+
+  const frames = results.flatMap((result, resultIndex) =>
+    result.frames.map((frame) => ({
+      ...frame,
+      frame_id: resultIndex * 1000 + frame.frame_id,
+    })),
+  );
+  const detections = frames.flatMap((frame) => frame.detections);
+  const detectedLabels = Array.from(
+    new Set(detections.map((detection) => detection.label)),
+  ).sort((left, right) => left.localeCompare(right));
+
+  return {
+    ...results[0],
+    scan_session_id: `media_batch_${Date.now()}`,
+    frames,
+    summary: {
+      frame_count: frames.length,
+      detection_count: detections.length,
+      track_candidate_count: detections.filter(
+        (detection) => detection.inventory_policy === "track",
+      ).length,
+      review_candidate_count: detections.filter(
+        (detection) => detection.inventory_policy === "review",
+      ).length,
+      ignored_detection_count: detections.filter(
+        (detection) => detection.inventory_policy === "ignore",
+      ).length,
+      detected_labels: detectedLabels,
+    },
+    classification: combineClassificationSummaries(results),
+    ocr: combineOcrSummaries(results),
+  } satisfies VisionScanResponse;
+}
+
+function combineClassificationSummaries(results: VisionScanResponse[]) {
+  const summaries = results
+    .map((result) => result.classification)
+    .filter(
+      (summary): summary is NonNullable<VisionScanResponse["classification"]> =>
+        Boolean(summary),
+    );
+  if (summaries.length === 0) return undefined;
+
+  return {
+    ...summaries[0],
+    classified_detection_count: sumOptional(
+      summaries.map((summary) => summary.classified_detection_count),
+    ),
+    full_image_added_count: sumOptional(
+      summaries.map((summary) => summary.full_image_added_count),
+    ),
+    grid_added_count: sumOptional(
+      summaries.map((summary) => summary.grid_added_count),
+    ),
+  };
+}
+
+function combineOcrSummaries(results: VisionScanResponse[]) {
+  const summaries = results
+    .map((result) => result.ocr)
+    .filter((summary): summary is NonNullable<VisionScanResponse["ocr"]> =>
+      Boolean(summary),
+    );
+  if (summaries.length === 0) return undefined;
+
+  return {
+    ...summaries[0],
+    processed_detection_count: sumOptional(
+      summaries.map((summary) => summary.processed_detection_count),
+    ),
+    cache_hit_count: sumOptional(
+      summaries.map((summary) => summary.cache_hit_count),
+    ),
+    text_box_count: sumOptional(
+      summaries.map((summary) => summary.text_box_count),
+    ),
+    warnings: summaries.flatMap((summary) => summary.warnings ?? []),
+  };
+}
+
+function sumOptional(values: Array<number | undefined>) {
+  return values.reduce<number>((total, value) => total + (value ?? 0), 0);
+}
+
+function ocrQueueItemFromResult(
+  result: VisionScanResponse,
+  scanNumber: number,
+): OcrQueueItem | null {
+  const detections = result.frames.flatMap((frame) => frame.detections);
+  const detection =
+    detections.find((candidate) => candidate.ocr?.suggested_label) ??
+    detections.find((candidate) => candidate.ocr?.text) ??
+    detections[0];
+
+  if (!detection) {
+    return emptyOcrQueueItem(scanNumber);
+  }
+
+  const text = detection.ocr?.text?.trim() ?? "";
+  const label =
+    detection.ocr?.suggested_label?.trim() ||
+    firstReadableOcrLine(text) ||
+    `Scanned item ${scanNumber}`;
+
+  return {
+    id: `${detection.observation_id}-${Date.now()}`,
+    scanNumber,
+    label,
+    text,
+    detection,
+    added: false,
+  };
+}
+
+function emptyOcrQueueItem(scanNumber: number): OcrQueueItem {
+  const detection: VisionDetection = {
+    observation_id: `ocr_empty_${Date.now()}`,
+    class_id: "ocr_text_region",
+    label: "OCR scan",
+    category: "container",
+    granularity: "generic",
+    inventory_policy: "review",
+    bbox: { x: 0, y: 0, width: 1, height: 1 },
+    confidence: 1,
+    detector_label: "ocr_text_region",
+    detector_confidence: 1,
+    ocr: {
+      enabled: false,
+      provider: "rapidocr",
+      text: "",
+      suggested_label: null,
+      text_boxes: [],
+      warnings: ["OCR service returned no detections for this frame."],
+    },
+  };
+
+  return {
+    id: `${detection.observation_id}-${Date.now()}`,
+    scanNumber,
+    label: `Scanned item ${scanNumber}`,
+    text: "",
+    detection,
+    added: false,
+  };
+}
+
+function firstReadableOcrLine(text: string) {
+  return (
+    text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.length >= 3 && line.length <= 48) ?? ""
   );
 }
 
@@ -1063,63 +1401,6 @@ function titleForMode(mode: VisionMode) {
   if (mode === "camera") return "Live scan";
   if (mode === "video") return "Video upload";
   return "Photo upload";
-}
-
-function CameraDetectionOverlay({
-  detections,
-  labelForDetection,
-}: {
-  detections: VisionDetection[];
-  labelForDetection: (detection: VisionDetection) => string;
-}) {
-  return (
-    <div className="pointer-events-none absolute inset-0">
-      {detections.flatMap((detection) =>
-        (detection.ocr?.text_boxes ?? []).map((box, index) => (
-          <div
-            key={`${detection.observation_id}-ocr-${index}`}
-            className="absolute rounded-sm border-2 border-cyan-300 bg-cyan-300/15"
-            style={{
-              left: `${box.bbox.x * 100}%`,
-              top: `${box.bbox.y * 100}%`,
-              width: `${box.bbox.width * 100}%`,
-              height: `${box.bbox.height * 100}%`,
-            }}
-          >
-            <span className="absolute left-0 top-0 max-w-40 -translate-y-full truncate rounded-t-sm bg-cyan-300 px-1.5 py-0.5 text-[10px] font-bold text-black">
-              {box.text}
-            </span>
-          </div>
-        )),
-      )}
-      {detections.map((detection) => {
-        const label = labelForDetection(detection);
-        const review = detection.inventory_policy === "review";
-        return (
-          <div
-            key={detection.observation_id}
-            className={`absolute rounded-md border-2 ${
-              review ? "border-amber-300" : "border-lime-300"
-            }`}
-            style={{
-              left: `${detection.bbox.x * 100}%`,
-              top: `${detection.bbox.y * 100}%`,
-              width: `${detection.bbox.width * 100}%`,
-              height: `${detection.bbox.height * 100}%`,
-            }}
-          >
-            <span
-              className={`absolute left-0 top-0 max-w-full -translate-y-full truncate rounded-t-md px-2 py-0.5 text-[11px] font-bold text-black ${
-                review ? "bg-amber-300" : "bg-lime-300"
-              }`}
-            >
-              {label} {Math.round(detection.confidence * 100)}%
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 function DetectionThumb({ src, label }: { src?: string; label: string }) {

@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { ACCESS_TOKEN_COOKIE, buildApiUrl } from "@/lib/auth";
 
 export async function POST(request: Request) {
+  if (process.env.VISION_SCAN_LAB_ENABLED !== "true") {
+    return NextResponse.json({ message: "Not found" }, { status: 404 });
+  }
+
   const cookieStore = await cookies();
   const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
 
