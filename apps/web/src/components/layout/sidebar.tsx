@@ -62,7 +62,7 @@ export function Sidebar() {
       {/* New Recipe CTA */}
       <div className="px-4 pb-4">
         <Link
-          href="/create?recipe=1"
+          href="/create/new"
           className="flex items-center justify-center gap-2 w-full py-3 bg-primary-fixed-dim text-on-primary-fixed font-bold text-label-lg rounded-full hover:bg-primary-fixed transition-colors shadow-sm"
         >
           <span className="material-symbols-outlined text-[18px]">add</span>

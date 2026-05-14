@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { Capture } from "@cart/shared";
 import { createCaptureAction } from "@/app/import/actions";
 
@@ -78,6 +78,8 @@ export function RecipeCaptureModal({
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const [thinkingStep, setThinkingStep] = useState(0);
   const [isCapturing, startCapture] = useTransition();
+  const captionInputRef = useRef<HTMLTextAreaElement>(null);
+  const textInputRef = useRef<HTMLTextAreaElement>(null);
 
   const recipe = capture?.recipe_preview;
   const canSubmit = mode === "url" ? !!url.trim() : !!text.trim();
@@ -137,6 +139,13 @@ export function RecipeCaptureModal({
         );
         setCapture(null);
         setFailedImageUrl(null);
+        window.setTimeout(() => {
+          if (mode === "url") {
+            captionInputRef.current?.focus();
+            return;
+          }
+          textInputRef.current?.focus();
+        }, 0);
         return;
       }
       setFailedImageUrl(null);
@@ -244,6 +253,7 @@ export function RecipeCaptureModal({
                       </label>
                       <textarea
                         id="capture-caption"
+                        ref={captionInputRef}
                         value={text}
                         onChange={(event) => setText(event.target.value)}
                         rows={5}
@@ -267,6 +277,7 @@ export function RecipeCaptureModal({
                     </label>
                     <textarea
                       id="capture-text"
+                      ref={textInputRef}
                       value={text}
                       onChange={(event) => setText(event.target.value)}
                       rows={8}

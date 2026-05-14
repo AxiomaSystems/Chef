@@ -3,16 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type {
-  BaseRecipe,
-  Capture,
-  CaptureRecipePreview,
-  Cuisine,
-  Tag,
-} from "@cart/shared";
+import type { Capture, Cuisine, Tag } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
-import { RecipeCreateModal } from "@/components/recipes/recipe-create-modal";
 import { RecipeCaptureModal } from "@/components/recipes/recipe-capture-modal";
+
+export const IMPORTED_RECIPE_DRAFT_STORAGE_KEY =
+  "chef:create:imported-recipe-draft";
 
 export function CreateClient({
   cuisines,
@@ -26,37 +22,31 @@ export function CreateClient({
   openRecipeOnLoad?: boolean;
 }) {
   const router = useRouter();
-  const [showRecipeCreate, setShowRecipeCreate] = useState(openRecipeOnLoad);
   const [showCapture, setShowCapture] = useState(openCaptureOnLoad);
-  const [importedDraft, setImportedDraft] =
-    useState<CaptureRecipePreview | null>(null);
 
   useEffect(() => {
-    if (openCaptureOnLoad || openRecipeOnLoad) {
+    if (openRecipeOnLoad) {
+      router.replace("/create/new", { scroll: false });
+      return;
+    }
+
+    if (openCaptureOnLoad) {
       router.replace("/create", { scroll: false });
     }
   }, [openCaptureOnLoad, openRecipeOnLoad, router]);
-
-  function closeRecipeCreate() {
-    setShowRecipeCreate(false);
-    setImportedDraft(null);
-  }
 
   function closeCapture() {
     setShowCapture(false);
   }
 
-  function handleRecipeCreated(_recipe: BaseRecipe) {
-    setShowRecipeCreate(false);
-    setImportedDraft(null);
-    router.push(`/recipes/${_recipe.id}`);
-  }
-
   function handleCaptureReview(capture: Capture) {
     if (!capture.recipe_preview) return;
-    setImportedDraft(capture.recipe_preview);
+    window.sessionStorage.setItem(
+      IMPORTED_RECIPE_DRAFT_STORAGE_KEY,
+      JSON.stringify(capture.recipe_preview),
+    );
     setShowCapture(false);
-    setShowRecipeCreate(true);
+    router.push("/create/new?draft=import");
   }
 
   return (
@@ -78,7 +68,7 @@ export function CreateClient({
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <button
             type="button"
-            onClick={() => setShowRecipeCreate(true)}
+            onClick={() => router.push("/create/new")}
             className="flex min-h-44 flex-col justify-between rounded-[1.6rem] bg-secondary-container p-5 text-left text-on-secondary-container shadow-sm transition-transform active:scale-[0.98]"
           >
             <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white/60">
@@ -124,16 +114,6 @@ export function CreateClient({
           .
         </p>
       </main>
-
-      {showRecipeCreate && (
-        <RecipeCreateModal
-          cuisines={cuisines}
-          tags={tags}
-          onClose={closeRecipeCreate}
-          onCreated={handleRecipeCreated}
-          initialDraft={importedDraft}
-        />
-      )}
 
       {showCapture && (
         <RecipeCaptureModal

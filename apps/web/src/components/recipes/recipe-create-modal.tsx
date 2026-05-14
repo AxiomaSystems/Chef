@@ -117,6 +117,7 @@ export function RecipeCreateModal({
   onCreated,
   initialRecipe,
   initialDraft,
+  presentation = "modal",
 }: {
   cuisines: Cuisine[];
   tags: Tag[];
@@ -124,7 +125,9 @@ export function RecipeCreateModal({
   onCreated: (recipe: BaseRecipe) => void;
   initialRecipe?: BaseRecipe | null;
   initialDraft?: CaptureRecipePreview | null;
+  presentation?: "modal" | "page";
 }) {
+  const isPage = presentation === "page";
   const isEditing = !!initialRecipe;
   const dietaryTags = tags.filter((tag) => tag.kind === "dietary_badge");
   const draftCuisine = initialDraft?.cuisine
@@ -876,37 +879,59 @@ export function RecipeCreateModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-stretch justify-center p-0 sm:items-center sm:p-6">
+    <div
+      className={
+        isPage
+          ? "mx-auto w-full max-w-4xl"
+          : "fixed inset-0 z-[60] flex items-stretch justify-center p-0 sm:items-center sm:p-6"
+      }
+    >
+      {!isPage && (
+        <div
+          className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm"
+          onClick={onClose}
+        />
+      )}
+
       <div
-        className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-background shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl">
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-outline-variant/30 px-4 py-4 sm:items-center sm:px-6">
-          <div className="min-w-0">
-            <h2 className="truncate text-title-lg font-bold text-on-surface sm:text-headline-sm">
-              {isEditing ? "Edit Recipe" : "Create Recipe"}
-            </h2>
-            <p className="mt-0.5 text-body-sm leading-snug text-outline">
-              {isEditing
-                ? "Update this recipe or save the edit as a new version"
-                : initialDraft
-                  ? "Review Chef's imported draft before saving it"
-                  : "Build your own culinary masterpiece"}
-            </p>
+        className={
+          isPage
+            ? "relative flex w-full flex-col overflow-hidden rounded-[1.6rem] border border-outline-variant/40 bg-background shadow-[0_24px_80px_rgba(46,30,15,0.12)] sm:rounded-[2rem]"
+            : "relative flex h-dvh w-full flex-col overflow-hidden bg-background shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl"
+        }
+      >
+        {!isPage && (
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-outline-variant/30 px-4 py-4 sm:items-center sm:px-6">
+            <div className="min-w-0">
+              <h2 className="truncate text-title-lg font-bold text-on-surface sm:text-headline-sm">
+                {isEditing ? "Edit Recipe" : "Create Recipe"}
+              </h2>
+              <p className="mt-0.5 text-body-sm leading-snug text-outline">
+                {isEditing
+                  ? "Update this recipe or save the edit as a new version"
+                  : initialDraft
+                    ? "Review Chef's imported draft before saving it"
+                    : "Build your own culinary masterpiece"}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-surface-container"
+            >
+              <span className="material-symbols-outlined text-[20px] text-outline">
+                close
+              </span>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-surface-container"
-          >
-            <span className="material-symbols-outlined text-[20px] text-outline">
-              close
-            </span>
-          </button>
-        </div>
+        )}
 
-        <div className="flex-1 space-y-7 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
+        <div
+          className={
+            isPage
+              ? "space-y-7 px-4 py-5 sm:px-7 sm:py-7 lg:px-8"
+              : "flex-1 space-y-7 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6"
+          }
+        >
           {error && (
             <div className="rounded-xl bg-error-container p-3 text-body-sm text-on-error-container">
               {error}
@@ -1222,7 +1247,14 @@ export function RecipeCreateModal({
 
             <div className="space-y-2">
               {ingredients.map((row, i) => (
-                <div key={i} className="flex items-start gap-2">
+                <div
+                  key={i}
+                  className={
+                    isPage
+                      ? "grid grid-cols-[minmax(0,1fr)_4.8rem_5.8rem_2.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_5.5rem_7rem_2.5rem]"
+                      : "flex items-start gap-2"
+                  }
+                >
                   <input
                     value={row.canonical_ingredient}
                     onChange={(event) =>
@@ -1244,14 +1276,14 @@ export function RecipeCreateModal({
                       updateIngredient(i, "amount", event.target.value)
                     }
                     placeholder="Qty"
-                    className="w-20 rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="w-full rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-20"
                   />
                   <select
                     value={row.unit}
                     onChange={(event) =>
                       updateIngredient(i, "unit", event.target.value)
                     }
-                    className="w-28 rounded-xl border border-outline-variant/50 bg-white px-2 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="w-full rounded-xl border border-outline-variant/50 bg-white px-2 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-28"
                   >
                     {UNITS.map((unit) => (
                       <option key={unit} value={unit}>
@@ -1262,7 +1294,7 @@ export function RecipeCreateModal({
                   <button
                     onClick={() => removeIngredient(i)}
                     disabled={ingredients.length === 1}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl text-outline transition-colors hover:bg-error-container/30 hover:text-error disabled:opacity-30"
+                    className="flex h-10 w-full items-center justify-center rounded-xl text-outline transition-colors hover:bg-error-container/30 hover:text-error disabled:opacity-30 sm:h-9 sm:w-9"
                   >
                     <span className="material-symbols-outlined text-[18px]">
                       delete
@@ -1288,7 +1320,14 @@ export function RecipeCreateModal({
 
             <div className="space-y-3">
               {steps.map((row, i) => (
-                <div key={i} className="flex items-start gap-3">
+                <div
+                  key={i}
+                  className={
+                    isPage
+                      ? "grid grid-cols-[2.25rem_minmax(0,1fr)_2.25rem] gap-2 sm:gap-3"
+                      : "flex items-start gap-3"
+                  }
+                >
                   <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-fixed-dim text-label-sm font-bold text-on-primary-fixed">
                     {i + 1}
                   </div>
@@ -1355,7 +1394,13 @@ export function RecipeCreateModal({
           </section>
         </div>
 
-        <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-outline-variant/30 bg-white px-4 py-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:px-6 sm:py-4">
+        <div
+          className={
+            isPage
+              ? "sticky bottom-[72px] z-10 grid shrink-0 grid-cols-2 gap-3 border-t border-outline-variant/30 bg-white/95 px-4 py-3 backdrop-blur sm:bottom-0 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:px-6 sm:py-4"
+              : "sticky bottom-0 grid shrink-0 grid-cols-2 gap-3 border-t border-outline-variant/30 bg-white/95 px-4 py-3 backdrop-blur sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:px-6 sm:py-4"
+          }
+        >
           <button
             onClick={onClose}
             className="min-h-11 rounded-full border border-outline-variant px-5 py-2.5 text-label-md text-on-surface-variant transition-colors hover:bg-surface-container-low"
