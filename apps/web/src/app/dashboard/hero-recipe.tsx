@@ -21,7 +21,7 @@ export function HeroRecipe({
         className="md:col-span-8 group cursor-pointer"
         onClick={() => setOpen(true)}
       >
-        <div className="bg-white rounded-[2rem] overflow-hidden shadow-[0_4px_20px_rgba(137,80,50,0.08)] border border-outline-variant/20 relative min-h-[420px] flex flex-col">
+        <div className="bg-white rounded-[2rem] overflow-hidden shadow-[0_4px_20px_rgba(60,154,158,0.08)] border border-outline-variant/20 relative min-h-[420px] flex flex-col">
           {/* Image */}
           <div className="absolute inset-0">
             <RecipeImage
@@ -57,18 +57,30 @@ export function HeroRecipe({
 
             <div className="flex items-center gap-6 text-white/90 mb-6 flex-wrap">
               <div className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-primary-fixed-dim text-[18px]">group</span>
-                <span className="text-label-lg">{recipe.servings} servings</span>
+                <span className="material-symbols-outlined text-primary-fixed-dim text-[18px]">
+                  group
+                </span>
+                <span className="text-label-lg">
+                  {recipe.servings} servings
+                </span>
               </div>
               {recipe.nutrition_data?.calories && (
                 <div className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-primary-fixed-dim text-[18px]">local_fire_department</span>
-                  <span className="text-label-lg">{recipe.nutrition_data.calories} kcal</span>
+                  <span className="material-symbols-outlined text-primary-fixed-dim text-[18px]">
+                    local_fire_department
+                  </span>
+                  <span className="text-label-lg">
+                    {recipe.nutrition_data.calories} kcal
+                  </span>
                 </div>
               )}
               <div className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-primary-fixed-dim text-[18px]">receipt_long</span>
-                <span className="text-label-lg">{recipe.ingredients.length} ingredients</span>
+                <span className="material-symbols-outlined text-primary-fixed-dim text-[18px]">
+                  receipt_long
+                </span>
+                <span className="text-label-lg">
+                  {recipe.ingredients.length} ingredients
+                </span>
               </div>
             </div>
 
@@ -88,7 +100,10 @@ export function HeroRecipe({
       <RecipeDetailOverlay
         recipe={open ? recipe : null}
         onClose={() => setOpen(false)}
-        onAddToCart={(r) => { setOpen(false); onAddToCart(r); }}
+        onAddToCart={(r) => {
+          setOpen(false);
+          onAddToCart(r);
+        }}
       />
     </>
   );

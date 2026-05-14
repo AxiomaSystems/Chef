@@ -5,9 +5,8 @@ import { usePathname } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard", icon: "home", label: "Home" },
-  { href: "/recipes", icon: "receipt_long", label: "Recipes" },
-  { href: "/import", icon: "add_link", label: "Import" },
-  { href: "/meal-plan", icon: "calendar_month", label: "Meal Plan" },
+  { href: "/meal-plan", icon: "calendar_month", label: "Plan" },
+  { href: "/create", icon: "add_circle", label: "Create" },
   { href: "/shopping", icon: "shopping_cart", label: "Shopping" },
   { href: "/inventory", icon: "inventory_2", label: "Inventory" },
 ];
@@ -19,7 +18,10 @@ export function Sidebar() {
     <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-white border-r border-outline-variant/40 z-50">
       {/* Brand */}
       <div className="px-6 pt-7 pb-5">
-        <Link href="/" className="flex items-center gap-2.5 text-xl font-black text-primary-fixed-dim">
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 text-xl font-black text-primary-fixed-dim"
+        >
           <img
             src="/icon-192.png"
             alt=""
@@ -46,7 +48,9 @@ export function Sidebar() {
                   : "text-on-surface-variant hover:bg-primary-surface/50"
               }`}
             >
-              <span className={`material-symbols-outlined text-[22px] ${active ? "icon-filled" : ""}`}>
+              <span
+                className={`material-symbols-outlined text-[22px] ${active ? "icon-filled" : ""}`}
+              >
                 {icon}
               </span>
               {label}
@@ -73,11 +77,17 @@ export function Sidebar() {
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-primary-surface/50 transition-colors"
         >
           <div className="w-9 h-9 rounded-full bg-primary-fixed-dim flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-white text-[20px]">person</span>
+            <span className="material-symbols-outlined text-white text-[20px]">
+              person
+            </span>
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-label-lg text-on-surface font-semibold truncate">Account</span>
-            <span className="text-[10px] text-outline truncate">Settings & preferences</span>
+            <span className="text-label-lg text-on-surface font-semibold truncate">
+              Account
+            </span>
+            <span className="text-[10px] text-outline truncate">
+              Settings & preferences
+            </span>
           </div>
         </Link>
       </div>

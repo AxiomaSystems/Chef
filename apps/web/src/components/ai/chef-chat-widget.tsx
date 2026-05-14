@@ -74,7 +74,9 @@ export function ChefChatWidget() {
   const [mealStyle, setMealStyle] = useState<
     "standard" | "inventory_first" | "high_protein" | "meal_prep" | "quick"
   >("standard");
-  const [generatedRecipes, setGeneratedRecipes] = useState<AiRecipePreview[]>([]);
+  const [generatedRecipes, setGeneratedRecipes] = useState<AiRecipePreview[]>(
+    [],
+  );
   const [generatedSummary, setGeneratedSummary] = useState("");
   const [savedRecipes, setSavedRecipes] = useState<BaseRecipe[]>([]);
   const [recipePickerOpen, setRecipePickerOpen] = useState(false);
@@ -299,7 +301,9 @@ export function ChefChatWidget() {
 
   const currentPrompts = handsFreeMode ? HANDS_FREE_PROMPTS : followUps;
   const contextLabel =
-    context.type === "none" ? "No recipe pinned" : `${context.name} · ${context.detail}`;
+    context.type === "none"
+      ? "No recipe pinned"
+      : `${context.name} · ${context.detail}`;
   const actionButtons = [
     {
       label: "Paste a link",
@@ -324,8 +328,10 @@ export function ChefChatWidget() {
   function renderLinkPanel(isExpandedView: boolean) {
     return (
       <div
-        className={`border border-[#efdfd2] bg-white ${
-          isExpandedView ? "rounded-[24px] p-4 shadow-sm" : "mt-3 rounded-2xl p-3"
+        className={`border border-[#c0dedf] bg-white ${
+          isExpandedView
+            ? "rounded-[24px] p-4 shadow-sm"
+            : "mt-3 rounded-2xl p-3"
         }`}
       >
         <p className="text-sm font-semibold text-on-surface">
@@ -374,11 +380,15 @@ export function ChefChatWidget() {
   function renderPlannerPanel(isExpandedView: boolean) {
     return (
       <div
-        className={`border border-[#efdfd2] bg-white ${
-          isExpandedView ? "rounded-[24px] p-4 shadow-sm" : "mt-3 rounded-2xl p-3"
+        className={`border border-[#c0dedf] bg-white ${
+          isExpandedView
+            ? "rounded-[24px] p-4 shadow-sm"
+            : "mt-3 rounded-2xl p-3"
         }`}
       >
-        <p className="text-sm font-semibold text-on-surface">Plan meals with Butter Me</p>
+        <p className="text-sm font-semibold text-on-surface">
+          Plan meals with Butter Me
+        </p>
         <div className="mt-3 space-y-3">
           <input
             type="text"
@@ -402,7 +412,7 @@ export function ChefChatWidget() {
                 className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
                   mealStyle === value
                     ? "bg-primary-fixed-dim text-on-primary-fixed"
-                    : "border border-[#ead7c8] bg-white text-on-surface"
+                    : "border border-[#c0dedf] bg-white text-on-surface"
                 }`}
               >
                 {label}
@@ -427,16 +437,24 @@ export function ChefChatWidget() {
 
     return (
       <div
-        className={`border border-[#efdfd2] ${
+        className={`border border-[#c0dedf] ${
           isExpandedView
             ? "rounded-[24px] bg-white p-4 shadow-sm"
-            : "border-b bg-[#fffaf6] px-4 py-3"
+            : "border-b bg-[#fff8ef] px-4 py-3"
         }`}
       >
-        <div className={isExpandedView ? "" : "mb-2 flex items-center justify-between gap-2"}>
+        <div
+          className={
+            isExpandedView ? "" : "mb-2 flex items-center justify-between gap-2"
+          }
+        >
           <div>
-            <p className="text-sm font-semibold text-on-surface">Generated ideas</p>
-            <p className="mt-1 text-xs leading-5 text-outline">{generatedSummary}</p>
+            <p className="text-sm font-semibold text-on-surface">
+              Generated ideas
+            </p>
+            <p className="mt-1 text-xs leading-5 text-outline">
+              {generatedSummary}
+            </p>
           </div>
         </div>
 
@@ -454,8 +472,8 @@ export function ChefChatWidget() {
               onClick={() => pinGeneratedRecipe(recipe)}
               className={
                 isExpandedView
-                  ? "w-full rounded-2xl border border-[#ecd9c9] bg-[#fffaf6] p-3 text-left transition hover:border-primary/40"
-                  : "min-w-[190px] shrink-0 rounded-2xl border border-[#ecd9c9] bg-white p-3 text-left shadow-sm transition hover:border-primary/40"
+                  ? "w-full rounded-2xl border border-[#c0dedf] bg-[#fff8ef] p-3 text-left transition hover:border-primary/40"
+                  : "min-w-[190px] shrink-0 rounded-2xl border border-[#c0dedf] bg-white p-3 text-left shadow-sm transition hover:border-primary/40"
               }
             >
               <p className="line-clamp-2 text-sm font-semibold text-on-surface">
@@ -508,7 +526,9 @@ export function ChefChatWidget() {
         {isPending && (
           <p
             className={`w-fit border border-outline-variant/50 bg-white text-sm text-outline shadow-sm ${
-              isExpandedView ? "rounded-[24px] px-4 py-3" : "rounded-2xl px-3.5 py-2.5"
+              isExpandedView
+                ? "rounded-[24px] px-4 py-3"
+                : "rounded-2xl px-3.5 py-2.5"
             }`}
           >
             Thinking...
@@ -528,7 +548,9 @@ export function ChefChatWidget() {
         {error && (
           <p
             className={`border border-error/20 bg-error-container/40 text-sm text-error ${
-              isExpandedView ? "mb-3 rounded-2xl px-3 py-2" : "mb-2 rounded-xl px-3 py-2"
+              isExpandedView
+                ? "mb-3 rounded-2xl px-3 py-2"
+                : "mb-2 rounded-xl px-3 py-2"
             }`}
           >
             {error}
@@ -596,7 +618,9 @@ export function ChefChatWidget() {
             type="submit"
             disabled={isPending || !prompt.trim()}
             className={`shrink-0 items-center justify-center bg-primary-fixed-dim text-on-primary-fixed hover:bg-primary-fixed disabled:cursor-not-allowed disabled:opacity-50 ${
-              isExpandedView ? "flex h-14 w-14 rounded-2xl" : "flex h-12 w-12 rounded-2xl"
+              isExpandedView
+                ? "flex h-14 w-14 rounded-2xl"
+                : "flex h-12 w-12 rounded-2xl"
             }`}
             aria-label="Ask Chef"
           >
@@ -605,7 +629,9 @@ export function ChefChatWidget() {
         </form>
 
         {safetyNotes.length > 0 && (
-          <p className={`text-[11px] leading-4 text-outline ${isExpandedView ? "mt-3" : "mt-2"}`}>
+          <p
+            className={`text-[11px] leading-4 text-outline ${isExpandedView ? "mt-3" : "mt-2"}`}
+          >
             {safetyNotes[0]}
           </p>
         )}
@@ -625,12 +651,14 @@ export function ChefChatWidget() {
           )}
 
           {isExpanded ? (
-            <section className="fixed left-1/2 top-1/2 z-[70] flex h-[min(860px,calc(100vh-2.5rem))] w-[min(1220px,calc(100vw-2.5rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[36px] border border-[#ecd9c9] bg-white shadow-[0_36px_120px_rgba(52,30,12,0.22)]">
+            <section className="fixed left-1/2 top-1/2 z-[70] flex h-[min(860px,calc(100vh-2.5rem))] w-[min(1220px,calc(100vw-2.5rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[36px] border border-[#c0dedf] bg-white shadow-[0_36px_120px_rgba(52,30,12,0.22)]">
               <div className="grid h-full min-h-0 w-full grid-cols-[340px_minmax(0,1fr)]">
-                <aside className="flex min-h-0 flex-col border-r border-[#efdfd2] bg-[#fffaf6]">
+                <aside className="flex min-h-0 flex-col border-r border-[#c0dedf] bg-[#fff8ef]">
                   <div
-                    className="border-b border-[#efdfd2] px-5 py-5"
-                    style={{ background: "linear-gradient(160deg, #fff5ec, #fffdf9)" }}
+                    className="border-b border-[#c0dedf] px-5 py-5"
+                    style={{
+                      background: "linear-gradient(160deg, #fff2e3, #fffdfa)",
+                    }}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
@@ -647,7 +675,8 @@ export function ChefChatWidget() {
                             Kitchen sidekick
                           </h2>
                           <p className="mt-1 text-xs leading-5 text-outline">
-                            Stays beside the recipe flow while you plan, import, and cook.
+                            Stays beside the recipe flow while you plan, import,
+                            and cook.
                           </p>
                         </div>
                       </div>
@@ -672,17 +701,21 @@ export function ChefChatWidget() {
                           className="flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
                           aria-label="Close Chef chat"
                         >
-                          <span className="material-symbols-outlined text-[19px]">close</span>
+                          <span className="material-symbols-outlined text-[19px]">
+                            close
+                          </span>
                         </button>
                       </div>
                     </div>
 
-                    <div className="mt-4 rounded-[24px] border border-[#efd8c7] bg-white px-4 py-3 shadow-sm">
+                    <div className="mt-4 rounded-[24px] border border-[#c0dedf] bg-white px-4 py-3 shadow-sm">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-outline">
                         Current context
                       </p>
                       <p className="mt-2 text-sm font-semibold text-on-surface">
-                        {context.type === "none" ? "No recipe pinned" : context.name}
+                        {context.type === "none"
+                          ? "No recipe pinned"
+                          : context.name}
                       </p>
                       <p className="mt-1 text-xs leading-5 text-outline">
                         {context.type === "none"
@@ -697,7 +730,7 @@ export function ChefChatWidget() {
                           key={action.label}
                           type="button"
                           onClick={action.onClick}
-                          className="rounded-full border border-[#ead7c8] bg-white px-3 py-1.5 text-xs font-medium text-on-surface transition hover:border-primary/40"
+                          className="rounded-full border border-[#c0dedf] bg-white px-3 py-1.5 text-xs font-medium text-on-surface transition hover:border-primary/40"
                         >
                           {action.label}
                         </button>
@@ -708,7 +741,7 @@ export function ChefChatWidget() {
                         className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
                           handsFreeMode
                             ? "bg-primary-fixed-dim text-on-primary-fixed"
-                            : "border border-[#ead7c8] bg-white text-on-surface hover:border-primary/40"
+                            : "border border-[#c0dedf] bg-white text-on-surface hover:border-primary/40"
                         }`}
                       >
                         Hands-free
@@ -724,7 +757,7 @@ export function ChefChatWidget() {
                 </aside>
 
                 <div className="flex min-h-0 flex-col bg-white">
-                  <header className="border-b border-[#efdfd2] px-6 py-5">
+                  <header className="border-b border-[#c0dedf] px-6 py-5">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
@@ -733,11 +766,15 @@ export function ChefChatWidget() {
                         <h3 className="mt-1 text-lg font-semibold text-on-surface">
                           Cook, adapt, and keep moving
                         </h3>
-                        <p className="mt-1 text-sm text-outline">{contextLabel}</p>
+                        <p className="mt-1 text-sm text-outline">
+                          {contextLabel}
+                        </p>
                       </div>
 
-                      <div className="rounded-full border border-[#ead7c8] bg-[#fff7f1] px-3 py-1.5 text-xs font-medium text-primary-fixed-dim">
-                        {handsFreeMode ? "Hands-free on" : "Hands-free available"}
+                      <div className="rounded-full border border-[#c0dedf] bg-[#fff8ef] px-3 py-1.5 text-xs font-medium text-primary-fixed-dim">
+                        {handsFreeMode
+                          ? "Hands-free on"
+                          : "Hands-free available"}
                       </div>
                     </div>
                   </header>
@@ -752,7 +789,9 @@ export function ChefChatWidget() {
                   <div className="max-h-[72%] w-full rounded-t-[28px] bg-white p-4 shadow-2xl">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-on-surface">My recipes</p>
+                        <p className="text-sm font-semibold text-on-surface">
+                          My recipes
+                        </p>
                         <p className="text-xs text-outline">
                           Pick one to keep pinned while you chat.
                         </p>
@@ -762,7 +801,9 @@ export function ChefChatWidget() {
                         onClick={() => setRecipePickerOpen(false)}
                         className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white"
                       >
-                        <span className="material-symbols-outlined text-[18px]">close</span>
+                        <span className="material-symbols-outlined text-[18px]">
+                          close
+                        </span>
                       </button>
                     </div>
 
@@ -781,7 +822,7 @@ export function ChefChatWidget() {
                             key={recipe.id}
                             type="button"
                             onClick={() => selectRecipe(recipe)}
-                            className="w-full rounded-2xl border border-[#ecd9c9] bg-white px-3 py-3 text-left transition hover:border-primary/40"
+                            className="w-full rounded-2xl border border-[#c0dedf] bg-white px-3 py-3 text-left transition hover:border-primary/40"
                           >
                             <p className="text-sm font-semibold text-on-surface">
                               {recipe.name}
@@ -801,15 +842,19 @@ export function ChefChatWidget() {
               )}
             </section>
           ) : (
-            <section className="relative z-[70] mb-3 flex h-[min(760px,calc(100vh-5rem))] w-[min(460px,calc(100vw-1rem))] flex-col overflow-hidden rounded-[28px] border border-[#ecd9c9] bg-white shadow-[0_24px_80px_rgba(97,58,29,0.18)]">
+            <section className="relative z-[70] mb-3 flex h-[min(760px,calc(100vh-5rem))] w-[min(460px,calc(100vw-1rem))] flex-col overflow-hidden rounded-[28px] border border-[#c0dedf] bg-white shadow-[0_24px_80px_rgba(60,154,158,0.18)]">
               <header
-                className="border-b border-[#efdfd2] px-4 py-4"
-                style={{ background: "linear-gradient(120deg, #fff7f1, #fffdfb)" }}
+                className="border-b border-[#c0dedf] px-4 py-4"
+                style={{
+                  background: "linear-gradient(120deg, #fff8ef, #fffdfa)",
+                }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-fixed-dim text-on-primary-fixed">
-                      <span className="material-symbols-outlined text-[22px]">restaurant</span>
+                      <span className="material-symbols-outlined text-[22px]">
+                        restaurant
+                      </span>
                     </div>
                     <div>
                       <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
@@ -818,7 +863,9 @@ export function ChefChatWidget() {
                       <h2 className="text-sm font-semibold text-on-surface">
                         Kitchen sidekick
                       </h2>
-                      <p className="mt-0.5 text-xs text-outline">{contextLabel}</p>
+                      <p className="mt-0.5 text-xs text-outline">
+                        {contextLabel}
+                      </p>
                     </div>
                   </div>
 
@@ -829,7 +876,9 @@ export function ChefChatWidget() {
                       className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
                       aria-label="Expand Chef chat"
                     >
-                      <span className="material-symbols-outlined text-[19px]">open_in_full</span>
+                      <span className="material-symbols-outlined text-[19px]">
+                        open_in_full
+                      </span>
                     </button>
                     <button
                       type="button"
@@ -840,7 +889,9 @@ export function ChefChatWidget() {
                       className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
                       aria-label="Close Chef chat"
                     >
-                      <span className="material-symbols-outlined text-[19px]">close</span>
+                      <span className="material-symbols-outlined text-[19px]">
+                        close
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -851,7 +902,7 @@ export function ChefChatWidget() {
                       key={action.label}
                       type="button"
                       onClick={action.onClick}
-                      className="rounded-full border border-[#ead7c8] bg-white px-3 py-1.5 text-xs font-medium text-on-surface transition hover:border-primary/40"
+                      className="rounded-full border border-[#c0dedf] bg-white px-3 py-1.5 text-xs font-medium text-on-surface transition hover:border-primary/40"
                     >
                       {action.label}
                     </button>
@@ -862,7 +913,7 @@ export function ChefChatWidget() {
                     className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
                       handsFreeMode
                         ? "bg-primary-fixed-dim text-on-primary-fixed"
-                        : "border border-[#ead7c8] bg-white text-on-surface hover:border-primary/40"
+                        : "border border-[#c0dedf] bg-white text-on-surface hover:border-primary/40"
                     }`}
                   >
                     Hands-free
@@ -882,7 +933,9 @@ export function ChefChatWidget() {
                   <div className="max-h-[72%] w-full rounded-t-[28px] bg-white p-4 shadow-2xl">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-on-surface">My recipes</p>
+                        <p className="text-sm font-semibold text-on-surface">
+                          My recipes
+                        </p>
                         <p className="text-xs text-outline">
                           Pick one to keep pinned while you chat.
                         </p>
@@ -892,7 +945,9 @@ export function ChefChatWidget() {
                         onClick={() => setRecipePickerOpen(false)}
                         className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white"
                       >
-                        <span className="material-symbols-outlined text-[18px]">close</span>
+                        <span className="material-symbols-outlined text-[18px]">
+                          close
+                        </span>
                       </button>
                     </div>
 
@@ -911,7 +966,7 @@ export function ChefChatWidget() {
                             key={recipe.id}
                             type="button"
                             onClick={() => selectRecipe(recipe)}
-                            className="w-full rounded-2xl border border-[#ecd9c9] bg-white px-3 py-3 text-left transition hover:border-primary/40"
+                            className="w-full rounded-2xl border border-[#c0dedf] bg-white px-3 py-3 text-left transition hover:border-primary/40"
                           >
                             <p className="text-sm font-semibold text-on-surface">
                               {recipe.name}

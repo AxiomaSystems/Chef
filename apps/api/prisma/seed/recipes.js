@@ -1,53 +1,64 @@
-const { systemRecipes } = require("./data/system-recipes");
-const { userRecipes } = require("./data/user-recipes");
-const { resolveCuisineId } = require("./cuisines");
+const { systemRecipes } = require('./data/system-recipes');
+const { userRecipes } = require('./data/user-recipes');
+const { resolveCuisineId } = require('./cuisines');
+const { normalizeSlug } = require('./ingredients');
 
 const DIETARY_BADGE_SLUGS = new Set([
-  "halal",
-  "kosher",
-  "vegan",
-  "vegetarian",
-  "pescatarian",
-  "gluten-free",
-  "dairy-free",
-  "nut-free",
-  "egg-free",
-  "soy-free",
-  "high-protein",
-  "low-carb",
-  "low-fat",
-  "low-sodium",
-  "keto",
-  "paleo",
-  "sugar-free",
-  "spicy",
+  'halal',
+  'kosher',
+  'vegan',
+  'vegetarian',
+  'pescatarian',
+  'gluten-free',
+  'dairy-free',
+  'nut-free',
+  'egg-free',
+  'soy-free',
+  'high-protein',
+  'low-carb',
+  'low-fat',
+  'low-sodium',
+  'keto',
+  'paleo',
+  'sugar-free',
+  'spicy',
 ]);
 
 function normalizeTagName(tag) {
-  return tag.trim().replace(/\s+/g, " ");
+  return tag.trim().replace(/\s+/g, ' ');
 }
 
 function normalizeTagSlug(tag) {
   return normalizeTagName(tag)
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
-async function connectRecipeTags(prisma, recipeId, ownerUserId, isSystemRecipe, tags) {
+async function connectRecipeTags(
+  prisma,
+  recipeId,
+  ownerUserId,
+  isSystemRecipe,
+  tags,
+) {
   await prisma.recipeTag.deleteMany({
     where: { recipeId },
   });
 
   const uniqueTags = Array.from(
-    new Map((tags ?? []).map((tag) => [normalizeTagSlug(tag), normalizeTagName(tag)])).entries(),
+    new Map(
+      (tags ?? []).map((tag) => [normalizeTagSlug(tag), normalizeTagName(tag)]),
+    ).entries(),
   ).map(([slug, name]) => ({ slug, name }));
 
   for (const tag of uniqueTags) {
-    const kind = DIETARY_BADGE_SLUGS.has(tag.slug) ? "dietary_badge" : "general";
+    const kind = DIETARY_BADGE_SLUGS.has(tag.slug)
+      ? 'dietary_badge'
+      : 'general';
     const systemTag = await prisma.tag.findFirst({
       where: {
-        scope: "system",
+        scope: 'system',
         slug: tag.slug,
       },
     });
@@ -59,7 +70,7 @@ async function connectRecipeTags(prisma, recipeId, ownerUserId, isSystemRecipe, 
             data: {
               name: tag.name,
               slug: tag.slug,
-              scope: "system",
+              scope: 'system',
               kind,
             },
           })
@@ -70,7 +81,7 @@ async function connectRecipeTags(prisma, recipeId, ownerUserId, isSystemRecipe, 
     if (!userTag) {
       userTag = await prisma.tag.findFirst({
         where: {
-          scope: "user",
+          scope: 'user',
           ownerUserId,
           slug: tag.slug,
         },
@@ -82,22 +93,25 @@ async function connectRecipeTags(prisma, recipeId, ownerUserId, isSystemRecipe, 
         data: {
           name: tag.name,
           slug: tag.slug,
-          scope: "user",
+          scope: 'user',
           ownerUserId,
-          kind: "general",
+          kind: 'general',
         },
       });
-    } else if (userTag.name !== tag.name || userTag.kind !== "general") {
+    } else if (userTag.name !== tag.name || userTag.kind !== 'general') {
       userTag = await prisma.tag.update({
         where: { id: userTag.id },
         data: {
           name: tag.name,
-          kind: "general",
+          kind: 'general',
         },
       });
     }
 
-    if (resolvedTag && (resolvedTag.name !== tag.name || resolvedTag.kind !== kind)) {
+    if (
+      resolvedTag &&
+      (resolvedTag.name !== tag.name || resolvedTag.kind !== kind)
+    ) {
       await prisma.tag.update({
         where: { id: resolvedTag.id },
         data: {
@@ -116,8 +130,41 @@ async function connectRecipeTags(prisma, recipeId, ownerUserId, isSystemRecipe, 
   }
 }
 
+async function mapRecipeIngredientsWithCanonicalIds(prisma, ingredients) {
+  const slugs = ingredients.map((ingredient) =>
+    normalizeSlug(ingredient.canonicalIngredient),
+  );
+  const ingredientRows = await prisma.ingredient.findMany({
+    where: {
+      slug: {
+        in: Array.from(new Set(slugs.filter(Boolean))),
+      },
+    },
+    select: {
+      id: true,
+      slug: true,
+    },
+  });
+  const ingredientIdsBySlug = new Map(
+    ingredientRows.map((ingredient) => [ingredient.slug, ingredient.id]),
+  );
+
+  return ingredients.map((ingredient, index) => {
+    const ingredientId = ingredientIdsBySlug.get(slugs[index]);
+
+    return {
+      ...ingredient,
+      ...(ingredientId ? { ingredientId } : {}),
+    };
+  });
+}
+
 async function upsertRecipe(prisma, recipe, ownership) {
   const cuisineId = await resolveCuisineId(prisma, recipe.cuisine);
+  const ingredients = await mapRecipeIngredientsWithCanonicalIds(
+    prisma,
+    recipe.ingredients,
+  );
 
   const existing = await prisma.baseRecipe.findFirst({
     where: {
@@ -139,7 +186,7 @@ async function upsertRecipe(prisma, recipe, ownership) {
     servings: recipe.servings,
     ingredients: {
       deleteMany: existing ? {} : undefined,
-      create: recipe.ingredients,
+      create: ingredients,
     },
     steps: {
       deleteMany: existing ? {} : undefined,
@@ -209,41 +256,41 @@ async function seedRecipes(prisma, devUserId) {
 
 async function seedDietaryBadgeTags(prisma) {
   const labels = {
-    "halal": "Halal",
-    "kosher": "Kosher",
-    "vegan": "Vegan",
-    "vegetarian": "Vegetarian",
-    "pescatarian": "Pescatarian",
-    "gluten-free": "Gluten-Free",
-    "dairy-free": "Dairy-Free",
-    "nut-free": "Nut-Free",
-    "egg-free": "Egg-Free",
-    "soy-free": "Soy-Free",
-    "high-protein": "High-Protein",
-    "low-carb": "Low-Carb",
-    "low-fat": "Low-Fat",
-    "low-sodium": "Low-Sodium",
-    "keto": "Keto",
-    "paleo": "Paleo",
-    "sugar-free": "Sugar-Free",
-    "spicy": "Spicy",
+    halal: 'Halal',
+    kosher: 'Kosher',
+    vegan: 'Vegan',
+    vegetarian: 'Vegetarian',
+    pescatarian: 'Pescatarian',
+    'gluten-free': 'Gluten-Free',
+    'dairy-free': 'Dairy-Free',
+    'nut-free': 'Nut-Free',
+    'egg-free': 'Egg-Free',
+    'soy-free': 'Soy-Free',
+    'high-protein': 'High-Protein',
+    'low-carb': 'Low-Carb',
+    'low-fat': 'Low-Fat',
+    'low-sodium': 'Low-Sodium',
+    keto: 'Keto',
+    paleo: 'Paleo',
+    'sugar-free': 'Sugar-Free',
+    spicy: 'Spicy',
   };
 
   for (const [slug, name] of Object.entries(labels)) {
     const existing = await prisma.tag.findFirst({
-      where: { slug, scope: "system" },
+      where: { slug, scope: 'system' },
     });
 
     if (existing) {
       await prisma.tag.update({
         where: { id: existing.id },
-        data: { name, kind: "dietary_badge" },
+        data: { name, kind: 'dietary_badge' },
       });
       continue;
     }
 
     await prisma.tag.create({
-      data: { name, slug, scope: "system", kind: "dietary_badge" },
+      data: { name, slug, scope: 'system', kind: 'dietary_badge' },
     });
   }
 }

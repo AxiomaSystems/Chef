@@ -8,6 +8,18 @@ Purpose: make it easy to fix frontend 404s and contract drift caused by the back
 
 This is not a product spec. It is a practical handoff for reconnecting the current web app to the backend that exists now.
 
+## Product Direction Update - 2026-05-08
+
+Chef is now prioritizing a mobile-first app experience, followed by tablet, then desktop.
+
+Frontend work should use this order when making layout and interaction decisions:
+
+- phone layout is the baseline experience
+- tablet should enhance the phone flow without changing the core route model
+- desktop should adapt the same app surface instead of becoming the primary design target
+- bottom navigation should center the main app destinations: Home, Plan, Create, Shopping, Inventory
+- recipe discovery should start on Home, and recipe cards should route to a dedicated recipe detail page
+
 ## Why This Handoff Exists
 
 During backend stabilization we changed or formalized:

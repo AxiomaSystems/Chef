@@ -2,11 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
+  CreateVisionObservationRequest,
   KitchenInventoryItem,
   VisionDetection,
   VisionScanResponse,
 } from "@cart/shared";
-import { addInventoryItemAction } from "./actions";
+import {
+  addVisionObservationToInventoryAction,
+  createVisionObservationAction,
+} from "./actions";
 
 type VisionMode = "photo" | "video" | "camera";
 
@@ -375,9 +379,29 @@ export function VisionScanModal({
     setIsLiveScanning(false);
   }
 
-  async function addDetection(label: string, key: string) {
+  async function addDetection(
+    detection: VisionDetection,
+    label: string,
+    key: string,
+  ) {
     setAddingKey(key);
-    const response = await addInventoryItemAction(label);
+    const observation = await createVisionObservationAction(
+      observationPayloadForDetection(detection, label),
+    );
+
+    if (!observation.data) {
+      setAddingKey(null);
+      setError(observation.error ?? "Failed to save vision observation.");
+      return;
+    }
+
+    const response = await addVisionObservationToInventoryAction(
+      observation.data.id,
+      {
+        display_name: label,
+        canonical_name: label,
+      },
+    );
     setAddingKey(null);
 
     if (response.error) {
@@ -442,10 +466,31 @@ export function VisionScanModal({
   async function addGroup(group: DetectionGroup) {
     const key = `group-${group.label}`;
     setAddingKey(key);
-    const response = await addInventoryItemAction(group.label, {
-      estimatedAmount: group.count > 1 ? group.count : undefined,
-      unit: group.count > 1 ? "ct" : undefined,
-    });
+    const primaryDetection = group.detections[0];
+    const observation = await createVisionObservationAction(
+      observationPayloadForDetection(primaryDetection, group.label, {
+        group_count: group.count,
+        grouped_observation_ids: group.detections.map(
+          (detection) => detection.observation_id,
+        ),
+      }),
+    );
+
+    if (!observation.data) {
+      setAddingKey(null);
+      setError(observation.error ?? "Failed to save vision observation.");
+      return;
+    }
+
+    const response = await addVisionObservationToInventoryAction(
+      observation.data.id,
+      {
+        display_name: group.label,
+        canonical_name: group.label,
+        estimated_amount: group.count > 1 ? group.count : undefined,
+        unit: group.count > 1 ? "ct" : undefined,
+      },
+    );
     setAddingKey(null);
 
     if (response.error) {
@@ -878,7 +923,7 @@ export function VisionScanModal({
                                 setManualLabel(detection.observation_id, value)
                               }
                               onAdd={(label, key) =>
-                                void addDetection(label, key)
+                                void addDetection(detection, label, key)
                               }
                             />
                           </div>
@@ -1240,6 +1285,36 @@ function predictionOptions(detection: VisionDetection) {
   }
 
   return options;
+}
+
+function observationPayloadForDetection(
+  detection: VisionDetection,
+  proposedName: string,
+  extraRawPayload: Record<string, unknown> = {},
+): CreateVisionObservationRequest {
+  return {
+    detected_label: detection.detector_label || detection.label,
+    proposed_name: proposedName,
+    detector_model: detection.class_id,
+    confidence: detection.detector_confidence ?? detection.confidence,
+    bbox: detection.bbox,
+    crop_ref: detection.thumbnail_data_url
+      ? detection.observation_id
+      : undefined,
+    raw_payload: {
+      observation_id: detection.observation_id,
+      class_id: detection.class_id,
+      label: detection.label,
+      category: detection.category,
+      granularity: detection.granularity,
+      inventory_policy: detection.inventory_policy,
+      confidence: detection.confidence,
+      detector_label: detection.detector_label,
+      detector_confidence: detection.detector_confidence,
+      classification_predictions: predictionListForDetection(detection),
+      ...extraRawPayload,
+    },
+  };
 }
 
 function exposeVisionScanDebug(result: VisionScanResponse) {

@@ -190,6 +190,75 @@ export class VisionScanResponseDto {
   summary!: VisionScanSummaryResponseDto;
 }
 
+export class VisionObservationResponseDto {
+  @ApiProperty({ example: 'cmovisionobs0001' })
+  id!: string;
+
+  @ApiPropertyOptional({ example: 'user-1' })
+  user_id?: string;
+
+  @ApiPropertyOptional({ example: 'inventory-olive-oil' })
+  inventory_item_id?: string;
+
+  @ApiProperty({ example: 'bottle' })
+  detected_label!: string;
+
+  @ApiPropertyOptional({ example: 'olive oil bottle' })
+  proposed_name?: string;
+
+  @ApiPropertyOptional({ example: 'olive-oil' })
+  canonical_slug?: string;
+
+  @ApiPropertyOptional({ example: 'yolo-v-next' })
+  detector_model?: string;
+
+  @ApiPropertyOptional({ example: 'resnet18-ingredient-crops' })
+  classifier_model?: string;
+
+  @ApiPropertyOptional({ example: 'yolo-v-next' })
+  model_name?: string;
+
+  @ApiPropertyOptional({ example: 0.82 })
+  confidence?: number;
+
+  @ApiPropertyOptional({ example: 'uploads/scan-1.jpg' })
+  image_ref?: string;
+
+  @ApiPropertyOptional({ example: 'uploads/scan-1-crop-1.jpg' })
+  crop_ref?: string;
+
+  @ApiPropertyOptional({
+    example: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
+  })
+  bbox?: unknown;
+
+  @ApiPropertyOptional({ example: { source: 'vision-sidecar' } })
+  raw_payload?: unknown;
+
+  @ApiProperty({
+    enum: [
+      'pending',
+      'added_to_inventory',
+      'renamed',
+      'discarded',
+      'resolved_to_ingredient',
+    ],
+    example: 'pending',
+  })
+  action!:
+    | 'pending'
+    | 'added_to_inventory'
+    | 'renamed'
+    | 'discarded'
+    | 'resolved_to_ingredient';
+
+  @ApiProperty({ example: '2026-05-08T13:00:00.000Z' })
+  created_at!: string;
+
+  @ApiProperty({ example: '2026-05-08T13:00:00.000Z' })
+  updated_at!: string;
+}
+
 export class RecipeStepResponseDto {
   @ApiProperty({ example: 1 })
   step!: number;
@@ -199,6 +268,9 @@ export class RecipeStepResponseDto {
 }
 
 export class DishIngredientResponseDto {
+  @ApiPropertyOptional({ example: 'ingredient-rice' })
+  ingredient_id?: string;
+
   @ApiProperty({ example: 'rice' })
   canonical_ingredient!: string;
 
@@ -827,6 +899,9 @@ export class AggregatedIngredientResponseDto {
 }
 
 export class IngredientReviewItemResponseDto {
+  @ApiPropertyOptional({ example: 'ingredient-rice' })
+  ingredient_id?: string;
+
   @ApiProperty({ example: 'rice' })
   canonical_ingredient!: string;
 

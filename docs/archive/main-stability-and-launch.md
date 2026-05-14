@@ -172,8 +172,8 @@ Frontend work in this phase should prioritize:
 
 Useful handoff sources:
 
-- `docs/frontend-ui-handoff.md`
-- `docs/week7-backend-status.md`
+- `docs/archive/frontend-ui-handoff.md`
+- `docs/archive/week7-backend-status.md`
 - `docs/specs/api-refactor-standards.md`
 
 ## Required Docs To Keep Current
@@ -183,8 +183,8 @@ These docs should match reality through launch:
 - `README.md`
 - `local-dev-setup.md`
 - `docs/branching.md`
-- `docs/frontend-ui-handoff.md`
-- `docs/week7-backend-status.md`
+- `docs/archive/frontend-ui-handoff.md`
+- `docs/archive/week7-backend-status.md`
 
 If branch policy or deploy policy changes again, update docs immediately instead of letting repo behavior drift away from documentation.
 

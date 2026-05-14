@@ -36,13 +36,13 @@ function toRestrictionLabel(slug: string): string {
 const CHIP_BASE =
   "inline-flex min-h-10 items-center gap-2 rounded-full border px-4 py-2 text-label-md font-semibold shadow-sm transition-all duration-200 active:scale-[0.97]";
 const CHIP_SELECTED =
-  "border-[#895032] bg-[#895032] text-white shadow-[0_12px_24px_-18px_rgba(137,80,50,0.9)]";
+  "border-[#f4790d] bg-[#f4790d] text-white shadow-[0_12px_24px_-18px_rgba(60,154,158,0.9)]";
 const CHIP_UNSELECTED =
-  "border-[#e8ddd7] bg-white/72 text-[#52443d] hover:-translate-y-0.5 hover:border-[#d2c799] hover:bg-[#fbf3dc]";
+  "border-[#c0dedf] bg-white/72 text-[#315f62] hover:-translate-y-0.5 hover:border-[#f4be6b] hover:bg-[#fff2e3]";
 const ADD_INPUT =
-  "flex-1 rounded-full border border-[#e8ddd7] bg-white px-4 py-2 text-body-sm text-[#52443d] placeholder:text-[#b0a49a] focus:outline-none focus:ring-2 focus:ring-[#895032]/20";
+  "flex-1 rounded-full border border-[#c0dedf] bg-white px-4 py-2 text-body-sm text-[#315f62] placeholder:text-[#5f8689] focus:outline-none focus:ring-2 focus:ring-[#f4790d]/20";
 const ADD_BTN =
-  "inline-flex items-center gap-1 rounded-full border border-[#895032] px-4 py-2 text-label-sm font-semibold text-[#895032] transition-colors hover:bg-[#895032] hover:text-white disabled:opacity-40";
+  "inline-flex items-center gap-1 rounded-full border border-[#f4790d] px-4 py-2 text-label-sm font-semibold text-[#f4790d] transition-colors hover:bg-[#f4790d] hover:text-white disabled:opacity-40";
 
 type Props = {
   cuisines: Cuisine[];
@@ -98,7 +98,12 @@ export function StepCuisineDietary({
 
   function addCustomCuisine() {
     const label = cuisineInput.trim();
-    if (!label || customCuisineLabels.map((l) => l.toLowerCase()).includes(label.toLowerCase()))
+    if (
+      !label ||
+      customCuisineLabels
+        .map((l) => l.toLowerCase())
+        .includes(label.toLowerCase())
+    )
       return;
     onCustomCuisineLabelsChange([...customCuisineLabels, label]);
     setCuisineInput("");
@@ -119,14 +124,18 @@ export function StepCuisineDietary({
     onDietaryRestrictionsChange(dietaryRestrictions.filter((s) => s !== slug));
   }
 
-  const presetRestrictionSlugs = new Set(DIETARY_RESTRICTION_PRESETS.map((p) => p.slug));
-  const customRestrictions = dietaryRestrictions.filter((slug) => !presetRestrictionSlugs.has(slug));
+  const presetRestrictionSlugs = new Set(
+    DIETARY_RESTRICTION_PRESETS.map((p) => p.slug),
+  );
+  const customRestrictions = dietaryRestrictions.filter(
+    (slug) => !presetRestrictionSlugs.has(slug),
+  );
 
   return (
     <div className="grid gap-8">
       {/* ── Cuisines ─────────────────────────────────────────────────── */}
       <div className="grid gap-4">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           What cuisines do you love?
         </p>
 
@@ -142,7 +151,9 @@ export function StepCuisineDietary({
                 className={`${CHIP_BASE} ${isSelected ? CHIP_SELECTED : CHIP_UNSELECTED}`}
               >
                 {isSelected && (
-                  <span className="material-symbols-outlined text-[16px]">check</span>
+                  <span className="material-symbols-outlined text-[16px]">
+                    check
+                  </span>
                 )}
                 {cuisine.label}
               </button>
@@ -160,9 +171,13 @@ export function StepCuisineDietary({
                 onClick={() => removeCustomCuisine(label)}
                 className={`${CHIP_BASE} ${CHIP_SELECTED}`}
               >
-                <span className="material-symbols-outlined text-[16px]">check</span>
+                <span className="material-symbols-outlined text-[16px]">
+                  check
+                </span>
                 {label}
-                <span className="material-symbols-outlined text-[14px] opacity-70">close</span>
+                <span className="material-symbols-outlined text-[14px] opacity-70">
+                  close
+                </span>
               </button>
             ))}
           </div>
@@ -190,7 +205,7 @@ export function StepCuisineDietary({
       {/* ── Dietary preferences ──────────────────────────────────────── */}
       {dietaryTags.length > 0 && (
         <div className="grid gap-3">
-          <p className="text-label-lg font-semibold text-[#52443d]">
+          <p className="text-label-lg font-semibold text-[#315f62]">
             Any dietary preferences?
           </p>
           <div className="flex flex-wrap gap-2">
@@ -205,7 +220,9 @@ export function StepCuisineDietary({
                   className={`${CHIP_BASE} ${isSelected ? CHIP_SELECTED : CHIP_UNSELECTED}`}
                 >
                   {isSelected && (
-                    <span className="material-symbols-outlined text-[16px]">check</span>
+                    <span className="material-symbols-outlined text-[16px]">
+                      check
+                    </span>
                   )}
                   {tag.name}
                 </button>
@@ -218,10 +235,10 @@ export function StepCuisineDietary({
       {/* ── Dietary restrictions ─────────────────────────────────────── */}
       <div className="grid gap-3">
         <div>
-          <p className="text-label-lg font-semibold text-[#52443d]">
+          <p className="text-label-lg font-semibold text-[#315f62]">
             Any dietary restrictions?
           </p>
-          <p className="mt-0.5 text-body-sm text-[#89776b]">
+          <p className="mt-0.5 text-body-sm text-[#5f8689]">
             Allergies, intolerances, or other hard requirements.
           </p>
         </div>
@@ -238,7 +255,9 @@ export function StepCuisineDietary({
                 className={`${CHIP_BASE} ${isSelected ? CHIP_SELECTED : CHIP_UNSELECTED}`}
               >
                 {isSelected && (
-                  <span className="material-symbols-outlined text-[16px]">check</span>
+                  <span className="material-symbols-outlined text-[16px]">
+                    check
+                  </span>
                 )}
                 {label}
               </button>
@@ -252,9 +271,13 @@ export function StepCuisineDietary({
               onClick={() => removeCustomRestriction(slug)}
               className={`${CHIP_BASE} ${CHIP_SELECTED}`}
             >
-              <span className="material-symbols-outlined text-[16px]">check</span>
+              <span className="material-symbols-outlined text-[16px]">
+                check
+              </span>
               {toRestrictionLabel(slug)}
-              <span className="material-symbols-outlined text-[14px] opacity-70">close</span>
+              <span className="material-symbols-outlined text-[14px] opacity-70">
+                close
+              </span>
             </button>
           ))}
         </div>

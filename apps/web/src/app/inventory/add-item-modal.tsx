@@ -37,7 +37,7 @@ export function AddItemModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-xl text-[#1a1c1a]">Add ingredient</h2>
+          <h2 className="font-bold text-xl text-[#132326]">Add ingredient</h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-full hover:bg-surface-container transition-colors"

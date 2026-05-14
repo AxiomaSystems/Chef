@@ -46,17 +46,17 @@ export function OnboardingShell({
   const activeStep = STEP_META[currentStep - 1]!;
 
   return (
-    <main className="relative flex min-h-screen overflow-hidden bg-[#fbf7f1] px-4 py-6 sm:px-6 lg:px-10">
+    <main className="relative flex min-h-screen overflow-hidden bg-[#fff8ef] px-4 py-6 sm:px-6 lg:px-10">
       <div className="relative mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-[0.86fr_1.14fr]">
         <aside className="hidden lg:block">
           <div className="max-w-sm">
-            <p className="text-[13px] font-black uppercase tracking-[0.22em] text-[#895032]">
+            <p className="text-[13px] font-black uppercase tracking-[0.22em] text-[#f4790d]">
               Butter Me
             </p>
-            <h1 className="mt-4 text-[48px] font-black leading-[0.98] text-[#1a1c1a]">
+            <h1 className="mt-4 text-[48px] font-black leading-[0.98] text-[#132326]">
               Build your Butter Me memory.
             </h1>
-            <p className="mt-5 max-w-xs text-body-md text-[#52443d]">
+            <p className="mt-5 max-w-xs text-body-md text-[#315f62]">
               Teach Chef how to plan meals, groceries, and cooking help around
               you.
             </p>
@@ -72,24 +72,20 @@ export function OnboardingShell({
                     key={item.label}
                     className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all ${
                       isActive
-                        ? "border-[#895032]/35 bg-white/[0.78] shadow-[0_14px_40px_-28px_rgba(61,30,8,0.65)]"
+                        ? "border-[#f4790d]/35 bg-white/[0.78] shadow-[0_14px_40px_-28px_rgba(53,24,0,0.65)]"
                         : isDone
-                          ? "border-[#d6e4c1] bg-[#f4f8ec]/75"
+                          ? "border-[#c0dedf] bg-[#fff8ef]/75"
                           : "border-transparent bg-white/[0.38]"
                     }`}
                   >
                     <span
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                        isDone || isActive
-                          ? "bg-[#895032]"
-                          : "bg-[#efe7df]"
+                        isDone || isActive ? "bg-[#f4790d]" : "bg-[#c0dedf]"
                       }`}
                     >
                       <span
                         className={`material-symbols-outlined text-[18px] ${
-                          isDone || isActive
-                            ? "text-white"
-                            : "text-[#85736c]"
+                          isDone || isActive ? "text-white" : "text-[#5f8689]"
                         }`}
                       >
                         {isDone ? "check" : item.icon}
@@ -97,7 +93,7 @@ export function OnboardingShell({
                     </span>
                     <span
                       className={`text-label-lg ${
-                        isActive ? "text-[#1a1c1a]" : "text-[#52443d]"
+                        isActive ? "text-[#132326]" : "text-[#315f62]"
                       }`}
                     >
                       {item.label}
@@ -107,12 +103,12 @@ export function OnboardingShell({
               })}
             </div>
 
-            <div className="mt-6 overflow-hidden rounded-[1.6rem] border border-[#eadbd1] bg-white/70 p-4 shadow-[0_24px_70px_-48px_rgba(61,30,8,0.75)]">
+            <div className="mt-6 overflow-hidden rounded-[1.6rem] border border-[#c0dedf] bg-white/70 p-4 shadow-[0_24px_70px_-48px_rgba(53,24,0,0.75)]">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#895032]">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#f4790d]">
                   Butter Me knows
                 </p>
-                <span className="material-symbols-outlined text-[18px] text-[#895032]">
+                <span className="material-symbols-outlined text-[18px] text-[#f4790d]">
                   auto_awesome
                 </span>
               </div>
@@ -121,15 +117,15 @@ export function OnboardingShell({
                   {memoryItems.slice(0, 5).map((item) => (
                     <li
                       key={item}
-                      className="flex items-start gap-2 text-body-sm text-[#52443d]"
+                      className="flex items-start gap-2 text-body-sm text-[#315f62]"
                     >
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#895032]" />
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#f4790d]" />
                       <span>{item}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-body-sm text-[#85736c]">
+                <p className="mt-3 text-body-sm text-[#5f8689]">
                   Your answers will appear here as Chef learns your defaults.
                 </p>
               )}
@@ -139,44 +135,44 @@ export function OnboardingShell({
 
         <div className="w-full">
           <div className="mb-6 text-center lg:hidden">
-            <p className="font-black tracking-tight text-headline-sm text-[#895032]">
+            <p className="font-black tracking-tight text-headline-sm text-[#f4790d]">
               Butter Me memory
             </p>
-            <p className="mt-1 text-body-md text-[#52443d]">
+            <p className="mt-1 text-body-md text-[#315f62]">
               Teach Chef your defaults
             </p>
           </div>
 
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#895032]">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f4790d]">
                 <span className="material-symbols-outlined text-[18px] text-white">
                   {activeStep.icon}
                 </span>
               </span>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#895032]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#f4790d]">
                 {activeStep.label}
               </p>
             </div>
-            <p className="text-[11px] text-[#85736c]">
+            <p className="text-[11px] text-[#5f8689]">
               Profile setup · about 2 min
             </p>
           </div>
 
-          <div className="mb-5 h-1.5 w-full overflow-hidden rounded-full bg-[#eee5dc]">
+          <div className="mb-5 h-1.5 w-full overflow-hidden rounded-full bg-[#c0dedf]">
             <div
-              className="h-full rounded-full bg-[#895032] transition-all duration-500 ease-out"
+              className="h-full rounded-full bg-[#f4790d] transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
             />
           </div>
 
-          <div className="rounded-[2rem] border border-white/80 bg-white/[0.86] p-5 shadow-[0_24px_80px_-45px_rgba(61,30,8,0.78)] backdrop-blur sm:p-8">
+          <div className="rounded-[2rem] border border-white/80 bg-white/[0.86] p-5 shadow-[0_24px_80px_-45px_rgba(53,24,0,0.78)] backdrop-blur sm:p-8">
             <div className="onboarding-step-panel" key={currentStep}>
-              <h2 className="text-headline-sm font-extrabold text-[#1a1c1a] sm:text-headline-md">
+              <h2 className="text-headline-sm font-extrabold text-[#132326] sm:text-headline-md">
                 {title}
               </h2>
               {subtitle ? (
-                <p className="mt-2 max-w-xl text-body-sm text-[#675a52]">
+                <p className="mt-2 max-w-xl text-body-sm text-[#315f62]">
                   {subtitle}
                 </p>
               ) : null}
@@ -197,7 +193,7 @@ export function OnboardingShell({
                     type="button"
                     onClick={onBack}
                     disabled={isPending}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-label-md text-[#52443d] transition-all hover:bg-[#f4f3f1] hover:text-[#1a1c1a] active:scale-[0.98] disabled:opacity-50"
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-label-md text-[#315f62] transition-all hover:bg-[#fff2e3] hover:text-[#132326] active:scale-[0.98] disabled:opacity-50"
                   >
                     <span className="material-symbols-outlined text-[18px]">
                       arrow_back
@@ -214,7 +210,7 @@ export function OnboardingShell({
                   type="button"
                   onClick={onSkip}
                   disabled={isPending}
-                  className="min-h-10 rounded-full px-3 text-label-md text-[#85736c] transition-all hover:bg-[#f4f3f1] hover:text-[#52443d] active:scale-[0.98] disabled:opacity-50"
+                  className="min-h-10 rounded-full px-3 text-label-md text-[#5f8689] transition-all hover:bg-[#fff2e3] hover:text-[#315f62] active:scale-[0.98] disabled:opacity-50"
                 >
                   Not sure yet
                 </button>
@@ -222,7 +218,7 @@ export function OnboardingShell({
                   type="button"
                   onClick={onNext}
                   disabled={isPending}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#895032] px-5 text-label-lg text-white shadow-[0_14px_28px_-16px_rgba(137,80,50,0.8)] transition-all hover:-translate-y-0.5 hover:bg-[#6e3d22] hover:shadow-[0_18px_34px_-18px_rgba(137,80,50,0.9)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:px-6"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#f4790d] px-5 text-label-lg text-white shadow-[0_14px_28px_-16px_rgba(60,154,158,0.8)] transition-all hover:-translate-y-0.5 hover:bg-[#351800] hover:shadow-[0_18px_34px_-18px_rgba(60,154,158,0.9)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:px-6"
                 >
                   {isPending ? (
                     <>
@@ -250,7 +246,7 @@ export function OnboardingShell({
             </div>
           </div>
 
-          <p className="mt-4 text-center text-body-sm text-[#85736c]">
+          <p className="mt-4 text-center text-body-sm text-[#5f8689]">
             You can update these any time in your account settings.
           </p>
         </div>

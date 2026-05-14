@@ -2,7 +2,13 @@
 
 import { useState, useTransition, useMemo } from "react";
 import Image from "next/image";
-import type { KitchenInventoryItem } from "@cart/shared";
+import {
+  displayIngredientCategory,
+  inferInventoryAmount,
+  inferInventoryUnit,
+  INVENTORY_UNIT_OPTIONS,
+  type KitchenInventoryItem,
+} from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { CameraModal } from "./camera-modal";
 import {
@@ -30,91 +36,272 @@ const INGREDIENT_CATALOG: { category: string; items: string[] }[] = [
   {
     category: "Proteins",
     items: [
-      "Chicken Breast", "Chicken Thighs", "Ground Beef", "Beef Steak", "Pork Chops",
-      "Bacon", "Salmon", "Tuna", "Shrimp", "Eggs", "Tofu", "Tempeh", "Lentils",
-      "Chickpeas", "Black Beans", "Kidney Beans", "Edamame", "Turkey Breast",
-      "Lamb Chops", "Sardines", "Crab", "Lobster", "Scallops", "Cod",
+      "Chicken Breast",
+      "Chicken Thighs",
+      "Ground Beef",
+      "Beef Steak",
+      "Pork Chops",
+      "Bacon",
+      "Salmon",
+      "Tuna",
+      "Shrimp",
+      "Eggs",
+      "Tofu",
+      "Tempeh",
+      "Lentils",
+      "Chickpeas",
+      "Black Beans",
+      "Kidney Beans",
+      "Edamame",
+      "Turkey Breast",
+      "Lamb Chops",
+      "Sardines",
+      "Crab",
+      "Lobster",
+      "Scallops",
+      "Cod",
     ],
   },
   {
     category: "Vegetables",
     items: [
-      "Onion", "Garlic", "Tomato", "Bell Pepper", "Broccoli", "Spinach", "Kale",
-      "Carrot", "Celery", "Cucumber", "Zucchini", "Eggplant", "Mushrooms",
-      "Asparagus", "Green Beans", "Peas", "Corn", "Cauliflower", "Brussels Sprouts",
-      "Cabbage", "Lettuce", "Arugula", "Sweet Potato", "Potato", "Beet",
-      "Artichoke", "Leek", "Bok Choy", "Radish", "Turnip", "Parsnip",
+      "Onion",
+      "Garlic",
+      "Tomato",
+      "Bell Pepper",
+      "Broccoli",
+      "Spinach",
+      "Kale",
+      "Carrot",
+      "Celery",
+      "Cucumber",
+      "Zucchini",
+      "Eggplant",
+      "Mushrooms",
+      "Asparagus",
+      "Green Beans",
+      "Peas",
+      "Corn",
+      "Cauliflower",
+      "Brussels Sprouts",
+      "Cabbage",
+      "Lettuce",
+      "Arugula",
+      "Sweet Potato",
+      "Potato",
+      "Beet",
+      "Artichoke",
+      "Leek",
+      "Bok Choy",
+      "Radish",
+      "Turnip",
+      "Parsnip",
     ],
   },
   {
     category: "Fruits",
     items: [
-      "Apple", "Banana", "Lemon", "Lime", "Orange", "Strawberry", "Blueberry",
-      "Raspberry", "Mango", "Avocado", "Grapes", "Pineapple", "Watermelon",
-      "Peach", "Pear", "Plum", "Kiwi", "Papaya", "Coconut", "Cherry",
-      "Pomegranate", "Fig", "Grapefruit", "Cantaloupe",
+      "Apple",
+      "Banana",
+      "Lemon",
+      "Lime",
+      "Orange",
+      "Strawberry",
+      "Blueberry",
+      "Raspberry",
+      "Mango",
+      "Avocado",
+      "Grapes",
+      "Pineapple",
+      "Watermelon",
+      "Peach",
+      "Pear",
+      "Plum",
+      "Kiwi",
+      "Papaya",
+      "Coconut",
+      "Cherry",
+      "Pomegranate",
+      "Fig",
+      "Grapefruit",
+      "Cantaloupe",
     ],
   },
   {
     category: "Dairy & Eggs",
     items: [
-      "Milk", "Butter", "Heavy Cream", "Sour Cream", "Greek Yogurt", "Cream Cheese",
-      "Cheddar Cheese", "Mozzarella", "Parmesan", "Feta", "Brie", "Gouda",
-      "Ricotta", "Cottage Cheese", "Mascarpone", "Half and Half",
+      "Milk",
+      "Butter",
+      "Heavy Cream",
+      "Sour Cream",
+      "Greek Yogurt",
+      "Cream Cheese",
+      "Cheddar Cheese",
+      "Mozzarella",
+      "Parmesan",
+      "Feta",
+      "Brie",
+      "Gouda",
+      "Ricotta",
+      "Cottage Cheese",
+      "Mascarpone",
+      "Half and Half",
     ],
   },
   {
     category: "Grains & Bread",
     items: [
-      "White Rice", "Brown Rice", "Pasta", "Spaghetti", "Penne", "Bread",
-      "Sourdough", "Flour Tortillas", "Corn Tortillas", "Oats", "Quinoa",
-      "Barley", "Couscous", "Breadcrumbs", "Panko", "Pita Bread", "Naan",
-      "All-Purpose Flour", "Whole Wheat Flour", "Cornmeal",
+      "White Rice",
+      "Brown Rice",
+      "Pasta",
+      "Spaghetti",
+      "Penne",
+      "Bread",
+      "Sourdough",
+      "Flour Tortillas",
+      "Corn Tortillas",
+      "Oats",
+      "Quinoa",
+      "Barley",
+      "Couscous",
+      "Breadcrumbs",
+      "Panko",
+      "Pita Bread",
+      "Naan",
+      "All-Purpose Flour",
+      "Whole Wheat Flour",
+      "Cornmeal",
     ],
   },
   {
     category: "Oils & Condiments",
     items: [
-      "Olive Oil", "Vegetable Oil", "Coconut Oil", "Sesame Oil", "Butter",
-      "Soy Sauce", "Fish Sauce", "Worcestershire Sauce", "Hot Sauce", "Sriracha",
-      "Ketchup", "Mustard", "Mayonnaise", "Dijon Mustard", "Hoisin Sauce",
-      "Oyster Sauce", "Tahini", "Pesto", "Tomato Paste", "Tomato Sauce",
-      "BBQ Sauce", "Teriyaki Sauce", "Balsamic Vinegar", "Apple Cider Vinegar",
-      "White Wine Vinegar", "Rice Vinegar",
+      "Olive Oil",
+      "Vegetable Oil",
+      "Coconut Oil",
+      "Sesame Oil",
+      "Butter",
+      "Soy Sauce",
+      "Fish Sauce",
+      "Worcestershire Sauce",
+      "Hot Sauce",
+      "Sriracha",
+      "Ketchup",
+      "Mustard",
+      "Mayonnaise",
+      "Dijon Mustard",
+      "Hoisin Sauce",
+      "Oyster Sauce",
+      "Tahini",
+      "Pesto",
+      "Tomato Paste",
+      "Tomato Sauce",
+      "BBQ Sauce",
+      "Teriyaki Sauce",
+      "Balsamic Vinegar",
+      "Apple Cider Vinegar",
+      "White Wine Vinegar",
+      "Rice Vinegar",
     ],
   },
   {
     category: "Spices & Herbs",
     items: [
-      "Salt", "Black Pepper", "Cumin", "Paprika", "Smoked Paprika", "Turmeric",
-      "Cinnamon", "Oregano", "Thyme", "Rosemary", "Basil", "Bay Leaves",
-      "Chili Powder", "Cayenne Pepper", "Red Pepper Flakes", "Garlic Powder",
-      "Onion Powder", "Ginger", "Nutmeg", "Cloves", "Cardamom", "Coriander",
-      "Cumin Seeds", "Mustard Seeds", "Fennel Seeds", "Dill", "Parsley",
-      "Cilantro", "Chives", "Sage", "Marjoram", "Allspice", "Star Anise",
-      "Vanilla Extract", "Saffron", "Curry Powder", "Garam Masala", "Za'atar",
-      "Sumac", "Harissa", "Ras el Hanout",
+      "Salt",
+      "Black Pepper",
+      "Cumin",
+      "Paprika",
+      "Smoked Paprika",
+      "Turmeric",
+      "Cinnamon",
+      "Oregano",
+      "Thyme",
+      "Rosemary",
+      "Basil",
+      "Bay Leaves",
+      "Chili Powder",
+      "Cayenne Pepper",
+      "Red Pepper Flakes",
+      "Garlic Powder",
+      "Onion Powder",
+      "Ginger",
+      "Nutmeg",
+      "Cloves",
+      "Cardamom",
+      "Coriander",
+      "Cumin Seeds",
+      "Mustard Seeds",
+      "Fennel Seeds",
+      "Dill",
+      "Parsley",
+      "Cilantro",
+      "Chives",
+      "Sage",
+      "Marjoram",
+      "Allspice",
+      "Star Anise",
+      "Vanilla Extract",
+      "Saffron",
+      "Curry Powder",
+      "Garam Masala",
+      "Za'atar",
+      "Sumac",
+      "Harissa",
+      "Ras el Hanout",
     ],
   },
   {
     category: "Pantry Staples",
     items: [
-      "Sugar", "Brown Sugar", "Honey", "Maple Syrup", "Baking Powder", "Baking Soda",
-      "Cornstarch", "Yeast", "Cocoa Powder", "Chocolate Chips", "Vanilla Extract",
-      "Chicken Broth", "Vegetable Broth", "Beef Broth", "Coconut Milk", "Canned Tomatoes",
-      "Canned Corn", "Canned Black Beans", "Canned Chickpeas", "Peanut Butter",
-      "Almond Butter", "Jam", "Olive Tapenade", "Capers", "Sun-Dried Tomatoes",
+      "Sugar",
+      "Brown Sugar",
+      "Honey",
+      "Maple Syrup",
+      "Baking Powder",
+      "Baking Soda",
+      "Cornstarch",
+      "Yeast",
+      "Cocoa Powder",
+      "Chocolate Chips",
+      "Vanilla Extract",
+      "Chicken Broth",
+      "Vegetable Broth",
+      "Beef Broth",
+      "Coconut Milk",
+      "Canned Tomatoes",
+      "Canned Corn",
+      "Canned Black Beans",
+      "Canned Chickpeas",
+      "Peanut Butter",
+      "Almond Butter",
+      "Jam",
+      "Olive Tapenade",
+      "Capers",
+      "Sun-Dried Tomatoes",
     ],
   },
   {
     category: "Nuts & Seeds",
     items: [
-      "Almonds", "Walnuts", "Cashews", "Pecans", "Pistachios", "Pine Nuts",
-      "Pumpkin Seeds", "Sunflower Seeds", "Chia Seeds", "Flaxseeds", "Sesame Seeds",
-      "Hemp Seeds", "Hazelnuts", "Macadamia Nuts", "Brazil Nuts",
+      "Almonds",
+      "Walnuts",
+      "Cashews",
+      "Pecans",
+      "Pistachios",
+      "Pine Nuts",
+      "Pumpkin Seeds",
+      "Sunflower Seeds",
+      "Chia Seeds",
+      "Flaxseeds",
+      "Sesame Seeds",
+      "Hemp Seeds",
+      "Hazelnuts",
+      "Macadamia Nuts",
+      "Brazil Nuts",
     ],
   },
 ];
+
 type VisionMode = "photo" | "video" | "camera";
 
 // ─── Ingredient image ─────────────────────────────────────────────────────────
@@ -149,26 +336,25 @@ function IngredientImage({ name, size }: { name: string; size: number }) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function toTitleCase(str: string) {
-  return str
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(" ");
-}
-
 function realToDisplay(item: KitchenInventoryItem): DisplayItem {
-  const amount =
-    item.estimated_amount != null
-      ? `${item.estimated_amount} ${item.unit ?? "unit"}`.trim()
-      : "In stock";
-  const rawCategory = item.ingredient.category?.trim();
+  const rawCategory = item.ingredient?.category?.trim();
+  const name =
+    item.display_name ||
+    item.label ||
+    item.ingredient?.canonical_name ||
+    "Inventory item";
+  const unit =
+    item.unit ?? item.ingredient?.default_unit ?? inferInventoryUnit(name);
+  const estimatedAmount = item.estimated_amount ?? inferInventoryAmount(unit);
+  const amount = `${estimatedAmount} ${unit}`.trim();
+
   return {
     id: item.id,
-    name: item.label ?? item.ingredient.canonical_name,
-    category: rawCategory ? toTitleCase(rawCategory) : "Other",
+    name,
+    category: displayIngredientCategory(name, rawCategory),
     quantity: amount,
-    estimatedAmount: item.estimated_amount,
-    unit: item.unit,
+    estimatedAmount,
+    unit,
   };
 }
 
@@ -180,7 +366,10 @@ function IngredientPicker({
   embedded = false,
 }: {
   existingNames: Set<string>;
-  onAdd: (name: string, options?: { estimatedAmount?: number; unit?: string }) => void;
+  onAdd: (
+    name: string,
+    options?: { estimatedAmount?: number; unit?: string },
+  ) => void;
   embedded?: boolean;
 }) {
   const [search, setSearch] = useState("");
@@ -205,10 +394,15 @@ function IngredientPicker({
 
   async function handleCheck(name: string) {
     if (existingNames.has(name.toLowerCase()) || adding.has(name)) return;
-    const parsedAmount = Number(amountByName[name]);
+    const defaultUnit = inferInventoryUnit(name);
+    const unit = unitByName[name]?.trim() || defaultUnit;
+    const parsedAmount = Number(
+      amountByName[name] ?? String(inferInventoryAmount(unit)),
+    );
     const estimatedAmount =
-      Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : undefined;
-    const unit = unitByName[name]?.trim() || undefined;
+      Number.isFinite(parsedAmount) && parsedAmount > 0
+        ? parsedAmount
+        : inferInventoryAmount(unit);
     setAdding((prev) => new Set(prev).add(name));
     await onAdd(name, { estimatedAmount, unit });
     setAdding((prev) => {
@@ -229,7 +423,9 @@ function IngredientPicker({
       {/* Header */}
       <div className="px-5 pt-5 pb-4 border-b border-outline-variant/20">
         {!embedded && (
-          <h3 className="font-bold text-on-surface text-base mb-3">Add Ingredients</h3>
+          <h3 className="font-bold text-on-surface text-base mb-3">
+            Add Ingredients
+          </h3>
         )}
         {/* Search */}
         <div className="relative">
@@ -247,7 +443,9 @@ function IngredientPicker({
               onClick={() => setSearch("")}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-outline"
             >
-              <span className="material-symbols-outlined text-[16px]">close</span>
+              <span className="material-symbols-outlined text-[16px]">
+                close
+              </span>
             </button>
           )}
         </div>
@@ -291,6 +489,8 @@ function IngredientPicker({
                 {group.items.map((name) => {
                   const inKitchen = existingNames.has(name.toLowerCase());
                   const isAdding = adding.has(name);
+                  const selectedUnit =
+                    unitByName[name] ?? inferInventoryUnit(name);
                   return (
                     <div
                       key={name}
@@ -307,7 +507,9 @@ function IngredientPicker({
                           className="hidden absolute inset-0 items-center justify-center text-outline"
                           style={{ display: "none" }}
                         >
-                          <span className="material-symbols-outlined text-[14px]">nutrition</span>
+                          <span className="material-symbols-outlined text-[14px]">
+                            nutrition
+                          </span>
                         </span>
                       </div>
                       <span
@@ -323,7 +525,10 @@ function IngredientPicker({
                             type="number"
                             min="0"
                             step="0.1"
-                            value={amountByName[name] ?? ""}
+                            value={
+                              amountByName[name] ??
+                              String(inferInventoryAmount(selectedUnit))
+                            }
                             onChange={(e) =>
                               setAmountByName((prev) => ({
                                 ...prev,
@@ -333,17 +538,23 @@ function IngredientPicker({
                             placeholder="Qty"
                             className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-white text-xs outline-none focus:border-primary"
                           />
-                          <input
-                            value={unitByName[name] ?? ""}
+                          <select
+                            value={selectedUnit}
                             onChange={(e) =>
                               setUnitByName((prev) => ({
                                 ...prev,
                                 [name]: e.target.value,
                               }))
                             }
-                            placeholder="unit"
                             className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-white text-xs outline-none focus:border-primary"
-                          />
+                            aria-label={`Unit for ${name}`}
+                          >
+                            {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       )}
                       {/* Checkbox / state */}
@@ -381,7 +592,10 @@ function IngredientPickerModal({
   onClose,
 }: {
   existingNames: Set<string>;
-  onAdd: (name: string, options?: { estimatedAmount?: number; unit?: string }) => void;
+  onAdd: (
+    name: string,
+    options?: { estimatedAmount?: number; unit?: string },
+  ) => void;
   onClose: () => void;
 }) {
   return (
@@ -390,7 +604,9 @@ function IngredientPickerModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/30">
           <div>
             <p className="font-bold text-on-surface">Add ingredients</p>
-            <p className="text-xs text-outline">Choose what is in your kitchen</p>
+            <p className="text-xs text-outline">
+              Choose what is in your kitchen
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -425,7 +641,9 @@ export function InventoryClient({
   const [ingredientPickerOpen, setIngredientPickerOpen] = useState(false);
   const [visionMode, setVisionMode] = useState<VisionMode | null>(null);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
-  const [items, setItems] = useState<DisplayItem[]>(realItems.map(realToDisplay));
+  const [items, setItems] = useState<DisplayItem[]>(
+    realItems.map(realToDisplay),
+  );
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({});
@@ -457,10 +675,13 @@ export function InventoryClient({
   });
 
   // Group by category
-  const grouped = filtered.reduce<Record<string, DisplayItem[]>>((acc, item) => {
-    (acc[item.category] ??= []).push(item);
-    return acc;
-  }, {});
+  const grouped = filtered.reduce<Record<string, DisplayItem[]>>(
+    (acc, item) => {
+      (acc[item.category] ??= []).push(item);
+      return acc;
+    },
+    {},
+  );
 
   async function handlePickerAdd(
     name: string,
@@ -486,14 +707,19 @@ export function InventoryClient({
     remove();
   }
 
-  async function handleQuantitySave(item: DisplayItem) {
-    const rawAmount = amountDrafts[item.id] ?? String(item.estimatedAmount ?? "");
+  async function handleQuantitySave(
+    item: DisplayItem,
+    overrides: { unit?: string } = {},
+  ) {
+    const rawAmount =
+      amountDrafts[item.id] ?? String(item.estimatedAmount ?? "");
     const parsedAmount = Number(rawAmount);
     const estimatedAmount =
       rawAmount.trim() && Number.isFinite(parsedAmount) && parsedAmount >= 0
         ? parsedAmount
         : null;
-    const unit = (unitDrafts[item.id] ?? item.unit ?? "").trim() || null;
+    const unit =
+      (overrides.unit ?? unitDrafts[item.id] ?? item.unit ?? "").trim() || null;
 
     setSavingId(item.id);
     const result = await updateInventoryItemAction(item.id, {
@@ -503,8 +729,13 @@ export function InventoryClient({
 
     if (result.data) {
       const next = realToDisplay(result.data);
-      setItems((prev) => prev.map((entry) => (entry.id === item.id ? next : entry)));
-      setAmountDrafts((prev) => ({ ...prev, [item.id]: String(next.estimatedAmount ?? "") }));
+      setItems((prev) =>
+        prev.map((entry) => (entry.id === item.id ? next : entry)),
+      );
+      setAmountDrafts((prev) => ({
+        ...prev,
+        [item.id]: String(next.estimatedAmount ?? ""),
+      }));
       setUnitDrafts((prev) => ({ ...prev, [item.id]: next.unit ?? "" }));
     }
 
@@ -525,10 +756,8 @@ export function InventoryClient({
     <>
       <AppShell topBarTitle="Inventory">
         <div className="px-4 py-6 max-w-6xl mx-auto space-y-6">
-
           {/* ── Hero + Quick Restock ── */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-
             {/* Hero banner */}
             <div className="lg:col-span-7 relative rounded-3xl overflow-hidden min-h-44 p-6 flex flex-col justify-between">
               <Image
@@ -544,36 +773,45 @@ export function InventoryClient({
                   Your Kitchen
                 </h2>
                 <p className="text-white/70 text-sm mt-1 max-w-xs leading-5">
-                  Track what you have at home and generate a shopping cart for anything you need.
+                  Track what you have at home and generate a shopping cart for
+                  anything you need.
                 </p>
               </div>
               <div className="relative z-10 flex gap-3 mt-4 flex-wrap">
                 <button
                   onClick={() => setVisionMode("camera")}
-                  className="flex items-center gap-2 bg-white text-[#1a1c1a] font-semibold text-sm px-4 py-2.5 rounded-full shadow hover:bg-white/90 transition-colors"
+                  className="flex items-center gap-2 bg-white text-[#132326] font-semibold text-sm px-4 py-2.5 rounded-full shadow hover:bg-white/90 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[18px]">center_focus_strong</span>
+                  <span className="material-symbols-outlined text-[18px]">
+                    center_focus_strong
+                  </span>
                   Live scan
                 </button>
                 <button
                   onClick={() => setVisionMode("photo")}
                   className="flex items-center gap-2 bg-white/15 text-white font-semibold text-sm px-4 py-2.5 rounded-full border border-white/30 hover:bg-white/25 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
+                  <span className="material-symbols-outlined text-[18px]">
+                    add_a_photo
+                  </span>
                   Photo
                 </button>
                 <button
                   onClick={() => setVisionMode("video")}
                   className="flex items-center gap-2 bg-white/15 text-white font-semibold text-sm px-4 py-2.5 rounded-full border border-white/30 hover:bg-white/25 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[18px]">video_camera_back</span>
+                  <span className="material-symbols-outlined text-[18px]">
+                    video_camera_back
+                  </span>
                   Video
                 </button>
                 <button
                   onClick={() => setBarcodeOpen(true)}
                   className="flex items-center gap-2 bg-white/15 text-white font-semibold text-sm px-4 py-2.5 rounded-full border border-white/30 hover:bg-white/25 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[18px]">barcode_scanner</span>
+                  <span className="material-symbols-outlined text-[18px]">
+                    barcode_scanner
+                  </span>
                   Barcode
                 </button>
                 <button
@@ -581,11 +819,13 @@ export function InventoryClient({
                   aria-expanded={ingredientPickerOpen}
                   className={`flex items-center gap-2 font-semibold text-sm px-4 py-2.5 rounded-full border transition-colors ${
                     ingredientPickerOpen
-                      ? "bg-white text-[#1a1c1a] border-white shadow hover:bg-white/90"
+                      ? "bg-white text-[#132326] border-white shadow hover:bg-white/90"
                       : "bg-white/15 text-white border-white/30 hover:bg-white/25"
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[18px]">add</span>
+                  <span className="material-symbols-outlined text-[18px]">
+                    add
+                  </span>
                   Add
                 </button>
               </div>
@@ -607,7 +847,10 @@ export function InventoryClient({
               ) : (
                 <div className="space-y-3 flex-1">
                   {items.slice(0, 4).map((item) => (
-                    <div key={item.id} className="flex items-center justify-between">
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-7 h-7 rounded-full overflow-hidden bg-surface-container shrink-0 relative">
                           <IngredientImage name={item.name} size={28} />
@@ -615,7 +858,9 @@ export function InventoryClient({
                             className="hidden absolute inset-0 items-center justify-center text-xs text-outline"
                             style={{ display: "none" }}
                           >
-                            <span className="material-symbols-outlined text-[14px]">nutrition</span>
+                            <span className="material-symbols-outlined text-[14px]">
+                              nutrition
+                            </span>
                           </span>
                         </div>
                         <span className="text-sm font-medium text-on-surface truncate">
@@ -628,7 +873,9 @@ export function InventoryClient({
                     </div>
                   ))}
                   {items.length > 4 && (
-                    <p className="text-xs text-outline">+{items.length - 4} more</p>
+                    <p className="text-xs text-outline">
+                      +{items.length - 4} more
+                    </p>
                   )}
                 </div>
               )}
@@ -643,7 +890,9 @@ export function InventoryClient({
               >
                 {isRestocking ? (
                   <>
-                    <span className="material-symbols-outlined text-[16px] animate-spin">refresh</span>
+                    <span className="material-symbols-outlined text-[16px] animate-spin">
+                      refresh
+                    </span>
                     Building cart…
                   </>
                 ) : (
@@ -672,23 +921,26 @@ export function InventoryClient({
                   aria-label="Clear inventory search"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-outline"
                 >
-                  <span className="material-symbols-outlined text-[16px]">close</span>
+                  <span className="material-symbols-outlined text-[16px]">
+                    close
+                  </span>
                 </button>
               )}
             </div>
-            {items.length > 0 && categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  activeCategory === cat
-                    ? "bg-primary-fixed-dim text-on-primary-fixed"
-                    : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+            {items.length > 0 &&
+              categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    activeCategory === cat
+                      ? "bg-primary-fixed-dim text-on-primary-fixed"
+                      : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
           </div>
 
           {/* ── Item groups ── */}
@@ -712,7 +964,8 @@ export function InventoryClient({
                       {category}
                     </span>
                     <span className="text-[11px] text-outline">
-                      {groupItems.length} {groupItems.length === 1 ? "ITEM" : "ITEMS"}
+                      {groupItems.length}{" "}
+                      {groupItems.length === 1 ? "ITEM" : "ITEMS"}
                     </span>
                   </div>
 
@@ -730,7 +983,9 @@ export function InventoryClient({
                             className="hidden absolute inset-0 items-center justify-center text-outline"
                             style={{ display: "none" }}
                           >
-                            <span className="material-symbols-outlined text-[20px]">nutrition</span>
+                            <span className="material-symbols-outlined text-[20px]">
+                              nutrition
+                            </span>
                           </span>
                         </div>
 
@@ -738,7 +993,9 @@ export function InventoryClient({
                           <p className="font-semibold text-sm text-on-surface truncate">
                             {item.name}
                           </p>
-                          <p className="text-xs text-outline">{item.category}</p>
+                          <p className="text-xs text-outline">
+                            {item.category}
+                          </p>
                         </div>
 
                         <div className="flex items-center gap-2.5 shrink-0">
@@ -747,7 +1004,10 @@ export function InventoryClient({
                               type="number"
                               min="0"
                               step="0.1"
-                              value={amountDrafts[item.id] ?? String(item.estimatedAmount ?? "")}
+                              value={
+                                amountDrafts[item.id] ??
+                                String(item.estimatedAmount ?? "")
+                              }
                               onChange={(e) =>
                                 setAmountDrafts((prev) => ({
                                   ...prev,
@@ -758,18 +1018,27 @@ export function InventoryClient({
                               placeholder="Qty"
                               className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
                             />
-                            <input
+                            <select
                               value={unitDrafts[item.id] ?? item.unit ?? ""}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const nextUnit = e.target.value;
                                 setUnitDrafts((prev) => ({
                                   ...prev,
-                                  [item.id]: e.target.value,
-                                }))
-                              }
-                              onBlur={() => void handleQuantitySave(item)}
-                              placeholder="unit"
+                                  [item.id]: nextUnit,
+                                }));
+                                void handleQuantitySave(item, {
+                                  unit: nextUnit,
+                                });
+                              }}
                               className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
-                            />
+                              aria-label={`Unit for ${item.name}`}
+                            >
+                              {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                                <option key={unit} value={unit}>
+                                  {unit}
+                                </option>
+                              ))}
+                            </select>
                             {savingId === item.id && (
                               <span className="material-symbols-outlined text-outline text-[16px] animate-spin">
                                 refresh

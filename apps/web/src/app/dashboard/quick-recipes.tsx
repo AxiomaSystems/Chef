@@ -25,15 +25,21 @@ export function QuickRecipes({
     <section className="space-y-5 pt-2">
       <div className="flex items-center justify-between">
         <div>
-          <h4 className="text-headline-md font-bold text-on-surface">Quick Recipe Ideas</h4>
-          <p className="text-body-sm text-outline mt-0.5">Pick something to cook tonight</p>
+          <h4 className="text-headline-md font-bold text-on-surface">
+            Quick Recipe Ideas
+          </h4>
+          <p className="text-body-sm text-outline mt-0.5">
+            Pick something to cook tonight
+          </p>
         </div>
         <Link
           href="/recipes"
           className="text-primary font-bold text-label-lg hover:underline flex items-center gap-1 shrink-0"
         >
           See all
-          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+          <span className="material-symbols-outlined text-[16px]">
+            arrow_forward
+          </span>
         </Link>
       </div>
 
@@ -58,7 +64,7 @@ export function QuickRecipes({
 
                 {/* Dietary badge overlay */}
                 {badge && (
-                  <span className="absolute bottom-2 left-2 rounded-full bg-white/90 backdrop-blur-sm px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#895032]">
+                  <span className="absolute bottom-2 left-2 rounded-full bg-white/90 backdrop-blur-sm px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#f4790d]">
                     {badge.name}
                   </span>
                 )}
@@ -72,7 +78,9 @@ export function QuickRecipes({
                   className="absolute top-2 right-2 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-outline hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
                   aria-label="Add to cart"
                 >
-                  <span className="material-symbols-outlined text-[16px]">add_shopping_cart</span>
+                  <span className="material-symbols-outlined text-[16px]">
+                    add_shopping_cart
+                  </span>
                 </button>
               </div>
 
@@ -86,12 +94,16 @@ export function QuickRecipes({
                 </h5>
                 <p className="text-body-sm text-outline mt-0.5 flex items-center gap-2">
                   <span className="flex items-center gap-0.5">
-                    <span className="material-symbols-outlined text-[13px]">group</span>
+                    <span className="material-symbols-outlined text-[13px]">
+                      group
+                    </span>
                     {recipe.servings}
                   </span>
                   {recipe.nutrition_data?.calories && (
                     <span className="flex items-center gap-0.5">
-                      <span className="material-symbols-outlined text-[13px]">local_fire_department</span>
+                      <span className="material-symbols-outlined text-[13px]">
+                        local_fire_department
+                      </span>
                       {recipe.nutrition_data.calories} kcal
                     </span>
                   )}
@@ -105,7 +117,10 @@ export function QuickRecipes({
       <RecipeDetailOverlay
         recipe={selected}
         onClose={() => setSelected(null)}
-        onAddToCart={(r) => { setSelected(null); onAddToCart(r); }}
+        onAddToCart={(r) => {
+          setSelected(null);
+          onAddToCart(r);
+        }}
       />
     </section>
   );

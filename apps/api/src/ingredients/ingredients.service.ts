@@ -1,10 +1,17 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Ingredient, KitchenInventoryItem } from '@cart/shared';
+import {
+  inferIngredientCategory,
+  inferInventoryAmount,
+  inferInventoryUnit,
+  normalizeIngredientName,
+  normalizeIngredientSlug,
+  type Ingredient,
+  type KitchenInventoryItem,
+} from '@cart/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddKitchenInventoryItemDto } from './dto/add-kitchen-inventory-item.dto';
 import { UpdateKitchenInventoryItemDto } from './dto/update-kitchen-inventory-item.dto';
@@ -15,13 +22,11 @@ export class IngredientsService {
   constructor(private readonly prisma: PrismaService) {}
 
   normalizeName(name: string): string {
-    return name.trim().replace(/\s+/g, ' ').toLowerCase();
+    return normalizeIngredientName(name);
   }
 
   normalizeSlug(name: string): string {
-    return this.normalizeName(name)
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    return normalizeIngredientSlug(name);
   }
 
   async listIngredients(query?: string): Promise<Ingredient[]> {
@@ -63,19 +68,52 @@ export class IngredientsService {
       where: { slug },
       update: {
         canonicalName: normalizedName,
+        category: inferIngredientCategory(normalizedName),
+        defaultUnit: inferInventoryUnit(normalizedName),
       },
       create: {
         canonicalName: normalizedName,
         slug,
+        category: inferIngredientCategory(normalizedName),
+        defaultUnit: inferInventoryUnit(normalizedName),
         aliases: [],
         visionLabels: [],
       },
     });
   }
 
+  async resolveIngredientIdsBySlugs(
+    slugs: string[],
+  ): Promise<Map<string, string>> {
+    const uniqueSlugs = Array.from(new Set(slugs.filter(Boolean)));
+
+    if (uniqueSlugs.length === 0) {
+      return new Map();
+    }
+
+    const ingredients = await this.prisma.ingredient.findMany({
+      where: {
+        slug: {
+          in: uniqueSlugs,
+        },
+      },
+      select: {
+        id: true,
+        slug: true,
+      },
+    });
+
+    return new Map(
+      ingredients.map((ingredient) => [ingredient.slug, ingredient.id]),
+    );
+  }
+
   async listInventory(userId: string): Promise<KitchenInventoryItem[]> {
     const items = await this.prisma.kitchenInventoryItem.findMany({
-      where: { userId },
+      where: {
+        userId,
+        reviewStatus: { in: ['pending', 'active'] },
+      },
       include: { ingredient: true },
       orderBy: [{ updatedAt: 'desc' }],
     });
@@ -89,7 +127,9 @@ export class IngredientsService {
       include: { ingredient: true },
     });
 
-    return new Set(items.map((item) => item.ingredient.slug));
+    return new Set(
+      items.flatMap((item) => (item.ingredient ? [item.ingredient.slug] : [])),
+    );
   }
 
   async addInventoryItem(
@@ -104,32 +144,39 @@ export class IngredientsService {
         ? await this.ensureIngredient(input.canonical_name)
         : null;
 
-    if (!ingredient) {
+    if (input.ingredient_id && !ingredient) {
       throw new NotFoundException('Ingredient not found');
     }
 
-    const existing = await this.prisma.kitchenInventoryItem.findUnique({
-      where: {
-        userId_ingredientId: {
-          userId,
-          ingredientId: ingredient.id,
-        },
-      },
-    });
+    const displayName =
+      input.display_name?.trim() ||
+      input.label?.trim() ||
+      ingredient?.canonicalName ||
+      input.canonical_name?.trim();
 
-    if (existing) {
-      throw new ConflictException('Ingredient is already in your kitchen');
+    if (!displayName) {
+      throw new BadRequestException('Inventory item name is required');
     }
+
+    const unit =
+      input.unit?.trim() ||
+      ingredient?.defaultUnit ||
+      inferInventoryUnit(displayName);
+    const estimatedAmount =
+      input.estimated_amount ?? inferInventoryAmount(unit);
 
     const item = await this.prisma.kitchenInventoryItem.create({
       data: {
         userId,
-        ingredientId: ingredient.id,
+        ingredientId: ingredient?.id,
+        displayName,
+        normalizedName: this.normalizeName(displayName),
         label: input.label?.trim() || undefined,
-        estimatedAmount: input.estimated_amount ?? undefined,
-        unit: input.unit?.trim() || undefined,
+        estimatedAmount,
+        unit,
         source: 'manual',
-        confidence: 'high',
+        confidence: ingredient ? 'high' : 'medium',
+        reviewStatus: input.review_status ?? 'active',
       },
       include: { ingredient: true },
     });
@@ -142,14 +189,31 @@ export class IngredientsService {
     id: string,
     input: UpdateKitchenInventoryItemDto,
   ): Promise<KitchenInventoryItem> {
+    const nextDisplayName =
+      input.display_name === undefined
+        ? input.label === undefined
+          ? undefined
+          : input.label?.trim() || undefined
+        : input.display_name?.trim() || undefined;
+
     const updated = await this.prisma.kitchenInventoryItem.updateMany({
       where: {
         id,
         userId,
       },
       data: {
+        ...(nextDisplayName
+          ? {
+              displayName: nextDisplayName,
+              normalizedName: this.normalizeName(nextDisplayName),
+            }
+          : {}),
         label:
           input.label === undefined ? undefined : input.label?.trim() || null,
+        reviewStatus:
+          input.review_status === undefined
+            ? undefined
+            : (input.review_status ?? undefined),
         estimatedAmount:
           input.estimated_amount === undefined
             ? undefined

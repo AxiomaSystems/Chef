@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { BaseRecipe, Retailer } from "@cart/shared";
 import {
@@ -34,8 +34,8 @@ function SubmitButton(props: {
       value={props.intent}
       className={
         props.tone === "secondary"
-          ? "inline-flex min-h-11 items-center justify-center rounded-full border border-[#d7c2b9] bg-[#faf9f6]/72 px-4 text-sm font-semibold text-[#1a1c1a] transition hover:bg-white"
-          : "inline-flex min-h-11 items-center justify-center rounded-full bg-[#895032] px-4 text-sm font-semibold text-[#faf9f6] transition hover:bg-[#1a1c1a]"
+          ? "inline-flex min-h-11 items-center justify-center rounded-full border border-[#c0dedf] bg-[#fff8ef]/72 px-4 text-sm font-semibold text-[#132326] transition hover:bg-white"
+          : "inline-flex min-h-11 items-center justify-center rounded-full bg-[#f4790d] px-4 text-sm font-semibold text-[#fff8ef] transition hover:bg-[#132326]"
       }
     >
       {props.label}
@@ -75,11 +75,16 @@ export function NewDraftOverlay(props: {
   const [retailer, setRetailer] = useState<Retailer>(initialRetailer);
   const [showAllTags, setShowAllTags] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>(
+  const [selectedQuantities, setSelectedQuantities] = useState<
+    Record<string, number>
+  >(
     Object.fromEntries(
       initialSelections
         .filter((selection) => selection.recipeId)
-        .map((selection) => [selection.recipeId, Math.max(1, selection.quantity)]),
+        .map((selection) => [
+          selection.recipeId,
+          Math.max(1, selection.quantity),
+        ]),
     ),
   );
   const deferredQuery = useDeferredValue(query);
@@ -180,7 +185,7 @@ export function NewDraftOverlay(props: {
       ? "Kroger search needs your shopping location in preferences."
       : retailer === "instacart"
         ? "Instacart creates a hosted shopping-list handoff for the selected ingredients."
-      : null;
+        : null;
   const selectionPayload = JSON.stringify(
     selectedRecipes.map(({ recipe, quantity }) => ({
       recipe_id: recipe.id,
@@ -216,20 +221,18 @@ export function NewDraftOverlay(props: {
 
   return (
     <div className="fixed inset-0 z-50 bg-[rgba(24,35,29,0.6)] p-4 backdrop-blur-sm sm:p-6">
-      <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-[2rem] border border-[#d7c2b9] bg-[#faf9f6] shadow-[0_28px_90px_rgba(10,18,13,0.28)]">
-        <div className="flex items-center justify-between gap-4 border-b border-[#d7c2b9] px-5 py-4 sm:px-6">
+      <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-[2rem] border border-[#c0dedf] bg-[#fff8ef] shadow-[0_28px_90px_rgba(10,18,13,0.28)]">
+        <div className="flex items-center justify-between gap-4 border-b border-[#c0dedf] px-5 py-4 sm:px-6">
           <div>
-            <h2 className="font-sans font-bold text-3xl leading-none text-[#1a1c1a]">
+            <h2 className="font-sans font-bold text-3xl leading-none text-[#132326]">
               {title}
             </h2>
-            <p className="mt-2 text-sm text-[#85736c]">
-              {helperText}
-            </p>
+            <p className="mt-2 text-sm text-[#5f8689]">{helperText}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#d7c2b9] bg-white/74 text-xl text-[#1a1c1a] transition hover:bg-white"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#c0dedf] bg-white/74 text-xl text-[#132326] transition hover:bg-white"
             aria-label="Close cart builder"
           >
             x
@@ -240,11 +243,11 @@ export function NewDraftOverlay(props: {
           action={formAction}
           className="grid min-h-0 flex-1 lg:grid-cols-[1.45fr_0.8fr]"
         >
-          <section className="min-h-0 overflow-y-auto border-b border-[#d7c2b9] px-5 py-5 lg:border-b-0 lg:border-r lg:px-6">
+          <section className="min-h-0 overflow-y-auto border-b border-[#c0dedf] px-5 py-5 lg:border-b-0 lg:border-r lg:px-6">
             <div className="grid gap-4">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <label className="block w-full max-w-xs">
-                  <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#895032]">
+                  <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#f4790d]">
                     {nameLabel}
                   </span>
                   <input
@@ -253,19 +256,21 @@ export function NewDraftOverlay(props: {
                     value={draftName}
                     onChange={(event) => setDraftName(event.target.value)}
                     placeholder="Weeknight dinner plan"
-                    className="min-h-11 w-full rounded-2xl border border-[#d7c2b9] bg-white px-4 text-sm text-[#1a1c1a] outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032]"
+                    className="min-h-11 w-full rounded-2xl border border-[#c0dedf] bg-white px-4 text-sm text-[#132326] outline-none transition placeholder:text-[#5f8689]/72 focus:border-[#f4790d]"
                   />
                 </label>
 
                 <label className="block w-full max-w-[10rem]">
-                  <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#895032]">
+                  <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#f4790d]">
                     Retailer
                   </span>
                   <select
                     name="retailer"
                     value={retailer}
-                    onChange={(event) => setRetailer(event.target.value as Retailer)}
-                    className="min-h-11 w-full rounded-2xl border border-[#d7c2b9] bg-white px-4 text-sm text-[#1a1c1a] outline-none transition focus:border-[#895032]"
+                    onChange={(event) =>
+                      setRetailer(event.target.value as Retailer)
+                    }
+                    className="min-h-11 w-full rounded-2xl border border-[#c0dedf] bg-white px-4 text-sm text-[#132326] outline-none transition focus:border-[#f4790d]"
                   >
                     <option value="walmart">Walmart</option>
                     <option value="kroger">Kroger</option>
@@ -276,7 +281,7 @@ export function NewDraftOverlay(props: {
                 <label className="block w-full max-w-xl flex-1">
                   <span className="sr-only">Search recipes</span>
                   <div className="relative">
-                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#85736c]/72">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5f8689]/72">
                       Search
                     </span>
                     <input
@@ -285,16 +290,14 @@ export function NewDraftOverlay(props: {
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
                       placeholder="Search dishes"
-                      className="min-h-11 w-full rounded-full border border-[#d7c2b9] bg-white pl-20 pr-4 text-sm text-[#1a1c1a] outline-none transition placeholder:text-[#85736c]/72 focus:border-[#895032]"
+                      className="min-h-11 w-full rounded-full border border-[#c0dedf] bg-white pl-20 pr-4 text-sm text-[#132326] outline-none transition placeholder:text-[#5f8689]/72 focus:border-[#f4790d]"
                     />
                   </div>
                 </label>
               </div>
 
               {locationNote ? (
-                <p className="text-sm text-[#85736c]">
-                  {locationNote}
-                </p>
+                <p className="text-sm text-[#5f8689]">{locationNote}</p>
               ) : null}
 
               {availableTags.length > 0 ? (
@@ -304,8 +307,8 @@ export function NewDraftOverlay(props: {
                     onClick={() => setSelectedTag(null)}
                     className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${
                       selectedTag === null
-                        ? "border-[#895032] bg-[#895032] text-[#faf9f6]"
-                        : "border-[#d7c2b9] bg-[#faf9f6]/72 text-[#85736c] hover:bg-white"
+                        ? "border-[#f4790d] bg-[#f4790d] text-[#fff8ef]"
+                        : "border-[#c0dedf] bg-[#fff8ef]/72 text-[#5f8689] hover:bg-white"
                     }`}
                   >
                     All tags
@@ -321,8 +324,8 @@ export function NewDraftOverlay(props: {
                       }
                       className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${
                         selectedTag === tag.id
-                          ? "border-[#895032] bg-[#895032]/14 text-[#1a1c1a]"
-                          : "border-[#d7c2b9] bg-[#faf9f6]/72 text-[#85736c] hover:bg-white"
+                          ? "border-[#f4790d] bg-[#f4790d]/14 text-[#132326]"
+                          : "border-[#c0dedf] bg-[#fff8ef]/72 text-[#5f8689] hover:bg-white"
                       }`}
                     >
                       {tag.name}
@@ -332,7 +335,7 @@ export function NewDraftOverlay(props: {
                     <button
                       type="button"
                       onClick={() => setShowAllTags((current) => !current)}
-                      className="rounded-full border border-[#d7c2b9] bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#895032] transition hover:bg-white"
+                      className="rounded-full border border-[#c0dedf] bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#f4790d] transition hover:bg-white"
                     >
                       {showAllTags ? "Show less" : "Show all"}
                     </button>
@@ -353,33 +356,33 @@ export function NewDraftOverlay(props: {
                       onClick={() => toggleRecipe(recipe.id)}
                       className={`flex min-h-[13rem] flex-col overflow-hidden rounded-[1.3rem] border text-left transition ${
                         selected
-                          ? "border-[#895032] bg-[#895032]/5 shadow-[0_10px_28px_rgba(23,50,36,0.12)]"
-                          : "border-[#d7c2b9] bg-white/56 hover:border-[#895032]/28"
+                          ? "border-[#f4790d] bg-[#f4790d]/5 shadow-[0_10px_28px_rgba(23,50,36,0.12)]"
+                          : "border-[#c0dedf] bg-white/56 hover:border-[#f4790d]/28"
                       }`}
                     >
                       <RecipeImage
                         src={recipe.cover_image_url}
                         alt={recipe.name}
                         seed={recipe.id}
-                        className="relative h-24 overflow-hidden border-b border-[#d7c2b9] bg-[#faf9f6]"
+                        className="relative h-24 overflow-hidden border-b border-[#c0dedf] bg-[#fff8ef]"
                         imgClassName="h-full w-full object-cover"
                       />
 
                       <div className="flex flex-1 flex-col p-3">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#895032]">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#f4790d]">
                             {recipe.cuisine.label}
                           </div>
                           {selected ? (
-                            <span className="rounded-full border border-[#895032] bg-[#895032]/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#895032]">
+                            <span className="rounded-full border border-[#f4790d] bg-[#f4790d]/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#f4790d]">
                               x{selectedQuantity}
                             </span>
                           ) : null}
                         </div>
-                        <div className="mt-2 font-sans font-bold text-[1.25rem] leading-[0.96] text-[#1a1c1a]">
+                        <div className="mt-2 font-sans font-bold text-[1.25rem] leading-[0.96] text-[#132326]">
                           {recipe.name}
                         </div>
-                        <p className="mt-2 text-xs text-[#85736c]">
+                        <p className="mt-2 text-xs text-[#5f8689]">
                           Servings: {recipe.servings}
                         </p>
                         <div className="mt-auto pt-3">
@@ -387,7 +390,7 @@ export function NewDraftOverlay(props: {
                             {badges.map((tag) => (
                               <span
                                 key={tag.id}
-                                className="rounded-full border border-[#d7c2b9] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#895032]"
+                                className="rounded-full border border-[#c0dedf] bg-[rgba(255,248,239,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#f4790d]"
                               >
                                 {tag.name}
                               </span>
@@ -404,11 +407,14 @@ export function NewDraftOverlay(props: {
 
           <aside className="flex min-h-0 flex-col bg-white/42 px-5 py-5 sm:px-6">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#895032]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f4790d]">
                 Selected recipes
               </div>
-              <div className="mt-2 font-sans font-bold text-3xl leading-none text-[#1a1c1a]">
-                {selectedRecipes.reduce((sum, entry) => sum + entry.quantity, 0)}
+              <div className="mt-2 font-sans font-bold text-3xl leading-none text-[#132326]">
+                {selectedRecipes.reduce(
+                  (sum, entry) => sum + entry.quantity,
+                  0,
+                )}
               </div>
             </div>
 
@@ -418,24 +424,24 @@ export function NewDraftOverlay(props: {
                   {selectedRecipes.map(({ recipe, quantity }) => (
                     <div
                       key={recipe.id}
-                      className="rounded-[1.2rem] border border-[#d7c2b9] bg-[#faf9f6]/76 px-4 py-3"
+                      className="rounded-[1.2rem] border border-[#c0dedf] bg-[#fff8ef]/76 px-4 py-3"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#895032]">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#f4790d]">
                             {recipe.cuisine.label}
                           </div>
-                          <div className="mt-1 text-sm font-semibold text-[#1a1c1a]">
+                          <div className="mt-1 text-sm font-semibold text-[#132326]">
                             {recipe.name}
                           </div>
-                          <div className="mt-1 text-xs text-[#85736c]">
+                          <div className="mt-1 text-xs text-[#5f8689]">
                             Servings: {recipe.servings} / Quantity: {quantity}
                           </div>
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {getDietaryBadges(recipe).map((tag) => (
                               <span
                                 key={tag.id}
-                                className="rounded-full border border-[#d7c2b9] bg-[rgba(250,246,236,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#895032]"
+                                className="rounded-full border border-[#c0dedf] bg-[rgba(255,248,239,0.92)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#f4790d]"
                               >
                                 {tag.name}
                               </span>
@@ -446,18 +452,18 @@ export function NewDraftOverlay(props: {
                           <button
                             type="button"
                             onClick={() => updateRecipeQuantity(recipe.id, -1)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#d7c2b9] bg-white/80 text-sm font-semibold text-[#1a1c1a] transition hover:bg-white"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#c0dedf] bg-white/80 text-sm font-semibold text-[#132326] transition hover:bg-white"
                             aria-label={`Decrease ${recipe.name} quantity`}
                           >
                             -
                           </button>
-                          <span className="min-w-5 text-center text-sm font-semibold text-[#1a1c1a]">
+                          <span className="min-w-5 text-center text-sm font-semibold text-[#132326]">
                             {quantity}
                           </span>
                           <button
                             type="button"
                             onClick={() => updateRecipeQuantity(recipe.id, 1)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#d7c2b9] bg-white/80 text-sm font-semibold text-[#1a1c1a] transition hover:bg-white"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#c0dedf] bg-white/80 text-sm font-semibold text-[#132326] transition hover:bg-white"
                             aria-label={`Increase ${recipe.name} quantity`}
                           >
                             +
@@ -468,13 +474,17 @@ export function NewDraftOverlay(props: {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-[1.2rem] border border-dashed border-[#d7c2b9] bg-[#faf9f6]/54 px-4 py-5 text-sm leading-6 text-[#85736c]">
+                <div className="rounded-[1.2rem] border border-dashed border-[#c0dedf] bg-[#fff8ef]/54 px-4 py-5 text-sm leading-6 text-[#5f8689]">
                   Select recipes on the left to start a cart.
                 </div>
               )}
             </div>
 
-            <input type="hidden" name="selections_json" value={selectionPayload} />
+            <input
+              type="hidden"
+              name="selections_json"
+              value={selectionPayload}
+            />
             {mode !== "create" ? (
               <>
                 <input
@@ -482,7 +492,11 @@ export function NewDraftOverlay(props: {
                   name="resource_type"
                   value={mode === "edit-cart" ? "cart" : "draft"}
                 />
-                <input type="hidden" name="resource_id" value={resourceId ?? ""} />
+                <input
+                  type="hidden"
+                  name="resource_id"
+                  value={resourceId ?? ""}
+                />
               </>
             ) : null}
 
@@ -493,7 +507,7 @@ export function NewDraftOverlay(props: {
             ) : null}
 
             {state.success ? (
-              <p className="mt-4 rounded-2xl border border-[#895032]/14 bg-[#895032]/8 px-4 py-3 text-sm text-[#1a1c1a]">
+              <p className="mt-4 rounded-2xl border border-[#f4790d]/14 bg-[#f4790d]/8 px-4 py-3 text-sm text-[#132326]">
                 {state.success}
               </p>
             ) : null}
@@ -512,7 +526,7 @@ export function NewDraftOverlay(props: {
                 </>
               )}
             </div>
-            <p className="mt-3 text-xs leading-5 text-[#85736c]">
+            <p className="mt-3 text-xs leading-5 text-[#5f8689]">
               {mode === "edit-cart"
                 ? "Saving updates the current cart in place."
                 : "Generate cart is the primary path. Save draft only keeps the selection around when you are not ready yet."}

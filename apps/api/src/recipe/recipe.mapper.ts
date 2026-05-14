@@ -8,6 +8,7 @@ import type {
 import type { BaseRecipeWithRelations } from './recipe.persistence.types';
 
 const mapIngredient = (ingredient: PrismaDishIngredient): DishIngredient => ({
+  ingredient_id: ingredient.ingredientId ?? undefined,
   canonical_ingredient: ingredient.canonicalIngredient,
   amount: ingredient.amount,
   unit: ingredient.unit,
@@ -22,9 +23,7 @@ const mapStep = (step: PrismaRecipeStep): RecipeStep => ({
   what_to_do: step.whatToDo,
 });
 
-export const mapBaseRecipe = (
-  recipe: BaseRecipeWithRelations,
-): BaseRecipe => ({
+export const mapBaseRecipe = (recipe: BaseRecipeWithRelations): BaseRecipe => ({
   id: recipe.id,
   owner_user_id: recipe.ownerUserId ?? undefined,
   forked_from_recipe_id: recipe.forkedFromRecipeId ?? undefined,

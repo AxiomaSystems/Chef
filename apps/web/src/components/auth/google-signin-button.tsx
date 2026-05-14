@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -122,9 +122,10 @@ export function GoogleSigninButton({
           }),
         });
 
-        const payload = (await response.json().catch(() => null)) as
-          | { error?: string; redirectTo?: string }
-          | null;
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+          redirectTo?: string;
+        } | null;
 
         if (!response.ok || !payload?.redirectTo) {
           setError(payload?.error ?? "Unable to continue with Google.");
@@ -193,7 +194,7 @@ export function GoogleSigninButton({
 
   if (!clientId) {
     return (
-      <div className="rounded-2xl border border-[#d7c2b9] bg-[#faf9f6]/60 px-4 py-3 text-sm text-[#85736c]">
+      <div className="rounded-2xl border border-[#c0dedf] bg-[#fff8ef]/60 px-4 py-3 text-sm text-[#5f8689]">
         Google sign-in is unavailable until{" "}
         <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> is configured.
       </div>
@@ -202,11 +203,14 @@ export function GoogleSigninButton({
 
   return (
     <div className="grid gap-3">
-      <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[#85736c]">
+      <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[#5f8689]">
         {contextLabel}
       </p>
 
-      <div ref={wrapperRef} className="grid w-full justify-center gap-3 overflow-hidden">
+      <div
+        ref={wrapperRef}
+        className="grid w-full justify-center gap-3 overflow-hidden"
+      >
         <div
           id={buttonId}
           ref={buttonContainerRef}
@@ -214,9 +218,7 @@ export function GoogleSigninButton({
         />
 
         {isLoading ? (
-          <p className="text-sm text-[#85736c]">
-            Finishing Google sign-in...
-          </p>
+          <p className="text-sm text-[#5f8689]">Finishing Google sign-in...</p>
         ) : null}
 
         {error ? (

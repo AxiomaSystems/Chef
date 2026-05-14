@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AggregationModule } from './aggregation/aggregation.module';
 import { AuthModule } from './auth/auth.module';
 import { CartModule } from './cart/cart.module';
+import { CaptureModule } from './capture/capture.module';
 import { CommonHttpModule } from './common/http/common-http.module';
 import { CuisinesModule } from './cuisines/cuisines.module';
 import { IngredientsModule } from './ingredients/ingredients.module';
@@ -32,6 +33,7 @@ import { VisionModule } from './vision/vision.module';
     MatchingModule,
     RetailersModule,
     CartModule,
+    CaptureModule,
     AiModule,
     VisionModule,
   ],

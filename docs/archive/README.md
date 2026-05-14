@@ -10,4 +10,6 @@ For current setup, branch, and deploy guidance, prefer:
 - `CONTRIBUTING.md`
 - `local-dev-setup.md`
 - `docs/branching.md`
-- `docs/week7-backend-status.md`
+- `docs/README.md`
+- `docs/architecture.md`
+- `docs/FEATURES.md`

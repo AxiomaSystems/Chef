@@ -91,7 +91,7 @@ export function ShoppingClient({
               return (
                 <div
                   key={cart.id}
-                  className={`rounded-2xl border border-outline-variant/30 bg-white p-4 shadow-[0_4px_20px_-4px_rgba(137,80,50,0.08)] transition-all ${
+                  className={`rounded-2xl border border-outline-variant/30 bg-white p-4 shadow-[0_4px_20px_-4px_rgba(60,154,158,0.08)] transition-all ${
                     isDeleting ? "opacity-40" : ""
                   }`}
                 >
@@ -156,7 +156,7 @@ export function ShoppingClient({
                     {cart.id && (
                       <Link
                         href={`/shopping/checkout/${cart.id}`}
-                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full bg-[#ffb38e] px-4 py-2 text-label-md font-semibold text-[#6d391d] shadow-sm transition-colors hover:bg-[#ffcfb6]"
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full bg-[#f4be6b] px-4 py-2 text-label-md font-semibold text-[#351800] shadow-sm transition-colors hover:bg-[#f4be6b]"
                       >
                         Checkout
                       </Link>

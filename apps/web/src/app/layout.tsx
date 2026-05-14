@@ -11,7 +11,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#f39447",
+  themeColor: "#fe8e17",
   width: "device-width",
   initialScale: 1,
 };
@@ -38,7 +38,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={plusJakartaSans.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={plusJakartaSans.variable}
+      suppressHydrationWarning
+    >
       <head>
         <link
           rel="stylesheet"

@@ -1,4 +1,4 @@
-﻿import type { ShoppingCartHistorySummary } from "@cart/shared";
+import type { ShoppingCartHistorySummary } from "@cart/shared";
 import type { Loadable } from "@/lib/api";
 import { SectionShell } from "./section-shell";
 import { StatusPill } from "./status-pill";
@@ -32,23 +32,23 @@ export function ShoppingHistorySection(props: {
         {shoppingHistory.data.slice(0, 6).map((shoppingCart) => (
           <article
             key={shoppingCart.id}
-            className="rounded-[1.5rem] border border-[#d7c2b9] bg-[linear-gradient(145deg,rgba(255,255,255,0.92),rgba(239,229,210,0.76))] p-5"
+            className="rounded-[1.5rem] border border-[#c0dedf] bg-[linear-gradient(145deg,rgba(255,255,255,0.92),rgba(192,222,223,0.76))] p-5"
           >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#895032]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#f4790d]">
               {shoppingCart.retailer}
             </p>
-            <h3 className="mt-2 font-sans font-bold text-3xl text-[#1a1c1a]">
+            <h3 className="mt-2 font-sans font-bold text-3xl text-[#132326]">
               {formatMoney(shoppingCart.estimated_subtotal)}
             </h3>
-            <p className="mt-2 text-sm text-[#85736c]">
+            <p className="mt-2 text-sm text-[#5f8689]">
               Cart {shoppingCart.cart_id}
             </p>
             <div className="mt-5 flex items-end justify-between">
-              <div className="space-y-1 text-sm text-[#85736c]">
+              <div className="space-y-1 text-sm text-[#5f8689]">
                 <div>{shoppingCart.overview_count} overview items</div>
                 <div>{shoppingCart.matched_item_count} matched items</div>
               </div>
-              <span className="text-xs uppercase tracking-[0.18em] text-[#895032]">
+              <span className="text-xs uppercase tracking-[0.18em] text-[#f4790d]">
                 {formatDate(shoppingCart.updated_at)}
               </span>
             </div>

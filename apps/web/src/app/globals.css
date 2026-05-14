@@ -1,69 +1,69 @@
 @import "tailwindcss";
 
-/* ─── Design Tokens: Warm Minimalism ─────────────────────────────────────── */
+/* Design Tokens: Citrus Teal */
 @theme {
   /* Colors */
-  --color-background:                #faf9f6;
-  --color-surface:                   #faf9f6;
-  --color-surface-bright:            #faf9f6;
-  --color-surface-dim:               #dbdad7;
-  --color-surface-container-lowest:  #ffffff;
-  --color-surface-container-low:     #f4f3f1;
-  --color-surface-container:         #efeeeb;
-  --color-surface-container-high:    #e9e8e5;
-  --color-surface-container-highest: #e3e2e0;
-  --color-surface-variant:           #e3e2e0;
-  --color-surface-tint:              #895032;
+  --color-background: #fff8ef;
+  --color-surface: #fff8ef;
+  --color-surface-bright: #fffdfa;
+  --color-surface-dim: #c0dedf;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #fff2e3;
+  --color-surface-container: #ffe6c7;
+  --color-surface-container-high: #f4be6b;
+  --color-surface-container-highest: #fe8e17;
+  --color-surface-variant: #c0dedf;
+  --color-surface-tint: #f4790d;
 
-  --color-on-background:             #1a1c1a;
-  --color-on-surface:                #1a1c1a;
-  --color-on-surface-variant:        #52443d;
-  --color-inverse-surface:           #2f312f;
-  --color-inverse-on-surface:        #f2f1ee;
+  --color-on-background: #132326;
+  --color-on-surface: #132326;
+  --color-on-surface-variant: #315f62;
+  --color-inverse-surface: #123b3e;
+  --color-inverse-on-surface: #fffdfa;
 
-  --color-outline:                   #85736c;
-  --color-outline-variant:           #d7c2b9;
+  --color-outline: #5f8689;
+  --color-outline-variant: #c0dedf;
 
-  --color-primary:                   #895032;
-  --color-on-primary:                #ffffff;
-  --color-primary-container:         #f39447;
-  --color-on-primary-container:      #7a4326;
-  --color-inverse-primary:           #ffb692;
-  --color-primary-fixed:             #ffa070;
-  --color-primary-fixed-dim:         #f39447;
-  --color-on-primary-fixed:          #3d1e08;
-  --color-on-primary-fixed-variant:  #6d391d;
-  --color-primary-surface:           #fff5f0;
+  --color-primary: #f4790d;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #fe8e17;
+  --color-on-primary-container: #351800;
+  --color-inverse-primary: #f4be6b;
+  --color-primary-fixed: #fe8e17;
+  --color-primary-fixed-dim: #f4790d;
+  --color-on-primary-fixed: #ffffff;
+  --color-on-primary-fixed-variant: #351800;
+  --color-primary-surface: #fff2e3;
 
-  --color-secondary:                 #675e39;
-  --color-on-secondary:              #ffffff;
-  --color-secondary-container:       #efe3b3;
-  --color-on-secondary-container:    #6d643f;
-  --color-secondary-fixed:           #efe3b3;
-  --color-secondary-fixed-dim:       #d2c799;
-  --color-on-secondary-fixed:        #211b01;
-  --color-on-secondary-fixed-variant:#4e4724;
+  --color-secondary: #3c9a9e;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #c0dedf;
+  --color-on-secondary-container: #073b3e;
+  --color-secondary-fixed: #c0dedf;
+  --color-secondary-fixed-dim: #3c9a9e;
+  --color-on-secondary-fixed: #073b3e;
+  --color-on-secondary-fixed-variant: #123b3e;
 
-  --color-tertiary:                  #884d54;
-  --color-on-tertiary:               #ffffff;
-  --color-tertiary-container:        #fcb1b8;
-  --color-on-tertiary-container:     #794147;
-  --color-tertiary-fixed:            #ffdadc;
-  --color-tertiary-fixed-dim:        #feb2b9;
-  --color-on-tertiary-fixed:         #370c14;
-  --color-on-tertiary-fixed-variant: #6d363d;
+  --color-tertiary: #f4be6b;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #f4be6b;
+  --color-on-tertiary-container: #3d2600;
+  --color-tertiary-fixed: #f4be6b;
+  --color-tertiary-fixed-dim: #fe8e17;
+  --color-on-tertiary-fixed: #3d2600;
+  --color-on-tertiary-fixed-variant: #5a3800;
 
-  --color-error:                     #ba1a1a;
-  --color-on-error:                  #ffffff;
-  --color-error-container:           #ffdad6;
-  --color-on-error-container:        #93000a;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
 
   /* Border radius */
-  --radius-sm:   0.25rem;
-  --radius:      0.5rem;
-  --radius-md:   0.75rem;
-  --radius-lg:   1rem;
-  --radius-xl:   1.5rem;
+  --radius-sm: 0.25rem;
+  --radius: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
   --radius-full: 9999px;
 
   /* Font */
@@ -132,11 +132,41 @@
 
   /* Icon fill variant */
   .icon-filled {
-    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    font-variation-settings:
+      "FILL" 1,
+      "wght" 400,
+      "GRAD" 0,
+      "opsz" 24;
   }
   /* Scrollbar hide */
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .recipe-modal-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(60, 154, 158, 0.38) rgba(255, 242, 227, 0.7);
+  }
+  .recipe-modal-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .recipe-modal-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 242, 227, 0.7);
+    border-radius: 9999px;
+  }
+  .recipe-modal-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(60, 154, 158, 0.34);
+    border: 2px solid rgba(255, 242, 227, 0.9);
+    border-radius: 9999px;
+  }
+  .recipe-modal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(60, 154, 158, 0.52);
+  }
 
   .onboarding-step-panel {
     animation: onboarding-step-enter 260ms ease-out both;
@@ -172,7 +202,9 @@
   animation: loading-sweep 1.35s ease-in-out infinite;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   font-family: var(--font-sans);
@@ -182,7 +214,11 @@ body {
 }
 
 .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
   vertical-align: middle;
   line-height: 1;
 }

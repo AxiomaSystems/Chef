@@ -34,7 +34,7 @@ export function StepShoppingBehavior({
   return (
     <div className="grid gap-8">
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           What&apos;s your weekly grocery budget?
         </p>
         <ChipSingleSelect
@@ -46,7 +46,7 @@ export function StepShoppingBehavior({
       </div>
 
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           Where do you usually shop?
         </p>
         <ChipMultiSelect
@@ -58,7 +58,7 @@ export function StepShoppingBehavior({
       </div>
 
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           How do you prefer to shop?
         </p>
         <ChipSingleSelect

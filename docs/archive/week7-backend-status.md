@@ -188,7 +188,7 @@ Production status:
 
 Created:
 
-- `docs/frontend-ui-handoff.md`
+- `docs/archive/frontend-ui-handoff.md`
 
 Purpose:
 

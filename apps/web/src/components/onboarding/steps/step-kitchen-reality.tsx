@@ -45,7 +45,7 @@ export function StepKitchenReality({
   return (
     <div className="grid gap-8">
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           How would you describe your cooking skill?
         </p>
         <ChipSingleSelect
@@ -57,7 +57,7 @@ export function StepKitchenReality({
       </div>
 
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           What appliances do you have?
         </p>
         <ChipMultiSelect
@@ -69,7 +69,7 @@ export function StepKitchenReality({
       </div>
 
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           How much time do you usually have to cook?
         </p>
         <ChipSingleSelect
@@ -81,7 +81,7 @@ export function StepKitchenReality({
       </div>
 
       <div className="grid gap-3">
-        <p className="text-label-lg font-semibold text-[#52443d]">
+        <p className="text-label-lg font-semibold text-[#315f62]">
           Which meals do you typically cook?
         </p>
         <ChipMultiSelect

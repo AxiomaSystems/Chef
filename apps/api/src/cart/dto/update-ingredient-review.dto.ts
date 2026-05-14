@@ -12,6 +12,11 @@ import {
 import type { IngredientReviewAction } from '@cart/shared';
 
 export class UpdateIngredientReviewItemDto {
+  @ApiPropertyOptional({ example: 'ingredient-rice' })
+  @IsOptional()
+  @IsString()
+  ingredient_id?: string;
+
   @ApiProperty({ example: 'rice' })
   @IsString()
   canonical_ingredient!: string;

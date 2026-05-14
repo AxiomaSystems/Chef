@@ -75,29 +75,74 @@ describe('recipe.persistence.mapper', () => {
     });
   });
 
-  it('builds update recipe data with full replacement arrays when present', () => {
-    const result = buildUpdateRecipeData({
-      name: 'Arroz con pollo actualizado',
-      nutrition_data: {
-        calories: 690,
-        carbs_g: 40,
+  it('builds create recipe data with optional canonical ingredient ids', () => {
+    const result = buildCreateRecipeData(
+      {
+        name: 'Arroz con pollo casero',
+        cuisine_id: 'cuisine-peruvian',
+        servings: 4,
+        ingredients: [
+          {
+            canonical_ingredient: 'rice',
+            amount: 2,
+            unit: 'cup',
+          },
+          {
+            canonical_ingredient: 'unknown imported thing',
+            amount: 1,
+            unit: 'unit',
+          },
+        ],
+        steps: [
+          {
+            step: 1,
+            what_to_do: 'Cook everything.',
+          },
+        ],
       },
-      servings: 6,
-      ingredients: [
-        {
-          canonical_ingredient: 'rice',
-          amount: 3,
-          unit: 'cup',
-        },
+      'user-1',
+      ['ingredient-rice', undefined],
+    );
+
+    expect(result.ingredients).toEqual({
+      create: [
+        expect.objectContaining({
+          ingredientId: 'ingredient-rice',
+          canonicalIngredient: 'rice',
+        }),
+        expect.not.objectContaining({
+          ingredientId: expect.any(String),
+        }),
       ],
-      steps: [
-        {
-          step: 1,
-          what_to_do: 'Add rice and simmer until cooked.',
-        },
-      ],
-      tag_ids: ['tag-system-updated'],
     });
+  });
+
+  it('builds update recipe data with full replacement arrays when present', () => {
+    const result = buildUpdateRecipeData(
+      {
+        name: 'Arroz con pollo actualizado',
+        nutrition_data: {
+          calories: 690,
+          carbs_g: 40,
+        },
+        servings: 6,
+        ingredients: [
+          {
+            canonical_ingredient: 'rice',
+            amount: 3,
+            unit: 'cup',
+          },
+        ],
+        steps: [
+          {
+            step: 1,
+            what_to_do: 'Add rice and simmer until cooked.',
+          },
+        ],
+        tag_ids: ['tag-system-updated'],
+      },
+      ['ingredient-rice'],
+    );
 
     expect(result).toEqual({
       name: 'Arroz con pollo actualizado',
@@ -112,6 +157,7 @@ describe('recipe.persistence.mapper', () => {
         deleteMany: {},
         create: [
           {
+            ingredientId: 'ingredient-rice',
             canonicalIngredient: 'rice',
             amount: 3,
             unit: 'cup',

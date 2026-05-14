@@ -5,7 +5,11 @@ import type { UpdateRecipeDto } from './dto/update-recipe.dto';
 const mapIngredientCreateInput = (
   ingredient: CreateRecipeDto['ingredients'][number],
   index: number,
+  ingredientIdsByIndex?: Array<string | undefined>,
 ) => ({
+  ...(ingredientIdsByIndex?.[index]
+    ? { ingredientId: ingredientIdsByIndex[index] }
+    : {}),
   canonicalIngredient: ingredient.canonical_ingredient,
   amount: ingredient.amount,
   unit: ingredient.unit,
@@ -24,6 +28,7 @@ const mapStepCreateInput = (step: CreateRecipeDto['steps'][number]) => ({
 export const buildCreateRecipeData = (
   input: CreateRecipeDto,
   ownerUserId: string,
+  ingredientIdsByIndex?: Array<string | undefined>,
 ): Prisma.BaseRecipeUncheckedCreateInput => ({
   ownerUserId,
   isSystemRecipe: false,
@@ -40,7 +45,9 @@ export const buildCreateRecipeData = (
     : {}),
   servings: input.servings,
   ingredients: {
-    create: input.ingredients.map(mapIngredientCreateInput),
+    create: input.ingredients.map((ingredient, index) =>
+      mapIngredientCreateInput(ingredient, index, ingredientIdsByIndex),
+    ),
   },
   steps: {
     create: input.steps.map(mapStepCreateInput),
@@ -49,10 +56,13 @@ export const buildCreateRecipeData = (
 
 export const buildUpdateRecipeData = (
   input: UpdateRecipeDto,
+  ingredientIdsByIndex?: Array<string | undefined>,
 ): Prisma.BaseRecipeUncheckedUpdateInput => ({
   ...(input.name !== undefined ? { name: input.name } : {}),
   ...(input.cuisine_id !== undefined ? { cuisineId: input.cuisine_id } : {}),
-  ...(input.description !== undefined ? { description: input.description } : {}),
+  ...(input.description !== undefined
+    ? { description: input.description }
+    : {}),
   ...('cover_image_url' in input
     ? {
         coverImageUrl: input.cover_image_url ?? null,
@@ -70,7 +80,9 @@ export const buildUpdateRecipeData = (
     ? {
         ingredients: {
           deleteMany: {},
-          create: input.ingredients.map(mapIngredientCreateInput),
+          create: input.ingredients.map((ingredient, index) =>
+            mapIngredientCreateInput(ingredient, index, ingredientIdsByIndex),
+          ),
         },
       }
     : {}),

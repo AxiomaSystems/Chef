@@ -15,13 +15,16 @@ type IngredientRecord = {
 type KitchenInventoryItemRecord = {
   id: string;
   userId: string;
-  ingredientId: string;
-  ingredient: IngredientRecord;
+  ingredientId: string | null;
+  ingredient: IngredientRecord | null;
+  displayName: string;
+  normalizedName: string;
   label: string | null;
   estimatedAmount: number | null;
   unit: string | null;
   source: KitchenInventoryItem['source'];
   confidence: KitchenInventoryItem['confidence'];
+  reviewStatus: KitchenInventoryItem['review_status'];
   createdAt: Date;
   updatedAt: Date;
 };
@@ -31,7 +34,9 @@ function mapStringArray(value: unknown): string[] | undefined {
     return undefined;
   }
 
-  const strings = value.filter((entry): entry is string => typeof entry === 'string');
+  const strings = value.filter(
+    (entry): entry is string => typeof entry === 'string',
+  );
   return strings.length > 0 ? strings : undefined;
 }
 
@@ -55,13 +60,16 @@ export function mapKitchenInventoryItem(
   return {
     id: input.id,
     user_id: input.userId,
-    ingredient_id: input.ingredientId,
-    ingredient: mapIngredient(input.ingredient),
+    ingredient_id: input.ingredientId ?? undefined,
+    ingredient: input.ingredient ? mapIngredient(input.ingredient) : undefined,
+    display_name: input.displayName,
+    normalized_name: input.normalizedName,
     label: input.label ?? undefined,
     estimated_amount: input.estimatedAmount ?? undefined,
     unit: input.unit ?? undefined,
     source: input.source,
     confidence: input.confidence,
+    review_status: input.reviewStatus,
     created_at: input.createdAt.toISOString(),
     updated_at: input.updatedAt.toISOString(),
   };

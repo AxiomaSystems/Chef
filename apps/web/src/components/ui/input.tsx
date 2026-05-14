@@ -7,28 +7,36 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   icon?: string;
 }
 
-export function Input({ label, hint, error, icon, className = "", id, ...props }: InputProps) {
+export function Input({
+  label,
+  hint,
+  error,
+  icon,
+  className = "",
+  id,
+  ...props
+}: InputProps) {
   const inputId = id ?? label?.toLowerCase().replace(/\s+/g, "-");
 
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label htmlFor={inputId} className="text-label-lg text-[#52443d]">
+        <label htmlFor={inputId} className="text-label-lg text-[#315f62]">
           {label}
         </label>
       )}
       <div className="relative">
         {icon && (
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#85736c] text-[20px]">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#5f8689] text-[20px]">
             {icon}
           </span>
         )}
         <input
           id={inputId}
           className={`
-            w-full bg-[#f4f3f1] border border-[#d7c2b9]/50 rounded-xl px-4 py-3
-            text-body-md text-[#1a1c1a] placeholder:text-[#85736c]
-            focus:outline-none focus:ring-2 focus:ring-[#895032]/30 focus:border-[#895032]
+            w-full bg-[#fff2e3] border border-[#c0dedf]/50 rounded-xl px-4 py-3
+            text-body-md text-[#132326] placeholder:text-[#5f8689]
+            focus:outline-none focus:ring-2 focus:ring-[#f4790d]/30 focus:border-[#f4790d]
             transition-all
             ${icon ? "pl-10" : ""}
             ${error ? "border-[#ba1a1a] focus:ring-[#ba1a1a]/30" : ""}
@@ -37,7 +45,7 @@ export function Input({ label, hint, error, icon, className = "", id, ...props }
           {...props}
         />
       </div>
-      {hint && !error && <p className="text-body-sm text-[#85736c]">{hint}</p>}
+      {hint && !error && <p className="text-body-sm text-[#5f8689]">{hint}</p>}
       {error && <p className="text-body-sm text-[#ba1a1a]">{error}</p>}
     </div>
   );
