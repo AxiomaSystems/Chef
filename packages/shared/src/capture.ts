@@ -37,6 +37,7 @@ export type CaptureRecipePreview = {
   name: string;
   cuisine: string;
   description: string;
+  cover_image_url?: string;
   servings: number;
   ingredients: DishIngredient[];
   steps: RecipeStep[];

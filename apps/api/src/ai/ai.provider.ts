@@ -19,6 +19,7 @@ export interface AiProvider {
     source_title: string;
     source_creator: string | null;
     source_description: string;
+    source_image_url: string | null;
     extracted_text: string;
     extraction_notes: string[];
   }): Promise<AiRecipeImportResult>;

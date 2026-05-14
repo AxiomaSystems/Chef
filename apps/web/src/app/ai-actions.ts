@@ -66,6 +66,7 @@ export type AiRecipeImportResult = {
   source_title: string;
   source_creator: string | null;
   source_description: string;
+  source_image_url: string | null;
   imported_recipe: AiRecipePreview;
   extraction_notes: string[];
 };
@@ -231,7 +232,10 @@ export async function generateMealsAction(input: {
 
   if (!response?.ok) {
     return {
-      error: await readErrorMessage(response, "Chef could not generate meals right now."),
+      error: await readErrorMessage(
+        response,
+        "Chef could not generate meals right now.",
+      ),
     };
   }
 
@@ -264,7 +268,10 @@ export async function fetchUserRecipesAction(): Promise<UserRecipesActionState> 
 
   if (!response?.ok) {
     return {
-      error: await readErrorMessage(response, "Could not load your recipes right now."),
+      error: await readErrorMessage(
+        response,
+        "Could not load your recipes right now.",
+      ),
     };
   }
 
@@ -391,4 +398,3 @@ export async function importRecipeFromUrlAction(input: {
     result: payload,
   };
 }
-
