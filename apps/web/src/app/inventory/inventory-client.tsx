@@ -645,7 +645,14 @@ function IngredientPicker({
   }, [search, activeTab]);
 
   async function handleCheck(name: string) {
-    if (existingNames.has(name.toLowerCase()) || adding.has(name)) return;
+    const trimmedName = name.trim();
+    if (
+      !trimmedName ||
+      existingNames.has(trimmedName.toLowerCase()) ||
+      adding.has(trimmedName)
+    ) {
+      return;
+    }
     const defaultUnit = inferUnit(name);
     const unit = unitByName[name]?.trim() || defaultUnit;
     const parsedAmount = Number(
@@ -655,11 +662,11 @@ function IngredientPicker({
       Number.isFinite(parsedAmount) && parsedAmount > 0
         ? parsedAmount
         : inferAmount(name, unit);
-    setAdding((prev) => new Set(prev).add(name));
-    await onAdd(name, { estimatedAmount, unit });
+    setAdding((prev) => new Set(prev).add(trimmedName));
+    await onAdd(trimmedName, { estimatedAmount, unit });
     setAdding((prev) => {
       const next = new Set(prev);
-      next.delete(name);
+      next.delete(trimmedName);
       return next;
     });
   }
@@ -726,9 +733,31 @@ function IngredientPicker({
         }`}
       >
         {filtered.length === 0 ? (
-          <p className="text-sm text-outline text-center py-10">
-            {`No results for "${search}"`}
-          </p>
+          <div className="px-5 py-10 text-center">
+            <p className="text-sm text-outline">{`No results for "${search}"`}</p>
+            {search.trim() && (
+              <button
+                type="button"
+                onClick={() => void handleCheck(search)}
+                disabled={
+                  adding.has(search.trim()) ||
+                  existingNames.has(search.trim().toLowerCase())
+                }
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:opacity-50"
+              >
+                {adding.has(search.trim()) ? (
+                  <span className="material-symbols-outlined text-[16px] animate-spin">
+                    refresh
+                  </span>
+                ) : (
+                  <span className="material-symbols-outlined text-[16px]">
+                    add
+                  </span>
+                )}
+                Add "{search.trim()}"
+              </button>
+            )}
+          </div>
         ) : (
           filtered.map((group) => (
             <div key={group.category}>
@@ -910,6 +939,7 @@ export function InventoryClient({
   );
   const [activeShoppingCart, setActiveShoppingCart] =
     useState<ShoppingCart | null>(null);
+  const [editCartNotice, setEditCartNotice] = useState<string | undefined>();
   const [restockError, setRestockError] = useState<string | undefined>();
   const [isRestocking, startRestock] = useTransition();
 
@@ -1003,6 +1033,7 @@ export function InventoryClient({
 
   function handleToggleRestock(item: DisplayItem) {
     setRestockError(undefined);
+    setLastRestockCart(null);
     setSelectedRestockIds((prev) => {
       const next = new Set(prev);
 
@@ -1022,6 +1053,7 @@ export function InventoryClient({
   }
 
   function setRestockAmount(item: DisplayItem, amount: number) {
+    setLastRestockCart(null);
     setRestockAmountDrafts((prev) => ({
       ...prev,
       [item.id]: String(Math.max(1, amount)),
@@ -1041,6 +1073,7 @@ export function InventoryClient({
   }
 
   function adjustInventoryQuantity(item: DisplayItem, delta: number) {
+    setLastRestockCart(null);
     const currentDraft = amountDrafts[item.id];
     const current =
       currentDraft === undefined
@@ -1072,8 +1105,19 @@ export function InventoryClient({
       if (result.data) {
         setLastRestockCart(result.data);
         setActiveShoppingCart(result.data);
+        setEditCartNotice(undefined);
       }
     });
+  }
+
+  function handleEditCartClick() {
+    if (!lastRestockCart) {
+      setEditCartNotice("generate cart first to edit");
+      return;
+    }
+
+    setEditCartNotice(undefined);
+    setActiveShoppingCart(lastRestockCart);
   }
 
   return (
@@ -1192,48 +1236,55 @@ export function InventoryClient({
                           {item.name}
                         </span>
                       </div>
-                      <div className="flex shrink-0 items-center gap-1 rounded-full bg-surface-container-low px-1.5 py-1">
-                        <button
-                          type="button"
-                          onClick={() => adjustRestockAmount(item, -1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-full text-outline hover:bg-surface-container-high hover:text-on-surface"
-                          aria-label={`Decrease ${item.name} order amount`}
-                        >
-                          <span className="material-symbols-outlined text-[15px]">
-                            remove
-                          </span>
-                        </button>
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={restockAmountDrafts[item.id] ?? "1"}
-                          onChange={(event) =>
-                            setRestockAmountDrafts((prev) => ({
-                              ...prev,
-                              [item.id]: event.target.value,
-                            }))
-                          }
-                          onBlur={() =>
-                            setRestockAmount(item, restockAmountFor(item))
-                          }
-                          className="h-6 w-12 bg-transparent text-center text-xs font-semibold text-on-surface outline-none"
-                          aria-label={`${item.name} order amount`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => adjustRestockAmount(item, 1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-full text-outline hover:bg-surface-container-high hover:text-on-surface"
-                          aria-label={`Increase ${item.name} order amount`}
-                        >
-                          <span className="material-symbols-outlined text-[15px]">
-                            add
-                          </span>
-                        </button>
-                        <span className="min-w-8 text-xs font-medium text-outline">
-                          {item.unit ?? "unit"}
+                      {lastRestockCart ? (
+                        <span className="shrink-0 rounded-full bg-surface-container-low px-3 py-1 text-xs font-semibold text-outline">
+                          {restockAmountFor(item)} {item.unit ?? "unit"}
                         </span>
-                      </div>
+                      ) : (
+                        <div className="flex shrink-0 items-center gap-1 rounded-full bg-surface-container-low px-1.5 py-1">
+                          <button
+                            type="button"
+                            onClick={() => adjustRestockAmount(item, -1)}
+                            className="flex h-6 w-6 items-center justify-center rounded-full text-outline hover:bg-surface-container-high hover:text-on-surface"
+                            aria-label={`Decrease ${item.name} order amount`}
+                          >
+                            <span className="material-symbols-outlined text-[15px]">
+                              remove
+                            </span>
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={restockAmountDrafts[item.id] ?? "1"}
+                            onChange={(event) => {
+                              setLastRestockCart(null);
+                              setRestockAmountDrafts((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }));
+                            }}
+                            onBlur={() =>
+                              setRestockAmount(item, restockAmountFor(item))
+                            }
+                            className="h-6 w-12 bg-transparent text-center text-xs font-semibold text-on-surface outline-none"
+                            aria-label={`${item.name} order amount`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => adjustRestockAmount(item, 1)}
+                            className="flex h-6 w-6 items-center justify-center rounded-full text-outline hover:bg-surface-container-high hover:text-on-surface"
+                            aria-label={`Increase ${item.name} order amount`}
+                          >
+                            <span className="material-symbols-outlined text-[15px]">
+                              add
+                            </span>
+                          </button>
+                          <span className="min-w-8 text-xs font-medium text-outline">
+                            {item.unit ?? "unit"}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ))}
                   {restockNeededItems.length > 4 && (
@@ -1246,6 +1297,11 @@ export function InventoryClient({
 
               {restockError && (
                 <p className="text-xs text-red-500 mt-2">{restockError}</p>
+              )}
+              {editCartNotice && (
+                <p className="mt-2 rounded-lg bg-error-container px-3 py-2 text-xs font-medium text-on-error-container">
+                  {editCartNotice}
+                </p>
               )}
               <button
                 onClick={handleAddToCart}
@@ -1265,9 +1321,8 @@ export function InventoryClient({
               </button>
               <button
                 type="button"
-                onClick={() => setActiveShoppingCart(lastRestockCart)}
-                disabled={!lastRestockCart}
-                className="mt-2 w-full rounded-xl border border-outline-variant py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-low disabled:opacity-50"
+                onClick={handleEditCartClick}
+                className="mt-2 w-full rounded-xl border border-outline-variant py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-low"
               >
                 Edit Cart
               </button>
@@ -1345,7 +1400,9 @@ export function InventoryClient({
                     {groupItems.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center gap-3 px-4 py-3"
+                        className={`flex items-center gap-3 px-4 py-3 ${
+                          (item.estimatedAmount ?? 0) === 0 ? "bg-red-50" : ""
+                        }`}
                       >
                         <div className="w-10 h-10 rounded-xl overflow-hidden bg-surface-container-low shrink-0 relative">
                           <IngredientImage name={item.name} size={40} />
@@ -1363,8 +1420,16 @@ export function InventoryClient({
                           <p className="font-semibold text-sm text-on-surface truncate">
                             {item.name}
                           </p>
-                          <p className="text-xs text-outline">
-                            {item.category}
+                          <p
+                            className={`text-xs ${
+                              (item.estimatedAmount ?? 0) === 0
+                                ? "text-red-600"
+                                : "text-outline"
+                            }`}
+                          >
+                            {(item.estimatedAmount ?? 0) === 0
+                              ? `${item.category} - needs restock`
+                              : item.category}
                           </p>
                         </div>
 
