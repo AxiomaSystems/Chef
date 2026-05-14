@@ -24,11 +24,25 @@ type DetectionGroup = {
   thumbnail?: string;
 };
 
+type VisionOcrSettings = {
+  enabled: boolean;
+  provider: "rapidocr";
+  cacheEnabled: boolean;
+  containerOnly: boolean;
+};
+
 const DEFAULT_VISION_DETECTOR = "yolo";
 const DEFAULT_VISION_CLASSIFIER_RUN =
   "resnet18_ingredient_crops_5000_modal_frozen_v2";
 const LIVE_SCAN_INTERVAL_MS = 1200;
 const CLASSIFIER_RELABEL_MIN_CONFIDENCE = "0.85";
+const OCR_SETTINGS_STORAGE_KEY = "chef_vision_ocr_settings_v1";
+const DEFAULT_OCR_SETTINGS: VisionOcrSettings = {
+  enabled: true,
+  provider: "rapidocr",
+  cacheEnabled: true,
+  containerOnly: true,
+};
 
 export function VisionScanModal({
   mode,
@@ -60,6 +74,41 @@ export function VisionScanModal({
     {},
   );
   const [manualLabels, setManualLabels] = useState<Record<string, string>>({});
+  const [ocrSettings, setOcrSettings] =
+    useState<VisionOcrSettings>(DEFAULT_OCR_SETTINGS);
+  const [discardedDetectionIds, setDiscardedDetectionIds] = useState<
+    Record<string, true>
+  >({});
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(OCR_SETTINGS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<VisionOcrSettings>;
+      setOcrSettings({
+        enabled:
+          typeof parsed.enabled === "boolean"
+            ? parsed.enabled
+            : DEFAULT_OCR_SETTINGS.enabled,
+        provider: "rapidocr",
+        cacheEnabled:
+          typeof parsed.cacheEnabled === "boolean"
+            ? parsed.cacheEnabled
+            : DEFAULT_OCR_SETTINGS.cacheEnabled,
+        containerOnly:
+          typeof parsed.containerOnly === "boolean"
+            ? parsed.containerOnly
+            : DEFAULT_OCR_SETTINGS.containerOnly,
+      });
+    } catch {
+      setOcrSettings(DEFAULT_OCR_SETTINGS);
+    }
+  }, []);
+
+  function updateOcrSettings(next: VisionOcrSettings) {
+    setOcrSettings(next);
+    window.localStorage.setItem(OCR_SETTINGS_STORAGE_KEY, JSON.stringify(next));
+  }
 
   useEffect(() => {
     if (mode !== "camera") return undefined;
@@ -112,7 +161,9 @@ export function VisionScanModal({
   }, [preview?.url]);
 
   const frames = result?.frames ?? [];
-  const detections = frames.flatMap((frame) => frame.detections);
+  const detections = frames
+    .flatMap((frame) => frame.detections)
+    .filter((detection) => !discardedDetectionIds[detection.observation_id]);
   const detectionGroups = groupDetections(detections, labelForDetection);
   const trackableGroups = detectionGroups.filter(isTrackableGroup);
   const expandedGroup =
@@ -145,6 +196,7 @@ export function VisionScanModal({
     setFocusedFrame(null);
     setSelectedLabels({});
     setManualLabels({});
+    setDiscardedDetectionIds({});
     setError(null);
     setLastLiveScanAt(null);
   }
@@ -204,7 +256,8 @@ export function VisionScanModal({
         formData.set("media_kind", mode);
         formData.set("detector", DEFAULT_VISION_DETECTOR);
         formData.set("classifier_run", DEFAULT_VISION_CLASSIFIER_RUN);
-        formData.set("classify_crops", String(mode !== "camera"));
+        formData.set("classify_crops", "true");
+        formData.set("classifier_relabel_enabled", "false");
         formData.set("classifier_top_k", "5");
         formData.set(
           "classifier_min_confidence",
@@ -214,6 +267,11 @@ export function VisionScanModal({
         formData.set("use_grid_fallback", "false");
         formData.set("grid_max_crops", "24");
         formData.set("grid_max_additions", "8");
+        formData.set("ocr_enabled", String(ocrSettings.enabled));
+        formData.set("ocr_provider", ocrSettings.provider);
+        formData.set("ocr_cache_enabled", String(ocrSettings.cacheEnabled));
+        formData.set("ocr_container_only", String(ocrSettings.containerOnly));
+        formData.set("ocr_min_confidence", "0.35");
         formData.set("max_detections_per_frame", "20");
         formData.set("confidence_threshold", "0.2");
         formData.set("sampled_fps", "1");
@@ -258,7 +316,7 @@ export function VisionScanModal({
         }
       }
     },
-    [getScanMedia, mode],
+    [getScanMedia, mode, ocrSettings],
   );
 
   useEffect(() => {
@@ -296,6 +354,7 @@ export function VisionScanModal({
     setFocusedFrame(null);
     setSelectedLabels({});
     setManualLabels({});
+    setDiscardedDetectionIds({});
     void submitScan();
   }
 
@@ -306,6 +365,7 @@ export function VisionScanModal({
     setFocusedFrame(null);
     setSelectedLabels({});
     setManualLabels({});
+    setDiscardedDetectionIds({});
     setLastLiveScanAt(null);
     setIsLiveScanning(true);
   }
@@ -360,6 +420,23 @@ export function VisionScanModal({
     }
 
     return selected?.trim() || detection.label;
+  }
+
+  function discardDetection(observationId: string) {
+    setDiscardedDetectionIds((current) => ({
+      ...current,
+      [observationId]: true,
+    }));
+  }
+
+  function discardGroup(group: DetectionGroup) {
+    setDiscardedDetectionIds((current) => {
+      const next = { ...current };
+      for (const detection of group.detections) {
+        next[detection.observation_id] = true;
+      }
+      return next;
+    });
   }
 
   async function addGroup(group: DetectionGroup) {
@@ -506,6 +583,64 @@ export function VisionScanModal({
                 </p>
               </div>
 
+              <details className="rounded-2xl border border-outline-variant/40 bg-white px-4 py-3">
+                <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-outline">
+                  Scan settings
+                </summary>
+                <div className="mt-3 space-y-3">
+                  <label className="flex items-start gap-2 text-xs font-semibold text-on-surface">
+                    <input
+                      type="checkbox"
+                      checked={ocrSettings.enabled}
+                      onChange={(event) =>
+                        updateOcrSettings({
+                          ...ocrSettings,
+                          enabled: event.target.checked,
+                        })
+                      }
+                      className="mt-0.5"
+                    />
+                    <span>
+                      Read text on containers
+                      <span className="block pt-0.5 font-normal leading-4 text-outline">
+                        Highlights label text and suggests names for bottles,
+                        cans, jars, and packages.
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 text-xs font-semibold text-on-surface">
+                    <input
+                      type="checkbox"
+                      checked={ocrSettings.cacheEnabled}
+                      disabled={!ocrSettings.enabled}
+                      onChange={(event) =>
+                        updateOcrSettings({
+                          ...ocrSettings,
+                          cacheEnabled: event.target.checked,
+                        })
+                      }
+                      className="mt-0.5"
+                    />
+                    <span>Use local OCR cache</span>
+                  </label>
+                  <label className="flex items-start gap-2 text-xs font-semibold text-on-surface">
+                    <input
+                      type="checkbox"
+                      checked={ocrSettings.containerOnly}
+                      disabled={!ocrSettings.enabled}
+                      onChange={(event) =>
+                        updateOcrSettings({
+                          ...ocrSettings,
+                          containerOnly: event.target.checked,
+                        })
+                      }
+                      className="mt-0.5"
+                    />
+                    <span>OCR containers only</span>
+                  </label>
+                </div>
+              </details>
+
               {mode !== "camera" && (
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -563,10 +698,7 @@ export function VisionScanModal({
 
               {result && (
                 <div className="grid grid-cols-2 gap-2">
-                  <Metric
-                    label="Objects"
-                    value={result.summary.detection_count}
-                  />
+                  <Metric label="Visible objects" value={detections.length} />
                   <Metric label="Item types" value={detectionGroups.length} />
                 </div>
               )}
@@ -657,30 +789,56 @@ export function VisionScanModal({
                             Check each item we found
                           </p>
                         </div>
-                        {isTrackableGroup(expandedGroup) ? (
+                        <div className="flex items-center gap-2">
+                          {isTrackableGroup(expandedGroup) ? (
+                            <button
+                              onClick={() => void addGroup(expandedGroup)}
+                              disabled={
+                                addingKey === `group-${expandedGroup.label}`
+                              }
+                              className="rounded-full bg-primary-fixed-dim px-3 py-1.5 text-xs font-bold text-on-primary-fixed disabled:opacity-60"
+                            >
+                              {addingKey === `group-${expandedGroup.label}`
+                                ? "Adding"
+                                : `Add ${expandedGroup.count}x`}
+                            </button>
+                          ) : (
+                            <span className="rounded-full border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-outline">
+                              Review
+                            </span>
+                          )}
                           <button
-                            onClick={() => void addGroup(expandedGroup)}
-                            disabled={
-                              addingKey === `group-${expandedGroup.label}`
-                            }
-                            className="rounded-full bg-primary-fixed-dim px-3 py-1.5 text-xs font-bold text-on-primary-fixed disabled:opacity-60"
+                            onClick={() => discardGroup(expandedGroup)}
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant/60 text-outline hover:bg-white"
+                            aria-label={`Discard ${expandedGroup.label}`}
+                            title={`Discard ${expandedGroup.label}`}
                           >
-                            {addingKey === `group-${expandedGroup.label}`
-                              ? "Adding"
-                              : `Add ${expandedGroup.count}x`}
+                            <span className="material-symbols-outlined text-[18px]">
+                              close
+                            </span>
                           </button>
-                        ) : (
-                          <span className="rounded-full border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-outline">
-                            Review
-                          </span>
-                        )}
+                        </div>
                       </div>
                       <div className="max-h-[22rem] overflow-y-auto divide-y divide-outline-variant/30">
                         {expandedGroup.detections.map((detection, index) => (
                           <div
                             key={detection.observation_id}
-                            className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
+                            className="relative flex flex-col gap-3 px-4 py-3 pr-12 sm:flex-row sm:items-center"
                           >
+                            <button
+                              onClick={() =>
+                                discardDetection(detection.observation_id)
+                              }
+                              className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-outline hover:bg-surface-container"
+                              aria-label={`Discard ${labelForDetection(
+                                detection,
+                              )}`}
+                              title={`Discard ${labelForDetection(detection)}`}
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                close
+                              </span>
+                            </button>
                             <div className="flex min-w-0 items-center gap-3">
                               <DetectionThumb
                                 src={detection.thumbnail_data_url}
@@ -694,6 +852,11 @@ export function VisionScanModal({
                                   {Math.round(detection.confidence * 100)}%
                                   match
                                 </p>
+                                {detection.ocr?.suggested_label && (
+                                  <p className="mt-1 truncate text-xs font-semibold text-cyan-700">
+                                    OCR: {detection.ocr.suggested_label}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <DetectionAddControl
@@ -842,7 +1005,9 @@ function isTrackableGroup(group: DetectionGroup) {
 function statusLabelForGroup(group: DetectionGroup) {
   if (isTrackableGroup(group)) return "ready to add";
   if (
-    group.detections.some((detection) => detection.inventory_policy === "review")
+    group.detections.some(
+      (detection) => detection.inventory_policy === "review",
+    )
   ) {
     return "needs review";
   }
@@ -864,6 +1029,24 @@ function CameraDetectionOverlay({
 }) {
   return (
     <div className="pointer-events-none absolute inset-0">
+      {detections.flatMap((detection) =>
+        (detection.ocr?.text_boxes ?? []).map((box, index) => (
+          <div
+            key={`${detection.observation_id}-ocr-${index}`}
+            className="absolute rounded-sm border-2 border-cyan-300 bg-cyan-300/15"
+            style={{
+              left: `${box.bbox.x * 100}%`,
+              top: `${box.bbox.y * 100}%`,
+              width: `${box.bbox.width * 100}%`,
+              height: `${box.bbox.height * 100}%`,
+            }}
+          >
+            <span className="absolute left-0 top-0 max-w-40 -translate-y-full truncate rounded-t-sm bg-cyan-300 px-1.5 py-0.5 text-[10px] font-bold text-black">
+              {box.text}
+            </span>
+          </div>
+        )),
+      )}
       {detections.map((detection) => {
         const label = labelForDetection(detection);
         const review = detection.inventory_policy === "review";
@@ -927,9 +1110,13 @@ function DetectionAddControl({
   onAdd: (label: string, key: string) => void;
 }) {
   const options = predictionOptions(detection);
-  const selected = selectedValue ?? options[0]?.value ?? detection.label;
-  const isOther = selected === OTHER_VALUE;
   const hasPredictions = predictionListForDetection(detection).length > 0;
+  const hasSuggestions =
+    hasPredictions || Boolean(detection.ocr?.suggested_label);
+  const selected =
+    selectedValue ??
+    (hasPredictions ? "" : (options[0]?.value ?? detection.label));
+  const isOther = selected === OTHER_VALUE;
   const addLabel = isOther ? manualValue.trim() : selected.trim();
   const addKey = `${detection.observation_id}-${addLabel || selected}`;
   const canAdd =
@@ -950,6 +1137,11 @@ function DetectionAddControl({
         className="w-full rounded-xl border border-outline-variant/60 bg-white px-3 py-2 text-xs font-semibold text-on-surface"
         aria-label={`Choose item label for ${detection.label}`}
       >
+        {hasPredictions && (
+          <option value="" disabled>
+            Classifier suggestions
+          </option>
+        )}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -957,7 +1149,7 @@ function DetectionAddControl({
         ))}
         <option value={OTHER_VALUE}>Other</option>
       </select>
-      {!hasPredictions && (
+      {!hasSuggestions && (
         <p className="text-[11px] leading-4 text-outline">
           Top suggestions did not come back for this item.
         </p>
@@ -1013,6 +1205,15 @@ function predictionListForDetection(
 function predictionOptions(detection: VisionDetection) {
   const seen = new Set<string>();
   const options: Array<{ value: string; label: string }> = [];
+  const ocrSuggestion = detection.ocr?.suggested_label?.trim();
+  if (ocrSuggestion) {
+    seen.add(ocrSuggestion.toLowerCase());
+    options.push({
+      value: ocrSuggestion,
+      label: `OCR label: ${ocrSuggestion}`,
+    });
+  }
+
   const predictions = predictionListForDetection(detection).slice(0, 5);
 
   for (const prediction of predictions) {
@@ -1036,11 +1237,6 @@ function predictionOptions(detection: VisionDetection) {
         label,
       });
     }
-  } else if (!seen.has(detection.label.toLowerCase())) {
-    options.push({
-      value: detection.label,
-      label: detection.label,
-    });
   }
 
   return options;
@@ -1067,6 +1263,8 @@ function exposeVisionScanDebug(result: VisionScanResponse) {
       predictions: predictionListForDetection(detection).map(
         (prediction) => prediction.label,
       ),
+      ocrSuggestion: detection.ocr?.suggested_label,
+      ocrTextBoxes: detection.ocr?.text_boxes?.length ?? 0,
     })),
     raw: result,
   });

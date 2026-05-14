@@ -59,6 +59,11 @@ export class AnalyzeVisionMediaDto {
   @IsOptional()
   @Transform(toBoolean)
   @IsBoolean()
+  classifier_relabel_enabled?: boolean;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
   use_full_image_fallback?: boolean;
 
   @IsOptional()
@@ -107,6 +112,32 @@ export class AnalyzeVisionMediaDto {
   @Min(0)
   @Max(50)
   grid_max_additions?: number;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  ocr_enabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  ocr_provider?: string;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  ocr_cache_enabled?: boolean;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  ocr_container_only?: boolean;
+
+  @IsOptional()
+  @Transform(toNumber)
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  ocr_min_confidence?: number;
 
   @IsOptional()
   @Transform(toBoolean)

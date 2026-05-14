@@ -24,12 +24,12 @@ This matters for labels such as `tomato jar`, `tomato can`, `diced tomatoes can`
 
 ## Compared With Current Work
 
-| Version | Detector classes | Classifier | Strength | Main weakness |
-|---|---|---|---|---|
-| Generic YOLO | COCO/general objects | optional ResNet | high broad recall | labels are not ingredient-specific |
-| v002 | canonical ingredient/package labels | optional ResNet | ingredient-aware boxes | only 23 trained classes; misses out-of-range items |
-| v3 broad | broad food/object proposal labels | package-aware classifier | better food recall and extensibility | still food-scoped |
-| v3 object proposal | rudimentary visible-object labels | package-aware classifier | highest recall path | needs policy filtering and review to control noise |
+| Version            | Detector classes                    | Classifier               | Strength                             | Main weakness                                      |
+| ------------------ | ----------------------------------- | ------------------------ | ------------------------------------ | -------------------------------------------------- |
+| Generic YOLO       | COCO/general objects                | optional ResNet          | high broad recall                    | labels are not ingredient-specific                 |
+| v002               | canonical ingredient/package labels | optional ResNet          | ingredient-aware boxes               | only 23 trained classes; misses out-of-range items |
+| v3 broad           | broad food/object proposal labels   | package-aware classifier | better food recall and extensibility | still food-scoped                                  |
+| v3 object proposal | rudimentary visible-object labels   | package-aware classifier | highest recall path                  | needs policy filtering and review to control noise |
 
 ## Detector Class Strategies
 
@@ -89,6 +89,35 @@ unknown_kitchen_item
 The broad detector is intentionally less specific. It should find more candidate boxes, then the classifier can identify the crop as `tomato can`, `tomato jar`, `basmati rice bag`, or another fine label.
 
 The object-proposal detector is even less specific. It is the preferred path when the goal is to detect visible objects first, including non-ingredients, then let the JSON ontology decide `track`, `review`, or `ignore`.
+
+## Current Main Runtime Convention
+
+The current main detector checkpoint is `chef-detector-v005b-openimages-filtered`.
+
+Its internal YOLO classes remain:
+
+```text
+bag
+bottle
+box
+can
+carton
+egg_carton
+produce_item
+unknown_kitchen_item
+```
+
+The product-facing runtime labels are intentionally shorter:
+
+```text
+container
+produce item
+unknown
+```
+
+This is a runtime adapter convention, not a dataset rewrite. Do not change an existing checkpoint's `data.yaml` class order to three labels unless the detector is retrained for that three-class ontology.
+
+See `docs/vision-main-convention.md` for the full current main-app standard.
 
 ## Build v3 Dataset
 

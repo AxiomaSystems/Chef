@@ -39,6 +39,10 @@ export async function POST(request: Request) {
     "classifier_top_k",
     getFormString(inbound, "classifier_top_k") ?? "5",
   );
+  outbound.set(
+    "classifier_relabel_enabled",
+    getFormString(inbound, "classifier_relabel_enabled") ?? "false",
+  );
   outbound.set("use_full_image_fallback", "false");
   outbound.set("use_grid_fallback", "false");
 

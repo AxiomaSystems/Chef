@@ -51,6 +51,14 @@ export class VisionBoundingBoxResponseDto {
   height!: number;
 }
 
+export class VisionClassificationPredictionResponseDto {
+  @ApiProperty({ example: 'olive oil' })
+  label!: string;
+
+  @ApiProperty({ example: 0.78 })
+  probability!: number;
+}
+
 export class VisionDetectionResponseDto {
   @ApiProperty({ example: 'obs_1_1_ab12cd34' })
   observation_id!: string;
@@ -81,6 +89,17 @@ export class VisionDetectionResponseDto {
 
   @ApiProperty({ example: 0.94 })
   confidence!: number;
+
+  @ApiPropertyOptional({ example: 'bottle' })
+  detector_label?: string;
+
+  @ApiPropertyOptional({ example: 0.91 })
+  detector_confidence?: number;
+
+  @ApiPropertyOptional({
+    type: () => [VisionClassificationPredictionResponseDto],
+  })
+  classification_predictions?: VisionClassificationPredictionResponseDto[];
 }
 
 export class VisionFrameResultResponseDto {
@@ -963,12 +982,7 @@ export class RetailerCapabilityResponseDto {
   requires_api_key!: boolean;
 
   @ApiProperty({
-    enum: [
-      'configured',
-      'missing_credentials',
-      'disabled',
-      'partner_required',
-    ],
+    enum: ['configured', 'missing_credentials', 'disabled', 'partner_required'],
     example: 'configured',
   })
   status!: string;

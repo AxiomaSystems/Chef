@@ -20,6 +20,8 @@ STATUS_COLORS = {
     "ignored": "#6b7280",
 }
 
+OCR_COLOR = "#22d3ee"
+
 
 def load_image_from_bytes(data: bytes) -> Image.Image:
     image = Image.open(BytesIO(data))
@@ -74,6 +76,44 @@ def draw_detections(
             fill=(255, 255, 255),
             font=font,
         )
+
+        if detection.ocr and detection.ocr.text_boxes:
+            for text_box in detection.ocr.text_boxes:
+                ocr_left = int(text_box.bbox.x * width)
+                ocr_top = int(text_box.bbox.y * height)
+                ocr_right = int((text_box.bbox.x + text_box.bbox.width) * width)
+                ocr_bottom = int((text_box.bbox.y + text_box.bbox.height) * height)
+                ocr_color = ImageColor.getrgb(OCR_COLOR)
+                draw.rectangle(
+                    (ocr_left, ocr_top, ocr_right, ocr_bottom),
+                    outline=ocr_color,
+                    width=max(2, box_width // 2),
+                )
+
+                ocr_label = text_box.text[:32]
+                if not ocr_label:
+                    continue
+                ocr_bbox = draw.textbbox((0, 0), ocr_label, font=font)
+                ocr_text_width = ocr_bbox[2] - ocr_bbox[0]
+                ocr_text_height = ocr_bbox[3] - ocr_bbox[1]
+                ocr_badge_width = min(width - ocr_left, ocr_text_width + padding_x * 2)
+                ocr_badge_height = ocr_text_height + padding_y * 2
+                ocr_badge_top = max(0, ocr_top - ocr_badge_height)
+                draw.rectangle(
+                    (
+                        ocr_left,
+                        ocr_badge_top,
+                        min(width, ocr_left + ocr_badge_width),
+                        min(height, ocr_badge_top + ocr_badge_height),
+                    ),
+                    fill=ocr_color,
+                )
+                draw.text(
+                    (ocr_left + padding_x, ocr_badge_top + padding_y - ocr_bbox[1]),
+                    ocr_label,
+                    fill=(0, 0, 0),
+                    font=font,
+                )
 
     return rendered
 

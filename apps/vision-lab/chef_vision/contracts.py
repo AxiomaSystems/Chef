@@ -66,6 +66,25 @@ class ClassificationPrediction:
 
 
 @dataclass(slots=True)
+class OcrTextBox:
+    text: str
+    confidence: float
+    bbox: BoundingBox
+
+
+@dataclass(slots=True)
+class OcrResult:
+    enabled: bool
+    provider: str
+    cache_key: str | None = None
+    cache_hit: bool = False
+    text: str = ""
+    suggested_label: str | None = None
+    text_boxes: list[OcrTextBox] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+
+@dataclass(slots=True)
 class Detection:
     observation_id: str
     class_id: str
@@ -78,6 +97,7 @@ class Detection:
     detector_label: str | None = None
     detector_confidence: float | None = None
     classification_predictions: list[ClassificationPrediction] = field(default_factory=list)
+    ocr: OcrResult | None = None
 
 
 @dataclass(slots=True)
