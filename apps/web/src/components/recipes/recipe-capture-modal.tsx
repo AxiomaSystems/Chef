@@ -1,12 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import type { Capture } from "@cart/shared";
-import {
-  createCaptureAction,
-  saveCaptureAsRecipeAction,
-} from "@/app/import/actions";
+import { createCaptureAction } from "@/app/import/actions";
 
 type CaptureMode = "url" | "text";
 
@@ -31,43 +27,67 @@ const CONFIDENCE_LABELS: Record<string, string> = {
   low: "Low confidence",
 };
 
+function isUsableCaptureDraft(capture: Capture) {
+  const recipe = capture.recipe_preview;
+  if (!recipe) return false;
+
+  const hasIngredient = recipe.ingredients.some((ingredient) => {
+    const name = (
+      ingredient.display_ingredient ??
+      ingredient.canonical_ingredient ??
+      ""
+    )
+      .trim()
+      .toLowerCase();
+    return (
+      name && !name.includes("unknown") && !name.includes("no extractable")
+    );
+  });
+  const hasStep = recipe.steps.some((step) => {
+    const text = step.what_to_do.trim().toLowerCase();
+    return (
+      text &&
+      !text.includes("no usable") &&
+      !text.includes("review the original") &&
+      !text.includes("source text did not")
+    );
+  });
+  const extractionFailed = capture.extraction_notes.some((note) =>
+    /no recipe-specific|no usable|insufficient|unresolved placeholder/i.test(
+      note,
+    ),
+  );
+
+  return hasIngredient && hasStep && !extractionFailed;
+}
+
 export function RecipeCaptureModal({
   onClose,
+  onReviewDraft,
   initialOpenMode = "url",
 }: {
   onClose: () => void;
+  onReviewDraft?: (capture: Capture) => void;
   initialOpenMode?: CaptureMode;
 }) {
-  const router = useRouter();
   const [mode, setMode] = useState<CaptureMode>(initialOpenMode);
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [capture, setCapture] = useState<Capture | null>(null);
   const [error, setError] = useState<string | undefined>();
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const [thinkingStep, setThinkingStep] = useState(0);
   const [isCapturing, startCapture] = useTransition();
-  const [isSaving, startSave] = useTransition();
 
   const recipe = capture?.recipe_preview;
   const canSubmit = mode === "url" ? !!url.trim() : !!text.trim();
+  const shouldShowCoverImage =
+    !!recipe?.cover_image_url && failedImageUrl !== recipe.cover_image_url;
   const sourceLabel =
     capture?.source_attribution.attribution_label ??
     capture?.source_attribution.site ??
     capture?.source_attribution.url ??
     "Chef Capture";
-
-  const reviewBadges = useMemo(() => {
-    if (!capture) return [];
-
-    return [
-      RESULT_LABELS[capture.result_kind] ?? "Capture draft",
-      CONFIDENCE_LABELS[capture.confidence] ??
-        `${capture.confidence} confidence`,
-      capture.status === "needs_more_info"
-        ? "Needs details"
-        : "Ready to review",
-    ];
-  }, [capture]);
 
   useEffect(() => {
     if (!isCapturing) {
@@ -89,6 +109,7 @@ export function RecipeCaptureModal({
 
     setError(undefined);
     setCapture(null);
+    setFailedImageUrl(null);
     startCapture(async () => {
       const result = await createCaptureAction(
         mode === "url"
@@ -105,29 +126,33 @@ export function RecipeCaptureModal({
         return;
       }
 
+      if (onReviewDraft && isUsableCaptureDraft(result.capture)) {
+        onReviewDraft(result.capture);
+        return;
+      }
+
+      if (onReviewDraft) {
+        setError(
+          "Chef could not extract enough usable recipe details from that source. Paste the caption, transcript, or recipe text below and try again.",
+        );
+        setCapture(null);
+        setFailedImageUrl(null);
+        return;
+      }
+      setFailedImageUrl(null);
       setCapture(result.capture);
     });
   }
 
-  function handleSave() {
-    if (!capture || isSaving) return;
-
-    setError(undefined);
-    startSave(async () => {
-      const result = await saveCaptureAsRecipeAction(capture.id);
-
-      if (result.error || !result.recipe) {
-        setError(result.error ?? "Chef could not save that recipe.");
-        return;
-      }
-
-      router.push(`/recipes/${result.recipe.id}`);
-    });
+  function handleReviewDraft() {
+    if (!capture || !recipe) return;
+    onReviewDraft?.(capture);
   }
 
   function resetDraft() {
     setCapture(null);
     setError(undefined);
+    setFailedImageUrl(null);
   }
 
   return (
@@ -141,14 +166,11 @@ export function RecipeCaptureModal({
               Chef Capture
             </p>
             <h2 className="mt-1 text-2xl font-black leading-tight text-on-surface sm:text-3xl">
-              {capture
-                ? "Review your recipe draft"
-                : "Turn a food idea into a recipe"}
+              Turn a food idea into a recipe
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-on-surface-variant">
-              {capture
-                ? "Chef made a draft. Check the assumptions before saving it to your kitchen."
-                : "Paste a recipe link or raw text. Chef will extract what it can and keep it reviewable."}
+              Paste a recipe link or raw text. If Chef finds enough detail, it
+              will open an editable recipe form.
             </p>
           </div>
           <button
@@ -162,7 +184,7 @@ export function RecipeCaptureModal({
         </div>
 
         <div className="relative min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
-          {!capture ? (
+          {!capture || onReviewDraft ? (
             <div className="mx-auto max-w-xl">
               <section className="rounded-[1.7rem] border border-[#ecdcc8] bg-white p-4 shadow-sm sm:p-5">
                 <div className="grid grid-cols-2 rounded-2xl bg-[#f7f0e7] p-1">
@@ -292,23 +314,35 @@ export function RecipeCaptureModal({
           ) : recipe ? (
             <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
               <section className="rounded-[1.7rem] border border-[#ecdcc8] bg-white p-5 shadow-sm">
-                {recipe.cover_image_url && (
+                <div className="rounded-2xl border border-error/20 bg-error-container/30 p-4 text-sm text-error">
+                  Chef could not turn this source into a usable recipe draft.
+                  Start over with a clearer link, caption, transcript, or recipe
+                  text.
+                </div>
+                {shouldShowCoverImage && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={recipe.cover_image_url}
                     alt=""
+                    onError={() =>
+                      setFailedImageUrl(recipe.cover_image_url ?? null)
+                    }
                     className="mb-5 h-48 w-full rounded-[1.25rem] object-cover"
                   />
                 )}
-                <div className="flex flex-wrap gap-2">
-                  {reviewBadges.map((badge) => (
-                    <span
-                      key={badge}
-                      className="rounded-full bg-[#f7ead7] px-3 py-1 text-xs font-bold text-primary"
-                    >
-                      {badge}
-                    </span>
-                  ))}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-[#f7ead7] px-3 py-1 text-xs font-bold text-primary">
+                    {RESULT_LABELS[capture.result_kind] ?? "Capture draft"}
+                  </span>
+                  <span className="rounded-full bg-[#f7ead7] px-3 py-1 text-xs font-bold text-primary">
+                    {CONFIDENCE_LABELS[capture.confidence] ??
+                      `${capture.confidence} confidence`}
+                  </span>
+                  <span className="rounded-full bg-[#f7ead7] px-3 py-1 text-xs font-bold text-primary">
+                    {capture.status === "needs_more_info"
+                      ? "Needs details"
+                      : "Ready to review"}
+                  </span>
                 </div>
                 <h3 className="mt-4 text-3xl font-black leading-tight text-on-surface">
                   {recipe.name}
@@ -421,11 +455,10 @@ export function RecipeCaptureModal({
             </button>
             <button
               type="button"
-              onClick={handleSave}
-              disabled={isSaving}
+              onClick={handleReviewDraft}
               className="rounded-full bg-primary px-7 py-3 text-sm font-black text-on-primary shadow-[0_14px_34px_rgba(255,112,0,0.24)] transition hover:translate-y-[-1px] disabled:translate-y-0 disabled:opacity-50"
             >
-              {isSaving ? "Saving..." : "Save recipe"}
+              Review & edit
             </button>
           </div>
         )}

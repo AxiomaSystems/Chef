@@ -1,11 +1,15 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
-import { RecipeCaptureModal } from "@/components/recipes/recipe-capture-modal";
 
 export function ImportClient() {
   const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/create?capture=1");
+  }, [router]);
 
   return (
     <AppShell topBarTitle="Import Recipe">
@@ -23,8 +27,6 @@ export function ImportClient() {
           </p>
         </div>
       </main>
-
-      <RecipeCaptureModal onClose={() => router.push("/create")} />
     </AppShell>
   );
 }

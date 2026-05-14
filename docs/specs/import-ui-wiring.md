@@ -9,7 +9,7 @@ Recipe import should be presented as a modal-first Chef Capture flow, not as a s
 - **Create your own recipe** opens the existing manual recipe modal.
 - **Capture a recipe** opens the new Capture modal.
 
-`/import` remains as a compatibility/deep-link route, but it now renders the same Capture modal over a lightweight explanation page.
+`/import` remains as a compatibility/deep-link route, but it now redirects into `/create?capture=1`.
 
 ## Why Modal First
 
@@ -25,7 +25,7 @@ The UI uses the Chef Capture backend boundary:
 - `POST /api/v1/captures`
 - `POST /api/v1/captures/:id/save-recipe`
 
-The UI should not manually reconstruct recipe create payloads from imported previews. The backend owns capture persistence and save behavior.
+The UI should not persist imported previews directly or show a separate review screen. Capture creates a draft in the background, then immediately opens the standard Create Recipe modal prefilled from `recipe_preview`; the user reviews and saves from there.
 
 Supported inputs in this slice:
 
@@ -53,14 +53,9 @@ The Capture modal has three main states:
    - Deterministic progress copy for now
    - Future streaming can replace this with real task-state updates
 
-3. **Review**
-   - Recipe draft
-   - Source attribution
-   - Confidence
-   - Result kind
-   - Missing info
-   - Assumptions
-   - Save recipe action
+3. **Edit**
+   - Open the manual Create Recipe modal with prefilled fields
+   - User reviews title, image, ingredients, steps, tags, and nutrition before saving
 
 ## Future Work
 

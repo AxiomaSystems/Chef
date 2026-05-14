@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
+import type {
+  BaseRecipe,
+  Capture,
+  CaptureRecipePreview,
+  Cuisine,
+  Tag,
+} from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { RecipeCreateModal } from "@/components/recipes/recipe-create-modal";
 import { RecipeCaptureModal } from "@/components/recipes/recipe-capture-modal";
@@ -22,6 +28,8 @@ export function CreateClient({
   const router = useRouter();
   const [showRecipeCreate, setShowRecipeCreate] = useState(openRecipeOnLoad);
   const [showCapture, setShowCapture] = useState(openCaptureOnLoad);
+  const [importedDraft, setImportedDraft] =
+    useState<CaptureRecipePreview | null>(null);
 
   useEffect(() => {
     if (openCaptureOnLoad || openRecipeOnLoad) {
@@ -31,6 +39,7 @@ export function CreateClient({
 
   function closeRecipeCreate() {
     setShowRecipeCreate(false);
+    setImportedDraft(null);
   }
 
   function closeCapture() {
@@ -39,7 +48,15 @@ export function CreateClient({
 
   function handleRecipeCreated(_recipe: BaseRecipe) {
     setShowRecipeCreate(false);
-    router.push("/recipes");
+    setImportedDraft(null);
+    router.push(`/recipes/${_recipe.id}`);
+  }
+
+  function handleCaptureReview(capture: Capture) {
+    if (!capture.recipe_preview) return;
+    setImportedDraft(capture.recipe_preview);
+    setShowCapture(false);
+    setShowRecipeCreate(true);
   }
 
   return (
@@ -114,10 +131,16 @@ export function CreateClient({
           tags={tags}
           onClose={closeRecipeCreate}
           onCreated={handleRecipeCreated}
+          initialDraft={importedDraft}
         />
       )}
 
-      {showCapture && <RecipeCaptureModal onClose={closeCapture} />}
+      {showCapture && (
+        <RecipeCaptureModal
+          onClose={closeCapture}
+          onReviewDraft={handleCaptureReview}
+        />
+      )}
     </AppShell>
   );
 }
