@@ -60,10 +60,8 @@ export class CaptureService {
       throw new BadRequestException('text is required for text captures');
     }
 
-    if (input.input_kind === 'text' && normalizedUrl) {
-      throw new BadRequestException(
-        'text captures should not include url; omit input_kind or use input_kind=url',
-      );
+    if (inputKind === 'text' && normalizedUrl) {
+      throw new BadRequestException('text captures should not include url');
     }
 
     const importResult = await this.aiService.importRecipeFromCapture({
@@ -91,6 +89,7 @@ export class CaptureService {
       normalizedUrl,
     );
     const assumptions = buildAssumptions(importResult, resultKind);
+    const recipePreview = buildCaptureRecipePreview(importResult);
     const shortSnippets = buildShortSnippets(
       normalizedText,
       importResult.source_description,
@@ -108,7 +107,7 @@ export class CaptureService {
         sourceUrl: normalizedUrl,
         sourceTextSnippet: normalizedText?.slice(0, 1000),
         attribution: attribution as Prisma.InputJsonValue,
-        recipePreview: importResult.imported_recipe as Prisma.InputJsonValue,
+        recipePreview: recipePreview as Prisma.InputJsonValue,
         assumptions: assumptions as Prisma.InputJsonValue,
         missingInfo: missingInfo as Prisma.InputJsonValue,
         nextActions: [
@@ -227,6 +226,7 @@ function buildRecipeInput(
     name: preview.name,
     cuisine_id: cuisineId,
     description: preview.description,
+    cover_image_url: preview.cover_image_url,
     nutrition_data: preview.nutrition_estimate ?? undefined,
     servings: preview.servings,
     ingredients: preview.ingredients.map((ingredient) => ({
@@ -242,6 +242,39 @@ function buildRecipeInput(
       step: step.step,
       what_to_do: step.what_to_do,
     })),
+  };
+}
+
+function buildCaptureRecipePreview(
+  result: AiRecipeImportResult,
+): CaptureRecipePreview {
+  const preview = result.imported_recipe;
+
+  return {
+    name: preview.name,
+    cuisine: preview.cuisine,
+    description: preview.description,
+    cover_image_url: result.source_image_url ?? undefined,
+    servings: preview.servings,
+    ingredients: preview.ingredients.map((ingredient) => ({
+      canonical_ingredient: ingredient.canonical_ingredient,
+      amount: ingredient.amount,
+      unit: ingredient.unit,
+      display_ingredient: ingredient.display_ingredient ?? undefined,
+      preparation: ingredient.preparation ?? undefined,
+      optional: ingredient.optional,
+      group: ingredient.group ?? undefined,
+    })),
+    steps: preview.steps.map((step) => ({
+      step: step.step,
+      what_to_do: step.what_to_do,
+    })),
+    tags: preview.tags,
+    nutrition_estimate: preview.nutrition_estimate,
+    estimated_cost_tier: preview.estimated_cost_tier,
+    cost_notes: preview.cost_notes,
+    quality_tradeoffs: preview.quality_tradeoffs,
+    assumptions: preview.assumptions,
   };
 }
 

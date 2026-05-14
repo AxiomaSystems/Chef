@@ -100,6 +100,7 @@ export class MockAiProvider implements AiProvider {
     source_title: string;
     source_creator: string | null;
     source_description: string;
+    source_image_url: string | null;
     extracted_text: string;
     extraction_notes: string[];
   }): Promise<AiRecipeImportResult> {
@@ -131,6 +132,7 @@ export class MockAiProvider implements AiProvider {
       source_description:
         input.source_description ||
         'Imported from creator metadata in mock mode.',
+      source_image_url: input.source_image_url,
       imported_recipe: {
         ...importedRecipe,
         description: input.source_description || importedRecipe.description,
