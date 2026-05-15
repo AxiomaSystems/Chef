@@ -201,3 +201,53 @@ export type AddVisionObservationToInventoryRequest = {
   estimated_amount?: number;
   unit?: string;
 };
+
+export type VisionObservationAction =
+  | "pending"
+  | "added_to_inventory"
+  | "renamed"
+  | "discarded"
+  | "resolved_to_ingredient";
+
+export type VisionObservation = {
+  id: string;
+  user_id?: string;
+  inventory_item_id?: string;
+  detected_label: string;
+  proposed_name?: string;
+  canonical_slug?: string;
+  detector_model?: string;
+  classifier_model?: string;
+  model_name?: string;
+  confidence?: number;
+  image_ref?: string;
+  crop_ref?: string;
+  bbox?: unknown;
+  raw_payload?: unknown;
+  action: VisionObservationAction;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateVisionObservationRequest = {
+  detected_label: string;
+  proposed_name?: string;
+  canonical_slug?: string;
+  detector_model?: string;
+  classifier_model?: string;
+  model_name?: string;
+  confidence?: number;
+  image_ref?: string;
+  crop_ref?: string;
+  bbox?: unknown;
+  raw_payload?: unknown;
+};
+
+export type AddVisionObservationToInventoryRequest = {
+  display_name?: string;
+  ingredient_id?: string;
+  canonical_slug?: string;
+  canonical_name?: string;
+  estimated_amount?: number;
+  unit?: string;
+};
