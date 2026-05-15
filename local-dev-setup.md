@@ -22,6 +22,7 @@ Notes:
 
 - API/Prisma/seed now read root `.env`.
 - Web local config should also come from root `.env` (no need to rely on `apps/web/.env.local`).
+- `PORT` is reserved for the API. Leave `WEB_PORT` empty for the default Next port `3000`, or set `WEB_PORT` if you intentionally want a different frontend port.
 - `.vercel/.env*` and `apps/web/.env.vercel.*` are machine/deploy artifacts, not local source-of-truth.
 - API fails fast on missing critical env vars: `DATABASE_URL`, `DIRECT_URL`, `AUTH_JWT_SECRET`, `AUTH_ACCESS_TOKEN_EXPIRES_IN`, `AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS`.
 - Provider flags (`*_USE_REAL_PROVIDER=true`) with missing credentials now warn clearly at startup.
