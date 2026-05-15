@@ -108,7 +108,7 @@ export function CartSidebarCards({
             Import it from YouTube, TikTok, or Instagram in seconds.
           </p>
           <Link
-            href="/create?capture=1"
+            href="/recipes?import=1"
             className="inline-flex items-center gap-2 bg-primary-fixed-dim text-on-primary-fixed font-semibold text-label-md px-4 py-2.5 rounded-full hover:opacity-90 transition-opacity shadow-md"
           >
             <span className="material-symbols-outlined text-[16px]">

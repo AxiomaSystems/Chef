@@ -5,7 +5,7 @@ import { RecipesClient } from "./recipes-client";
 export default async function RecipesPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ new?: string }>;
+  searchParams?: Promise<{ import?: string; capture?: string; new?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
   const [cuisinesResult, tagsResult, recipesResult] = await Promise.all([
@@ -19,7 +19,10 @@ export default async function RecipesPage({
       cuisines={cuisinesResult.data}
       tags={tagsResult.data}
       recipes={recipesResult.data}
-      openCreateOnLoad={resolvedSearchParams?.new === "1"}
+      openImportOnLoad={
+        resolvedSearchParams?.import === "1" ||
+        resolvedSearchParams?.capture === "1"
+      }
     />
   );
 }
