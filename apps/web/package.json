@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node ../../scripts/next-with-root-env.mjs dev",
+    "build": "node ../../scripts/next-with-root-env.mjs build",
+    "start": "node ../../scripts/next-with-root-env.mjs start",
     "lint": "eslint"
   },
   "dependencies": {
     "@11labs/client": "^0.2.0",
+    "@next/env": "16.1.7",
     "@cart/shared": "workspace:*",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",

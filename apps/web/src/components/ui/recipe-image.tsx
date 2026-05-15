@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { RecipeImagePlaceholder } from "./recipe-image-placeholder";
 
 export function RecipeImage({
@@ -16,12 +16,9 @@ export function RecipeImage({
   imgClassName?: string;
   seed?: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const normalizedSrc = src?.trim() || "";
-
-  useEffect(() => {
-    setFailed(false);
-  }, [normalizedSrc]);
+  const failed = failedSrc === normalizedSrc;
 
   if (!normalizedSrc || failed) {
     return (
@@ -40,7 +37,10 @@ export function RecipeImage({
         src={normalizedSrc}
         alt={alt}
         className={imgClassName ?? "h-full w-full object-cover"}
-        onError={() => setFailed(true)}
+        loading="lazy"
+        decoding="async"
+        fetchPriority="low"
+        onError={() => setFailedSrc(normalizedSrc)}
       />
     </div>
   );

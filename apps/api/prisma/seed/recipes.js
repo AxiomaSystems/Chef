@@ -1,6 +1,5 @@
 const { systemRecipes } = require('./data/system-recipes');
 const { userRecipes } = require('./data/user-recipes');
-const { resolveCuisineId } = require('./cuisines');
 const { normalizeSlug } = require('./ingredients');
 
 const DIETARY_BADGE_SLUGS = new Set([
@@ -37,6 +36,7 @@ function normalizeTagSlug(tag) {
 
 async function connectRecipeTags(
   prisma,
+  context,
   recipeId,
   ownerUserId,
   isSystemRecipe,
@@ -52,105 +52,29 @@ async function connectRecipeTags(
     ).entries(),
   ).map(([slug, name]) => ({ slug, name }));
 
-  for (const tag of uniqueTags) {
-    const kind = DIETARY_BADGE_SLUGS.has(tag.slug)
-      ? 'dietary_badge'
-      : 'general';
-    const systemTag = await prisma.tag.findFirst({
-      where: {
-        scope: 'system',
-        slug: tag.slug,
-      },
-    });
+  const tagIds = uniqueTags
+    .map((tag) =>
+      resolveSeedTagId(context, tag.slug, ownerUserId, isSystemRecipe),
+    )
+    .filter(Boolean);
 
-    const resolvedTag =
-      systemTag ||
-      (isSystemRecipe
-        ? await prisma.tag.create({
-            data: {
-              name: tag.name,
-              slug: tag.slug,
-              scope: 'system',
-              kind,
-            },
-          })
-        : null);
-
-    let userTag = resolvedTag;
-
-    if (!userTag) {
-      userTag = await prisma.tag.findFirst({
-        where: {
-          scope: 'user',
-          ownerUserId,
-          slug: tag.slug,
-        },
-      });
-    }
-
-    if (!userTag) {
-      userTag = await prisma.tag.create({
-        data: {
-          name: tag.name,
-          slug: tag.slug,
-          scope: 'user',
-          ownerUserId,
-          kind: 'general',
-        },
-      });
-    } else if (userTag.name !== tag.name || userTag.kind !== 'general') {
-      userTag = await prisma.tag.update({
-        where: { id: userTag.id },
-        data: {
-          name: tag.name,
-          kind: 'general',
-        },
-      });
-    }
-
-    if (
-      resolvedTag &&
-      (resolvedTag.name !== tag.name || resolvedTag.kind !== kind)
-    ) {
-      await prisma.tag.update({
-        where: { id: resolvedTag.id },
-        data: {
-          name: tag.name,
-          kind,
-        },
-      });
-    }
-
-    await prisma.recipeTag.create({
-      data: {
-        recipeId,
-        tagId: (resolvedTag || userTag).id,
-      },
-    });
+  if (tagIds.length === 0) {
+    return;
   }
+
+  await prisma.recipeTag.createMany({
+    data: tagIds.map((tagId) => ({ recipeId, tagId })),
+    skipDuplicates: true,
+  });
 }
 
-async function mapRecipeIngredientsWithCanonicalIds(prisma, ingredients) {
+function mapRecipeIngredientsWithCanonicalIds(context, ingredients) {
   const slugs = ingredients.map((ingredient) =>
     normalizeSlug(ingredient.canonicalIngredient),
   );
-  const ingredientRows = await prisma.ingredient.findMany({
-    where: {
-      slug: {
-        in: Array.from(new Set(slugs.filter(Boolean))),
-      },
-    },
-    select: {
-      id: true,
-      slug: true,
-    },
-  });
-  const ingredientIdsBySlug = new Map(
-    ingredientRows.map((ingredient) => [ingredient.slug, ingredient.id]),
-  );
 
   return ingredients.map((ingredient, index) => {
-    const ingredientId = ingredientIdsBySlug.get(slugs[index]);
+    const ingredientId = context.ingredientIdsBySlug.get(slugs[index]);
 
     return {
       ...ingredient,
@@ -159,21 +83,230 @@ async function mapRecipeIngredientsWithCanonicalIds(prisma, ingredients) {
   });
 }
 
-async function upsertRecipe(prisma, recipe, ownership) {
-  const cuisineId = await resolveCuisineId(prisma, recipe.cuisine);
-  const ingredients = await mapRecipeIngredientsWithCanonicalIds(
+function recipeIdentityKey(recipe, ownership) {
+  return [
+    ownership.isSystemRecipe ? 'system' : 'user',
+    ownership.ownerUserId ?? 'null',
+    recipe.name,
+  ].join('::');
+}
+
+function tagKind(slug) {
+  return DIETARY_BADGE_SLUGS.has(slug) ? 'dietary_badge' : 'general';
+}
+
+function resolveSeedTagId(context, slug, ownerUserId, isSystemRecipe) {
+  const systemTagId = context.systemTagIdsBySlug.get(slug);
+  if (isSystemRecipe || systemTagId) {
+    return systemTagId;
+  }
+
+  return context.userTagIdsByOwnerAndSlug.get(`${ownerUserId ?? null}:${slug}`);
+}
+
+async function ensureSystemTags(prisma, recipes) {
+  const uniqueTags = new Map();
+  for (const recipe of recipes) {
+    for (const tag of recipe.tags ?? []) {
+      const slug = normalizeTagSlug(tag);
+      if (!slug || uniqueTags.has(slug)) {
+        continue;
+      }
+      uniqueTags.set(slug, normalizeTagName(tag));
+    }
+  }
+
+  const slugs = Array.from(uniqueTags.keys());
+  const existingTags = slugs.length
+    ? await prisma.tag.findMany({
+        where: {
+          scope: 'system',
+          slug: { in: slugs },
+        },
+      })
+    : [];
+  const existingBySlug = new Map(existingTags.map((tag) => [tag.slug, tag]));
+
+  for (const [slug, name] of uniqueTags.entries()) {
+    const existing = existingBySlug.get(slug);
+    const kind = tagKind(slug);
+    if (!existing) {
+      const created = await prisma.tag.create({
+        data: { name, slug, scope: 'system', kind },
+      });
+      existingBySlug.set(slug, created);
+    } else if (existing.name !== name || existing.kind !== kind) {
+      const updated = await prisma.tag.update({
+        where: { id: existing.id },
+        data: { name, kind },
+      });
+      existingBySlug.set(slug, updated);
+    }
+  }
+
+  return new Map(
+    Array.from(existingBySlug.values()).map((tag) => [tag.slug, tag.id]),
+  );
+}
+
+async function ensureUserTags(
+  prisma,
+  recipes,
+  ownerUserId,
+  systemTagIdsBySlug,
+) {
+  if (!ownerUserId) {
+    return new Map();
+  }
+
+  const uniqueTags = new Map();
+  for (const recipe of recipes) {
+    for (const tag of recipe.tags ?? []) {
+      const slug = normalizeTagSlug(tag);
+      if (!slug || systemTagIdsBySlug.has(slug) || uniqueTags.has(slug)) {
+        continue;
+      }
+      uniqueTags.set(slug, normalizeTagName(tag));
+    }
+  }
+
+  const slugs = Array.from(uniqueTags.keys());
+  const existingTags = slugs.length
+    ? await prisma.tag.findMany({
+        where: {
+          scope: 'user',
+          ownerUserId,
+          slug: { in: slugs },
+        },
+      })
+    : [];
+  const existingBySlug = new Map(existingTags.map((tag) => [tag.slug, tag]));
+
+  for (const [slug, name] of uniqueTags.entries()) {
+    const existing = existingBySlug.get(slug);
+    if (!existing) {
+      const created = await prisma.tag.create({
+        data: { name, slug, scope: 'user', ownerUserId, kind: 'general' },
+      });
+      existingBySlug.set(slug, created);
+    } else if (existing.name !== name || existing.kind !== 'general') {
+      const updated = await prisma.tag.update({
+        where: { id: existing.id },
+        data: { name, kind: 'general' },
+      });
+      existingBySlug.set(slug, updated);
+    }
+  }
+
+  return new Map(
+    Array.from(existingBySlug.values()).map((tag) => [
+      `${ownerUserId}:${tag.slug}`,
+      tag.id,
+    ]),
+  );
+}
+
+async function buildRecipeSeedContext(prisma, devUserId) {
+  const recipes = [...systemRecipes, ...userRecipes];
+  const cuisineLabels = Array.from(
+    new Set(recipes.map((recipe) => recipe.cuisine).filter(Boolean)),
+  );
+  const cuisineRows = await prisma.cuisine.findMany({
+    where: {
+      label: { in: cuisineLabels },
+    },
+    select: { id: true, label: true, slug: true },
+  });
+  const cuisineIdsByLabel = new Map(
+    cuisineRows.map((cuisine) => [cuisine.label.toLowerCase(), cuisine.id]),
+  );
+  const fallbackCuisineId =
+    cuisineRows.find((cuisine) => cuisine.slug === 'other')?.id ??
+    (
+      await prisma.cuisine.findUnique({
+        where: { slug: 'other' },
+        select: { id: true },
+      })
+    )?.id;
+
+  if (!fallbackCuisineId) {
+    throw new Error('Cuisine catalog is not seeded');
+  }
+
+  const ingredientSlugs = Array.from(
+    new Set(
+      recipes
+        .flatMap((recipe) => recipe.ingredients)
+        .map((ingredient) => normalizeSlug(ingredient.canonicalIngredient))
+        .filter(Boolean),
+    ),
+  );
+  const ingredientRows = await prisma.ingredient.findMany({
+    where: { slug: { in: ingredientSlugs } },
+    select: { id: true, slug: true },
+  });
+
+  const existingSystemRecipes = await prisma.baseRecipe.findMany({
+    where: {
+      isSystemRecipe: true,
+      ownerUserId: null,
+      name: { in: systemRecipes.map((recipe) => recipe.name) },
+    },
+    select: { id: true, name: true, ownerUserId: true, isSystemRecipe: true },
+  });
+  const existingUserRecipes = devUserId
+    ? await prisma.baseRecipe.findMany({
+        where: {
+          isSystemRecipe: false,
+          ownerUserId: devUserId,
+          name: { in: userRecipes.map((recipe) => recipe.name) },
+        },
+        select: {
+          id: true,
+          name: true,
+          ownerUserId: true,
+          isSystemRecipe: true,
+        },
+      })
+    : [];
+
+  const systemTagIdsBySlug = await ensureSystemTags(prisma, systemRecipes);
+  const userTagIdsByOwnerAndSlug = await ensureUserTags(
     prisma,
+    userRecipes,
+    devUserId,
+    systemTagIdsBySlug,
+  );
+
+  return {
+    cuisineIdsByLabel,
+    fallbackCuisineId,
+    ingredientIdsBySlug: new Map(
+      ingredientRows.map((ingredient) => [ingredient.slug, ingredient.id]),
+    ),
+    existingRecipesByKey: new Map(
+      [...existingSystemRecipes, ...existingUserRecipes].map((existing) => [
+        recipeIdentityKey(existing, existing),
+        existing,
+      ]),
+    ),
+    systemTagIdsBySlug,
+    userTagIdsByOwnerAndSlug,
+  };
+}
+
+async function upsertRecipe(prisma, context, recipe, ownership) {
+  const cuisineId =
+    context.cuisineIdsByLabel.get(String(recipe.cuisine).toLowerCase()) ??
+    context.fallbackCuisineId;
+  const ingredients = mapRecipeIngredientsWithCanonicalIds(
+    context,
     recipe.ingredients,
   );
 
-  const existing = await prisma.baseRecipe.findFirst({
-    where: {
-      name: recipe.name,
-      ownerUserId: ownership.ownerUserId ?? null,
-      isSystemRecipe: ownership.isSystemRecipe,
-    },
-    select: { id: true },
-  });
+  const existing = context.existingRecipesByKey.get(
+    recipeIdentityKey(recipe, ownership),
+  );
 
   const data = {
     ownerUserId: ownership.ownerUserId ?? null,
@@ -201,6 +334,7 @@ async function upsertRecipe(prisma, recipe, ownership) {
     });
     await connectRecipeTags(
       prisma,
+      context,
       updated.id,
       ownership.ownerUserId ?? null,
       ownership.isSystemRecipe,
@@ -210,8 +344,12 @@ async function upsertRecipe(prisma, recipe, ownership) {
   }
 
   const created = await prisma.baseRecipe.create({ data });
+  context.existingRecipesByKey.set(recipeIdentityKey(recipe, ownership), {
+    id: created.id,
+  });
   await connectRecipeTags(
     prisma,
+    context,
     created.id,
     ownership.ownerUserId ?? null,
     ownership.isSystemRecipe,
@@ -239,15 +377,17 @@ async function seedRecipes(prisma, devUserId) {
     },
   });
 
+  const context = await buildRecipeSeedContext(prisma, devUserId);
+
   for (const recipe of systemRecipes) {
-    await upsertRecipe(prisma, recipe, {
+    await upsertRecipe(prisma, context, recipe, {
       ownerUserId: null,
       isSystemRecipe: true,
     });
   }
 
   for (const recipe of userRecipes) {
-    await upsertRecipe(prisma, recipe, {
+    await upsertRecipe(prisma, context, recipe, {
       ownerUserId: devUserId,
       isSystemRecipe: false,
     });

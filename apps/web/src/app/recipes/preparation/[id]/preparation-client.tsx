@@ -1,13 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { BaseRecipe } from "@cart/shared";
-import { PreparationChefAssistant } from "@/components/ai/preparation-chef-assistant";
-import { HandsFreeMode } from "@/components/hands-free-mode";
 import { RecipeImage } from "@/components/ui/recipe-image";
 import { getIngredientPrepAction } from "@/app/ai-actions";
 import type { CookingContext } from "@/lib/cooking-context";
+
+const PreparationChefAssistant = dynamic(
+  () =>
+    import("@/components/ai/preparation-chef-assistant").then(
+      (mod) => mod.PreparationChefAssistant,
+    ),
+  {
+    loading: () => null,
+    ssr: false,
+  },
+);
+
+const HandsFreeMode = dynamic(
+  () => import("@/components/hands-free-mode").then((mod) => mod.HandsFreeMode),
+  {
+    loading: () => null,
+    ssr: false,
+  },
+);
 
 function getDietaryBadges(recipe: BaseRecipe) {
   return recipe.tags.filter((tag) => tag.kind === "dietary_badge").slice(0, 3);
@@ -58,11 +76,6 @@ export function RecipePreparationClient({
 
     return () => window.clearInterval(interval);
   }, [started]);
-
-  // Reset per-step timer whenever the active step changes
-  useEffect(() => {
-    setElapsedSeconds(0);
-  }, [activeStep]);
 
   const nutrition = recipe.nutrition_data ?? {};
   const badges = getDietaryBadges(recipe);
@@ -138,6 +151,11 @@ export function RecipePreparationClient({
     setStarted(true);
     setElapsedSeconds(0);
     setActiveStep(0);
+  }
+
+  function goToStep(nextStep: number) {
+    setActiveStep(Math.max(0, Math.min(recipe.steps.length - 1, nextStep)));
+    setElapsedSeconds(0);
   }
 
   return (
@@ -416,9 +434,7 @@ export function RecipePreparationClient({
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={() =>
-                        setActiveStep((step) => Math.max(0, step - 1))
-                      }
+                      onClick={() => goToStep(activeStep - 1)}
                       disabled={activeStep === 0}
                       className="rounded-full border border-outline-variant bg-white px-4 py-2 text-label-md text-on-surface-variant transition-colors hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -426,11 +442,7 @@ export function RecipePreparationClient({
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        setActiveStep((step) =>
-                          Math.min(recipe.steps.length - 1, step + 1),
-                        )
-                      }
+                      onClick={() => goToStep(activeStep + 1)}
                       disabled={activeStep >= recipe.steps.length - 1}
                       className="rounded-full bg-primary px-5 py-2 text-label-md text-on-primary transition-colors hover:bg-on-primary-container disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -450,7 +462,7 @@ export function RecipePreparationClient({
                   <button
                     key={step.step}
                     type="button"
-                    onClick={() => setActiveStep(index)}
+                    onClick={() => goToStep(index)}
                     className={`flex w-full gap-5 text-left ${
                       index < recipe.steps.length - 1 ? "pb-8" : ""
                     }`}
