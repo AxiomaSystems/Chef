@@ -28,7 +28,14 @@ This slice keeps the existing voice architecture and changes the product experie
 - Browser `SpeechRecognition` is no longer run in parallel with ElevenLabs. ElevenLabs is the only voice input path during normal hands-free mode to avoid duplicate transcripts and phantom commands.
 - The transcript and side panels are split out from the main hands-free controller to keep the audio/session logic easier to reason about.
 - ElevenLabs transport, microphone capture, PCM playback, local TTS, and connection state now live in `useHandsFreeVoiceSession`.
-- Local Web Speech commands and ElevenLabs WebSocket behavior remain intact.
+- ElevenLabs client tools are the source of truth for voice-driven navigation and timer control.
+- Client tool calls update UI state silently and return tool results to ElevenLabs, so the agent speaks the confirmation instead of fighting local browser TTS.
+- Microphone audio is not streamed while Chef is speaking, which reduces self-triggering and phantom follow-up commands.
+- Agent response text strips ElevenLabs expressive tags such as `[laugh]` and `[happy]` before rendering transcript bubbles.
+- Named timers remain visible, but the old per-step elapsed timer was removed because it made steps feel like the primary source of truth.
+- Navigation tools support next/back/repeat and direct requests such as "go to step 3"; steps remain a reference for the agent, not the whole cooking state.
+- The client can handle an `end_conversation` or `finish_cooking` client tool by closing Cooking Copilot.
+- The agent prompt now treats recipe steps as an adaptable reference plan rather than an immutable source of truth.
 
 ## Existing Architecture
 
@@ -46,7 +53,6 @@ Entry points:
 
 Voice layers:
 
-- Browser `SpeechRecognition` handles simple local commands.
 - Browser `speechSynthesis` reads steps locally for low-latency step narration.
 - ElevenLabs signed conversation WebSocket handles conversational audio.
 - ElevenLabs client tool calls can trigger navigation and timer control.
@@ -68,6 +74,7 @@ Routes that exist but are not currently used by the main hands-free component:
 4. Add an explicit degraded local-only mode when ElevenLabs is unavailable.
 5. Split the component into smaller state, voice, transcript, and UI modules.
 6. Move context assembly server-side into a dedicated cooking-session endpoint if this grows.
+7. Add persisted cooking session state if the product needs post-cook summaries or resume support.
 
 ## Non-Goals For This Slice
 

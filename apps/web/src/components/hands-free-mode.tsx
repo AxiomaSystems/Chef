@@ -18,22 +18,11 @@ function formatTime(s: number) {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function splitTitle(text: string) {
-  const parts = text.split(/(?<=[.!?])\s+/);
-  return { title: parts[0] ?? text, body: parts.slice(1).join(" ") };
-}
-
-function getStepIngredients(
-  stepText: string,
-  ingredients: BaseRecipe["ingredients"],
-) {
-  const lower = stepText.toLowerCase();
-  return ingredients.filter((ing) => {
-    const name = (
-      ing.display_ingredient ?? ing.canonical_ingredient
-    ).toLowerCase();
-    return name.split(" ").some((w) => w.length > 3 && lower.includes(w));
-  });
+function cleanAgentText(text: string) {
+  return text
+    .replace(/\[[^\]]+\]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 type Props = {
@@ -41,13 +30,10 @@ type Props = {
   cookingContext?: CookingContext;
   onClose: () => void;
 };
-type TimerCommand = "pause" | "resume" | "toggle";
 
 export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
   const [activeStep, setActiveStep] = useState(0);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timers, setTimers] = useState<CookingTimer[]>([]);
-  const [isTimerPaused, setIsTimerPaused] = useState(false);
   const [lastHeard, setLastHeard] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<string | null>(null);
   const timerIdRef = useRef(0);
@@ -55,20 +41,8 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
 
   const activeStepRef = useRef(0);
-  const timerPausedRef = useRef(false);
   const transcriptIdRef = useRef(0);
 
-  const currentStep = recipe.steps[activeStep] ?? null;
-  const { title, body } = currentStep
-    ? splitTitle(currentStep.what_to_do)
-    : { title: "No steps.", body: "" };
-  const stepIngredients = currentStep
-    ? getStepIngredients(currentStep.what_to_do, recipe.ingredients)
-    : [];
-  const progress = recipe.steps.length
-    ? ((activeStep + 1) / recipe.steps.length) * 100
-    : 0;
-  const nextStep = recipe.steps[activeStep + 1] ?? null;
   const currentPhase =
     activeStep === 0
       ? "Getting set up"
@@ -93,7 +67,10 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
   ].filter((line): line is string => Boolean(line));
 
   function addTranscript(speaker: TranscriptEntry["speaker"], text: string) {
-    const trimmed = text.trim();
+    const trimmed =
+      speaker === "chef"
+        ? cleanAgentText(text)
+        : text.replace(/\s+/g, " ").trim();
     if (!trimmed) return;
     transcriptIdRef.current += 1;
     setTranscript((prev) => [
@@ -107,9 +84,9 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
     addTranscript("system", text);
   }
 
-  function announce(text: string) {
+  function announce(text: string, speak = true) {
     addTranscript("chef", text);
-    speakLocal(text);
+    if (speak) speakLocal(text);
   }
 
   useEffect(() => {
@@ -118,10 +95,6 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
   useEffect(() => {
     timersRef.current = timers;
   }, [timers]);
-
-  useEffect(() => {
-    timerPausedRef.current = isTimerPaused;
-  }, [isTimerPaused]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -145,51 +118,32 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
     return () => window.clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      if (!timerPausedRef.current) {
-        setElapsedSeconds((s) => s + 1);
-      }
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  function setTimerPaused(nextPaused: boolean, announce = true) {
-    timerPausedRef.current = nextPaused;
-    setIsTimerPaused(nextPaused);
-    if (announce) {
-      const message = nextPaused ? "Timer paused." : "Timer resumed.";
-      addTranscript("chef", message);
-      speakLocal(message);
-    }
-  }
-
-  function controlTimer(command: TimerCommand, announce = true) {
-    const nextPaused =
-      command === "toggle" ? !timerPausedRef.current : command === "pause";
-    setTimerPaused(nextPaused, announce);
-  }
-
-  function readStep(idx = activeStepRef.current, prefix?: string) {
+  function readStep(
+    idx = activeStepRef.current,
+    prefix?: string,
+    speak = true,
+  ) {
     const step = recipe.steps[idx];
     if (!step) return;
     const message = `${prefix ? `${prefix} ` : ""}Step ${idx + 1} of ${recipe.steps.length}. ${step.what_to_do}`;
     addTranscript("chef", message);
-    speakLocal(message);
+    if (speak) speakLocal(message);
   }
 
   function goToStep(idx: number, announce = true) {
     const boundedIdx = Math.max(0, Math.min(recipe.steps.length - 1, idx));
     activeStepRef.current = boundedIdx;
     setActiveStep(boundedIdx);
-    setElapsedSeconds(0);
-    setTimerPaused(false, false);
     if (announce) {
       readStep(boundedIdx);
     }
   }
 
-  function startCookingTimer(label: string, totalSeconds: number) {
+  function startCookingTimer(
+    label: string,
+    totalSeconds: number,
+    speak = true,
+  ) {
     timerIdRef.current += 1;
     const timer: CookingTimer = {
       id: timerIdRef.current,
@@ -200,12 +154,13 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
       completed: false,
     };
     setTimers((current) => [timer, ...current.filter((t) => !t.completed)]);
-    announce(`Started ${label} timer for ${formatTime(totalSeconds)}.`);
+    announce(`Started ${label} timer for ${formatTime(totalSeconds)}.`, speak);
   }
 
   function updateCookingTimers(
     action: "pause" | "resume" | "stop",
     label?: string,
+    speak = true,
   ) {
     const normalizedLabel = label?.trim().toLowerCase();
     const matchingTimers = timersRef.current.filter(
@@ -219,6 +174,7 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
         normalizedLabel
           ? `I don't see an active ${normalizedLabel} timer.`
           : "I don't see any active timers.",
+        speak,
       );
       return;
     }
@@ -229,6 +185,7 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
         matchingTimers.length === 1
           ? `Stopped the ${matchingTimers[0].label} timer.`
           : `Stopped ${matchingTimers.length} timers.`,
+        speak,
       );
       return;
     }
@@ -241,13 +198,14 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
       matchingTimers.length === 1
         ? `${matchingTimers[0].label} timer ${action === "pause" ? "paused" : "resumed"}.`
         : `${matchingTimers.length} timers ${action === "pause" ? "paused" : "resumed"}.`,
+      speak,
     );
   }
 
-  function announceTimerStatus() {
+  function announceTimerStatus(speak = true) {
     const activeTimers = timersRef.current.filter((timer) => !timer.completed);
     if (activeTimers.length === 0) {
-      announce("No active timers right now.");
+      announce("No active timers right now.", speak);
       return;
     }
     announce(
@@ -257,6 +215,7 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
             `${timer.label}: ${formatTime(timer.remainingSeconds)} ${timer.paused ? "paused" : "left"}`,
         )
         .join(". "),
+      speak,
     );
   }
 
@@ -272,6 +231,13 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
       stopQueuedSpeech: () => void;
     },
   ) {
+    if (name === "end_conversation" || name === "finish_cooking") {
+      recordAction("Ended cooking copilot session.");
+      context.sendToolResult(id, { result: "Cooking copilot ended." });
+      onClose();
+      return;
+    }
+
     if (name === "timer_control" || name === "control_timer") {
       const action = String(params.action ?? params.command ?? "");
       if (action === "start" || action === "set") {
@@ -283,7 +249,7 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
         if (Number.isFinite(seconds) && seconds > 0) {
           const label = String(params.label ?? "timer");
           recordAction("Started a named cooking timer.");
-          startCookingTimer(label, seconds);
+          startCookingTimer(label, seconds, false);
           context.sendToolResult(id, {
             result: `Started ${label} timer for ${formatTime(seconds)}.`,
           });
@@ -305,12 +271,12 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
             : "No active timers.";
         context.sendToolResult(id, { result });
         recordAction("Read active timer status.");
-        announceTimerStatus();
+        announceTimerStatus(false);
         return;
       }
       if (action === "stop" || action === "cancel") {
         recordAction("Stopped timer.");
-        updateCookingTimers("stop", String(params.label ?? ""));
+        updateCookingTimers("stop", String(params.label ?? ""), false);
         context.sendToolResult(id, { result: "Timer stopped." });
         return;
       }
@@ -322,12 +288,35 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
               ? "Resumed active timer."
               : "Paused active timer.",
           );
-          updateCookingTimers(action === "toggle" ? "pause" : action, label);
-        } else {
-          recordAction(
-            action === "resume" ? "Resumed step timer." : "Paused step timer.",
+          updateCookingTimers(
+            action === "toggle" ? "pause" : action,
+            label,
+            false,
           );
-          controlTimer(action);
+        } else {
+          const activeTimers = timersRef.current.filter(
+            (timer) => !timer.completed,
+          );
+          if (activeTimers.length === 0) {
+            context.sendToolResult(id, {
+              result: "No active timers.",
+              isError: true,
+            });
+            recordAction("No active timers to control.");
+            return;
+          }
+          const nextAction =
+            action === "toggle"
+              ? activeTimers.every((timer) => timer.paused)
+                ? "resume"
+                : "pause"
+              : action;
+          recordAction(
+            nextAction === "resume"
+              ? "Resumed active timers."
+              : "Paused active timers.",
+          );
+          updateCookingTimers(nextAction, undefined, false);
         }
         context.sendToolResult(id, {
           result:
@@ -335,9 +324,7 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
               ? "Timer paused."
               : action === "resume"
                 ? "Timer resumed."
-                : timerPausedRef.current
-                  ? "Timer paused."
-                  : "Timer resumed.",
+                : "Timer toggled.",
         });
         return;
       }
@@ -360,16 +347,28 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
     context.stopQueuedSpeech();
 
     let idx = activeStepRef.current;
-    const dir = params.direction;
-    if (dir === "next") idx = Math.min(recipe.steps.length - 1, idx + 1);
-    else if (dir === "previous" || dir === "back") idx = Math.max(0, idx - 1);
-    else if (dir !== "repeat") {
+    const dir = String(params.direction ?? params.action ?? "").toLowerCase();
+    const requestedStep = Number(
+      params.step_number ?? params.step ?? params.index ?? NaN,
+    );
+    const directionStepMatch = dir.match(/\b(?:step\s*)?(\d+)\b/);
+
+    if (Number.isFinite(requestedStep) && requestedStep > 0) {
+      idx = requestedStep - 1;
+    } else if (directionStepMatch?.[1]) {
+      idx = Number(directionStepMatch[1]) - 1;
+    } else if (dir === "next") {
+      idx = Math.min(recipe.steps.length - 1, idx + 1);
+    } else if (dir === "previous" || dir === "back") {
+      idx = Math.max(0, idx - 1);
+    } else if (dir !== "repeat") {
       context.sendToolResult(id, {
         result: `Unsupported navigation direction: ${String(dir)}`,
         isError: true,
       });
       return;
     }
+    idx = Math.max(0, Math.min(recipe.steps.length - 1, idx));
 
     const step = recipe.steps[idx];
     const result = step
@@ -382,7 +381,7 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
 
     if (step) {
       recordAction(`Jumped to step ${idx + 1}.`);
-      goToStep(idx);
+      goToStep(idx, false);
     }
   }
 
@@ -391,16 +390,12 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
       cookingContext,
       onAgentResponse: (text) => addTranscript("chef", text),
       onClientToolCall: handleToolCall,
+      onUserTranscript: (text) => {
+        setLastHeard(text);
+        addTranscript("you", text);
+      },
       recipe,
     });
-
-  function manualNav(dir: "next" | "prev") {
-    const idx =
-      dir === "next"
-        ? Math.min(recipe.steps.length - 1, activeStep + 1)
-        : Math.max(0, activeStep - 1);
-    goToStep(idx);
-  }
 
   const modeConfig: Record<
     HandsFreeModeStatus,
@@ -430,7 +425,6 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
   const { label, icon, ring } = modeConfig[mode];
   const visibleTimers = timers.filter((timer) => !timer.completed).slice(0, 4);
   const completedTimers = timers.filter((timer) => timer.completed).slice(0, 2);
-
   return (
     <div className="fixed inset-0 z-80 overflow-y-auto bg-[#081514] text-white">
       <div className="pointer-events-none fixed inset-0 opacity-80">
@@ -452,28 +446,6 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => controlTimer("toggle")}
-              aria-label={isTimerPaused ? "Resume timer" : "Pause timer"}
-              className={`hidden items-center gap-3 rounded-2xl border px-4 py-2 text-left transition-colors sm:flex ${
-                isTimerPaused
-                  ? "border-amber-300/50 bg-amber-300/15"
-                  : "border-white/10 bg-white/10 hover:bg-white/15"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[24px] text-amber-300">
-                {isTimerPaused ? "play_arrow" : "pause"}
-              </span>
-              <span>
-                <span className="block font-mono text-2xl font-black leading-none tabular-nums text-amber-300">
-                  {formatTime(elapsedSeconds)}
-                </span>
-                <span className="block text-[9px] font-bold uppercase tracking-widest text-white/45">
-                  {isTimerPaused ? "Paused" : "This step"}
-                </span>
-              </span>
-            </button>
-            <button
-              type="button"
               onClick={onClose}
               aria-label="Exit cooking copilot"
               className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
@@ -484,13 +456,6 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
             </button>
           </div>
         </header>
-
-        <div className="h-1 bg-white/10">
-          <div
-            className="h-full bg-gradient-to-r from-amber-300 via-orange-400 to-teal-300 transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
 
         <main className="grid flex-1 gap-5 px-4 py-5 pb-28 sm:px-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] lg:pb-6">
           <section className="flex min-h-[55dvh] flex-col justify-between rounded-[2rem] border border-white/10 bg-white/[0.055] p-5 shadow-[0_30px_100px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:p-7">
@@ -536,6 +501,22 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
                     {connectionError}
                   </p>
                 ) : null}
+                <div className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-2">
+                  {contextLines.length > 0 ? (
+                    contextLines.map((line) => (
+                      <span
+                        key={line}
+                        className="rounded-full border border-teal-200/10 bg-teal-200/10 px-3 py-2 text-xs font-semibold text-teal-50/80"
+                      >
+                        Chef knows {line}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs font-semibold text-white/45">
+                      Chef is cooking from this recipe only
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -547,67 +528,13 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
           </section>
 
           <HandsFreeAsidePanels
-            activeStep={activeStep}
-            body={body}
             completedTimers={completedTimers}
             contextLines={contextLines}
-            controlTimer={controlTimer}
             currentPhase={currentPhase}
-            elapsedSeconds={elapsedSeconds}
-            isTimerPaused={isTimerPaused}
-            nextStep={nextStep}
-            recipe={recipe}
             setTimers={setTimers}
-            stepIngredients={stepIngredients}
-            title={title}
             visibleTimers={visibleTimers}
           />
         </main>
-
-        <nav className="fixed bottom-0 left-0 right-0 z-[81] border-t border-white/10 bg-[#081514]/90 px-4 py-3 backdrop-blur-xl sm:px-6 lg:relative lg:border-t-0 lg:bg-transparent lg:pb-6">
-          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => manualNav("prev")}
-              disabled={activeStep === 0}
-              aria-label="Previous step"
-              className="flex h-13 w-13 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 disabled:opacity-30"
-            >
-              <span className="material-symbols-outlined text-[26px]">
-                arrow_back
-              </span>
-            </button>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => readStep()}
-                className="hidden rounded-full bg-white/10 px-4 py-3 text-sm font-bold text-white/75 hover:bg-white/15 sm:block"
-              >
-                Repeat
-              </button>
-              <button
-                type="button"
-                onClick={() => controlTimer("toggle")}
-                className="rounded-full bg-amber-300 px-5 py-3 text-sm font-black text-[#1c1505] shadow-[0_14px_40px_rgba(251,191,36,0.25)]"
-              >
-                {isTimerPaused ? "Resume" : "Pause"}
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => manualNav("next")}
-              disabled={activeStep >= recipe.steps.length - 1}
-              aria-label="Next step"
-              className="flex h-13 w-13 items-center justify-center rounded-full bg-amber-300 text-[#1c1505] transition-colors hover:bg-amber-200 disabled:opacity-30"
-            >
-              <span className="material-symbols-outlined text-[26px]">
-                arrow_forward
-              </span>
-            </button>
-          </div>
-        </nav>
       </div>
     </div>
   );

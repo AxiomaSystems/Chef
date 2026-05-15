@@ -19,6 +19,8 @@ type ElevenLabsMessage = {
   type?: string;
   audio_event?: { audio_base64?: string; audio_base_64?: string };
   agent_response_event?: { agent_response?: string };
+  user_transcript_event?: { user_transcript?: string; transcript?: string };
+  user_transcription_event?: { user_transcript?: string; transcript?: string };
   ping_event?: { event_id?: string; ping_ms?: number };
   client_tool_call?: ElevenLabsToolCall;
 };
@@ -41,6 +43,7 @@ type UseHandsFreeVoiceSessionOptions = {
   cookingContext?: CookingContext;
   onAgentResponse: (text: string) => void;
   onClientToolCall: ClientToolHandler;
+  onUserTranscript?: (text: string) => void;
   recipe: BaseRecipe;
 };
 
@@ -54,6 +57,32 @@ function sendWsMessage(ws: WebSocket | null, payload: unknown) {
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(payload));
   }
+}
+
+function cleanAgentText(text: string) {
+  return text
+    .replace(/\[[^\]]+\]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function stringifyRecipeIngredients(ingredients: BaseRecipe["ingredients"]) {
+  if (ingredients.length === 0) return "No structured ingredients available.";
+
+  return ingredients
+    .slice(0, 60)
+    .map((ingredient) => {
+      const parts = [
+        ingredient.amount,
+        ingredient.unit,
+        ingredient.display_ingredient ?? ingredient.canonical_ingredient,
+      ]
+        .filter((part) => part !== null && part !== undefined && part !== "")
+        .map(String);
+
+      return `- ${parts.join(" ")}`;
+    })
+    .join("\n");
 }
 
 // Downsample Float32 from browser native rate to 16 kHz, then encode as base64 PCM16.
@@ -88,6 +117,7 @@ export function useHandsFreeVoiceSession({
   cookingContext,
   onAgentResponse,
   onClientToolCall,
+  onUserTranscript,
   recipe,
 }: UseHandsFreeVoiceSessionOptions) {
   const [mode, setMode] = useState<HandsFreeModeStatus>("connecting");
@@ -95,9 +125,11 @@ export function useHandsFreeVoiceSession({
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  const agentSpeakingRef = useRef(false);
   const localSpeechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const onAgentResponseRef = useRef(onAgentResponse);
   const onClientToolCallRef = useRef(onClientToolCall);
+  const onUserTranscriptRef = useRef(onUserTranscript);
   const scheduledUntilRef = useRef(0); // for gapless audio scheduling
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -109,6 +141,10 @@ export function useHandsFreeVoiceSession({
     onClientToolCallRef.current = onClientToolCall;
   }, [onClientToolCall]);
 
+  useEffect(() => {
+    onUserTranscriptRef.current = onUserTranscript;
+  }, [onUserTranscript]);
+
   function sendToolResult(id: string, { result, isError = false }: ToolResult) {
     sendWsMessage(wsRef.current, {
       type: "client_tool_result",
@@ -119,9 +155,11 @@ export function useHandsFreeVoiceSession({
   }
 
   function stopQueuedSpeech() {
+    agentSpeakingRef.current = false;
     window.speechSynthesis?.cancel();
     localSpeechUtteranceRef.current = null;
     const ctx = audioCtxRef.current;
+    agentSpeakingRef.current = true;
     for (const source of audioSourcesRef.current) {
       try {
         source.stop();
@@ -147,6 +185,7 @@ export function useHandsFreeVoiceSession({
     utterance.onend = () => {
       if (localSpeechUtteranceRef.current === utterance) {
         localSpeechUtteranceRef.current = null;
+        agentSpeakingRef.current = false;
         setMode((current) =>
           current === "disconnected" ? current : "listening",
         );
@@ -177,6 +216,7 @@ export function useHandsFreeVoiceSession({
       src.buffer = buf;
       src.connect(ctx.destination);
       audioSourcesRef.current.add(src);
+      agentSpeakingRef.current = true;
 
       const startAt = Math.max(ctx.currentTime, scheduledUntilRef.current);
       src.start(startAt);
@@ -187,6 +227,7 @@ export function useHandsFreeVoiceSession({
         audioSourcesRef.current.delete(src);
         src.disconnect();
         if (mounted && ctx.currentTime >= scheduledUntilRef.current - 0.05) {
+          agentSpeakingRef.current = false;
           setMode("listening");
         }
       };
@@ -233,15 +274,22 @@ export function useHandsFreeVoiceSession({
           const stepsText = recipe.steps
             .map((s) => `Step ${s.step}: ${s.what_to_do}`)
             .join("\n");
+          const ingredientsText = stringifyRecipeIngredients(
+            recipe.ingredients,
+          );
+          const cookingPlan =
+            "The recipe steps are a reference plan, not a rigid script. If the user says something went wrong, something burned, an ingredient is missing, timing changed, or they want to improvise, adapt the plan conversationally using recipe context, profile memory, and inventory. Do not force the next static step when the kitchen situation changed.";
           sendWsMessage(ws, {
             type: "conversation_initiation_client_data",
             dynamic_variables: {
               recipe_name: recipe.name,
               servings: String(recipe.servings),
+              ingredients: ingredientsText,
               steps: stepsText,
+              cooking_plan_rules: cookingPlan,
               user_cooking_context: stringifyCookingContext(cookingContext),
               hands_free_client_rules:
-                "Keep responses under 2 short sentences. Use user_cooking_context for safe personalization. Never override hard dietary/allergy rules. For next, back, previous, repeat, pause timer, resume timer, stop timer, timer status, or starting a named timer, call the client tool instead of explaining. The client reads steps aloud locally for speed.",
+                "Act like an adaptive cooking copilot, not a recipe step reader. Keep responses under 2 short sentences. Use cooking_plan_rules and user_cooking_context for safe personalization. Never override hard dietary/allergy rules. Do not speak unless the user asks something, a timer finishes, or a client tool result requires a short confirmation. Do not ask 'are you still there' or send idle check-ins. When the user asks for next/back/repeat/go to step N or timer actions, call the matching client tool. The client has no WebSpeech fallback.",
             },
           });
 
@@ -252,6 +300,7 @@ export function useHandsFreeVoiceSession({
 
           processor.onaudioprocess = (e) => {
             if (ws.readyState !== WebSocket.OPEN) return;
+            if (agentSpeakingRef.current) return;
             const chunk = encodeAudioChunk(
               e.inputBuffer.getChannelData(0),
               nativeRate,
@@ -291,10 +340,27 @@ export function useHandsFreeVoiceSession({
                 break;
               case "agent_response":
                 if (msg.agent_response_event?.agent_response) {
-                  const responseText = msg.agent_response_event.agent_response;
+                  const responseText = cleanAgentText(
+                    msg.agent_response_event.agent_response,
+                  );
+                  if (!responseText) break;
                   onAgentResponseRef.current(responseText);
                   setAgentMessage(responseText);
                   window.setTimeout(() => setAgentMessage(null), 5000);
+                }
+                break;
+              case "user_transcript":
+              case "user_transcription":
+                {
+                  const transcript =
+                    msg.user_transcript_event?.user_transcript ??
+                    msg.user_transcript_event?.transcript ??
+                    msg.user_transcription_event?.user_transcript ??
+                    msg.user_transcription_event?.transcript;
+                  if (transcript) {
+                    onUserTranscriptRef.current?.(transcript);
+                    setAgentMessage(`Heard: ${transcript}`);
+                  }
                 }
                 break;
               case "interruption":

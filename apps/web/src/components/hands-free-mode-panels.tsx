@@ -1,6 +1,5 @@
 "use client";
 
-import type { BaseRecipe } from "@cart/shared";
 import type { CookingTimer, TranscriptEntry } from "./hands-free-mode-types";
 
 type TranscriptPanelProps = {
@@ -21,7 +20,7 @@ export function HandsFreeTranscriptPanel({
           Live transcript
         </p>
         <p className="text-[11px] text-white/35">
-          Say "next", "repeat", or "pause timer"
+          Ask naturally. Chef can use steps, timers, and context.
         </p>
       </div>
       {(lastHeard || lastAction) && (
@@ -85,19 +84,10 @@ export function HandsFreeTranscriptPanel({
 }
 
 type AsidePanelsProps = {
-  activeStep: number;
   completedTimers: CookingTimer[];
   contextLines: string[];
-  controlTimer: (command: "pause" | "resume" | "toggle") => void;
   currentPhase: string;
-  elapsedSeconds: number;
-  isTimerPaused: boolean;
-  nextStep: BaseRecipe["steps"][number] | null;
-  recipe: BaseRecipe;
   setTimers: React.Dispatch<React.SetStateAction<CookingTimer[]>>;
-  stepIngredients: BaseRecipe["ingredients"];
-  title: string;
-  body: string;
   visibleTimers: CookingTimer[];
 };
 
@@ -106,19 +96,10 @@ function formatTime(s: number) {
 }
 
 export function HandsFreeAsidePanels({
-  activeStep,
   completedTimers,
   contextLines,
-  controlTimer,
   currentPhase,
-  elapsedSeconds,
-  isTimerPaused,
-  nextStep,
-  recipe,
   setTimers,
-  stepIngredients,
-  title,
-  body,
   visibleTimers,
 }: AsidePanelsProps) {
   return (
@@ -128,38 +109,6 @@ export function HandsFreeAsidePanels({
           Kitchen state
         </p>
         <h3 className="mt-2 text-2xl font-black text-white">{currentPhase}</h3>
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => controlTimer("toggle")}
-            className={`rounded-2xl border p-4 text-left transition-colors ${
-              isTimerPaused
-                ? "border-amber-300/45 bg-amber-300/12"
-                : "border-white/10 bg-black/15 hover:bg-white/10"
-            }`}
-          >
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
-              Step timer
-            </span>
-            <span className="mt-1 block font-mono text-3xl font-black tabular-nums text-amber-300">
-              {formatTime(elapsedSeconds)}
-            </span>
-            <span className="mt-1 block text-xs text-white/45">
-              {isTimerPaused ? "Paused" : "Running"}
-            </span>
-          </button>
-          <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
-              Progress
-            </span>
-            <span className="mt-1 block text-3xl font-black text-white">
-              {activeStep + 1}/{recipe.steps.length}
-            </span>
-            <span className="mt-1 block text-xs text-white/45">
-              Recipe steps
-            </span>
-          </div>
-        </div>
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-black/15 p-4">
           <div className="flex items-center justify-between gap-3">
@@ -225,50 +174,6 @@ export function HandsFreeAsidePanels({
         </div>
       </section>
 
-      <section className="rounded-[1.6rem] border border-white/10 bg-[#fff8e8] p-5 text-[#142326] shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#9b5b05]">
-            Recipe reference
-          </p>
-          <span className="rounded-full bg-[#142326]/8 px-3 py-1 text-xs font-bold">
-            Step {activeStep + 1}
-          </span>
-        </div>
-        <h3 className="mt-4 text-2xl font-black leading-tight">{title}</h3>
-        {body ? (
-          <p className="mt-3 text-sm leading-6 text-[#315b5f]">{body}</p>
-        ) : null}
-
-        {stepIngredients.length > 0 ? (
-          <div className="mt-5 flex flex-wrap gap-2">
-            {stepIngredients.map((ing, i) => (
-              <span
-                key={i}
-                className="rounded-full bg-[#f4790d]/12 px-3 py-1.5 text-xs font-bold text-[#7a3d00]"
-              >
-                {ing.amount} {ing.unit}{" "}
-                {ing.display_ingredient ?? ing.canonical_ingredient}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
-        {nextStep ? (
-          <div className="mt-5 rounded-2xl bg-white/70 p-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#6e8588]">
-              Next likely action
-            </p>
-            <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#142326]">
-              {nextStep.what_to_do}
-            </p>
-          </div>
-        ) : (
-          <div className="mt-5 rounded-2xl bg-white/70 p-4 text-sm font-semibold text-[#142326]">
-            Last step. Ask Chef for plating or cleanup help.
-          </div>
-        )}
-      </section>
-
       <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.07] p-5 backdrop-blur-xl">
         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
           Try saying
@@ -278,9 +183,10 @@ export function HandsFreeAsidePanels({
             "What do I do now?",
             "Start a pasta timer for 8 minutes",
             "How much time left?",
+            "Go to step 3",
             "Repeat that",
             "Pause timer",
-            "Next step",
+            "I'm done cooking",
             "What can I prep?",
           ].map((prompt) => (
             <span
