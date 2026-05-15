@@ -59,6 +59,19 @@ function decodePcm16Base64(b64: string): Float32Array {
 type Mode = "connecting" | "listening" | "speaking" | "disconnected";
 type Props = { recipe: BaseRecipe; onClose: () => void };
 type TimerCommand = "pause" | "resume" | "toggle";
+type TranscriptEntry = {
+  id: number;
+  speaker: "you" | "chef" | "system";
+  text: string;
+};
+type CookingTimer = {
+  id: number;
+  label: string;
+  remainingSeconds: number;
+  totalSeconds: number;
+  paused: boolean;
+  completed: boolean;
+};
 type BrowserSpeechRecognition = {
   continuous: boolean;
   interimResults: boolean;
@@ -99,6 +112,30 @@ function sendWsMessage(ws: WebSocket | null, payload: unknown) {
   }
 }
 
+function parseTimerDuration(command: string) {
+  const match = command.match(
+    /\b(?:(\d+)\s*(?:hours?|hrs?|hr|h))?\s*(?:(\d+)\s*(?:minutes?|mins?|min|m))?\s*(?:(\d+)\s*(?:seconds?|secs?|sec|s))?\b/,
+  );
+  if (!match) return null;
+  const hours = Number(match[1] ?? 0);
+  const minutes = Number(match[2] ?? 0);
+  const seconds = Number(match[3] ?? 0);
+  const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+  return totalSeconds > 0 ? totalSeconds : null;
+}
+
+function parseTimerLabel(command: string) {
+  const forMatch = command.match(
+    /\bfor\s+([a-z][a-z\s-]{1,24}?)(?:\s+for\s+\d|\s+\d|$)/,
+  );
+  const label = forMatch?.[1]?.trim();
+  if (!label) return "timer";
+  return (
+    label.replace(/\b(timer|minutes?|mins?|seconds?|hours?)\b/g, "").trim() ||
+    "timer"
+  );
+}
+
 export function HandsFreeMode({ recipe, onClose }: Props) {
   const [activeStep, setActiveStep] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -106,9 +143,11 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
   const [mode, setMode] = useState<Mode>("connecting");
   const [agentMessage, setAgentMessage] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
 
   const activeStepRef = useRef(0);
   const timerPausedRef = useRef(false);
+  const transcriptIdRef = useRef(0);
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const scheduledUntilRef = useRef(0); // for gapless audio scheduling
@@ -122,6 +161,30 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
   const stepIngredients = currentStep
     ? getStepIngredients(currentStep.what_to_do, recipe.ingredients)
     : [];
+  const progress = recipe.steps.length
+    ? ((activeStep + 1) / recipe.steps.length) * 100
+    : 0;
+  const nextStep = recipe.steps[activeStep + 1] ?? null;
+  const currentPhase =
+    activeStep === 0
+      ? "Getting set up"
+      : activeStep >= recipe.steps.length - 1
+        ? "Finishing"
+        : activeStep < recipe.steps.length / 3
+          ? "Building momentum"
+          : activeStep < (recipe.steps.length * 2) / 3
+            ? "Active cooking"
+            : "Bring it home";
+
+  function addTranscript(speaker: TranscriptEntry["speaker"], text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    transcriptIdRef.current += 1;
+    setTranscript((prev) => [
+      ...prev.slice(-5),
+      { id: transcriptIdRef.current, speaker, text: trimmed },
+    ]);
+  }
 
   useEffect(() => {
     activeStepRef.current = activeStep;
@@ -164,6 +227,7 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       const result = event.results[event.results.length - 1];
       const transcript = result?.[0]?.transcript?.trim();
       if (transcript) {
+        addTranscript("you", transcript);
         handleLocalCommand(transcript);
       }
     };
@@ -232,7 +296,9 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
     timerPausedRef.current = nextPaused;
     setIsTimerPaused(nextPaused);
     if (announce) {
-      speakLocal(nextPaused ? "Timer paused." : "Timer resumed.");
+      const message = nextPaused ? "Timer paused." : "Timer resumed.";
+      addTranscript("chef", message);
+      speakLocal(message);
     }
   }
 
@@ -245,9 +311,9 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
   function readStep(idx = activeStepRef.current, prefix?: string) {
     const step = recipe.steps[idx];
     if (!step) return;
-    speakLocal(
-      `${prefix ? `${prefix} ` : ""}Step ${idx + 1} of ${recipe.steps.length}. ${step.what_to_do}`,
-    );
+    const message = `${prefix ? `${prefix} ` : ""}Step ${idx + 1} of ${recipe.steps.length}. ${step.what_to_do}`;
+    addTranscript("chef", message);
+    speakLocal(message);
   }
 
   function goToStep(idx: number, announce = true) {
@@ -400,6 +466,7 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       });
 
       if (step) {
+        addTranscript("system", `Jumped to step ${idx + 1}.`);
         goToStep(idx);
       }
     }
@@ -504,6 +571,7 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
                 if (msg.agent_response_event?.agent_response) {
                   const responseText = msg.agent_response_event.agent_response;
                   handleLocalCommand(responseText);
+                  addTranscript("chef", responseText);
                   setAgentMessage(responseText);
                   window.setTimeout(() => setAgentMessage(null), 5000);
                 }
@@ -632,127 +700,317 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
   const { label, icon, ring } = modeConfig[mode];
 
   return (
-    <div className="fixed inset-0 z-80 flex flex-col bg-[#132326] text-white">
-      <div className="flex items-center justify-between px-6 pb-4 pt-6">
-        <div className="flex items-center gap-3">
-          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400/70">
-            Hands-free
-          </span>
-          <span className="rounded-full bg-white/10 px-3 py-1 text-sm text-white/60">
-            Step {activeStep + 1} of {recipe.steps.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => controlTimer("toggle")}
-            aria-label={isTimerPaused ? "Resume timer" : "Pause timer"}
-            className={`flex items-center gap-4 rounded-3xl border px-5 py-3 text-left transition-colors ${
-              isTimerPaused
-                ? "border-amber-300/50 bg-amber-300/15"
-                : "border-white/10 bg-white/10 hover:bg-white/15"
-            }`}
-          >
-            <span className="material-symbols-outlined text-[28px] text-amber-300">
-              {isTimerPaused ? "play_arrow" : "pause"}
-            </span>
-            <span>
-              <span className="block font-mono text-4xl font-black leading-none tabular-nums text-amber-300">
-                {formatTime(elapsedSeconds)}
-              </span>
-              <span className="mt-1 block text-[10px] font-bold uppercase tracking-widest text-white/45">
-                {isTimerPaused ? "Paused" : "This step"}
-              </span>
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Exit hands-free mode"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
-          >
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
-        </div>
+    <div className="fixed inset-0 z-80 overflow-y-auto bg-[#081514] text-white">
+      <div className="pointer-events-none fixed inset-0 opacity-80">
+        <div className="absolute left-1/2 top-[-18rem] h-[42rem] w-[42rem] -translate-x-1/2 rounded-full bg-[#ffb84d]/20 blur-3xl" />
+        <div className="absolute bottom-[-18rem] right-[-12rem] h-[34rem] w-[34rem] rounded-full bg-[#3dd6c6]/10 blur-3xl" />
       </div>
 
-      <div className="h-0.5 bg-white/10">
-        <div
-          className="h-full bg-amber-400/60 transition-all duration-300"
-          style={{
-            width: `${((activeStep + 1) / recipe.steps.length) * 100}%`,
-          }}
-        />
-      </div>
-
-      <div className="flex flex-1 flex-col items-center justify-center px-8 py-10 text-center">
-        <p className="mb-6 text-5xl font-bold leading-tight tracking-tight text-white sm:text-6xl">
-          {title}
-        </p>
-        {body ? (
-          <p className="max-w-2xl text-xl leading-8 text-white/60">{body}</p>
-        ) : null}
-        {stepIngredients.length > 0 ? (
-          <div className="mt-8 flex flex-wrap justify-center gap-2">
-            {stepIngredients.map((ing, i) => (
-              <span
-                key={i}
-                className="rounded-full bg-amber-400/15 px-4 py-1.5 text-sm text-amber-200/80"
-              >
-                {ing.amount} {ing.unit}{" "}
-                {ing.display_ingredient ?? ing.canonical_ingredient}
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      {agentMessage ? (
-        <div className="pointer-events-none absolute left-1/2 top-24 max-w-sm -translate-x-1/2 rounded-2xl bg-white/10 px-6 py-3 text-center text-sm text-white/70 backdrop-blur-sm">
-          {agentMessage}
-        </div>
-      ) : null}
-
-      <div className="flex items-center justify-between gap-4 px-8 pb-10 pt-4">
-        <button
-          type="button"
-          onClick={() => manualNav("prev")}
-          disabled={activeStep === 0}
-          aria-label="Previous step"
-          className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 disabled:opacity-30"
-        >
-          <span className="material-symbols-outlined text-[28px]">
-            arrow_back
-          </span>
-        </button>
-
-        <div className="flex flex-col items-center gap-2">
-          <div
-            className={`flex h-16 w-16 items-center justify-center rounded-full transition-all ${ring}`}
-          >
-            <span className="material-symbols-outlined text-[28px]">
-              {icon}
-            </span>
-          </div>
-          <p className="text-[11px] text-white/40">{label}</p>
-          {connectionError ? (
-            <p className="max-w-xs text-center text-xs leading-5 text-red-300/80">
-              {connectionError}
+      <div className="relative flex min-h-dvh flex-col">
+        <header className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-6">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.26em] text-amber-300">
+              Cook with Chef
             </p>
-          ) : null}
+            <h2 className="truncate text-lg font-black text-white sm:text-2xl">
+              {recipe.name}
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => controlTimer("toggle")}
+              aria-label={isTimerPaused ? "Resume timer" : "Pause timer"}
+              className={`hidden items-center gap-3 rounded-2xl border px-4 py-2 text-left transition-colors sm:flex ${
+                isTimerPaused
+                  ? "border-amber-300/50 bg-amber-300/15"
+                  : "border-white/10 bg-white/10 hover:bg-white/15"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[24px] text-amber-300">
+                {isTimerPaused ? "play_arrow" : "pause"}
+              </span>
+              <span>
+                <span className="block font-mono text-2xl font-black leading-none tabular-nums text-amber-300">
+                  {formatTime(elapsedSeconds)}
+                </span>
+                <span className="block text-[9px] font-bold uppercase tracking-widest text-white/45">
+                  {isTimerPaused ? "Paused" : "This step"}
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Exit cooking copilot"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
+            >
+              <span className="material-symbols-outlined text-[22px]">
+                close
+              </span>
+            </button>
+          </div>
+        </header>
+
+        <div className="h-1 bg-white/10">
+          <div
+            className="h-full bg-gradient-to-r from-amber-300 via-orange-400 to-teal-300 transition-all duration-500"
+            style={{ width: `${progress}%` }}
+          />
         </div>
 
-        <button
-          type="button"
-          onClick={() => manualNav("next")}
-          disabled={activeStep >= recipe.steps.length - 1}
-          aria-label="Next step"
-          className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-400/20 text-amber-300 transition-colors hover:bg-amber-400/30 disabled:opacity-30"
-        >
-          <span className="material-symbols-outlined text-[28px]">
-            arrow_forward
-          </span>
-        </button>
+        <main className="grid flex-1 gap-5 px-4 py-5 pb-28 sm:px-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] lg:pb-6">
+          <section className="flex min-h-[55dvh] flex-col justify-between rounded-[2rem] border border-white/10 bg-white/[0.055] p-5 shadow-[0_30px_100px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:p-7">
+            <div>
+              <div className="mb-6 flex items-center justify-center">
+                <div className="relative grid h-32 w-32 place-items-center sm:h-40 sm:w-40">
+                  <span
+                    className={`absolute inset-0 rounded-full ${
+                      mode === "listening"
+                        ? "animate-ping bg-amber-300/20"
+                        : mode === "speaking"
+                          ? "bg-teal-300/20"
+                          : "bg-white/10"
+                    }`}
+                  />
+                  <span className="absolute inset-4 rounded-full border border-white/15 bg-gradient-to-br from-white/18 to-white/5 shadow-inner" />
+                  <span
+                    className={`relative grid h-20 w-20 place-items-center rounded-full sm:h-24 sm:w-24 ${ring}`}
+                  >
+                    <span className="material-symbols-outlined text-[34px]">
+                      {icon}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="mx-auto max-w-3xl text-center">
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/45">
+                  {label}
+                </p>
+                <h1 className="mt-3 text-3xl font-black leading-tight tracking-tight text-white sm:text-5xl">
+                  {agentMessage ??
+                    (mode === "listening"
+                      ? "I'm listening. Ask what to do next."
+                      : mode === "speaking"
+                        ? "Chef is talking you through it."
+                        : mode === "connecting"
+                          ? "Setting up your kitchen copilot..."
+                          : "Voice is offline, but controls still work.")}
+                </h1>
+                {connectionError ? (
+                  <p className="mx-auto mt-4 max-w-xl rounded-2xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-sm leading-6 text-red-100/85">
+                    {connectionError}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-black/18 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
+                  Live transcript
+                </p>
+                <p className="text-[11px] text-white/35">
+                  Say “next”, “repeat”, or “pause timer”
+                </p>
+              </div>
+              <div className="space-y-3">
+                {transcript.length > 0 ? (
+                  transcript.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className={`flex gap-3 ${
+                        entry.speaker === "you" ? "justify-end" : ""
+                      }`}
+                    >
+                      <div
+                        className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6 ${
+                          entry.speaker === "you"
+                            ? "bg-amber-300 text-[#1b1405]"
+                            : entry.speaker === "system"
+                              ? "bg-white/8 text-white/55"
+                              : "bg-white/12 text-white/86"
+                        }`}
+                      >
+                        <span className="mb-1 block text-[9px] font-black uppercase tracking-widest opacity-60">
+                          {entry.speaker === "you"
+                            ? "You"
+                            : entry.speaker === "system"
+                              ? "Action"
+                              : "Chef"}
+                        </span>
+                        {entry.text}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm leading-6 text-white/45">
+                    Your conversation will appear here so you can see what Chef
+                    heard and what it did.
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <aside className="space-y-4">
+            <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.07] p-5 backdrop-blur-xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300/80">
+                Kitchen state
+              </p>
+              <h3 className="mt-2 text-2xl font-black text-white">
+                {currentPhase}
+              </h3>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => controlTimer("toggle")}
+                  className={`rounded-2xl border p-4 text-left transition-colors ${
+                    isTimerPaused
+                      ? "border-amber-300/45 bg-amber-300/12"
+                      : "border-white/10 bg-black/15 hover:bg-white/10"
+                  }`}
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
+                    Step timer
+                  </span>
+                  <span className="mt-1 block font-mono text-3xl font-black tabular-nums text-amber-300">
+                    {formatTime(elapsedSeconds)}
+                  </span>
+                  <span className="mt-1 block text-xs text-white/45">
+                    {isTimerPaused ? "Paused" : "Running"}
+                  </span>
+                </button>
+                <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
+                    Progress
+                  </span>
+                  <span className="mt-1 block text-3xl font-black text-white">
+                    {activeStep + 1}/{recipe.steps.length}
+                  </span>
+                  <span className="mt-1 block text-xs text-white/45">
+                    Recipe steps
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-[1.6rem] border border-white/10 bg-[#fff8e8] p-5 text-[#142326] shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#9b5b05]">
+                  Recipe reference
+                </p>
+                <span className="rounded-full bg-[#142326]/8 px-3 py-1 text-xs font-bold">
+                  Step {activeStep + 1}
+                </span>
+              </div>
+              <h3 className="mt-4 text-2xl font-black leading-tight">
+                {title}
+              </h3>
+              {body ? (
+                <p className="mt-3 text-sm leading-6 text-[#315b5f]">{body}</p>
+              ) : null}
+
+              {stepIngredients.length > 0 ? (
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {stepIngredients.map((ing, i) => (
+                    <span
+                      key={i}
+                      className="rounded-full bg-[#f4790d]/12 px-3 py-1.5 text-xs font-bold text-[#7a3d00]"
+                    >
+                      {ing.amount} {ing.unit}{" "}
+                      {ing.display_ingredient ?? ing.canonical_ingredient}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {nextStep ? (
+                <div className="mt-5 rounded-2xl bg-white/70 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#6e8588]">
+                    Next likely action
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#142326]">
+                    {nextStep.what_to_do}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-5 rounded-2xl bg-white/70 p-4 text-sm font-semibold text-[#142326]">
+                  Last step. Ask Chef for plating or cleanup help.
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.07] p-5 backdrop-blur-xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
+                Try saying
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {[
+                  "What do I do now?",
+                  "Repeat that",
+                  "Pause timer",
+                  "Next step",
+                  "What can I prep?",
+                ].map((prompt) => (
+                  <span
+                    key={prompt}
+                    className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs font-semibold text-white/70"
+                  >
+                    {prompt}
+                  </span>
+                ))}
+              </div>
+            </section>
+          </aside>
+        </main>
+
+        <nav className="fixed bottom-0 left-0 right-0 z-[81] border-t border-white/10 bg-[#081514]/90 px-4 py-3 backdrop-blur-xl sm:px-6 lg:relative lg:border-t-0 lg:bg-transparent lg:pb-6">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => manualNav("prev")}
+              disabled={activeStep === 0}
+              aria-label="Previous step"
+              className="flex h-13 w-13 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 disabled:opacity-30"
+            >
+              <span className="material-symbols-outlined text-[26px]">
+                arrow_back
+              </span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => readStep()}
+                className="hidden rounded-full bg-white/10 px-4 py-3 text-sm font-bold text-white/75 hover:bg-white/15 sm:block"
+              >
+                Repeat
+              </button>
+              <button
+                type="button"
+                onClick={() => controlTimer("toggle")}
+                className="rounded-full bg-amber-300 px-5 py-3 text-sm font-black text-[#1c1505] shadow-[0_14px_40px_rgba(251,191,36,0.25)]"
+              >
+                {isTimerPaused ? "Resume" : "Pause"}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => manualNav("next")}
+              disabled={activeStep >= recipe.steps.length - 1}
+              aria-label="Next step"
+              className="flex h-13 w-13 items-center justify-center rounded-full bg-amber-300 text-[#1c1505] transition-colors hover:bg-amber-200 disabled:opacity-30"
+            >
+              <span className="material-symbols-outlined text-[26px]">
+                arrow_forward
+              </span>
+            </button>
+          </div>
+        </nav>
       </div>
     </div>
   );
