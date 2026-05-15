@@ -2,14 +2,19 @@
 
 ## Current Decision
 
-Recipe import should be presented as a modal-first Chef Capture flow, not as a standalone form page.
+Recipe import should be presented as a modal-first Chef Capture flow inside the recipes hub, not as a standalone form page.
 
-`/create` is the primary launcher:
+`/recipes` is the primary recipe hub:
 
-- **Create your own recipe** routes to `/create/new`.
-- **Capture a recipe** opens the new Capture modal.
+- **Create own** routes to `/recipes/new`.
+- **Import recipe** opens the Capture modal.
 
-`/import` remains as a compatibility/deep-link route, but it now redirects into `/create?capture=1`.
+`/create` and `/import` remain compatibility/deep-link routes, but now redirect into `/recipes`:
+
+- `/create` -> `/recipes`
+- `/create?recipe=1` -> `/recipes/new`
+- `/create?capture=1` -> `/recipes?import=1`
+- `/import` -> `/recipes?import=1`
 
 ## Why Modal First
 
@@ -25,7 +30,7 @@ The UI uses the Chef Capture backend boundary:
 - `POST /api/v1/captures`
 - `POST /api/v1/captures/:id/save-recipe`
 
-The UI should not persist imported previews directly or show a separate review screen. Capture creates a draft in the background, then routes to `/create/new?draft=import` with a short-lived `sessionStorage` payload. The create page loads the standard recipe form prefilled from `recipe_preview`; the user reviews and saves from there.
+The UI should not persist imported previews directly or show a separate review screen. Capture creates a draft in the background, then routes to `/recipes/new?draft=import` with a short-lived `sessionStorage` payload. The create page loads the standard recipe form prefilled from `recipe_preview`; the user reviews and saves from there.
 
 Supported inputs in this slice:
 
@@ -54,12 +59,12 @@ The Capture modal has three main states:
    - Future streaming can replace this with real task-state updates
 
 3. **Edit**
-   - Open `/create/new` with prefilled fields
+   - Open `/recipes/new` with prefilled fields
    - User reviews title, image, ingredients, steps, tags, and nutrition before saving
 
 ## Future Work
 
-- Add route/query support for opening capture from any page.
+- Add route/query support for opening capture from more app surfaces.
 - Replace deterministic progress copy with real LLM task-state streaming.
 - Add safe generated fallback images when source metadata has no usable thumbnail.
 - Add official/credentialed social provider ingestion only if product/legal requirements justify it.

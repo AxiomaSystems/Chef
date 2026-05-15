@@ -10,7 +10,7 @@ import type {
 } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { RecipeCreateModal } from "@/components/recipes/recipe-create-modal";
-import { IMPORTED_RECIPE_DRAFT_STORAGE_KEY } from "../create-client";
+import { IMPORTED_RECIPE_DRAFT_STORAGE_KEY } from "@/lib/imported-recipe-draft";
 
 export function NewRecipeClient({
   cuisines,
@@ -79,8 +79,8 @@ export function NewRecipeClient({
 
         {missingImportedDraft && (
           <div className="mb-5 rounded-[1.4rem] border border-primary/20 bg-primary-surface px-5 py-4 text-body-sm text-on-surface">
-            The imported draft was no longer available. Start a new capture from
-            the Create page, or build this recipe manually below.
+            The imported draft was no longer available. Start a new import from
+            the Recipes page, or build this recipe manually below.
           </div>
         )}
 
@@ -89,7 +89,7 @@ export function NewRecipeClient({
             key={initialDraft ? "imported-draft" : "blank-recipe"}
             cuisines={cuisines}
             tags={tags}
-            onClose={() => router.push("/create")}
+            onClose={() => router.push("/recipes")}
             onCreated={handleCreated}
             initialDraft={initialDraft}
             presentation="page"

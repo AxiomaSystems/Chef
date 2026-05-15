@@ -1,5 +1,5 @@
-import { ImportClient } from "./import-client";
+import { redirect } from "next/navigation";
 
-export default async function ImportPage() {
-  return <ImportClient />;
+export default function ImportPage() {
+  redirect("/recipes?import=1");
 }

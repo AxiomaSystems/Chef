@@ -1,24 +1,19 @@
-import { fetchAuthedCollection, fetchCollection } from "@/lib/api";
-import type { Cuisine, Tag } from "@cart/shared";
-import { CreateClient } from "./create-client";
+import { redirect } from "next/navigation";
 
-export default async function CreatePage({
+export default async function LegacyCreatePage({
   searchParams,
 }: {
   searchParams?: Promise<{ capture?: string; recipe?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const [cuisinesResult, tagsResult] = await Promise.all([
-    fetchCollection<Cuisine>("/cuisines"),
-    fetchAuthedCollection<Tag>("/tags"),
-  ]);
 
-  return (
-    <CreateClient
-      cuisines={cuisinesResult.data}
-      tags={tagsResult.data}
-      openCaptureOnLoad={resolvedSearchParams?.capture === "1"}
-      openRecipeOnLoad={resolvedSearchParams?.recipe === "1"}
-    />
-  );
+  if (resolvedSearchParams?.recipe === "1") {
+    redirect("/recipes/new");
+  }
+
+  if (resolvedSearchParams?.capture === "1") {
+    redirect("/recipes?import=1");
+  }
+
+  redirect("/recipes");
 }

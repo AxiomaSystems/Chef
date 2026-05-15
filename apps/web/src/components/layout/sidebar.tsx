@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/dashboard", icon: "home", label: "Home" },
   { href: "/meal-plan", icon: "calendar_month", label: "Plan" },
-  { href: "/create", icon: "add_circle", label: "Create" },
+  { href: "/recipes", icon: "add_circle", label: "Create" },
   { href: "/shopping", icon: "shopping_cart", label: "Shopping" },
   { href: "/inventory", icon: "inventory_2", label: "Inventory" },
 ];
@@ -62,7 +62,7 @@ export function Sidebar() {
       {/* New Recipe CTA */}
       <div className="px-4 pb-4">
         <Link
-          href="/create/new"
+          href="/recipes/new"
           className="flex items-center justify-center gap-2 w-full py-3 bg-primary-fixed-dim text-on-primary-fixed font-bold text-label-lg rounded-full hover:bg-primary-fixed transition-colors shadow-sm"
         >
           <span className="material-symbols-outlined text-[18px]">add</span>
