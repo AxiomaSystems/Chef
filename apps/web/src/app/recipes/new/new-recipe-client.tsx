@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type {
   BaseRecipe,
@@ -9,8 +10,22 @@ import type {
   Tag,
 } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
-import { RecipeCreateModal } from "@/components/recipes/recipe-create-modal";
 import { IMPORTED_RECIPE_DRAFT_STORAGE_KEY } from "@/lib/imported-recipe-draft";
+
+const RecipeCreateModal = dynamic(
+  () =>
+    import("@/components/recipes/recipe-create-modal").then(
+      (mod) => mod.RecipeCreateModal,
+    ),
+  {
+    loading: () => (
+      <div className="rounded-[2rem] border border-outline-variant/40 bg-background p-8 text-body-md text-on-surface-variant shadow-[0_24px_80px_rgba(46,30,15,0.12)]">
+        Loading recipe builder...
+      </div>
+    ),
+    ssr: false,
+  },
+);
 
 export function NewRecipeClient({
   cuisines,
@@ -96,7 +111,7 @@ export function NewRecipeClient({
           />
         ) : (
           <div className="rounded-[2rem] border border-outline-variant/40 bg-background p-8 text-body-md text-on-surface-variant shadow-[0_24px_80px_rgba(46,30,15,0.12)]">
-            Loading Chef's imported draft...
+            Loading Chef&apos;s imported draft...
           </div>
         )}
       </main>

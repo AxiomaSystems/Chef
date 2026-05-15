@@ -93,7 +93,6 @@ export function RecipeCaptureModal({
 
   useEffect(() => {
     if (!isCapturing) {
-      setThinkingStep(0);
       return;
     }
 
@@ -112,6 +111,7 @@ export function RecipeCaptureModal({
     setError(undefined);
     setCapture(null);
     setFailedImageUrl(null);
+    setThinkingStep(0);
     startCapture(async () => {
       const result = await createCaptureAction(
         mode === "url"
@@ -165,11 +165,11 @@ export function RecipeCaptureModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#11140f]/45 p-0 backdrop-blur-[6px] sm:items-center sm:p-5">
-      <div className="relative flex h-[94dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-[2rem] border border-white/60 bg-[#fffaf0] shadow-[0_32px_100px_rgba(46,30,15,0.3)] sm:h-auto sm:max-h-[90dvh] sm:rounded-[2rem]">
+    <div className="fixed inset-0 z-[80] bg-[#fffaf0]">
+      <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-[#fffaf0]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(255,185,98,0.28),transparent_32%),radial-gradient(circle_at_100%_12%,rgba(132,184,165,0.26),transparent_30%)]" />
 
-        <div className="relative flex items-start justify-between gap-4 border-b border-[#eadfce] px-5 py-4 sm:px-7">
+        <div className="relative flex items-start justify-between gap-4 border-b border-[#eadfce] px-5 py-5 sm:px-7 lg:px-10">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.22em] text-primary">
               Chef Capture
@@ -186,16 +186,16 @@ export function RecipeCaptureModal({
             type="button"
             onClick={onClose}
             className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/70 text-on-surface-variant shadow-sm transition-colors hover:bg-white"
-            aria-label="Close capture modal"
+            aria-label="Close capture"
           >
             <span className="material-symbols-outlined text-[22px]">close</span>
           </button>
         </div>
 
-        <div className="relative min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+        <div className="relative min-h-0 flex-1 overflow-y-auto px-5 py-5 pb-28 sm:px-7 sm:py-6 lg:px-10">
           {!capture || onReviewDraft ? (
             <div className="mx-auto max-w-xl">
-              <section className="rounded-[1.7rem] border border-[#ecdcc8] bg-white p-4 shadow-sm sm:p-5">
+              <section className="-mx-5 border-y border-[#ecdcc8] bg-white p-5 sm:mx-0 sm:rounded-[1.7rem] sm:border sm:p-5 sm:shadow-sm">
                 <div className="grid grid-cols-2 rounded-2xl bg-[#f7f0e7] p-1">
                   {(["url", "text"] as const).map((option) => (
                     <button

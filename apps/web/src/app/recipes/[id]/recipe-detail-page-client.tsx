@@ -1,14 +1,22 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import type { BaseRecipe } from "@cart/shared";
 import { useRouter } from "next/navigation";
 import {
   createShoppingCartAction,
   submitDraftFlowAction,
 } from "@/app/home-actions";
-import { HandsFreeMode } from "@/components/hands-free-mode";
 import { RecipeImage } from "@/components/ui/recipe-image";
+
+const HandsFreeMode = dynamic(
+  () => import("@/components/hands-free-mode").then((mod) => mod.HandsFreeMode),
+  {
+    loading: () => null,
+    ssr: false,
+  },
+);
 
 type RecipeTab = "ingredients" | "steps";
 

@@ -251,6 +251,9 @@ importers:
       "@cart/shared":
         specifier: workspace:*
         version: link:../../packages/shared
+      "@next/env":
+        specifier: 16.1.7
+        version: 16.1.7
       "@zxing/browser":
         specifier: ^0.1.5
         version: 0.1.5(@zxing/library@0.21.3)

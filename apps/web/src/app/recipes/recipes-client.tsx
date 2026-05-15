@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { BaseRecipe, Capture, Cuisine, Tag } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
-import { RecipeCreateModal } from "@/components/recipes/recipe-create-modal";
-import { RecipeCaptureModal } from "@/components/recipes/recipe-capture-modal";
 import { IMPORTED_RECIPE_DRAFT_STORAGE_KEY } from "@/lib/imported-recipe-draft";
 import {
   submitDraftFlowAction,
@@ -13,6 +12,28 @@ import {
   forkRecipeAction,
 } from "@/app/home-actions";
 import { RecipeImage } from "@/components/ui/recipe-image";
+
+const RecipeCaptureModal = dynamic(
+  () =>
+    import("@/components/recipes/recipe-capture-modal").then(
+      (mod) => mod.RecipeCaptureModal,
+    ),
+  {
+    loading: () => null,
+    ssr: false,
+  },
+);
+
+const RecipeCreateModal = dynamic(
+  () =>
+    import("@/components/recipes/recipe-create-modal").then(
+      (mod) => mod.RecipeCreateModal,
+    ),
+  {
+    loading: () => null,
+    ssr: false,
+  },
+);
 
 /* ── helpers ────────────────────────────────────────────────────── */
 
@@ -62,6 +83,20 @@ export function RecipesClient({
       router.replace("/recipes", { scroll: false });
     }
   }, [router, openImportOnLoad]);
+
+  useEffect(() => {
+    function handleOpenRecipeImport() {
+      setShowImport(true);
+    }
+
+    window.addEventListener("chef:open-recipe-import", handleOpenRecipeImport);
+    return () => {
+      window.removeEventListener(
+        "chef:open-recipe-import",
+        handleOpenRecipeImport,
+      );
+    };
+  }, []);
 
   const dietaryTags = tags
     .filter((t) => t.kind === "dietary_badge")

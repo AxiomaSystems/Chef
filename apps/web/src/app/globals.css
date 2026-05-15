@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-display: block;
+  font-style: normal;
+  font-weight: 400;
+  src: url("/fonts/material-symbols-outlined.ttf") format("truetype");
+}
+
 /* Design Tokens: Citrus Teal */
 @theme {
   /* Colors */
@@ -214,11 +222,22 @@ body {
 }
 
 .material-symbols-outlined {
+  display: inline-block;
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: normal;
   font-variation-settings:
     "FILL" 0,
     "wght" 400,
     "GRAD" 0,
     "opsz" 24;
-  vertical-align: middle;
+  letter-spacing: normal;
   line-height: 1;
+  text-transform: none;
+  vertical-align: middle;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
 }

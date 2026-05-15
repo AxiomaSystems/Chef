@@ -1397,7 +1397,7 @@ export function RecipeCreateModal({
         <div
           className={
             isPage
-              ? "sticky bottom-[72px] z-10 grid shrink-0 grid-cols-2 gap-3 border-t border-outline-variant/30 bg-white/95 px-4 py-3 backdrop-blur sm:bottom-0 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:px-6 sm:py-4"
+              ? "grid shrink-0 grid-cols-2 gap-3 border-t border-outline-variant/30 bg-white px-4 py-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:px-6 sm:py-4"
               : "sticky bottom-0 grid shrink-0 grid-cols-2 gap-3 border-t border-outline-variant/30 bg-white/95 px-4 py-3 backdrop-blur sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:px-6 sm:py-4"
           }
         >
