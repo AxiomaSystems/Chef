@@ -17,10 +17,13 @@ This slice keeps the existing voice architecture and changes the product experie
 - Fullscreen hands-free UI now presents as **Cook with Chef**.
 - The center of the UI is an animated voice orb and live transcript.
 - The current recipe step is a secondary reference card.
-- A kitchen state panel shows phase, step timer, and progress.
-- The UI exposes practical voice hints such as “repeat”, “next step”, and “pause timer”.
+- A kitchen state panel shows phase, step timer, named timers, and progress.
+- The UI exposes practical voice hints such as "repeat", "next step", and "pause timer".
 - Named countdown timers can be started, paused, resumed, stopped, and queried with voice-style commands.
 - Active timers appear in the kitchen state panel so parallel cooking tasks are visible.
+- Cooking Copilot now receives a compact user cooking context: profile memory, dietary rules, goals, kitchen defaults, pantry staples, and active inventory.
+- The UI shows a small **Chef knows** panel so users can see when personalization context is loaded.
+- The transcript now separates what Chef heard from the action it executed, making voice command failures easier to debug.
 - Local Web Speech commands and ElevenLabs WebSocket behavior remain intact.
 
 ## Existing Architecture
@@ -53,11 +56,11 @@ Routes that exist but are not currently used by the main hands-free component:
 ## Next Slices
 
 1. Extract state and voice logic out of `hands-free-mode.tsx`.
-2. Send profile memory, inventory summary, appliances, and dietary rules into the cooking agent context.
-3. Persist cooking session state and transcript if the product wants continuity across refresh/exit.
-4. Upgrade transcript when ElevenLabs exposes partial user transcript events in this integration.
-5. Add an explicit degraded local-only mode when ElevenLabs is unavailable.
-6. Split the component into smaller state, voice, transcript, and UI modules.
+2. Persist cooking session state and transcript if the product wants continuity across refresh/exit.
+3. Upgrade transcript when ElevenLabs exposes partial user transcript events in this integration.
+4. Add an explicit degraded local-only mode when ElevenLabs is unavailable.
+5. Split the component into smaller state, voice, transcript, and UI modules.
+6. Move context assembly server-side into a dedicated cooking-session endpoint if this grows.
 
 ## Non-Goals For This Slice
 

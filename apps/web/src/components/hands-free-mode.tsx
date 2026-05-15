@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { BaseRecipe } from "@cart/shared";
+import type { CookingContext } from "@/lib/cooking-context";
+import { stringifyCookingContext } from "@/lib/cooking-context";
 
 const TARGET_SAMPLE_RATE = 16000; // ElevenLabs expects 16 kHz PCM16 input
 const MIC_CHUNK_SIZE = 2048;
@@ -57,7 +59,11 @@ function decodePcm16Base64(b64: string): Float32Array {
 }
 
 type Mode = "connecting" | "listening" | "speaking" | "disconnected";
-type Props = { recipe: BaseRecipe; onClose: () => void };
+type Props = {
+  recipe: BaseRecipe;
+  cookingContext?: CookingContext;
+  onClose: () => void;
+};
 type TimerCommand = "pause" | "resume" | "toggle";
 type TranscriptEntry = {
   id: number;
@@ -143,7 +149,7 @@ function parseTimerTargetLabel(command: string) {
   return match?.[1]?.trim();
 }
 
-export function HandsFreeMode({ recipe, onClose }: Props) {
+export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
   const [activeStep, setActiveStep] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timers, setTimers] = useState<CookingTimer[]>([]);
@@ -151,6 +157,8 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
   const [mode, setMode] = useState<Mode>("connecting");
   const [agentMessage, setAgentMessage] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [lastHeard, setLastHeard] = useState<string | null>(null);
+  const [lastAction, setLastAction] = useState<string | null>(null);
   const timerIdRef = useRef(0);
   const timersRef = useRef<CookingTimer[]>([]);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
@@ -185,6 +193,18 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
           : activeStep < (recipe.steps.length * 2) / 3
             ? "Active cooking"
             : "Bring it home";
+  const contextLines = [
+    cookingContext?.dietaryRules.length
+      ? `${cookingContext.dietaryRules.length} food rules`
+      : null,
+    cookingContext?.goals.length ? `${cookingContext.goals[0]} goal` : null,
+    cookingContext?.inventory.length
+      ? `${cookingContext.inventory.length} pantry items`
+      : null,
+    cookingContext?.kitchen.length
+      ? `${cookingContext.kitchen.length} kitchen defaults`
+      : null,
+  ].filter((line): line is string => Boolean(line));
 
   function addTranscript(speaker: TranscriptEntry["speaker"], text: string) {
     const trimmed = text.trim();
@@ -194,6 +214,11 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       ...prev.slice(-5),
       { id: transcriptIdRef.current, speaker, text: trimmed },
     ]);
+  }
+
+  function recordAction(text: string) {
+    setLastAction(text);
+    addTranscript("system", text);
   }
 
   function announce(text: string) {
@@ -212,22 +237,28 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
     timerPausedRef.current = isTimerPaused;
   }, [isTimerPaused]);
 
-  setTimers((current) =>
-    current.map((timer) => {
-      if (timer.paused || timer.completed) return timer;
-      const remainingSeconds = Math.max(0, timer.remainingSeconds - 1);
-      if (remainingSeconds === 0 && timer.remainingSeconds > 0) {
-        window.setTimeout(() => {
-          announce(`${timer.label} timer is done.`);
-        }, 0);
-      }
-      return {
-        ...timer,
-        remainingSeconds,
-        completed: remainingSeconds === 0,
-      };
-    }),
-  );
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setTimers((current) =>
+        current.map((timer) => {
+          if (timer.paused || timer.completed) return timer;
+          const remainingSeconds = Math.max(0, timer.remainingSeconds - 1);
+          if (remainingSeconds === 0 && timer.remainingSeconds > 0) {
+            window.setTimeout(() => {
+              announce(`${timer.label} timer is done.`);
+            }, 0);
+          }
+          return {
+            ...timer,
+            remainingSeconds,
+            completed: remainingSeconds === 0,
+          };
+        }),
+      );
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
   useEffect(() => {
     const id = window.setInterval(() => {
       if (!timerPausedRef.current) {
@@ -261,6 +292,7 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       const result = event.results[event.results.length - 1];
       const transcript = result?.[0]?.transcript?.trim();
       if (transcript) {
+        setLastHeard(transcript);
         addTranscript("you", transcript);
         handleLocalCommand(transcript);
       }
@@ -437,47 +469,58 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
     if (/\b(start|set)\b.*\btimer\b/.test(command)) {
       const duration = parseTimerDuration(command);
       if (duration) {
+        recordAction("Started a named cooking timer.");
         startCookingTimer(parseTimerLabel(command), duration);
       } else {
+        recordAction("Asked for timer duration.");
         announce("Tell me how long to set the timer for.");
       }
       return true;
     }
     if (/\b(how much time|time left|timer status|timers)\b/.test(command)) {
+      recordAction("Read active timer status.");
       announceTimerStatus();
       return true;
     }
     if (/\b(stop|cancel|clear)\b.*\btimer\b/.test(command)) {
+      recordAction("Stopped timer.");
       updateCookingTimers("stop", parseTimerTargetLabel(command));
       return true;
     }
     if (/\b(pause|stop|hold)\b.*\b(time|timer|clock)\b/.test(command)) {
       const targetLabel = parseTimerTargetLabel(command);
       if (targetLabel || timersRef.current.some((timer) => !timer.completed)) {
+        recordAction("Paused active timer.");
         updateCookingTimers("pause", targetLabel);
         return true;
       }
+      recordAction("Paused step timer.");
       controlTimer("pause");
       return true;
     }
     if (/\b(resume|start|continue)\b.*\b(time|timer|clock)\b/.test(command)) {
       const targetLabel = parseTimerTargetLabel(command);
       if (targetLabel || timersRef.current.some((timer) => !timer.completed)) {
+        recordAction("Resumed active timer.");
         updateCookingTimers("resume", targetLabel);
         return true;
       }
+      recordAction("Resumed step timer.");
       controlTimer("resume");
       return true;
     }
     if (/\b(next|continue|go on)\b/.test(command)) {
+      recordAction("Moved to the next recipe step.");
       manualNav("next");
       return true;
     }
     if (/\b(back|previous|go back)\b/.test(command)) {
+      recordAction("Moved to the previous recipe step.");
       manualNav("prev");
       return true;
     }
     if (/\b(repeat|read that again|say that again)\b/.test(command)) {
+      recordAction("Repeated the current step.");
       readStep();
       return true;
     }
@@ -704,8 +747,9 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
               recipe_name: recipe.name,
               servings: String(recipe.servings),
               steps: stepsText,
+              user_cooking_context: stringifyCookingContext(cookingContext),
               hands_free_client_rules:
-                "Keep responses under 2 short sentences. For next, back, previous, repeat, pause timer, resume timer, stop timer, timer status, or starting a named timer, call the client tool instead of explaining. The client reads steps aloud locally for speed.",
+                "Keep responses under 2 short sentences. Use user_cooking_context for safe personalization. Never override hard dietary/allergy rules. For next, back, previous, repeat, pause timer, resume timer, stop timer, timer status, or starting a named timer, call the client tool instead of explaining. The client reads steps aloud locally for speed.",
             },
           });
 
@@ -848,7 +892,13 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
       void audioCtxRef.current?.close();
       audioCtxRef.current = null;
     };
-  }, [recipe.ingredients, recipe.name, recipe.servings, recipe.steps]);
+  }, [
+    cookingContext,
+    recipe.ingredients,
+    recipe.name,
+    recipe.servings,
+    recipe.steps,
+  ]);
 
   function manualNav(dir: "next" | "prev") {
     const idx =
@@ -1004,6 +1054,26 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
                   Say “next”, “repeat”, or “pause timer”
                 </p>
               </div>
+              {(lastHeard || lastAction) && (
+                <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3">
+                    <span className="block text-[9px] font-black uppercase tracking-widest text-white/35">
+                      Heard
+                    </span>
+                    <span className="mt-1 line-clamp-2 block text-sm text-white/75">
+                      {lastHeard ?? "Waiting for your voice..."}
+                    </span>
+                  </div>
+                  <div className="rounded-2xl border border-amber-300/15 bg-amber-300/10 px-4 py-3">
+                    <span className="block text-[9px] font-black uppercase tracking-widest text-amber-200/60">
+                      Chef did
+                    </span>
+                    <span className="mt-1 line-clamp-2 block text-sm text-amber-50/85">
+                      {lastAction ?? "No command action yet."}
+                    </span>
+                  </div>
+                </div>
+              )}
               <div className="space-y-3">
                 {transcript.length > 0 ? (
                   transcript.map((entry) => (
@@ -1221,6 +1291,29 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
                   </span>
                 ))}
               </div>
+            </section>
+
+            <section className="rounded-[1.6rem] border border-teal-200/10 bg-teal-200/[0.07] p-5 backdrop-blur-xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-teal-200/70">
+                Chef knows
+              </p>
+              {contextLines.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {contextLines.map((line) => (
+                    <span
+                      key={line}
+                      className="rounded-full border border-teal-200/10 bg-teal-200/10 px-3 py-2 text-xs font-semibold text-teal-50/80"
+                    >
+                      {line}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm leading-6 text-white/45">
+                  No profile or pantry context loaded yet. Chef will guide from
+                  the recipe only.
+                </p>
+              )}
             </section>
           </aside>
         </main>

@@ -7,6 +7,7 @@ import { PreparationChefAssistant } from "@/components/ai/preparation-chef-assis
 import { HandsFreeMode } from "@/components/hands-free-mode";
 import { RecipeImage } from "@/components/ui/recipe-image";
 import { getIngredientPrepAction } from "@/app/ai-actions";
+import type { CookingContext } from "@/lib/cooking-context";
 
 function getDietaryBadges(recipe: BaseRecipe) {
   return recipe.tags.filter((tag) => tag.kind === "dietary_badge").slice(0, 3);
@@ -30,7 +31,13 @@ function estimatePrepMinutes(recipe: BaseRecipe) {
   return Math.max(recipe.steps.length * 8, 15);
 }
 
-export function RecipePreparationClient({ recipe }: { recipe: BaseRecipe }) {
+export function RecipePreparationClient({
+  recipe,
+  cookingContext,
+}: {
+  recipe: BaseRecipe;
+  cookingContext?: CookingContext;
+}) {
   const [started, setStarted] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [activeStep, setActiveStep] = useState(0);
@@ -524,6 +531,7 @@ export function RecipePreparationClient({ recipe }: { recipe: BaseRecipe }) {
             {handsFreeOpen ? (
               <HandsFreeMode
                 recipe={recipe}
+                cookingContext={cookingContext}
                 onClose={() => setHandsFreeOpen(false)}
               />
             ) : null}
