@@ -4,6 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import type { BaseRecipe } from "@cart/shared";
 import type { CookingContext } from "@/lib/cooking-context";
 import { stringifyCookingContext } from "@/lib/cooking-context";
+import {
+  HandsFreeAsidePanels,
+  HandsFreeTranscriptPanel,
+} from "./hands-free-mode-panels";
+import type { CookingTimer, TranscriptEntry } from "./hands-free-mode-types";
 
 const TARGET_SAMPLE_RATE = 16000; // ElevenLabs expects 16 kHz PCM16 input
 const MIC_CHUNK_SIZE = 2048;
@@ -65,33 +70,6 @@ type Props = {
   onClose: () => void;
 };
 type TimerCommand = "pause" | "resume" | "toggle";
-type TranscriptEntry = {
-  id: number;
-  speaker: "you" | "chef" | "system";
-  text: string;
-};
-type CookingTimer = {
-  id: number;
-  label: string;
-  remainingSeconds: number;
-  totalSeconds: number;
-  paused: boolean;
-  completed: boolean;
-};
-type BrowserSpeechRecognition = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult:
-    | ((event: {
-        results: ArrayLike<ArrayLike<{ transcript: string }>>;
-      }) => void)
-    | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
 type SignedUrlResponse = { signed_url?: string; error?: string };
 type ElevenLabsToolCall = {
   tool_name?: string;
@@ -116,37 +94,6 @@ function sendWsMessage(ws: WebSocket | null, payload: unknown) {
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(payload));
   }
-}
-
-function parseTimerDuration(command: string) {
-  const match = command.match(
-    /\b(?:(\d+)\s*(?:hours?|hrs?|hr|h))?\s*(?:(\d+)\s*(?:minutes?|mins?|min|m))?\s*(?:(\d+)\s*(?:seconds?|secs?|sec|s))?\b/,
-  );
-  if (!match) return null;
-  const hours = Number(match[1] ?? 0);
-  const minutes = Number(match[2] ?? 0);
-  const seconds = Number(match[3] ?? 0);
-  const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-  return totalSeconds > 0 ? totalSeconds : null;
-}
-
-function parseTimerLabel(command: string) {
-  const forMatch = command.match(
-    /\bfor\s+([a-z][a-z\s-]{1,24}?)(?:\s+for\s+\d|\s+\d|$)/,
-  );
-  const label = forMatch?.[1]?.trim();
-  if (!label) return "timer";
-  return (
-    label.replace(/\b(timer|minutes?|mins?|seconds?|hours?)\b/g, "").trim() ||
-    "timer"
-  );
-}
-
-function parseTimerTargetLabel(command: string) {
-  const match = command.match(
-    /\b(?:pause|resume|start|continue|stop|cancel|clear)\s+(?:the\s+)?([a-z][a-z\s-]{1,24}?)\s+timer\b/,
-  );
-  return match?.[1]?.trim();
 }
 
 export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
@@ -266,58 +213,6 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
       }
     }, 1000);
     return () => window.clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const SpeechRecognitionCtor =
-      (
-        window as typeof window & {
-          SpeechRecognition?: new () => BrowserSpeechRecognition;
-          webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
-        }
-      ).SpeechRecognition ??
-      (
-        window as typeof window & {
-          webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
-        }
-      ).webkitSpeechRecognition;
-
-    if (!SpeechRecognitionCtor) return;
-
-    const recognition = new SpeechRecognitionCtor();
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-    recognition.onresult = (event) => {
-      const result = event.results[event.results.length - 1];
-      const transcript = result?.[0]?.transcript?.trim();
-      if (transcript) {
-        setLastHeard(transcript);
-        addTranscript("you", transcript);
-        handleLocalCommand(transcript);
-      }
-    };
-    recognition.onerror = () => {};
-    recognition.onend = () => {
-      if (wsRef.current?.readyState !== WebSocket.CLOSED) {
-        try {
-          recognition.start();
-        } catch {
-          // Recognition can already be active.
-        }
-      }
-    };
-
-    try {
-      recognition.start();
-    } catch {
-      return;
-    }
-
-    return () => {
-      recognition.onend = null;
-      recognition.stop();
-    };
   }, []);
 
   function stopQueuedSpeech() {
@@ -464,69 +359,6 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
     );
   }
 
-  function handleLocalCommand(text: string) {
-    const command = text.toLowerCase();
-    if (/\b(start|set)\b.*\btimer\b/.test(command)) {
-      const duration = parseTimerDuration(command);
-      if (duration) {
-        recordAction("Started a named cooking timer.");
-        startCookingTimer(parseTimerLabel(command), duration);
-      } else {
-        recordAction("Asked for timer duration.");
-        announce("Tell me how long to set the timer for.");
-      }
-      return true;
-    }
-    if (/\b(how much time|time left|timer status|timers)\b/.test(command)) {
-      recordAction("Read active timer status.");
-      announceTimerStatus();
-      return true;
-    }
-    if (/\b(stop|cancel|clear)\b.*\btimer\b/.test(command)) {
-      recordAction("Stopped timer.");
-      updateCookingTimers("stop", parseTimerTargetLabel(command));
-      return true;
-    }
-    if (/\b(pause|stop|hold)\b.*\b(time|timer|clock)\b/.test(command)) {
-      const targetLabel = parseTimerTargetLabel(command);
-      if (targetLabel || timersRef.current.some((timer) => !timer.completed)) {
-        recordAction("Paused active timer.");
-        updateCookingTimers("pause", targetLabel);
-        return true;
-      }
-      recordAction("Paused step timer.");
-      controlTimer("pause");
-      return true;
-    }
-    if (/\b(resume|start|continue)\b.*\b(time|timer|clock)\b/.test(command)) {
-      const targetLabel = parseTimerTargetLabel(command);
-      if (targetLabel || timersRef.current.some((timer) => !timer.completed)) {
-        recordAction("Resumed active timer.");
-        updateCookingTimers("resume", targetLabel);
-        return true;
-      }
-      recordAction("Resumed step timer.");
-      controlTimer("resume");
-      return true;
-    }
-    if (/\b(next|continue|go on)\b/.test(command)) {
-      recordAction("Moved to the next recipe step.");
-      manualNav("next");
-      return true;
-    }
-    if (/\b(back|previous|go back)\b/.test(command)) {
-      recordAction("Moved to the previous recipe step.");
-      manualNav("prev");
-      return true;
-    }
-    if (/\b(repeat|read that again|say that again)\b/.test(command)) {
-      recordAction("Repeated the current step.");
-      readStep();
-      return true;
-    }
-    return false;
-  }
-
   useEffect(() => {
     let mounted = true;
     let stream: MediaStream | null = null;
@@ -580,6 +412,7 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
               Number(params.minutes ?? 0) * 60,
           );
           if (Number.isFinite(seconds) && seconds > 0) {
+            recordAction("Started a named cooking timer.");
             startCookingTimer(String(params.label ?? "timer"), seconds);
             sendWsMessage(ws, {
               type: "client_tool_result",
@@ -609,10 +442,12 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
             result,
             is_error: false,
           });
+          recordAction("Read active timer status.");
           announceTimerStatus();
           return;
         }
         if (action === "stop" || action === "cancel") {
+          recordAction("Stopped timer.");
           updateCookingTimers("stop", String(params.label ?? ""));
           sendWsMessage(ws, {
             type: "client_tool_result",
@@ -625,8 +460,18 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
         if (action === "pause" || action === "resume" || action === "toggle") {
           const label = String(params.label ?? "").trim();
           if (label) {
+            recordAction(
+              action === "resume"
+                ? "Resumed active timer."
+                : "Paused active timer.",
+            );
             updateCookingTimers(action === "toggle" ? "pause" : action, label);
           } else {
+            recordAction(
+              action === "resume"
+                ? "Resumed step timer."
+                : "Paused step timer.",
+            );
             controlTimer(action);
           }
           sendWsMessage(ws, {
@@ -695,7 +540,7 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
       });
 
       if (step) {
-        addTranscript("system", `Jumped to step ${idx + 1}.`);
+        recordAction(`Jumped to step ${idx + 1}.`);
         goToStep(idx);
       }
     }
@@ -773,10 +618,10 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
 
           if (mounted) {
             setMode("listening");
-            window.setTimeout(() => {
-              if (!mounted || activeStepRef.current !== 0) return;
-              readStep(0, "Hands-free is ready. I'll start with");
-            }, 250);
+            setAgentMessage(
+              "Hands-free is ready. Ask Chef to guide the next move.",
+            );
+            window.setTimeout(() => setAgentMessage(null), 4000);
           }
         };
 
@@ -800,7 +645,6 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
               case "agent_response":
                 if (msg.agent_response_event?.agent_response) {
                   const responseText = msg.agent_response_event.agent_response;
-                  handleLocalCommand(responseText);
                   addTranscript("chef", responseText);
                   setAgentMessage(responseText);
                   window.setTimeout(() => setAgentMessage(null), 5000);
@@ -1045,277 +889,29 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
               </div>
             </div>
 
-            <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-black/18 p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
-                  Live transcript
-                </p>
-                <p className="text-[11px] text-white/35">
-                  Say “next”, “repeat”, or “pause timer”
-                </p>
-              </div>
-              {(lastHeard || lastAction) && (
-                <div className="mb-4 grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3">
-                    <span className="block text-[9px] font-black uppercase tracking-widest text-white/35">
-                      Heard
-                    </span>
-                    <span className="mt-1 line-clamp-2 block text-sm text-white/75">
-                      {lastHeard ?? "Waiting for your voice..."}
-                    </span>
-                  </div>
-                  <div className="rounded-2xl border border-amber-300/15 bg-amber-300/10 px-4 py-3">
-                    <span className="block text-[9px] font-black uppercase tracking-widest text-amber-200/60">
-                      Chef did
-                    </span>
-                    <span className="mt-1 line-clamp-2 block text-sm text-amber-50/85">
-                      {lastAction ?? "No command action yet."}
-                    </span>
-                  </div>
-                </div>
-              )}
-              <div className="space-y-3">
-                {transcript.length > 0 ? (
-                  transcript.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className={`flex gap-3 ${
-                        entry.speaker === "you" ? "justify-end" : ""
-                      }`}
-                    >
-                      <div
-                        className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6 ${
-                          entry.speaker === "you"
-                            ? "bg-amber-300 text-[#1b1405]"
-                            : entry.speaker === "system"
-                              ? "bg-white/8 text-white/55"
-                              : "bg-white/12 text-white/86"
-                        }`}
-                      >
-                        <span className="mb-1 block text-[9px] font-black uppercase tracking-widest opacity-60">
-                          {entry.speaker === "you"
-                            ? "You"
-                            : entry.speaker === "system"
-                              ? "Action"
-                              : "Chef"}
-                        </span>
-                        {entry.text}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm leading-6 text-white/45">
-                    Your conversation will appear here so you can see what Chef
-                    heard and what it did.
-                  </p>
-                )}
-              </div>
-            </div>
+            <HandsFreeTranscriptPanel
+              lastAction={lastAction}
+              lastHeard={lastHeard}
+              transcript={transcript}
+            />
           </section>
 
-          <aside className="space-y-4">
-            <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.07] p-5 backdrop-blur-xl">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300/80">
-                Kitchen state
-              </p>
-              <h3 className="mt-2 text-2xl font-black text-white">
-                {currentPhase}
-              </h3>
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => controlTimer("toggle")}
-                  className={`rounded-2xl border p-4 text-left transition-colors ${
-                    isTimerPaused
-                      ? "border-amber-300/45 bg-amber-300/12"
-                      : "border-white/10 bg-black/15 hover:bg-white/10"
-                  }`}
-                >
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
-                    Step timer
-                  </span>
-                  <span className="mt-1 block font-mono text-3xl font-black tabular-nums text-amber-300">
-                    {formatTime(elapsedSeconds)}
-                  </span>
-                  <span className="mt-1 block text-xs text-white/45">
-                    {isTimerPaused ? "Paused" : "Running"}
-                  </span>
-                </button>
-                <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
-                    Progress
-                  </span>
-                  <span className="mt-1 block text-3xl font-black text-white">
-                    {activeStep + 1}/{recipe.steps.length}
-                  </span>
-                  <span className="mt-1 block text-xs text-white/45">
-                    Recipe steps
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-white/10 bg-black/15 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
-                    Active timers
-                  </span>
-                  <span className="text-xs text-white/35">
-                    Say “start a pasta timer for 8 minutes”
-                  </span>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {visibleTimers.length > 0 ? (
-                    visibleTimers.map((timer) => (
-                      <div
-                        key={timer.id}
-                        className="rounded-xl bg-white/8 px-3 py-2"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="truncate text-sm font-bold text-white">
-                            {timer.label}
-                          </span>
-                          <span className="font-mono text-sm font-black tabular-nums text-amber-300">
-                            {formatTime(timer.remainingSeconds)}
-                          </span>
-                        </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-                          <div
-                            className="h-full rounded-full bg-amber-300 transition-all duration-500"
-                            style={{
-                              width: `${Math.max(
-                                0,
-                                Math.min(
-                                  100,
-                                  (timer.remainingSeconds /
-                                    timer.totalSeconds) *
-                                    100,
-                                ),
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm leading-6 text-white/45">
-                      No named timers yet. Chef can keep track of parallel
-                      cooking tasks while you work.
-                    </p>
-                  )}
-                  {completedTimers.map((timer) => (
-                    <button
-                      key={timer.id}
-                      type="button"
-                      onClick={() =>
-                        setTimers((current) =>
-                          current.filter((item) => item.id !== timer.id),
-                        )
-                      }
-                      className="flex w-full items-center justify-between rounded-xl border border-amber-300/30 bg-amber-300/12 px-3 py-2 text-left text-sm text-amber-100"
-                    >
-                      <span>{timer.label} timer done</span>
-                      <span className="material-symbols-outlined text-[16px]">
-                        close
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-[1.6rem] border border-white/10 bg-[#fff8e8] p-5 text-[#142326] shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#9b5b05]">
-                  Recipe reference
-                </p>
-                <span className="rounded-full bg-[#142326]/8 px-3 py-1 text-xs font-bold">
-                  Step {activeStep + 1}
-                </span>
-              </div>
-              <h3 className="mt-4 text-2xl font-black leading-tight">
-                {title}
-              </h3>
-              {body ? (
-                <p className="mt-3 text-sm leading-6 text-[#315b5f]">{body}</p>
-              ) : null}
-
-              {stepIngredients.length > 0 ? (
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {stepIngredients.map((ing, i) => (
-                    <span
-                      key={i}
-                      className="rounded-full bg-[#f4790d]/12 px-3 py-1.5 text-xs font-bold text-[#7a3d00]"
-                    >
-                      {ing.amount} {ing.unit}{" "}
-                      {ing.display_ingredient ?? ing.canonical_ingredient}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-
-              {nextStep ? (
-                <div className="mt-5 rounded-2xl bg-white/70 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#6e8588]">
-                    Next likely action
-                  </p>
-                  <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#142326]">
-                    {nextStep.what_to_do}
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-5 rounded-2xl bg-white/70 p-4 text-sm font-semibold text-[#142326]">
-                  Last step. Ask Chef for plating or cleanup help.
-                </div>
-              )}
-            </section>
-
-            <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.07] p-5 backdrop-blur-xl">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
-                Try saying
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {[
-                  "What do I do now?",
-                  "Start a pasta timer for 8 minutes",
-                  "How much time left?",
-                  "Repeat that",
-                  "Pause timer",
-                  "Next step",
-                  "What can I prep?",
-                ].map((prompt) => (
-                  <span
-                    key={prompt}
-                    className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs font-semibold text-white/70"
-                  >
-                    {prompt}
-                  </span>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-[1.6rem] border border-teal-200/10 bg-teal-200/[0.07] p-5 backdrop-blur-xl">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-teal-200/70">
-                Chef knows
-              </p>
-              {contextLines.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {contextLines.map((line) => (
-                    <span
-                      key={line}
-                      className="rounded-full border border-teal-200/10 bg-teal-200/10 px-3 py-2 text-xs font-semibold text-teal-50/80"
-                    >
-                      {line}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm leading-6 text-white/45">
-                  No profile or pantry context loaded yet. Chef will guide from
-                  the recipe only.
-                </p>
-              )}
-            </section>
-          </aside>
+          <HandsFreeAsidePanels
+            activeStep={activeStep}
+            body={body}
+            completedTimers={completedTimers}
+            contextLines={contextLines}
+            controlTimer={controlTimer}
+            currentPhase={currentPhase}
+            elapsedSeconds={elapsedSeconds}
+            isTimerPaused={isTimerPaused}
+            nextStep={nextStep}
+            recipe={recipe}
+            setTimers={setTimers}
+            stepIngredients={stepIngredients}
+            title={title}
+            visibleTimers={visibleTimers}
+          />
         </main>
 
         <nav className="fixed bottom-0 left-0 right-0 z-[81] border-t border-white/10 bg-[#081514]/90 px-4 py-3 backdrop-blur-xl sm:px-6 lg:relative lg:border-t-0 lg:bg-transparent lg:pb-6">

@@ -24,6 +24,9 @@ This slice keeps the existing voice architecture and changes the product experie
 - Cooking Copilot now receives a compact user cooking context: profile memory, dietary rules, goals, kitchen defaults, pantry staples, and active inventory.
 - The UI shows a small **Chef knows** panel so users can see when personalization context is loaded.
 - The transcript now separates what Chef heard from the action it executed, making voice command failures easier to debug.
+- Agent responses are no longer parsed as local voice commands.
+- Browser `SpeechRecognition` is no longer run in parallel with ElevenLabs. ElevenLabs is the only voice input path during normal hands-free mode to avoid duplicate transcripts and phantom commands.
+- The transcript and side panels are split out from the main hands-free controller to keep the audio/session logic easier to reason about.
 - Local Web Speech commands and ElevenLabs WebSocket behavior remain intact.
 
 ## Existing Architecture
