@@ -248,6 +248,221 @@ flowchart LR
   linkStyle 4 stroke:#00a550,stroke-width:3
 ```
 
+### LLM Input/Output Details
+
+#### Communications with LLM
+
+The system communicates with OpenAI's Responses API for all AI features:
+
+1. **Chat** (`POST /api/v1/ai/chat`) - Conversational cooking assistance
+2. **Meal Generation** (`POST /api/v1/ai/meals/generate`) - Generate recipe previews from prompts
+3. **Ingredient Swap** (`POST /api/v1/ai/recipes/swap-ingredient`) - Propose ingredient substitutions
+4. **Recipe Import** (`POST /api/v1/ai/recipe-imports/structure`) - Structure recipes from URLs
+
+#### What is sent to the LLM
+
+All requests follow the same format:
+
+- **System Prompt**: Fixed Chef assistant prompt (see `SYSTEM_PROMPT` in `openai-ai.provider.ts`)
+- **User Message**: JSON payload with `{ task: string, payload: object }`
+- **Output Schema**: Strict JSON schema for structured responses
+
+**For Chat:**
+
+```json
+{
+  "task": "Answer the user as a concise cooking, meal prep, ingredient, recipe, and Chef workflow assistant. Use context when provided.",
+  "payload": {
+    "message": "What can I cook with rice and eggs?",
+    "history": [
+      { "role": "user", "content": "Previous message" },
+      { "role": "assistant", "content": "Previous response" }
+    ],
+    "context": {
+      "page": "/recipes",
+      "surface": "global_chef_chat_widget",
+      "hands_free_mode": false,
+      "selected_context_type": "recipe",
+      "selected_context_name": "Arroz con pollo",
+      "selected_context_detail": "Selected recipe details"
+    }
+  }
+}
+```
+
+**For Meal Generation:**
+
+```json
+{
+  "task": "Generate structured recipe preview data from the meal request. Respect dietary preferences, allergies, inventory, budget mode, meal quantity, and quality goals.",
+  "payload": {
+    "meal_prompt": "Cheap high-protein burrito bowls for weekday lunches",
+    "servings_per_meal": 4,
+    "meals_needed": 5,
+    "dietary_preferences": ["high protein", "halal"],
+    "allergies": ["peanuts"],
+    "disliked_ingredients": ["mushrooms"],
+    "inventory": ["rice", "olive oil", "garlic"],
+    "budget_mode": "minimize_cost",
+    "meal_style": "meal_prep",
+    "max_time_minutes": 45,
+    "max_cost_per_serving": 5,
+    "quality_goals": ["filling", "reheats well", "not bland"],
+    "notes": "Use ingredients available in a normal US grocery store."
+  }
+}
+```
+
+#### What is sent as context to LLM
+
+**Chat Context:**
+
+- `page`: Current URL path (e.g., "/recipes", "/inventory")
+- `surface`: UI surface identifier (e.g., "global_chef_chat_widget_expanded")
+- `hands_free_mode`: Boolean indicating hands-free cooking mode
+- `selected_context_type`: Type of selected item ("none", "recipe", "generated", "imported")
+- `selected_context_name`: Name of selected recipe/item
+- `selected_context_detail`: Additional details about selection
+
+**Recipe Generation Context:**
+
+- All parameters from `GenerateMealsDto`: dietary preferences, allergies, inventory, budget constraints, etc.
+- The frontend server action `generateMealsAction` enriches generation requests
+  with authenticated `/me/profile-memory` and `/me/kitchen-inventory` data
+  before calling `POST /api/v1/ai/meals/generate`.
+- Caller-provided fields such as modal dietary chips are merged with saved
+  preferences and inventory. Explicit caller values remain part of the
+  structured payload rather than being flattened only into `notes`.
+- No page context - focused on meal requirements.
+
+#### What comes back from LLM
+
+All responses are structured JSON conforming to schemas in `ai.schemas.ts`:
+
+**Chat Response:**
+
+```json
+{
+  "message": "You can make a simple fried rice dish...",
+  "follow_up_prompts": [
+    "How many servings?",
+    "Any dietary restrictions?",
+    "What other ingredients do you have?"
+  ],
+  "safety_notes": ["Ensure eggs are fully cooked", "Check for allergies"]
+}
+```
+
+**Meal Generation Response:**
+
+```json
+{
+  "summary": "High-protein burrito bowls using your inventory",
+  "recipes": [
+    {
+      "name": "Chicken Burrito Bowl",
+      "cuisine": "Mexican-American",
+      "description": "Protein-packed bowl with rice and beans",
+      "servings": 4,
+      "ingredients": [...],
+      "steps": [...],
+      "tags": ["high-protein", "meal-prep"],
+      "nutrition_estimate": {...},
+      "estimated_cost_tier": "budget",
+      "cost_notes": [...],
+      "quality_tradeoffs": [...],
+      "assumptions": [...]
+    }
+  ],
+  "inventory_used": ["rice", "garlic"],
+  "cost_minimization_notes": [...],
+  "planning_notes": [...]
+}
+```
+
+#### Hands-Free Mode
+
+When hands-free mode is enabled in chat:
+
+- Same AI service (OpenAI or mock) handles requests
+- Context includes `"hands_free_mode": true`
+- User messages get suffix: `"Respond briefly and in a hands-free cooking style."`
+- Follow-up prompts switch to hands-free specific options
+- Responses are more concise and step-by-step focused
+
+#### Recipe Generation Context
+
+Recipe generation receives comprehensive context:
+
+- User prompt describing desired meal
+- Servings per meal and number of meals needed
+- Dietary preferences and restrictions
+- Available inventory to prioritize
+- Budget and time constraints
+- Quality goals and notes
+- No page context - purely meal-focused
+
+### LLM Input/Output Flow Diagram
+
+```mermaid
+flowchart TD
+  subgraph "Frontend Input"
+    ChatInput[Chat Message + History + Context]
+    MealInput[Meal Prompt + Preferences + Inventory]
+  end
+
+  subgraph "API Layer"
+    ChatAPI[POST /ai/chat]
+    MealAPI[POST /ai/meals/generate]
+  end
+
+  subgraph "Backend Processing"
+    Service[AI Service]
+    Provider[AI Provider<br/>OpenAI/Mock]
+  end
+
+  subgraph "LLM Request"
+    System[System Prompt<br/>"You are Chef's food assistant..."]
+    Task[Task Description]
+    Payload[Structured Payload<br/>JSON]
+    Schema[JSON Schema<br/>for Response]
+  end
+
+  subgraph "LLM Response"
+    StructuredOutput[Structured JSON<br/>Response]
+  end
+
+  subgraph "Frontend Output"
+    ChatResponse[Chat Message + Follow-ups + Safety Notes]
+    MealResponse[Recipe Previews + Summary + Notes]
+  end
+
+  ChatInput --> ChatAPI
+  MealInput --> MealAPI
+  ChatAPI --> Service
+  MealAPI --> Service
+  Service --> Provider
+  Provider --> System
+  Provider --> Task
+  Provider --> Payload
+  Provider --> Schema
+  Schema --> StructuredOutput
+  StructuredOutput --> ChatResponse
+  StructuredOutput --> MealResponse
+
+  linkStyle 0 stroke:#00a550,stroke-width:3
+  linkStyle 1 stroke:#00a550,stroke-width:3
+  linkStyle 2 stroke:#ffffff,stroke-width:2
+  linkStyle 3 stroke:#ffffff,stroke-width:2
+  linkStyle 4 stroke:#ffffff,stroke-width:2
+  linkStyle 5 stroke:#ffffff,stroke-width:2
+  linkStyle 6 stroke:#ffffff,stroke-width:2
+  linkStyle 7 stroke:#ffffff,stroke-width:2
+  linkStyle 8 stroke:#ffffff,stroke-width:2
+  linkStyle 9 stroke:#00a550,stroke-width:3
+  linkStyle 10 stroke:#00a550,stroke-width:3
+```
+
 ---
 
 ## 4. Inventory

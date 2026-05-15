@@ -673,7 +673,7 @@ export function RecipeCreateModal({
         mealPrompt: normalizedName,
         mealsNeeded: 1,
         servingsPerMeal: getAutofillServings(),
-        mealStyle: "standard",
+        dietaryPreferences: dietaryRestrictionChips.map((chip) => chip.label),
         notes: [
           "Return one practical recipe preview suitable for pre-filling a manual recipe creation form.",
           isEditing

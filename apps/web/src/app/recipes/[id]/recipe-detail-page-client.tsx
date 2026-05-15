@@ -1,22 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import dynamic from "next/dynamic";
+import { useMemo, useState } from "react";
 import type { BaseRecipe } from "@cart/shared";
-import { useRouter } from "next/navigation";
-import {
-  createShoppingCartAction,
-  submitDraftFlowAction,
-} from "@/app/home-actions";
+import { HandsFreeMode } from "@/components/hands-free-mode";
 import { RecipeImage } from "@/components/ui/recipe-image";
-
-const HandsFreeMode = dynamic(
-  () => import("@/components/hands-free-mode").then((mod) => mod.HandsFreeMode),
-  {
-    loading: () => null,
-    ssr: false,
-  },
-);
+import type { CookingContext } from "@/lib/cooking-context";
 
 type RecipeTab = "ingredients" | "steps";
 
@@ -32,12 +20,15 @@ function splitStepCopy(copy: string) {
   };
 }
 
-export function RecipeDetailPageClient({ recipe }: { recipe: BaseRecipe }) {
-  const router = useRouter();
+export function RecipeDetailPageClient({
+  recipe,
+  cookingContext,
+}: {
+  recipe: BaseRecipe;
+  cookingContext?: CookingContext;
+}) {
   const [activeTab, setActiveTab] = useState<RecipeTab>("ingredients");
   const [handsFreeOpen, setHandsFreeOpen] = useState(false);
-  const [cartError, setCartError] = useState<string | null>(null);
-  const [isAddingToCart, startAddToCartTransition] = useTransition();
   const nutrition = recipe.nutrition_data ?? {};
   const badges = recipe.tags
     .filter((tag) => tag.kind === "dietary_badge")
@@ -66,39 +57,6 @@ export function RecipeDetailPageClient({ recipe }: { recipe: BaseRecipe }) {
       nutrition.protein_g,
     ],
   );
-
-  function addIngredientsToCart() {
-    setCartError(null);
-    startAddToCartTransition(async () => {
-      const formData = new FormData();
-      formData.set("intent", "generate");
-      formData.set("name", `${recipe.name} cart`);
-      formData.set("retailer", "kroger");
-      formData.set(
-        "selections_json",
-        JSON.stringify([{ recipe_id: recipe.id, quantity: 1 }]),
-      );
-
-      const cartResult = await submitDraftFlowAction({}, formData);
-
-      if (cartResult.error || !cartResult.resourceId) {
-        setCartError(cartResult.error ?? "Unable to add this recipe to cart.");
-        return;
-      }
-
-      const shoppingCartResult = await createShoppingCartAction(
-        cartResult.resourceId,
-        "kroger",
-      );
-
-      if (shoppingCartResult.error) {
-        setCartError(shoppingCartResult.error);
-        return;
-      }
-
-      router.push("/shopping");
-    });
-  }
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-36 pt-4 sm:px-6 lg:pb-10 lg:pt-8">
@@ -233,24 +191,6 @@ export function RecipeDetailPageClient({ recipe }: { recipe: BaseRecipe }) {
         </section>
 
         <section className="sticky bottom-0 border-t border-outline-variant/25 bg-[#fffdfa]/95 px-4 py-4 backdrop-blur-sm sm:px-7">
-          {cartError ? (
-            <p className="mb-3 rounded-2xl border border-error/20 bg-error-container/35 px-3 py-2 text-center text-body-sm text-error">
-              {cartError}
-            </p>
-          ) : null}
-          <button
-            type="button"
-            onClick={addIngredientsToCart}
-            disabled={isAddingToCart}
-            className="mb-3 flex min-h-13 w-full items-center justify-center gap-2 rounded-full border border-primary-fixed-dim bg-white px-5 py-3 text-label-lg font-black text-primary-fixed-dim shadow-sm transition-colors hover:bg-primary-surface disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <span className="material-symbols-outlined text-[20px]">
-              {isAddingToCart ? "progress_activity" : "add_shopping_cart"}
-            </span>
-            {isAddingToCart
-              ? "Adding ingredients..."
-              : "Add ingredients to cart"}
-          </button>
           <button
             type="button"
             onClick={() => setHandsFreeOpen(true)}
@@ -268,6 +208,7 @@ export function RecipeDetailPageClient({ recipe }: { recipe: BaseRecipe }) {
       {handsFreeOpen ? (
         <HandsFreeMode
           recipe={recipe}
+          cookingContext={cookingContext}
           onClose={() => setHandsFreeOpen(false)}
         />
       ) : null}

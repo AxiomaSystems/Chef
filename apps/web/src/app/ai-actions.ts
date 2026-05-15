@@ -2,7 +2,13 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { BaseRecipe, RecipeNutritionData } from "@cart/shared";
+import type {
+  BaseRecipe,
+  KitchenInventoryItem,
+  RecipeNutritionData,
+  UserPreferences,
+  UserProfileMemory,
+} from "@cart/shared";
 import { ACCESS_TOKEN_COOKIE, buildApiUrl } from "@/lib/auth";
 
 export type ChefChatMessage = {
@@ -53,6 +59,32 @@ export type GenerateMealsActionState = {
   recipes?: AiRecipePreview[];
   planningNotes?: string[];
   costNotes?: string[];
+};
+
+type MealStyle =
+  | "standard"
+  | "inventory_first"
+  | "high_protein"
+  | "low_calorie"
+  | "meal_prep"
+  | "quick";
+
+type BudgetMode = "minimize_cost" | "balanced" | "premium";
+
+type GenerateMealsActionInput = {
+  mealPrompt: string;
+  servingsPerMeal?: number;
+  mealsNeeded?: number;
+  mealStyle?: MealStyle;
+  budgetMode?: BudgetMode;
+  dietaryPreferences?: string[];
+  allergies?: string[];
+  dislikedIngredients?: string[];
+  inventory?: string[];
+  maxTimeMinutes?: number;
+  maxCostPerServing?: number;
+  qualityGoals?: string[];
+  notes?: string;
 };
 
 export type UserRecipesActionState = {
@@ -191,20 +223,297 @@ async function requireAccessToken() {
   return accessToken;
 }
 
-export async function generateMealsAction(input: {
-  mealPrompt: string;
-  servingsPerMeal?: number;
-  mealsNeeded?: number;
-  mealStyle?:
-    | "standard"
-    | "inventory_first"
-    | "high_protein"
-    | "low_calorie"
-    | "meal_prep"
-    | "quick";
-  budgetMode?: "minimize_cost" | "balanced" | "premium";
-  notes?: string;
-}): Promise<GenerateMealsActionState> {
+type MealGenerationContext = {
+  profileMemory?: UserProfileMemory;
+  preferences?: UserPreferences;
+  inventory: KitchenInventoryItem[];
+};
+
+async function loadMealGenerationContext(
+  accessToken: string,
+): Promise<MealGenerationContext> {
+  const [profileMemory, inventory] = await Promise.all([
+    fetchOptionalAuthedResource<UserProfileMemory>(
+      "/me/profile-memory",
+      accessToken,
+    ),
+    fetchOptionalAuthedResource<KitchenInventoryItem[]>(
+      "/me/kitchen-inventory",
+      accessToken,
+    ),
+  ]);
+
+  return {
+    profileMemory,
+    preferences: profileMemory?.preferences,
+    inventory: Array.isArray(inventory) ? inventory : [],
+  };
+}
+
+async function fetchOptionalAuthedResource<T>(
+  path: string,
+  accessToken: string,
+): Promise<T | undefined> {
+  const response = await fetch(buildApiUrl(path), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  }).catch(() => null);
+
+  if (!response?.ok) return undefined;
+
+  return (await response.json().catch(() => undefined)) as T | undefined;
+}
+
+function buildGenerateMealsRequest(
+  input: GenerateMealsActionInput,
+  context: MealGenerationContext,
+) {
+  const preferences = context.preferences;
+  const profileMemory = context.profileMemory;
+  const inventory = uniqueStrings([
+    ...(input.inventory ?? []),
+    ...context.inventory.map(formatInventoryItemForPrompt),
+    ...(profileMemory?.pantry_staples.map(
+      (staple) => `pantry staple: ${staple.canonical_name}`,
+    ) ?? []),
+  ]);
+  const mealStyle =
+    input.mealStyle ?? mealStyleFromContext(preferences, inventory.length > 0);
+  const budgetMode = input.budgetMode ?? budgetModeFromContext(preferences);
+  const dietaryPreferences = uniqueStrings([
+    ...(input.dietaryPreferences ?? []),
+    ...(preferences?.preferred_tags.map((tag) => tag.name) ?? []),
+  ]);
+  const allergies = uniqueStrings([
+    ...(input.allergies ?? []),
+    ...(preferences?.preferred_tags
+      .filter(isAllergyTag)
+      .map((tag) => tag.name) ?? []),
+    ...(profileMemory?.food_rules
+      .filter(
+        (rule) =>
+          rule.active &&
+          rule.strictness === "hard" &&
+          /allerg/i.test(rule.label),
+      )
+      .map((rule) => rule.label) ?? []),
+  ]);
+  const dislikedIngredients = uniqueStrings([
+    ...(input.dislikedIngredients ?? []),
+    ...(preferences?.disliked_ingredients?.map(formatEnumLabel) ?? []),
+    ...(profileMemory?.food_rules
+      .filter(
+        (rule) =>
+          rule.active &&
+          rule.kind === "ingredient_preference" &&
+          (rule.action === "dislike" || rule.action === "avoid"),
+      )
+      .map((rule) => rule.label) ?? []),
+  ]);
+  const qualityGoals = uniqueStrings([
+    ...(input.qualityGoals ?? []),
+    ...(preferences?.goal_priorities?.map(qualityGoalFromLegacyGoal) ?? []),
+    ...(profileMemory?.goals
+      .filter((goal) => goal.active)
+      .map((goal) => qualityGoalFromProfileGoal(goal.goal)) ?? []),
+  ]);
+  const notes = uniqueStrings([
+    input.notes,
+    mealGenerationContextNote(preferences, profileMemory),
+  ]).join(" ");
+
+  return {
+    meal_prompt: input.mealPrompt.trim(),
+    servings_per_meal: input.servingsPerMeal ?? 4,
+    meals_needed: input.mealsNeeded ?? 1,
+    meal_style: mealStyle,
+    budget_mode: budgetMode,
+    dietary_preferences: dietaryPreferences,
+    allergies,
+    disliked_ingredients: dislikedIngredients,
+    inventory,
+    max_time_minutes:
+      input.maxTimeMinutes ?? maxTimeMinutesFromContext(preferences),
+    max_cost_per_serving:
+      input.maxCostPerServing ?? maxCostPerServingFromContext(preferences),
+    quality_goals: qualityGoals,
+    notes,
+  };
+}
+
+function uniqueStrings(values: Array<string | undefined | null>) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const value of values) {
+    const normalized = value?.trim().replace(/\s+/g, " ");
+    if (!normalized) continue;
+
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    result.push(normalized);
+  }
+
+  return result;
+}
+
+function formatInventoryItemForPrompt(item: KitchenInventoryItem) {
+  const amount =
+    item.estimated_amount !== undefined && item.unit
+      ? `${item.estimated_amount} ${item.unit} `
+      : "";
+  return `${amount}${item.display_name}`.trim();
+}
+
+function isAllergyTag(tag: { name: string; slug: string }) {
+  return /allerg/i.test(`${tag.name} ${tag.slug}`);
+}
+
+function formatEnumLabel(value: string) {
+  return value.replace(/_/g, " ");
+}
+
+function mealStyleFromContext(
+  preferences: UserPreferences | undefined,
+  hasInventory: boolean,
+): MealStyle {
+  const goals = new Set(preferences?.goal_priorities ?? []);
+  const mealTimes = new Set(preferences?.typical_meal_times ?? []);
+
+  if (goals.has("build_muscle")) return "high_protein";
+  if (goals.has("save_money") || goals.has("reduce_food_waste")) {
+    return "inventory_first";
+  }
+  if (hasInventory) return "inventory_first";
+  if (goals.has("cook_faster")) return "quick";
+  if (mealTimes.has("meal_prep")) return "meal_prep";
+
+  return "standard";
+}
+
+function budgetModeFromContext(preferences?: UserPreferences): BudgetMode {
+  const goals = new Set(preferences?.goal_priorities ?? []);
+  if (goals.has("save_money")) return "minimize_cost";
+  if (preferences?.weekly_budget === "under_50") return "minimize_cost";
+  if (preferences?.weekly_budget === "50_to_100") return "minimize_cost";
+  if (preferences?.weekly_budget === "no_budget_limit") return "premium";
+  return "balanced";
+}
+
+function maxTimeMinutesFromContext(preferences?: UserPreferences) {
+  switch (preferences?.preferred_cooking_time) {
+    case "under_15_min":
+      return 15;
+    case "15_to_30_min":
+      return 30;
+    case "30_to_45_min":
+      return 45;
+    case "up_to_1_hour":
+      return 60;
+    default:
+      return undefined;
+  }
+}
+
+function maxCostPerServingFromContext(preferences?: UserPreferences) {
+  switch (preferences?.weekly_budget) {
+    case "under_50":
+      return 3;
+    case "50_to_100":
+      return 5;
+    case "100_to_150":
+      return 7;
+    case "150_to_200":
+      return 9;
+    default:
+      return undefined;
+  }
+}
+
+function qualityGoalFromLegacyGoal(goal: string) {
+  const labels: Record<string, string> = {
+    save_money: "budget friendly",
+    eat_healthier: "healthy",
+    lose_weight: "lower calorie",
+    build_muscle: "high protein",
+    reduce_food_waste: "use what is already available",
+    try_new_cuisines: "varied cuisines",
+    cook_faster: "quick cooking",
+    eat_more_plant_based: "more plant based meals",
+  };
+
+  return labels[goal] ?? formatEnumLabel(goal);
+}
+
+function qualityGoalFromProfileGoal(goal: string) {
+  const labels: Record<string, string> = {
+    save_money: "budget friendly",
+    save_time: "quick cooking",
+    eat_healthier: "healthy",
+    hit_protein: "high protein",
+    reduce_waste: "use what is already available",
+    try_new_foods: "varied meals",
+    cook_more_at_home: "easy home cooking",
+    meal_prep: "meal prep friendly",
+    spend_less_on_takeout: "takeout replacement",
+  };
+
+  return labels[goal] ?? formatEnumLabel(goal);
+}
+
+function mealGenerationContextNote(
+  preferences?: UserPreferences,
+  profileMemory?: UserProfileMemory,
+) {
+  if (!preferences && !profileMemory) return undefined;
+
+  const notes = [
+    preferences?.preferred_cuisines.length
+      ? `Preferred cuisines: ${preferences.preferred_cuisines
+          .map((cuisine) => cuisine.label)
+          .join(", ")}.`
+      : undefined,
+    preferences?.household_size
+      ? `Household size: ${formatEnumLabel(preferences.household_size)}.`
+      : undefined,
+    preferences?.kids_profile
+      ? `Kids profile: ${formatEnumLabel(preferences.kids_profile)}.`
+      : undefined,
+    preferences?.favorite_proteins?.length
+      ? `Favorite proteins: ${preferences.favorite_proteins
+          .map(formatEnumLabel)
+          .join(", ")}.`
+      : undefined,
+    preferences?.favorite_flavors?.length
+      ? `Favorite flavors: ${preferences.favorite_flavors
+          .map(formatEnumLabel)
+          .join(", ")}.`
+      : undefined,
+    preferences?.spice_level
+      ? `Spice level: ${formatEnumLabel(preferences.spice_level)}.`
+      : undefined,
+    preferences?.cooking_skill_level
+      ? `Cooking skill: ${formatEnumLabel(preferences.cooking_skill_level)}.`
+      : undefined,
+    preferences?.available_appliances?.length
+      ? `Available appliances: ${preferences.available_appliances
+          .map(formatEnumLabel)
+          .join(", ")}.`
+      : undefined,
+    profileMemory?.summary.pantry.labels.length
+      ? `Pantry staples: ${profileMemory.summary.pantry.labels.join(", ")}.`
+      : undefined,
+  ];
+
+  const note = uniqueStrings(notes).join(" ");
+  return note || undefined;
+}
+
+export async function generateMealsAction(
+  input: GenerateMealsActionInput,
+): Promise<GenerateMealsActionState> {
   const mealPrompt = input.mealPrompt.trim();
 
   if (!mealPrompt) {
@@ -212,6 +521,8 @@ export async function generateMealsAction(input: {
   }
 
   const accessToken = await requireAccessToken();
+  const context = await loadMealGenerationContext(accessToken);
+  const requestBody = buildGenerateMealsRequest(input, context);
 
   const response = await fetch(buildApiUrl("/ai/meals/generate"), {
     method: "POST",
@@ -219,14 +530,7 @@ export async function generateMealsAction(input: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      meal_prompt: mealPrompt,
-      servings_per_meal: input.servingsPerMeal ?? 4,
-      meals_needed: input.mealsNeeded ?? 1,
-      meal_style: input.mealStyle ?? "standard",
-      budget_mode: input.budgetMode ?? "balanced",
-      notes: input.notes ?? "",
-    }),
+    body: JSON.stringify(requestBody),
     cache: "no-store",
   }).catch(() => null);
 
