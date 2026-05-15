@@ -46,7 +46,7 @@ export class OpenAiAiProvider implements AiProvider {
         'Generate structured recipe preview data from the meal request.',
         'Respect dietary preferences, allergies, inventory, budget mode, meal quantity, and quality goals.',
         'When inventory is provided, prefer those ingredients and avoid inventing a different primary protein.',
-        'For example, if the user asks for ugali and inventory includes fish but not beef, generate an ugali meal with fish rather than beef unless beef is explicitly requested.',
+        'For example, if the user asks for ugali and inventory includes fish but not beef, generate an ugali meal with fish rather than beef unless beef is explicitly requested. Ensure you get the Cuisine accurately(There is no need to set cuisine as Peruvian when the food is clearly Kenyan Cuisine)',
       ].join(' '),
       payload: input,
     });
