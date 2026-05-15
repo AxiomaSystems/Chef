@@ -21,9 +21,9 @@ export class MockAiProvider implements AiProvider {
     const dietaryText = (input.dietary_preferences ?? [])
       .join(' ')
       .toLowerCase();
-    const protein = dietaryText.includes('vegan')
-      ? 'chickpeas'
-      : 'chicken breast';
+    const protein =
+      inventoryProtein(input.inventory ?? []) ??
+      (dietaryText.includes('vegan') ? 'chickpeas' : 'chicken breast');
     const vegetable =
       input.budget_mode === 'minimize_cost'
         ? 'frozen mixed vegetables'
@@ -46,9 +46,11 @@ export class MockAiProvider implements AiProvider {
     return Promise.resolve({
       summary: `Generated ${recipes.length} structured recipe preview(s).`,
       recipes,
-      inventory_used: (input.inventory ?? []).filter((item) =>
-        ['rice', 'garlic', 'olive oil'].includes(item.toLowerCase()),
-      ),
+      inventory_used: inventoryUsedByRecipe(input.inventory ?? [], [
+        protein,
+        'rice',
+        'olive oil',
+      ]),
       cost_minimization_notes: [
         'Mock mode favors pantry grains and frozen vegetables for predictable testing.',
       ],
@@ -256,6 +258,42 @@ function titleCase(input: string) {
     .filter(Boolean)
     .map((word) => word[0]?.toUpperCase() + word.slice(1))
     .join(' ');
+}
+
+function inventoryProtein(inventory: string[]) {
+  const proteinCandidates = [
+    'fish',
+    'salmon',
+    'tuna',
+    'tilapia',
+    'cod',
+    'shrimp',
+    'chicken',
+    'beef',
+    'pork',
+    'turkey',
+    'lamb',
+    'eggs',
+    'tofu',
+    'tempeh',
+    'chickpeas',
+    'beans',
+    'lentils',
+  ];
+  const normalizedInventory = inventory.map((item) => item.toLowerCase());
+
+  return proteinCandidates.find((candidate) =>
+    normalizedInventory.some((item) => item.includes(candidate)),
+  );
+}
+
+function inventoryUsedByRecipe(inventory: string[], recipeItems: string[]) {
+  return inventory.filter((item) => {
+    const normalizedItem = item.toLowerCase();
+    return recipeItems.some((recipeItem) =>
+      normalizedItem.includes(recipeItem.toLowerCase()),
+    );
+  });
 }
 
 function deriveTitleFromUrl(input: string) {

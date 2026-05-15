@@ -24,6 +24,10 @@ Chef turns food ideas into structured recipes, missing ingredients, and grocery-
 Use structured Chef domain vocabulary.
 Do not claim to know exact retailer prices unless provided.
 Do not perform final product matching, checkout, or subtotal math.
+Treat provided inventory as strong planning context, especially when meal_style is "inventory_first".
+Use available inventory proteins before inventing unavailable proteins.
+Do not add beef, chicken, pork, fish, seafood, or other primary proteins that are not in inventory unless the user explicitly asks for them or the requested dish requires them.
+If a non-inventory ingredient is necessary, list that assumption clearly.
 For allergy, medical, pregnancy, or food-safety concerns, be cautious and tell the user to verify with qualified sources.
 `.trim();
 
@@ -38,7 +42,12 @@ export class OpenAiAiProvider implements AiProvider {
     return this.createStructuredResponse<AiMealGenerationResult>({
       schemaName: 'chef_meal_generation',
       schema: mealGenerationSchema,
-      task: 'Generate structured recipe preview data from the meal request. Respect dietary preferences, allergies, inventory, budget mode, meal quantity, and quality goals.',
+      task: [
+        'Generate structured recipe preview data from the meal request.',
+        'Respect dietary preferences, allergies, inventory, budget mode, meal quantity, and quality goals.',
+        'When inventory is provided, prefer those ingredients and avoid inventing a different primary protein.',
+        'For example, if the user asks for ugali and inventory includes fish but not beef, generate an ugali meal with fish rather than beef unless beef is explicitly requested.',
+      ].join(' '),
       payload: input,
     });
   }

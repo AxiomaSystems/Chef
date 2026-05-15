@@ -76,7 +76,9 @@ export function RecipeCreateModal({
   const [cuisineQuery, setCuisineQuery] = useState(initialCuisine?.label ?? "");
   const [isCuisineMenuOpen, setIsCuisineMenuOpen] = useState(false);
   const [servings, setServings] = useState(
-    initialRecipe?.servings !== undefined ? String(initialRecipe.servings) : "2",
+    initialRecipe?.servings !== undefined
+      ? String(initialRecipe.servings)
+      : "2",
   );
   const [coverImageUrl, setCoverImageUrl] = useState(
     initialRecipe?.cover_image_url ?? "",
@@ -411,7 +413,10 @@ export function RecipeCreateModal({
     setDietaryRestrictionInput("");
   }
 
-  function removeDietaryRestrictionChip(chip: { type: "tag" | "custom"; value: string }) {
+  function removeDietaryRestrictionChip(chip: {
+    type: "tag" | "custom";
+    value: string;
+  }) {
     if (chip.type === "tag") {
       setSelectedTagIds((prev) => prev.filter((tagId) => tagId !== chip.value));
       return;
@@ -531,7 +536,7 @@ export function RecipeCreateModal({
         mealPrompt: normalizedName,
         mealsNeeded: 1,
         servingsPerMeal: getAutofillServings(),
-        mealStyle: "standard",
+        dietaryPreferences: dietaryRestrictionChips.map((chip) => chip.label),
         notes: [
           "Return one practical recipe preview suitable for pre-filling a manual recipe creation form.",
           isEditing
@@ -579,15 +584,17 @@ export function RecipeCreateModal({
         cuisine: recipe.cuisine,
         ingredients: recipe.ingredients.map(
           (ingredient) =>
-            ingredient.display_ingredient ??
-            ingredient.canonical_ingredient,
+            ingredient.display_ingredient ?? ingredient.canonical_ingredient,
         ),
         instructions: additionalInstructions.trim() || undefined,
         dietaryRestrictions: dietaryRestrictionText || undefined,
       });
 
       applyAiRecipePreview(recipe, { renameRecipe: shouldSaveAsNew });
-      if (imageUrl && uploadVersionRef.current === uploadVersionAtAutofillStart) {
+      if (
+        imageUrl &&
+        uploadVersionRef.current === uploadVersionAtAutofillStart
+      ) {
         coverImageSourceRef.current = "ai";
         setCoverImageUrl(imageUrl);
       }
@@ -871,7 +878,9 @@ export function RecipeCreateModal({
             <div className="space-y-1">
               <label className="text-label-sm uppercase tracking-wide text-outline">
                 Additional Instructions{" "}
-                <span className="normal-case text-[11px] font-normal">(optional)</span>
+                <span className="normal-case text-[11px] font-normal">
+                  (optional)
+                </span>
               </label>
               <textarea
                 value={additionalInstructions}
@@ -1011,14 +1020,18 @@ export function RecipeCreateModal({
                     }}
                     className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
                   >
-                    <span className="material-symbols-outlined text-[14px]">close</span>
+                    <span className="material-symbols-outlined text-[14px]">
+                      close
+                    </span>
                   </button>
                   <button
                     type="button"
                     onClick={openFilePicker}
                     className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-black/70"
                   >
-                    <span className="material-symbols-outlined text-[12px]">edit</span>
+                    <span className="material-symbols-outlined text-[12px]">
+                      edit
+                    </span>
                     Change
                   </button>
                 </div>
@@ -1028,7 +1041,9 @@ export function RecipeCreateModal({
                   onClick={openFilePicker}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-outline-variant/50 bg-white px-4 py-6 text-body-sm text-outline transition-colors hover:bg-surface-container-low"
                 >
-                  <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
+                  <span className="material-symbols-outlined text-[20px]">
+                    add_photo_alternate
+                  </span>
                   Upload cover image
                 </button>
               )}
@@ -1172,7 +1187,10 @@ export function RecipeCreateModal({
 
           <section className="space-y-3">
             <h3 className="border-b border-outline-variant/30 pb-2 text-label-lg font-bold text-on-surface">
-              Nutrition <span className="text-body-sm font-normal text-outline">(optional)</span>
+              Nutrition{" "}
+              <span className="text-body-sm font-normal text-outline">
+                (optional)
+              </span>
             </h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
@@ -1241,7 +1259,9 @@ export function RecipeCreateModal({
                     refresh
                   </span>
                 )}
-                {saving && editSaveMode === "update" ? "Saving..." : "Save Changes"}
+                {saving && editSaveMode === "update"
+                  ? "Saving..."
+                  : "Save Changes"}
               </button>
             </>
           ) : (
