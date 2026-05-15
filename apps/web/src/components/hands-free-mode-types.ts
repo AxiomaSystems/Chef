@@ -12,3 +12,9 @@ export type CookingTimer = {
   paused: boolean;
   completed: boolean;
 };
+
+export type HandsFreeModeStatus =
+  | "connecting"
+  | "listening"
+  | "speaking"
+  | "disconnected";

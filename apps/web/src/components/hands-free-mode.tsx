@@ -3,15 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { BaseRecipe } from "@cart/shared";
 import type { CookingContext } from "@/lib/cooking-context";
-import { stringifyCookingContext } from "@/lib/cooking-context";
 import {
   HandsFreeAsidePanels,
   HandsFreeTranscriptPanel,
 } from "./hands-free-mode-panels";
-import type { CookingTimer, TranscriptEntry } from "./hands-free-mode-types";
-
-const TARGET_SAMPLE_RATE = 16000; // ElevenLabs expects 16 kHz PCM16 input
-const MIC_CHUNK_SIZE = 2048;
+import type {
+  CookingTimer,
+  HandsFreeModeStatus,
+  TranscriptEntry,
+} from "./hands-free-mode-types";
+import { useHandsFreeVoiceSession } from "./use-hands-free-voice-session";
 
 function formatTime(s: number) {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -35,75 +36,18 @@ function getStepIngredients(
   });
 }
 
-// Downsample Float32 from browser native rate to 16 kHz, then encode as base64 PCM16.
-function encodeAudioChunk(float32: Float32Array, fromRate: number): string {
-  const ratio = fromRate / TARGET_SAMPLE_RATE;
-  const outLen = Math.floor(float32.length / ratio);
-  const pcm16 = new Int16Array(outLen);
-  for (let i = 0; i < outLen; i++) {
-    const s = Math.max(-1, Math.min(1, float32[Math.floor(i * ratio)]));
-    pcm16[i] = s < 0 ? s * 32768 : s * 32767;
-  }
-  const bytes = new Uint8Array(pcm16.buffer);
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
-}
-
-// Decode base64 PCM16 to a Float32 playable buffer. Handles base64url from ElevenLabs.
-function decodePcm16Base64(b64: string): Float32Array {
-  const standard = b64.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = standard + "=".repeat((4 - (standard.length % 4)) % 4);
-  const bin = atob(padded);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  const pcm16 = new Int16Array(bytes.buffer);
-  const f32 = new Float32Array(pcm16.length);
-  for (let i = 0; i < pcm16.length; i++) f32[i] = pcm16[i] / 32768;
-  return f32;
-}
-
-type Mode = "connecting" | "listening" | "speaking" | "disconnected";
 type Props = {
   recipe: BaseRecipe;
   cookingContext?: CookingContext;
   onClose: () => void;
 };
 type TimerCommand = "pause" | "resume" | "toggle";
-type SignedUrlResponse = { signed_url?: string; error?: string };
-type ElevenLabsToolCall = {
-  tool_name?: string;
-  parameters?: Record<string, unknown>;
-  tool_call_id?: string;
-};
-type ElevenLabsMessage = {
-  type?: string;
-  audio_event?: { audio_base64?: string; audio_base_64?: string };
-  agent_response_event?: { agent_response?: string };
-  ping_event?: { event_id?: string; ping_ms?: number };
-  client_tool_call?: ElevenLabsToolCall;
-};
-
-function getAudioPayload(msg: ElevenLabsMessage) {
-  return (
-    msg.audio_event?.audio_base64 ?? msg.audio_event?.audio_base_64 ?? null
-  );
-}
-
-function sendWsMessage(ws: WebSocket | null, payload: unknown) {
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(payload));
-  }
-}
 
 export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
   const [activeStep, setActiveStep] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timers, setTimers] = useState<CookingTimer[]>([]);
   const [isTimerPaused, setIsTimerPaused] = useState(false);
-  const [mode, setMode] = useState<Mode>("connecting");
-  const [agentMessage, setAgentMessage] = useState<string | null>(null);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [lastHeard, setLastHeard] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<string | null>(null);
   const timerIdRef = useRef(0);
@@ -113,11 +57,6 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
   const activeStepRef = useRef(0);
   const timerPausedRef = useRef(false);
   const transcriptIdRef = useRef(0);
-  const wsRef = useRef<WebSocket | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const scheduledUntilRef = useRef(0); // for gapless audio scheduling
-  const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
-  const localSpeechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const currentStep = recipe.steps[activeStep] ?? null;
   const { title, body } = currentStep
@@ -214,44 +153,6 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
     }, 1000);
     return () => window.clearInterval(id);
   }, []);
-
-  function stopQueuedSpeech() {
-    window.speechSynthesis?.cancel();
-    localSpeechUtteranceRef.current = null;
-    const ctx = audioCtxRef.current;
-    for (const source of audioSourcesRef.current) {
-      try {
-        source.stop();
-      } catch {
-        // The source may have already ended.
-      }
-      source.disconnect();
-    }
-    audioSourcesRef.current.clear();
-    scheduledUntilRef.current = ctx?.currentTime ?? 0;
-    setMode((current) => (current === "disconnected" ? current : "listening"));
-  }
-
-  function speakLocal(text: string) {
-    if (!("speechSynthesis" in window)) return;
-
-    stopQueuedSpeech();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.96;
-    utterance.pitch = 1;
-    localSpeechUtteranceRef.current = utterance;
-    setMode("speaking");
-    utterance.onend = () => {
-      if (localSpeechUtteranceRef.current === utterance) {
-        localSpeechUtteranceRef.current = null;
-        setMode((current) =>
-          current === "disconnected" ? current : "listening",
-        );
-      }
-    };
-    utterance.onerror = utterance.onend;
-    window.speechSynthesis.speak(utterance);
-  }
 
   function setTimerPaused(nextPaused: boolean, announce = true) {
     timerPausedRef.current = nextPaused;
@@ -359,390 +260,139 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
     );
   }
 
-  useEffect(() => {
-    let mounted = true;
-    let stream: MediaStream | null = null;
-    let processor: ScriptProcessorNode | null = null;
-    let sourceNode: MediaStreamAudioSourceNode | null = null;
-    let silentGain: GainNode | null = null;
-
-    function playChunk(b64: string) {
-      const ctx = audioCtxRef.current;
-      if (!ctx || !mounted) return;
-
-      if (ctx.state === "suspended") void ctx.resume();
-
-      const f32 = decodePcm16Base64(b64);
-      const buf = ctx.createBuffer(1, f32.length, TARGET_SAMPLE_RATE);
-      buf.getChannelData(0).set(f32);
-
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      audioSourcesRef.current.add(src);
-
-      const startAt = Math.max(ctx.currentTime, scheduledUntilRef.current);
-      src.start(startAt);
-      scheduledUntilRef.current = startAt + buf.duration;
-
-      if (mounted) setMode("speaking");
-      src.onended = () => {
-        audioSourcesRef.current.delete(src);
-        src.disconnect();
-        if (mounted && ctx.currentTime >= scheduledUntilRef.current - 0.05) {
-          setMode("listening");
-        }
-      };
-    }
-
-    function handleToolCall(
-      name: string,
-      params: Record<string, unknown>,
-      id: string,
-    ) {
-      const ws = wsRef.current;
-      if (!ws) return;
-
-      if (name === "timer_control" || name === "control_timer") {
-        const action = String(params.action ?? params.command ?? "");
-        if (action === "start" || action === "set") {
-          const seconds = Number(
-            params.duration_seconds ??
-              params.seconds ??
-              Number(params.minutes ?? 0) * 60,
-          );
-          if (Number.isFinite(seconds) && seconds > 0) {
-            recordAction("Started a named cooking timer.");
-            startCookingTimer(String(params.label ?? "timer"), seconds);
-            sendWsMessage(ws, {
-              type: "client_tool_result",
-              tool_call_id: id,
-              result: `Started ${String(params.label ?? "timer")} timer for ${formatTime(seconds)}.`,
-              is_error: false,
-            });
-            return;
-          }
-        }
-        if (action === "status") {
-          const activeTimers = timersRef.current.filter(
-            (timer) => !timer.completed,
-          );
-          const result =
-            activeTimers.length > 0
-              ? activeTimers
-                  .map(
-                    (timer) =>
-                      `${timer.label}: ${formatTime(timer.remainingSeconds)} ${timer.paused ? "paused" : "left"}`,
-                  )
-                  .join(". ")
-              : "No active timers.";
-          sendWsMessage(ws, {
-            type: "client_tool_result",
-            tool_call_id: id,
-            result,
-            is_error: false,
-          });
-          recordAction("Read active timer status.");
-          announceTimerStatus();
-          return;
-        }
-        if (action === "stop" || action === "cancel") {
-          recordAction("Stopped timer.");
-          updateCookingTimers("stop", String(params.label ?? ""));
-          sendWsMessage(ws, {
-            type: "client_tool_result",
-            tool_call_id: id,
-            result: "Timer stopped.",
-            is_error: false,
-          });
-          return;
-        }
-        if (action === "pause" || action === "resume" || action === "toggle") {
-          const label = String(params.label ?? "").trim();
-          if (label) {
-            recordAction(
-              action === "resume"
-                ? "Resumed active timer."
-                : "Paused active timer.",
-            );
-            updateCookingTimers(action === "toggle" ? "pause" : action, label);
-          } else {
-            recordAction(
-              action === "resume"
-                ? "Resumed step timer."
-                : "Paused step timer.",
-            );
-            controlTimer(action);
-          }
-          sendWsMessage(ws, {
-            type: "client_tool_result",
-            tool_call_id: id,
-            result:
-              action === "pause"
-                ? "Timer paused."
-                : action === "resume"
-                  ? "Timer resumed."
-                  : timerPausedRef.current
-                    ? "Timer paused."
-                    : "Timer resumed.",
-            is_error: false,
-          });
-          return;
-        }
-
-        sendWsMessage(ws, {
-          type: "client_tool_result",
-          tool_call_id: id,
-          result: `Unsupported timer action: ${action}`,
-          is_error: true,
-        });
-        return;
-      }
-
-      if (name !== "navigate_step") {
-        sendWsMessage(ws, {
-          type: "client_tool_result",
-          tool_call_id: id,
-          result: `Unsupported client tool: ${name}`,
-          is_error: true,
-        });
-        return;
-      }
-
-      stopQueuedSpeech();
-
-      let idx = activeStepRef.current;
-      const dir = params.direction;
-      if (dir === "next") idx = Math.min(recipe.steps.length - 1, idx + 1);
-      else if (dir === "previous" || dir === "back") idx = Math.max(0, idx - 1);
-      else if (dir !== "repeat") {
-        sendWsMessage(ws, {
-          type: "client_tool_result",
-          tool_call_id: id,
-          result: `Unsupported navigation direction: ${String(dir)}`,
-          is_error: true,
-        });
-        return;
-      }
-
-      const step = recipe.steps[idx];
-      const result = step
-        ? `Step ${idx + 1} of ${recipe.steps.length}: ${step.what_to_do}`
-        : dir === "next"
-          ? "That's the last step - you're done!"
-          : "Already at the first step.";
-
-      sendWsMessage(ws, {
-        type: "client_tool_result",
-        tool_call_id: id,
-        result,
-        is_error: false,
-      });
-
-      if (step) {
-        recordAction(`Jumped to step ${idx + 1}.`);
-        goToStep(idx);
-      }
-    }
-
-    async function connect() {
-      try {
-        setConnectionError(null);
-
-        const tokenRes = await fetch("/api/elevenlabs/token", {
-          method: "POST",
-        });
-        const tokenData = (await tokenRes
-          .json()
-          .catch(() => null)) as SignedUrlResponse | null;
-        if (!tokenRes.ok || !tokenData?.signed_url) {
-          throw new Error(
-            tokenData?.error ?? "Unable to start ElevenLabs conversation.",
-          );
-        }
-
-        if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error(
-            "Microphone access is not available in this browser.",
-          );
-        }
-
-        const ctx = new AudioContext({ latencyHint: "interactive" });
-        audioCtxRef.current = ctx;
-        if (ctx.state === "suspended") void ctx.resume();
-        const nativeRate = ctx.sampleRate;
-
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: false,
-        });
-
-        const ws = new WebSocket(tokenData.signed_url);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          if (!mounted) return;
-
-          const stepsText = recipe.steps
-            .map((s) => `Step ${s.step}: ${s.what_to_do}`)
-            .join("\n");
-          sendWsMessage(ws, {
-            type: "conversation_initiation_client_data",
-            dynamic_variables: {
-              recipe_name: recipe.name,
-              servings: String(recipe.servings),
-              steps: stepsText,
-              user_cooking_context: stringifyCookingContext(cookingContext),
-              hands_free_client_rules:
-                "Keep responses under 2 short sentences. Use user_cooking_context for safe personalization. Never override hard dietary/allergy rules. For next, back, previous, repeat, pause timer, resume timer, stop timer, timer status, or starting a named timer, call the client tool instead of explaining. The client reads steps aloud locally for speed.",
-            },
-          });
-
-          sourceNode = ctx.createMediaStreamSource(stream!);
-          processor = ctx.createScriptProcessor(MIC_CHUNK_SIZE, 1, 1);
-          silentGain = ctx.createGain();
-          silentGain.gain.value = 0;
-
-          processor.onaudioprocess = (e) => {
-            if (ws.readyState !== WebSocket.OPEN) return;
-            const chunk = encodeAudioChunk(
-              e.inputBuffer.getChannelData(0),
-              nativeRate,
-            );
-            sendWsMessage(ws, { user_audio_chunk: chunk });
-          };
-
-          sourceNode.connect(processor);
-          processor.connect(silentGain);
-          silentGain.connect(ctx.destination);
-
-          if (mounted) {
-            setMode("listening");
-            setAgentMessage(
-              "Hands-free is ready. Ask Chef to guide the next move.",
-            );
-            window.setTimeout(() => setAgentMessage(null), 4000);
-          }
-        };
-
-        ws.onmessage = (ev) => {
-          if (!mounted) return;
-          let msg: ElevenLabsMessage;
-          try {
-            msg = JSON.parse(ev.data as string) as ElevenLabsMessage;
-          } catch {
-            return;
-          }
-
-          try {
-            switch (msg.type) {
-              case "audio":
-                {
-                  const audioBase64 = getAudioPayload(msg);
-                  if (audioBase64) playChunk(audioBase64);
-                }
-                break;
-              case "agent_response":
-                if (msg.agent_response_event?.agent_response) {
-                  const responseText = msg.agent_response_event.agent_response;
-                  addTranscript("chef", responseText);
-                  setAgentMessage(responseText);
-                  window.setTimeout(() => setAgentMessage(null), 5000);
-                }
-                break;
-              case "interruption":
-                stopQueuedSpeech();
-                break;
-              case "ping": {
-                const pingEvent = msg.ping_event;
-                if (!pingEvent?.event_id) break;
-
-                const delayMs = pingEvent.ping_ms ?? 0;
-
-                window.setTimeout(() => {
-                  if (ws.readyState === WebSocket.OPEN) {
-                    sendWsMessage(ws, {
-                      type: "pong",
-                      event_id: pingEvent.event_id,
-                    });
-                  }
-                }, delayMs);
-
-                break;
-              }
-              case "client_tool_call":
-                if (
-                  msg.client_tool_call?.tool_name &&
-                  msg.client_tool_call.parameters &&
-                  msg.client_tool_call.tool_call_id
-                ) {
-                  handleToolCall(
-                    msg.client_tool_call.tool_name,
-                    msg.client_tool_call.parameters,
-                    msg.client_tool_call.tool_call_id,
-                  );
-                }
-                break;
-            }
-          } catch (error) {
-            setConnectionError(
-              error instanceof Error
-                ? error.message
-                : "Failed to handle ElevenLabs message.",
-            );
-          }
-        };
-
-        ws.onclose = (event) => {
-          if (!mounted) return;
-          setMode("disconnected");
-          if (!event.wasClean) {
-            setConnectionError(
-              event.reason ||
-                `ElevenLabs connection closed unexpectedly (${event.code}).`,
-            );
-          }
-        };
-
-        ws.onerror = () => {
-          if (!mounted) return;
-          setMode("disconnected");
-          setConnectionError(
-            "ElevenLabs connection failed. Check the agent and API key settings.",
-          );
-        };
-      } catch (error) {
-        if (!mounted) return;
-        setMode("disconnected");
-        setConnectionError(
-          error instanceof Error
-            ? error.message
-            : "Hands-free mode failed to start.",
+  function handleToolCall(
+    name: string,
+    params: Record<string, unknown>,
+    id: string,
+    context: {
+      sendToolResult: (
+        id: string,
+        result: { result: string; isError?: boolean },
+      ) => void;
+      stopQueuedSpeech: () => void;
+    },
+  ) {
+    if (name === "timer_control" || name === "control_timer") {
+      const action = String(params.action ?? params.command ?? "");
+      if (action === "start" || action === "set") {
+        const seconds = Number(
+          params.duration_seconds ??
+            params.seconds ??
+            Number(params.minutes ?? 0) * 60,
         );
+        if (Number.isFinite(seconds) && seconds > 0) {
+          const label = String(params.label ?? "timer");
+          recordAction("Started a named cooking timer.");
+          startCookingTimer(label, seconds);
+          context.sendToolResult(id, {
+            result: `Started ${label} timer for ${formatTime(seconds)}.`,
+          });
+          return;
+        }
       }
+      if (action === "status") {
+        const activeTimers = timersRef.current.filter(
+          (timer) => !timer.completed,
+        );
+        const result =
+          activeTimers.length > 0
+            ? activeTimers
+                .map(
+                  (timer) =>
+                    `${timer.label}: ${formatTime(timer.remainingSeconds)} ${timer.paused ? "paused" : "left"}`,
+                )
+                .join(". ")
+            : "No active timers.";
+        context.sendToolResult(id, { result });
+        recordAction("Read active timer status.");
+        announceTimerStatus();
+        return;
+      }
+      if (action === "stop" || action === "cancel") {
+        recordAction("Stopped timer.");
+        updateCookingTimers("stop", String(params.label ?? ""));
+        context.sendToolResult(id, { result: "Timer stopped." });
+        return;
+      }
+      if (action === "pause" || action === "resume" || action === "toggle") {
+        const label = String(params.label ?? "").trim();
+        if (label) {
+          recordAction(
+            action === "resume"
+              ? "Resumed active timer."
+              : "Paused active timer.",
+          );
+          updateCookingTimers(action === "toggle" ? "pause" : action, label);
+        } else {
+          recordAction(
+            action === "resume" ? "Resumed step timer." : "Paused step timer.",
+          );
+          controlTimer(action);
+        }
+        context.sendToolResult(id, {
+          result:
+            action === "pause"
+              ? "Timer paused."
+              : action === "resume"
+                ? "Timer resumed."
+                : timerPausedRef.current
+                  ? "Timer paused."
+                  : "Timer resumed.",
+        });
+        return;
+      }
+
+      context.sendToolResult(id, {
+        result: `Unsupported timer action: ${action}`,
+        isError: true,
+      });
+      return;
     }
 
-    void connect();
+    if (name !== "navigate_step") {
+      context.sendToolResult(id, {
+        result: `Unsupported client tool: ${name}`,
+        isError: true,
+      });
+      return;
+    }
 
-    return () => {
-      mounted = false;
-      wsRef.current?.close();
-      wsRef.current = null;
-      stopQueuedSpeech();
-      processor?.disconnect();
-      sourceNode?.disconnect();
-      silentGain?.disconnect();
-      stream?.getTracks().forEach((t) => t.stop());
-      void audioCtxRef.current?.close();
-      audioCtxRef.current = null;
-    };
-  }, [
-    cookingContext,
-    recipe.ingredients,
-    recipe.name,
-    recipe.servings,
-    recipe.steps,
-  ]);
+    context.stopQueuedSpeech();
+
+    let idx = activeStepRef.current;
+    const dir = params.direction;
+    if (dir === "next") idx = Math.min(recipe.steps.length - 1, idx + 1);
+    else if (dir === "previous" || dir === "back") idx = Math.max(0, idx - 1);
+    else if (dir !== "repeat") {
+      context.sendToolResult(id, {
+        result: `Unsupported navigation direction: ${String(dir)}`,
+        isError: true,
+      });
+      return;
+    }
+
+    const step = recipe.steps[idx];
+    const result = step
+      ? `Step ${idx + 1} of ${recipe.steps.length}: ${step.what_to_do}`
+      : dir === "next"
+        ? "That's the last step - you're done!"
+        : "Already at the first step.";
+
+    context.sendToolResult(id, { result });
+
+    if (step) {
+      recordAction(`Jumped to step ${idx + 1}.`);
+      goToStep(idx);
+    }
+  }
+
+  const { agentMessage, connectionError, mode, speakLocal } =
+    useHandsFreeVoiceSession({
+      cookingContext,
+      onAgentResponse: (text) => addTranscript("chef", text),
+      onClientToolCall: handleToolCall,
+      recipe,
+    });
 
   function manualNav(dir: "next" | "prev") {
     const idx =
@@ -753,7 +403,7 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
   }
 
   const modeConfig: Record<
-    Mode,
+    HandsFreeModeStatus,
     { label: string; icon: string; ring: string }
   > = {
     connecting: {

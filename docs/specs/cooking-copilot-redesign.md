@@ -27,6 +27,7 @@ This slice keeps the existing voice architecture and changes the product experie
 - Agent responses are no longer parsed as local voice commands.
 - Browser `SpeechRecognition` is no longer run in parallel with ElevenLabs. ElevenLabs is the only voice input path during normal hands-free mode to avoid duplicate transcripts and phantom commands.
 - The transcript and side panels are split out from the main hands-free controller to keep the audio/session logic easier to reason about.
+- ElevenLabs transport, microphone capture, PCM playback, local TTS, and connection state now live in `useHandsFreeVoiceSession`.
 - Local Web Speech commands and ElevenLabs WebSocket behavior remain intact.
 
 ## Existing Architecture
@@ -34,6 +35,9 @@ This slice keeps the existing voice architecture and changes the product experie
 Main component:
 
 - `apps/web/src/components/hands-free-mode.tsx`
+- `apps/web/src/components/use-hands-free-voice-session.ts`
+- `apps/web/src/components/hands-free-mode-panels.tsx`
+- `apps/web/src/components/hands-free-mode-types.ts`
 
 Entry points:
 
