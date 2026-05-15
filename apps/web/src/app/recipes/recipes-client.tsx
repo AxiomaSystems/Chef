@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
@@ -41,7 +41,7 @@ export function RecipesClient({
   const router = useRouter();
 
   const [recipes, setRecipes] = useState(initialRecipes);
-  const [tab, setTab] = useState<Tab>("mine");
+  const [tab, setTab] = useState<Tab>("public");
   const [search, setSearch] = useState("");
   const [activeCuisine, setActiveCuisine] = useState<string | null>(null);
   const [activeTag, setActiveTag] = useState<string | null>(null);
@@ -54,7 +54,6 @@ export function RecipesClient({
   const [buildError, setBuildError] = useState<string | undefined>();
   const [isBuilding, startBuilding] = useTransition();
   const [, startFork] = useTransition();
-  const recipeGridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (openCreateOnLoad) {
@@ -90,9 +89,9 @@ export function RecipesClient({
     saved: recipes.filter(isUserSaved).length,
   };
   const tabOptions: { id: Tab; label: string; icon: string }[] = [
-    { id: "mine", label: "My Recipes", icon: "restaurant_menu" },
-    { id: "public", label: "Public Recipes", icon: "public" },
-    { id: "saved", label: "Saved Recipes", icon: "bookmark" },
+    { id: "public", label: "Public", icon: "public" },
+    { id: "mine", label: "Mine", icon: "restaurant_menu" },
+    { id: "saved", label: "Saved", icon: "bookmark" },
   ];
 
   const filtered = tabFiltered.filter((r) => {
@@ -174,7 +173,7 @@ export function RecipesClient({
         {/* ── Page header ─────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h1 className="text-headline-lg text-on-surface font-bold">
-            Saved Recipes
+            Recipes
           </h1>
           <div className="relative w-full sm:flex-1 sm:max-w-xs">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
@@ -182,7 +181,7 @@ export function RecipesClient({
             </span>
             <input
               type="text"
-              placeholder="Search your kitchen…"
+              placeholder="Search recipes..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 rounded-full bg-surface-container-low border border-outline-variant/40 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -190,67 +189,8 @@ export function RecipesClient({
           </div>
         </div>
 
-        {/* ── Action cards + YOUR FAVS ─────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Create own */}
-            <button
-              onClick={() => setShowCreate(true)}
-              className="bg-secondary-container rounded-2xl p-5 flex flex-col gap-3 cursor-pointer hover:brightness-95 transition-all text-left"
-            >
-              <div className="w-12 h-12 bg-white/60 rounded-xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-[28px] text-on-secondary-container">
-                  draw
-                </span>
-              </div>
-              <div>
-                <p className="text-label-lg font-bold text-on-secondary-container">
-                  Create own
-                </p>
-                <p className="text-body-sm text-on-secondary-container/70 mt-0.5 leading-snug">
-                  Handcraft your unique culinary masterpiece.
-                </p>
-              </div>
-              <span className="material-symbols-outlined text-on-secondary-container/60 text-[20px]">
-                arrow_forward
-              </span>
-            </button>
-
-            {/* Public recipes */}
-            <button
-              onClick={() => {
-                setTab("public");
-                setTimeout(
-                  () =>
-                    recipeGridRef.current?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    }),
-                  50,
-                );
-              }}
-              className="bg-primary-surface rounded-2xl p-5 flex flex-col gap-3 cursor-pointer hover:brightness-95 transition-all text-left border border-primary-fixed-dim/20"
-            >
-              <div className="w-12 h-12 bg-primary-fixed-dim/20 rounded-xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-[28px] text-primary">
-                  auto_fix_high
-                </span>
-              </div>
-              <div>
-                <p className="text-label-lg font-bold text-on-surface">
-                  Public recipes
-                </p>
-                <p className="text-body-sm text-outline mt-0.5 leading-snug">
-                  Browse shared recipes and save the ones you like.
-                </p>
-              </div>
-              <span className="material-symbols-outlined text-outline text-[20px]">
-                arrow_forward
-              </span>
-            </button>
-          </div>
-
-          {/* YOUR FAVS */}
+        {/* ── Quick filters ─────────────────────────── */}
+        <div className="grid grid-cols-1 gap-4">
           {dietaryTags.length > 0 && (
             <div className="bg-white rounded-2xl p-5 border border-outline-variant/30 shadow-sm">
               <p className="text-label-sm text-outline uppercase tracking-widest mb-3">
@@ -284,21 +224,21 @@ export function RecipesClient({
 
         {/* ── Tabs ─────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="grid w-full grid-cols-3 gap-1.5 rounded-[1.25rem] border border-outline-variant/25 bg-white/70 p-1.5 shadow-sm sm:w-auto">
+          <div className="grid w-full grid-cols-3 gap-1.5 rounded-[1.25rem] border border-outline-variant/25 bg-white/90 p-1.5 shadow-sm sm:w-auto">
             {tabOptions.map(({ id, label, icon }) => (
               <button
                 key={id}
                 onClick={() => setTab(id)}
-                className={`flex min-w-0 items-center justify-center gap-1.5 rounded-2xl px-2.5 py-2 text-label-sm font-bold leading-tight transition-all sm:min-w-[138px] sm:px-4 ${
+                className={`flex min-w-0 items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 text-[12px] font-black leading-tight transition-all sm:min-w-[128px] sm:px-4 sm:text-label-sm ${
                   tab === id
                     ? "bg-primary text-on-primary shadow-sm"
                     : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
                 }`}
               >
-                <span className="material-symbols-outlined hidden text-[16px] sm:inline-block">
+                <span className="material-symbols-outlined text-[17px]">
                   {icon}
                 </span>
-                <span className="truncate">{label}</span>
+                <span>{label}</span>
                 {tabCounts[id] > 0 && (
                   <span
                     className={`flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
@@ -369,7 +309,6 @@ export function RecipesClient({
         </div>
 
         {/* ── Recipe grid ─────────────────────────────────────── */}
-        <div ref={recipeGridRef} />
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-20 text-center">
             <span className="material-symbols-outlined text-[48px] text-outline-variant">
@@ -392,7 +331,7 @@ export function RecipesClient({
                   ? "Tap the bookmark on any recipe to save it here."
                   : tab === "public"
                     ? "Try a different filter or search term."
-                    : "Use \u201cCreate own\u201d to build your first recipe."}
+                    : "Tap the floating plus button to build your first recipe."}
               </p>
             </div>
             {tab === "mine" && (
