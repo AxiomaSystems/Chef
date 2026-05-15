@@ -42,8 +42,8 @@ export function BottomNav() {
         })}
       </nav>
       <Link
-        href="/create"
-        aria-label="Create"
+        href="/recipes/new"
+        aria-label="Create recipe"
         className="fixed bottom-20 right-5 z-[60] grid h-14 w-14 place-items-center rounded-full bg-primary-fixed-dim text-on-primary-fixed shadow-[0_14px_30px_rgba(244,121,13,0.36)] transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:hidden"
       >
         <span className="material-symbols-outlined text-[30px] leading-none">

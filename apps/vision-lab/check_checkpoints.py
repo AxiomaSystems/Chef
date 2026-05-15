@@ -6,12 +6,18 @@ from chef_vision.checkpoints import (
     BASE_MODEL_DIR,
     DEFAULT_CLASSIFIER_RUN,
     DEFAULT_FOODSEG_SEGMENTER_RUN,
+    DEFAULT_INGREDIENT_DETECTOR_RUN,
     classifier_checkpoint_path,
     foodseg_segmenter_checkpoint_path,
+    ingredient_detector_checkpoint_path,
 )
 
 
 EXPECTED_FILES = [
+    (
+        "ingredient detector",
+        ingredient_detector_checkpoint_path(DEFAULT_INGREDIENT_DETECTOR_RUN),
+    ),
     ("base detector", BASE_MODEL_DIR / "yolo11n.pt"),
     ("base segmenter", BASE_MODEL_DIR / "yolo11n-seg.pt"),
     ("ingredient classifier", classifier_checkpoint_path(DEFAULT_CLASSIFIER_RUN)),

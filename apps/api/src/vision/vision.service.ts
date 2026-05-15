@@ -138,6 +138,14 @@ export class VisionService {
       ),
     );
     formData.set(
+      'classifier_relabel_enabled',
+      String(
+        input.classifier_relabel_enabled ??
+          process.env.VISION_CLASSIFIER_RELABEL_ENABLED ??
+          false,
+      ),
+    );
+    formData.set(
       'use_full_image_fallback',
       String(
         input.use_full_image_fallback ??
@@ -193,6 +201,40 @@ export class VisionService {
       'grid_max_additions',
       String(
         input.grid_max_additions ?? process.env.VISION_GRID_MAX_ADDITIONS ?? 8,
+      ),
+    );
+    formData.set(
+      'ocr_enabled',
+      String(input.ocr_enabled ?? process.env.VISION_OCR_ENABLED ?? false),
+    );
+    formData.set(
+      'ocr_provider',
+      input.ocr_provider ?? process.env.VISION_OCR_PROVIDER ?? 'rapidocr',
+    );
+    formData.set(
+      'ocr_mode',
+      input.ocr_mode ?? process.env.VISION_OCR_MODE ?? 'intelligent_filtering',
+    );
+    formData.set(
+      'ocr_cache_enabled',
+      String(
+        input.ocr_cache_enabled ?? process.env.VISION_OCR_CACHE_ENABLED ?? true,
+      ),
+    );
+    formData.set(
+      'ocr_container_only',
+      String(
+        input.ocr_container_only ??
+          process.env.VISION_OCR_CONTAINER_ONLY ??
+          true,
+      ),
+    );
+    formData.set(
+      'ocr_min_confidence',
+      String(
+        input.ocr_min_confidence ??
+          process.env.VISION_OCR_MIN_CONFIDENCE ??
+          0.35,
       ),
     );
     formData.set('include_ignored', String(input.include_ignored ?? false));

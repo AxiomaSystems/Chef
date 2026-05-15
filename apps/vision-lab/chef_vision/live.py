@@ -1,14 +1,46 @@
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass
+from pathlib import Path
 from threading import Lock
 
 import av
 import numpy as np
+from PIL import Image
 
 from chef_vision.contracts import Detection, FrameResult, PipelineConfig, ScanResponse, ScanSummary, ScanOptions
+from chef_vision.classifier import (
+    apply_classification_to_detection,
+    classify_ingredient_image,
+    crop_detection,
+)
 from chef_vision.detectors.yolo import YoloDetector
+from chef_vision.ocr import run_ocr_for_frame_image
 from chef_vision.render import draw_detections_on_bgr_array
+
+
+def _run_ocr_for_frame_image(
+    *,
+    image,
+    frame_result,
+    provider,
+    ocr_mode,
+    container_only,
+    min_confidence,
+):
+    kwargs = {
+        "image": image,
+        "frame_result": frame_result,
+        "provider": provider,
+        "min_confidence": min_confidence,
+    }
+    sig = inspect.signature(run_ocr_for_frame_image)
+    if "ocr_mode" in sig.parameters:
+        kwargs["ocr_mode"] = ocr_mode
+    if "container_only" in sig.parameters and container_only is not None:
+        kwargs["container_only"] = container_only
+    return run_ocr_for_frame_image(**kwargs)
 
 
 @dataclass(slots=True)
@@ -66,6 +98,17 @@ def create_live_video_processor(
     max_detections_per_frame: int,
     existing_labels: set[str],
     session_buffer: LiveSessionBuffer,
+    ocr_enabled: bool = False,
+    ocr_provider: str = "rapidocr",
+    ocr_mode: str = "intelligent_filtering",
+    ocr_container_only: bool | None = None,
+    ocr_min_confidence: float = 0.35,
+    ocr_every_n_frames: int = 8,
+    classifier_enabled: bool = False,
+    classifier_checkpoint: Path | None = None,
+    classifier_top_k: int = 1,
+    classifier_min_confidence: float = 0.0,
+    classifier_every_n_frames: int = 10,
 ):
     class LiveVideoProcessor:
         def __init__(self) -> None:
@@ -90,6 +133,35 @@ def create_live_video_processor(
                 options=self.options,
                 timestamp_ms=timestamp_ms,
             )
+            if ocr_enabled and self.frame_counter % max(1, ocr_every_n_frames) == 0:
+                _run_ocr_for_frame_image(
+                    image=Image.fromarray(image_bgr[:, :, ::-1]),
+                    frame_result=result,
+                    provider=ocr_provider,
+                    ocr_mode=ocr_mode,
+                    container_only=ocr_container_only,
+                    min_confidence=ocr_min_confidence,
+                )
+
+            if classifier_enabled and classifier_checkpoint and self.frame_counter % max(1, classifier_every_n_frames) == 0:
+                for detection in result.detections:
+                    crop = crop_detection(Image.fromarray(image_bgr[:, :, ::-1]), detection)
+                    if crop is None:
+                        continue
+                    try:
+                        predictions = classify_ingredient_image(
+                            crop,
+                            checkpoint_path=classifier_checkpoint,
+                            top_k=classifier_top_k,
+                        )
+                    except Exception:
+                        continue
+                    apply_classification_to_detection(
+                        detection,
+                        predictions,
+                        min_confidence=classifier_min_confidence,
+                    )
+
             self.session_buffer.append(
                 frame_id=result.frame_id,
                 timestamp_ms=timestamp_ms,

@@ -26,12 +26,17 @@ Photo/video/live scan are routed through the web API, Nest vision endpoint, and 
 
 Current product scan policy:
 
+- Use `chef-detector-v005b-openimages-filtered` as the main detector checkpoint.
 - Use YOLO object boxes as crop proposals.
+- Collapse product-facing detector names to `container`, `produce item`, and `unknown`.
 - Classify each crop with `resnet18_ingredient_crops_5000_modal_frozen_v2`.
 - Show top-k choices in a dropdown plus `Other`.
+- Keep classifier relabeling disabled by default; the classifier suggests labels but does not silently replace detector labels.
 - Keep grid fallback and full-image fallback disabled in the product app.
 
 Grid and full-image fallback are still useful in Streamlit, but they are lab diagnostics. They can hallucinate ingredients from arbitrary crop regions, so they should not create product inventory candidates right now.
+
+See `docs/vision-main-convention.md` for the current model, dataset, runtime-label, and API convention.
 
 ## Current User Flows
 

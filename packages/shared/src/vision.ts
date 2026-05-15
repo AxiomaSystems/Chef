@@ -54,6 +54,23 @@ export type VisionFrameInput = {
   debug_objects?: VisionDebugObjectInput[];
 };
 
+export type VisionOcrTextBox = {
+  text: string;
+  confidence: number;
+  bbox: VisionBoundingBox;
+};
+
+export type VisionOcrResult = {
+  enabled: boolean;
+  provider: string;
+  cache_key?: string | null;
+  cache_hit?: boolean;
+  text?: string;
+  suggested_label?: string | null;
+  text_boxes?: VisionOcrTextBox[];
+  warnings?: string[];
+};
+
 export type VisionScanOptions = {
   include_ignored?: boolean;
   max_detections_per_frame?: number;
@@ -74,6 +91,7 @@ export type VisionDetection = {
     label: string;
     probability: number;
   }[];
+  ocr?: VisionOcrResult | null;
   thumbnail_data_url?: string;
 };
 
@@ -112,12 +130,25 @@ export type VisionScanResponse = {
     checkpoint?: string;
     top_k?: number;
     min_confidence?: number;
+    relabel_enabled?: boolean;
     classified_detection_count?: number;
     full_image_fallback_enabled?: boolean;
     full_image_added_count?: number;
     grid_fallback_enabled?: boolean;
     grid_added_count?: number;
     reason?: string;
+  };
+  ocr?: {
+    enabled: boolean;
+    provider?: string;
+    cache_enabled?: boolean;
+    container_only?: boolean;
+    min_confidence?: number;
+    processed_detection_count?: number;
+    cache_hit_count?: number;
+    text_box_count?: number;
+    reason?: string;
+    warnings?: string[];
   };
 };
 

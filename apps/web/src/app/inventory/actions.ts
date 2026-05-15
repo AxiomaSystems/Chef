@@ -17,7 +17,9 @@ export async function createRestockCartAction(
 ): Promise<{ error?: string }> {
   const cookieStore = await cookies();
   const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
-  if (!token) return { error: "Not authenticated" };
+  if (!token) {
+    return { error: "Your session expired. Sign in again to create a cart." };
+  }
 
   const res = await fetch(buildApiUrl("/carts/restock"), {
     method: "POST",
@@ -44,7 +46,11 @@ export async function addInventoryItemAction(
 ): Promise<{ data?: KitchenInventoryItem; error?: string }> {
   const cookieStore = await cookies();
   const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
-  if (!token) return { error: "Not authenticated" };
+  if (!token) {
+    return {
+      error: "Your session expired. Sign in again to add approved items.",
+    };
+  }
 
   const res = await fetch(buildApiUrl("/me/kitchen-inventory"), {
     method: "POST",

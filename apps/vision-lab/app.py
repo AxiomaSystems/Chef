@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 import tempfile
 from datetime import datetime
@@ -17,7 +18,12 @@ from chef_vision.checkpoints import (
 from chef_vision.classifier import apply_classification_to_detection
 from chef_vision.contracts import ClassificationPrediction, DebugObjectInput, FrameInput, ScanOptions
 from chef_vision.inventory import clear_inventory, ensure_inventory_store, load_inventory
+from chef_vision.ingredient_text import (
+    OPENFOODFACTS_INGREDIENT_DETECTION_MODEL,
+    extract_package_ingredient_text,
+)
 from chef_vision.live import LiveSessionBuffer, create_live_video_processor, scan_response_from_live_records
+from chef_vision.ocr import run_ocr_for_detections
 from chef_vision.ontology import ONTOLOGY
 from chef_vision.pipeline import VisionPipeline
 from chef_vision.pipelines.v1 import resolve_photo_v1, resolve_video_v1
@@ -33,6 +39,31 @@ from chef_vision.session_summary import best_detections_by_label, summarize_scan
 from chef_vision.tracking import build_provisional_tracks, estimate_distinct_instances
 from chef_vision.video import extract_sampled_frames
 from sample_frames import SAMPLE_FRAME_REFS, SAMPLE_SCENARIOS
+
+
+def _run_ocr_for_detections(
+    *,
+    frames,
+    domain_frames,
+    provider,
+    cache_enabled,
+    ocr_mode,
+    container_only,
+    min_confidence,
+):
+    kwargs = {
+        "frames": frames,
+        "domain_frames": domain_frames,
+        "provider": provider,
+        "cache_enabled": cache_enabled,
+        "min_confidence": min_confidence,
+    }
+    sig = inspect.signature(run_ocr_for_detections)
+    if "ocr_mode" in sig.parameters:
+        kwargs["ocr_mode"] = ocr_mode
+    if "container_only" in sig.parameters and container_only is not None:
+        kwargs["container_only"] = container_only
+    return run_ocr_for_detections(**kwargs)
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -142,6 +173,60 @@ def render_classifier_controls(prefix: str, *, default_enabled: bool = False) ->
         "top_k": top_k,
         "min_confidence": min_confidence,
         "relabel_detections": relabel_detections,
+    }
+
+
+def render_ocr_controls(prefix: str, *, default_enabled: bool = True) -> dict:
+    ocr_enabled = st.checkbox(
+        "Read text on containers with OCR",
+        value=default_enabled,
+        key=f"{prefix}_ocr_enabled",
+        help=(
+            "Runs OCR only on container-like detections by default. This is for package "
+            "label suggestions, not for replacing object detection."
+        ),
+    )
+    provider = st.selectbox(
+        "OCR provider",
+        options=["rapidocr"],
+        index=0,
+        disabled=not ocr_enabled,
+        key=f"{prefix}_ocr_provider",
+        help="RapidOCR uses lightweight OCR models through ONNXRuntime and is the default live-friendly path.",
+    )
+    cache_enabled = st.checkbox(
+        "Use local OCR crop cache",
+        value=True,
+        disabled=not ocr_enabled,
+        key=f"{prefix}_ocr_cache_enabled",
+    )
+    ocr_mode = st.selectbox(
+        "OCR filtering mode",
+        options=["intelligent_filtering", "containers_only", "all_detections"],
+        index=0,
+        disabled=not ocr_enabled,
+        key=f"{prefix}_ocr_mode",
+        help=(
+            "intelligent_filtering: OCR containers + packaged food + high-confidence items\n"
+            "containers_only: OCR only container-like objects\n"
+            "all_detections: OCR every detected object (slower)"
+        ),
+    )
+    min_confidence = st.slider(
+        "OCR text confidence threshold",
+        0.0,
+        1.0,
+        0.35,
+        0.05,
+        disabled=not ocr_enabled,
+        key=f"{prefix}_ocr_min_confidence",
+    )
+    return {
+        "enabled": ocr_enabled,
+        "provider": provider,
+        "cache_enabled": cache_enabled,
+        "ocr_mode": ocr_mode,
+        "min_confidence": min_confidence,
     }
 
 
@@ -474,12 +559,77 @@ with st.sidebar:
         st.caption("Inventory is empty.")
 
 
-tab_bbox, tab_mock_scenario = st.tabs(["BoundingBox", "Mock Scenario"])
+tab_bbox, tab_openfoodfacts_text, tab_mock_scenario = st.tabs(
+    ["BoundingBox", "OpenFoodFacts Text v6", "Mock Scenario"]
+)
 
 with tab_bbox:
     tab_bbox_stream, tab_bbox_photo, tab_bbox_video = st.tabs(
         ["Video Streaming", "Photo Upload", "Video Upload"]
     )
+
+with tab_openfoodfacts_text:
+    st.subheader("OpenFoodFacts Ingredient Text v6")
+    st.caption(
+        "This is not a camera detector. It is a package-text lane for ingredient lists, useful after a container is detected or OCR text is available."
+    )
+    left, right = st.columns([1, 1.2])
+
+    with left:
+        package_text = st.text_area(
+            "Package text or OCR output",
+            value=(
+                "Ingredients: peanuts, sugar, vegetable oil, salt. "
+                "Allergens: contains peanuts. Nutrition facts per serving..."
+            ),
+            height=180,
+            help="Paste label text, OCR output, or copied package ingredients here.",
+        )
+        use_openfoodfacts_model = st.checkbox(
+            "Use OpenFoodFacts HF model",
+            value=False,
+            help=(
+                "Downloads/runs openfoodfacts/ingredient-detection locally. "
+                "It is a large text token-classification model, not a YOLO detector."
+            ),
+        )
+        model_name_for_text = st.text_input(
+            "Text model",
+            value=OPENFOODFACTS_INGREDIENT_DETECTION_MODEL,
+            disabled=not use_openfoodfacts_model,
+        )
+        run_text_extraction = st.button(
+            "Extract Ingredient Text",
+            use_container_width=True,
+        )
+
+    with right:
+        st.info(
+            "v6 E2E intent: YOLO finds a reviewable container, OCR or pasted label text supplies package text, this lane extracts the ingredient list, then a user reviews what should enter inventory."
+        )
+        if run_text_extraction:
+            extraction = extract_package_ingredient_text(
+                package_text,
+                use_hf_model=use_openfoodfacts_model,
+                model_name=model_name_for_text,
+            )
+            st.code(json.dumps(extraction.to_dict(), indent=2), language="json")
+            if extraction.warnings:
+                for warning in extraction.warnings:
+                    st.warning(warning)
+            if extraction.spans:
+                st.write("Detected ingredient span")
+                for span in extraction.spans:
+                    st.write(f"- {span.text}")
+            else:
+                st.warning("No ingredient span was detected.")
+            if extraction.ingredient_candidates:
+                st.write("Candidate ingredients")
+                st.dataframe(
+                    [{"ingredient": candidate} for candidate in extraction.ingredient_candidates],
+                    use_container_width=True,
+                    hide_index=True,
+                )
 
 tab_seg_stream = tab_seg_photo = tab_seg_video = st.empty()
 
@@ -513,7 +663,7 @@ with tab_bbox_photo:
         )
         include_ignored = st.checkbox("Include ignored detections", value=False)
         max_detections = st.slider("Max detections per frame", 1, 20, 8)
-        confidence_threshold = st.slider("Confidence threshold", 0.05, 0.95, 0.25, 0.05)
+        confidence_threshold = st.slider("Confidence threshold", 0.05, 0.95, 0.2, 0.05)
         nms_iou_threshold = st.slider(
             "NMS IoU threshold",
             0.1,
@@ -524,6 +674,8 @@ with tab_bbox_photo:
         )
         st.divider()
         photo_classifier = render_classifier_controls("photo_detection", default_enabled=False)
+        st.divider()
+        photo_ocr = render_ocr_controls("photo_detection", default_enabled=True)
         run_single = st.button("Run Single-Frame Detection", use_container_width=True)
 
     with right:
@@ -581,6 +733,21 @@ with tab_bbox_photo:
                 )
                 refresh_scan_summary(result)
 
+            photo_ocr_summary = {
+                "enabled": False,
+                "reason": "OCR was not requested for this scan.",
+            }
+            if photo_ocr["enabled"]:
+                photo_ocr_summary = _run_ocr_for_detections(
+                    frames=[frame],
+                    domain_frames=result.frames,
+                    provider=photo_ocr["provider"],
+                    cache_enabled=photo_ocr["cache_enabled"],
+                    ocr_mode=photo_ocr["ocr_mode"],
+                    container_only=photo_ocr.get("container_only"),
+                    min_confidence=photo_ocr["min_confidence"],
+                )
+
             st.subheader("Summary")
             metric_a, metric_b, metric_c = st.columns(3)
             metric_a.metric("Detections", result.summary.detection_count)
@@ -598,6 +765,12 @@ with tab_bbox_photo:
                 )
             else:
                 st.caption(photo_classification["reason"])
+            if photo_ocr_summary["enabled"]:
+                ocr_a, ocr_b = st.columns(2)
+                ocr_a.metric("OCR crops", photo_ocr_summary["processed_detection_count"])
+                ocr_b.metric("OCR text boxes", photo_ocr_summary["text_box_count"])
+            else:
+                st.caption(photo_ocr_summary["reason"])
 
             detections = result.frames[0].detections
             if pipeline_version == "v2":
@@ -669,6 +842,8 @@ with tab_bbox_photo:
                         "policy": detection.inventory_policy,
                         "category": detection.category,
                         "confidence": detection.confidence,
+                        "ocr_suggestion": detection.ocr.suggested_label if detection.ocr else None,
+                        "ocr_text": detection.ocr.text if detection.ocr else "",
                         "bbox": (
                             detection.bbox.x,
                             detection.bbox.y,
@@ -684,6 +859,7 @@ with tab_bbox_photo:
             st.subheader("Response JSON")
             photo_payload = result.to_dict()
             photo_payload["classification"] = photo_classification
+            photo_payload["ocr"] = photo_ocr_summary
             photo_payload["pipeline_resolution"] = versioned_result.to_dict()
             st.json(photo_payload, expanded=2)
 
@@ -1416,7 +1592,7 @@ with tab_bbox_video:
                 "Video confidence threshold",
                 0.05,
                 0.95,
-                0.25,
+                0.2,
                 0.05,
                 key="video_confidence_threshold",
             )
@@ -1438,6 +1614,8 @@ with tab_bbox_video:
             )
             st.divider()
             video_classifier = render_classifier_controls("video_detection", default_enabled=False)
+            st.divider()
+            video_ocr = render_ocr_controls("video_detection", default_enabled=True)
             run_video = st.button("Run Video Detection", use_container_width=True)
 
         with right:
@@ -1508,6 +1686,21 @@ with tab_bbox_video:
                     )
                     refresh_scan_summary(result)
 
+                video_ocr_summary = {
+                    "enabled": False,
+                    "reason": "OCR was not requested for this scan.",
+                }
+                if video_ocr["enabled"]:
+                    video_ocr_summary = _run_ocr_for_detections(
+                        frames=frames,
+                        domain_frames=result.frames,
+                        provider=video_ocr["provider"],
+                        cache_enabled=video_ocr["cache_enabled"],
+                        ocr_mode=video_ocr["ocr_mode"],
+                        container_only=video_ocr.get("container_only"),
+                        min_confidence=video_ocr["min_confidence"],
+                    )
+
                 if pipeline_version == "v2":
                     versioned_result = resolve_scan_v2(result, inventory_items)
                     provisional_tracks = versioned_result.tracks
@@ -1546,6 +1739,12 @@ with tab_bbox_video:
                     )
                 else:
                     st.caption(video_classification["reason"])
+                if video_ocr_summary["enabled"]:
+                    ocr_a, ocr_b = st.columns(2)
+                    ocr_a.metric("OCR crops", video_ocr_summary["processed_detection_count"])
+                    ocr_b.metric("OCR text boxes", video_ocr_summary["text_box_count"])
+                else:
+                    st.caption(video_ocr_summary["reason"])
 
                 st.subheader("Frame Results")
                 st.dataframe(
@@ -1558,6 +1757,11 @@ with tab_bbox_video:
                                 detection.classification_predictions[0].label
                                 for detection in frame.detections
                                 if detection.classification_predictions
+                            ),
+                            "ocr_suggestions": ", ".join(
+                                detection.ocr.suggested_label
+                                for detection in frame.detections
+                                if detection.ocr and detection.ocr.suggested_label
                             ),
                             "detections": len(frame.detections),
                             "track": sum(
@@ -1719,6 +1923,7 @@ with tab_bbox_video:
                 st.subheader("Video Response JSON")
                 video_payload = result.to_dict()
                 video_payload["classification"] = video_classification
+                video_payload["ocr"] = video_ocr_summary
                 video_payload["pipeline_resolution"] = versioned_result.to_dict()
                 st.json(video_payload, expanded=2)
 
@@ -1728,7 +1933,7 @@ with tab_bbox_stream:
     else:
         st.write("Browser camera -> WebRTC -> YOLO -> overlay")
         st.caption(
-            f"Live uses the active detector model: `{model_name}`. Crop classification is disabled for live streaming to keep frame latency manageable."
+            f"Live uses the active detector model: `{model_name}`. Crop classification can be enabled below, but it may reduce frame rate."
         )
         session_buffer: LiveSessionBuffer = st.session_state.live_session_buffer
         live_col_a, live_col_b = st.columns(2)
@@ -1737,7 +1942,7 @@ with tab_bbox_stream:
                 "Live confidence threshold",
                 0.05,
                 0.95,
-                0.25,
+                0.2,
                 0.05,
                 key="live_confidence_threshold",
             )
@@ -1766,6 +1971,30 @@ with tab_bbox_stream:
                 "Camera facing mode",
                 options=["environment", "user"],
                 help="Use `environment` for rear camera on phones when available.",
+            )
+            live_ocr_enabled = st.checkbox(
+                "Highlight label text with OCR",
+                value=False,
+                key="live_ocr_enabled",
+                help="Runs OCR every few frames on container detections. Keep this off if live FPS drops.",
+            )
+            live_ocr_every_n_frames = st.slider(
+                "OCR every N live frames",
+                4,
+                30,
+                10,
+                disabled=not live_ocr_enabled,
+                key="live_ocr_every_n_frames",
+            )
+            live_classifier = render_classifier_controls("live", default_enabled=False)
+            live_classifier_every_n_frames = st.slider(
+                "Classifier every N live frames",
+                1,
+                30,
+                10,
+                disabled=not live_classifier["enabled"],
+                key="live_classifier_every_n_frames",
+                help="Skip classification on some frames to improve live FPS.",
             )
 
         control_col_a, control_col_b, control_col_c = st.columns(3)
@@ -1803,6 +2032,16 @@ with tab_bbox_stream:
                 max_detections_per_frame=live_max_detections,
                 existing_labels={item.label for item in inventory_items},
                 session_buffer=session_buffer,
+                ocr_enabled=live_ocr_enabled,
+                ocr_provider="rapidocr",
+                ocr_mode="intelligent_filtering",
+                ocr_min_confidence=0.35,
+                ocr_every_n_frames=live_ocr_every_n_frames,
+                classifier_enabled=live_classifier["enabled"],
+                classifier_checkpoint=live_classifier["checkpoint_path"],
+                classifier_top_k=live_classifier["top_k"],
+                classifier_min_confidence=live_classifier["min_confidence"],
+                classifier_every_n_frames=live_classifier_every_n_frames,
             )
             webrtc_streamer(
                 key="chef-live-camera",

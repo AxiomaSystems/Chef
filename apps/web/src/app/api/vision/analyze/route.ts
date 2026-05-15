@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { ACCESS_TOKEN_COOKIE, buildApiUrl } from "@/lib/auth";
 
 export async function POST(request: Request) {
+  if (process.env.VISION_SCAN_LAB_ENABLED !== "true") {
+    return NextResponse.json({ message: "Not found" }, { status: 404 });
+  }
+
   const cookieStore = await cookies();
   const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
 
@@ -38,6 +42,10 @@ export async function POST(request: Request) {
   outbound.set(
     "classifier_top_k",
     getFormString(inbound, "classifier_top_k") ?? "5",
+  );
+  outbound.set(
+    "classifier_relabel_enabled",
+    getFormString(inbound, "classifier_relabel_enabled") ?? "false",
   );
   outbound.set("use_full_image_fallback", "false");
   outbound.set("use_grid_fallback", "false");

@@ -17,6 +17,7 @@ It exists so we can iterate on kitchen detection, scan-session logic, overlays, 
 - `fastapi_app.py`: small Python API exposing the same pipeline
 - `chef_vision/`: shared pipeline, ontology, detector interface, and overlay rendering
 - `data/runtime_inventory.json`: local runtime inventory store for lab scans
+- `../../docs/vision-ocr-layer.md`: OCR layer notes for container label reading
 
 The active lab path is BoundingBox detection plus optional crop classification. Segmentation experiments can remain for historical comparison, but they are no longer the product direction.
 
@@ -153,12 +154,15 @@ For `yolo` mode:
 
 - upload a real image in Streamlit
 - or upload a short video and sample frames from it
-- the default model is `yolo11n.pt`
-- if `apps/vision-lab/checkpoints/base/yolo11n.pt` exists, the YOLO detector uses it before falling back to the Ultralytics model name
+- the main product detector is `yolo11n_ingredient_detector_chef-detector-v005b-openimages-filtered`
+- if the trained detector checkpoint exists, the YOLO detector uses it before falling back to `apps/vision-lab/checkpoints/base/yolo11n.pt` or the Ultralytics model name
 - the first run may download model weights
-- detections are mapped into the Chef ontology as a best-effort starting point
+- product-facing detector names are collapsed to `container`, `produce item`, and `unknown`
+- classifier predictions from `resnet18_ingredient_crops_5000_modal_frozen_v2` are review suggestions, not automatic inventory truth
 
-This is intentionally basic. It gets real image detection working before we add tracking, embeddings, or custom training.
+See `docs/vision-main-convention.md` for the current model, dataset, runtime-label, and API convention.
+
+For the next detector-only 80+ class experiment, use `docs/vision-v006-detector-only-80plus.md`.
 
 ## Inventory Workflow
 
@@ -195,9 +199,16 @@ BoundingBox
   - Video Streaming
   - Photo Upload
   - Video Upload
+
+OpenFoodFacts Text v6
+  - paste package text or OCR output
+  - extract ingredient-list spans
+  - split candidate ingredients for review
 ```
 
 Pipeline v1 is the fallback path. Pipeline v2 adds object/session candidates before inventory stacking so video and frame-by-frame scans do not treat every detection as a new pantry item.
+
+The OpenFoodFacts Text v6 tab is not a visual detector. `openfoodfacts/ingredient-detection` is a text token-classification model for ingredient lists, so it belongs after container detection, OCR, barcode lookup, or pasted package text.
 
 Segmentation tabs are hidden by default behind `ENABLE_SEGMENTATION_LAB = False` in `app.py`. Do not train or promote segmentation checkpoints for the inventory product flow unless there is a separate, explicit decision to reopen that path.
 

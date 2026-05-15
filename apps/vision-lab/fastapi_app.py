@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import inspect
 import base64
 import shutil
+from uuid import uuid4
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -23,15 +25,43 @@ from chef_vision.classifier import (
 )
 from chef_vision.contracts import (
     BoundingBox,
+    Detection,
     DebugObjectInput,
     FrameInput,
+    FrameResult,
     ScanOptions,
     ScanResponse,
     ScanSummary,
 )
+from chef_vision.ocr import run_ocr_for_detections
 from chef_vision.pipeline import VisionPipeline
 from chef_vision.render import draw_detections
 from chef_vision.video import extract_sampled_frames
+
+
+def _run_ocr_for_detections(
+    *,
+    frames,
+    domain_frames,
+    provider,
+    cache_enabled,
+    ocr_mode,
+    container_only,
+    min_confidence,
+):
+    kwargs = {
+        "frames": frames,
+        "domain_frames": domain_frames,
+        "provider": provider,
+        "cache_enabled": cache_enabled,
+        "min_confidence": min_confidence,
+    }
+    sig = inspect.signature(run_ocr_for_detections)
+    if "ocr_mode" in sig.parameters:
+        kwargs["ocr_mode"] = ocr_mode
+    if "container_only" in sig.parameters and container_only is not None:
+        kwargs["container_only"] = container_only
+    return run_ocr_for_detections(**kwargs)
 
 
 DEFAULT_DETECTION_MODEL = default_yolo_model()
@@ -168,6 +198,7 @@ def classify_frame_crops(
     classifier_checkpoint: str | None,
     classifier_top_k: int,
     classifier_min_confidence: float,
+    classifier_relabel_enabled: bool,
     use_full_image_fallback: bool,
     full_image_min_confidence: float,
     use_grid_fallback: bool,
@@ -212,11 +243,14 @@ def classify_frame_crops(
                 checkpoint_path=checkpoint_path,
                 top_k=max(1, min(classifier_top_k, 10)),
             )
-            apply_classification_to_detection(
-                detection,
-                predictions,
-                min_confidence=max(0.0, min(classifier_min_confidence, 1.0)),
-            )
+            if classifier_relabel_enabled:
+                apply_classification_to_detection(
+                    detection,
+                    predictions,
+                    min_confidence=max(0.0, min(classifier_min_confidence, 1.0)),
+                )
+            else:
+                detection.classification_predictions = predictions
             classified_detection_count += 1
 
         if use_full_image_fallback:
@@ -295,6 +329,7 @@ def classify_frame_crops(
         "checkpoint": str(checkpoint_path),
         "top_k": max(1, min(classifier_top_k, 10)),
         "min_confidence": max(0.0, min(classifier_min_confidence, 1.0)),
+        "relabel_enabled": classifier_relabel_enabled,
         "classified_detection_count": classified_detection_count,
         "full_image_fallback_enabled": use_full_image_fallback,
         "full_image_added_count": full_image_added_count,
@@ -323,11 +358,68 @@ def refresh_summary(result: ScanResponse) -> None:
     )
 
 
+def build_ocr_only_scan_response(
+    *,
+    scan_session_id: str,
+    frames: list[FrameInput],
+) -> ScanResponse:
+    frame_results = [
+        FrameResult(
+            frame_id=frame.frame_id,
+            frame_ref=frame.frame_ref,
+            zone_id=frame.zone_id,
+            timestamp_ms=frame.timestamp_ms,
+            detections=[
+                Detection(
+                    observation_id=f"ocr_{frame.frame_id}_{uuid4().hex[:8]}",
+                    class_id="ocr_text_region",
+                    label="OCR text",
+                    category="container",
+                    granularity="generic",
+                    inventory_policy="review",
+                    bbox=BoundingBox(x=0, y=0, width=1, height=1),
+                    confidence=1.0,
+                    detector_label="ocr_text_region",
+                    detector_confidence=1.0,
+                )
+            ],
+        )
+        for frame in frames
+    ]
+    pipeline = VisionPipeline(detector_name="mock").describe_pipeline()
+    pipeline.provider = "ocr-only"
+    pipeline.notes = [
+        *pipeline.notes,
+        "OCR-only media scans skip object detection, crop classification, "
+        "segmentation, and object bounding-box review.",
+    ]
+    detections = [
+        detection
+        for frame_result in frame_results
+        for detection in frame_result.detections
+    ]
+    return ScanResponse(
+        scan_session_id=scan_session_id,
+        pipeline=pipeline,
+        frames=frame_results,
+        summary=ScanSummary(
+            frame_count=len(frame_results),
+            detection_count=len(detections),
+            track_candidate_count=0,
+            review_candidate_count=len(detections),
+            ignored_detection_count=0,
+            detected_labels=sorted({detection.label for detection in detections}),
+        ),
+    )
+
+
 app = FastAPI(
     title="Chef Vision Python API",
     version="0.1.0",
     description="Separate Python sidecar for vision experimentation before full product integration.",
 )
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -367,6 +459,7 @@ def detect_media(
     classifier_checkpoint: str | None = Form(None),
     classifier_top_k: int = Form(5),
     classifier_min_confidence: float = Form(0.15),
+    classifier_relabel_enabled: bool = Form(False),
     use_full_image_fallback: bool = Form(False),
     full_image_min_confidence: float = Form(0.15),
     use_grid_fallback: bool = Form(False),
@@ -375,6 +468,12 @@ def detect_media(
     grid_stride_fraction: float = Form(0.5),
     grid_min_confidence: float = Form(0.25),
     grid_max_additions: int = Form(8),
+    ocr_enabled: bool = Form(False),
+    ocr_provider: str = Form("rapidocr"),
+    ocr_cache_enabled: bool = Form(True),
+    ocr_mode: str = Form("intelligent_filtering"),
+    ocr_container_only: bool = Form(True),
+    ocr_min_confidence: float = Form(0.35),
     include_ignored: bool = Form(False),
     max_detections_per_frame: int = Form(12),
     confidence_threshold: float = Form(0.25),
@@ -383,7 +482,11 @@ def detect_media(
 ) -> dict:
     suffix = Path(media.filename or "").suffix.lower()
     if not suffix:
-        suffix = ".mp4" if media.content_type and media.content_type.startswith("video/") else ".jpg"
+        suffix = (
+            ".mp4"
+            if media.content_type and media.content_type.startswith("video/")
+            else ".jpg"
+        )
 
     with TemporaryDirectory(prefix="chef_vision_upload_") as temp_dir:
         temp_path = Path(temp_dir)
@@ -397,7 +500,11 @@ def detect_media(
             max_detections_per_frame=max(1, min(max_detections_per_frame, 50)),
             confidence_threshold=max(0.0, min(confidence_threshold, 1.0)),
         )
-        pipeline = VisionPipeline(detector_name=detector, model_name=model_name)
+        detector_key = detector.strip().lower()
+        ocr_only = detector_key in {"ocr", "ocr-only", "ocr_only"}
+        pipeline = None
+        if not ocr_only:
+            pipeline = VisionPipeline(detector_name=detector, model_name=model_name)
 
         is_video = (
             media_kind == "video"
@@ -431,11 +538,17 @@ def detect_media(
                 )
             ]
 
-        result = pipeline.analyze_scan(
-            scan_session_id=f"media_{media_kind}",
-            frames=frames,
-            options=options,
-        )
+        if ocr_only:
+            result = build_ocr_only_scan_response(
+                scan_session_id=f"media_{media_kind}_ocr",
+                frames=frames,
+            )
+        else:
+            result = pipeline.analyze_scan(
+                scan_session_id=f"media_{media_kind}",
+                frames=frames,
+                options=options,
+            )
         classification = None
         if classify_crops:
             classification = classify_frame_crops(
@@ -445,6 +558,7 @@ def detect_media(
                 classifier_checkpoint=classifier_checkpoint,
                 classifier_top_k=classifier_top_k,
                 classifier_min_confidence=classifier_min_confidence,
+                classifier_relabel_enabled=classifier_relabel_enabled,
                 use_full_image_fallback=use_full_image_fallback,
                 full_image_min_confidence=full_image_min_confidence,
                 use_grid_fallback=use_grid_fallback,
@@ -456,12 +570,28 @@ def detect_media(
             )
             refresh_summary(result)
 
+        ocr = None
+        if ocr_enabled:
+            ocr = _run_ocr_for_detections(
+                frames=frames,
+                domain_frames=result.frames,
+                provider=ocr_provider,
+                cache_enabled=ocr_cache_enabled,
+                ocr_mode=ocr_mode,
+                container_only=ocr_container_only,
+                min_confidence=ocr_min_confidence,
+            )
+
         payload = result.to_dict()
         payload["_domain_frames"] = result.frames
         enrich_payload_with_images(payload, frames)
         payload["classification"] = classification or {
             "enabled": False,
             "reason": "Crop classification was not requested for this scan.",
+        }
+        payload["ocr"] = ocr or {
+            "enabled": False,
+            "reason": "OCR was not requested for this scan.",
         }
 
         if extraction is not None:

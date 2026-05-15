@@ -73,6 +73,10 @@ Optional live camera deps:
 pnpm setup:live
 ```
 
+The web inventory Live/Photo/Video vision scan flow is lab-only. It is not
+exposed from `/inventory` on main, and `/api/vision/analyze` returns `404`
+unless `VISION_SCAN_LAB_ENABLED=true`. See `docs/vision-scan-lab.md`.
+
 ## API-only flow
 
 ```powershell

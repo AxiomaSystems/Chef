@@ -11,6 +11,32 @@ from chef_vision.ontology import MODEL_MAPPINGS, ONTOLOGY
 
 
 COCO_TO_ONTOLOGY = MODEL_MAPPINGS["coco"]
+CONTAINER_DETECTOR_LABELS = {
+    "bag",
+    "bottle",
+    "box",
+    "can",
+    "carton",
+    "container",
+    "egg carton",
+    "food bag",
+    "food bottle",
+    "food box",
+    "food can",
+    "food carton",
+    "food jar",
+    "food packet",
+    "jar",
+    "packet",
+    "unknown packaged food",
+}
+PRODUCE_DETECTOR_LABELS = {
+    "fresh produce",
+    "produce item",
+}
+UNKNOWN_DETECTOR_LABELS = {
+    "unknown kitchen item",
+}
 
 
 class YoloDetector(DetectorProvider):
@@ -113,7 +139,9 @@ class YoloDetector(DetectorProvider):
                 cls_id = int(box.cls[0].item())
                 confidence = round(float(box.conf[0].item()), 2)
                 raw_label = names.get(cls_id, str(cls_id))
-                ontology_entry = _resolve_ontology_entry(raw_label)
+                ontology_entry = _collapse_detector_entry(
+                    _resolve_ontology_entry(raw_label),
+                )
 
                 if ontology_entry["inventory_policy"] == "ignore" and not options.include_ignored:
                     continue
@@ -187,6 +215,43 @@ def _resolve_ontology_entry(raw_label: str) -> dict:
         return next(entry for entry in ONTOLOGY if entry["id"] == "plate")
 
     return next(entry for entry in ONTOLOGY if entry["id"] == "unknown_kitchen_item")
+
+
+def _collapse_detector_entry(entry: dict) -> dict:
+    normalized_label = _normalize_label(entry["label"])
+    normalized_id = _normalize_label(entry["id"])
+
+    if normalized_label in CONTAINER_DETECTOR_LABELS or normalized_id in CONTAINER_DETECTOR_LABELS:
+        return {
+            **entry,
+            "id": "container",
+            "label": "container",
+            "category": "container",
+            "granularity": "generic",
+            "inventory_policy": "review",
+        }
+
+    if normalized_label in PRODUCE_DETECTOR_LABELS or normalized_id in PRODUCE_DETECTOR_LABELS:
+        return {
+            **entry,
+            "id": "produce_item",
+            "label": "produce item",
+            "category": "produce",
+            "granularity": "generic",
+            "inventory_policy": "review",
+        }
+
+    if normalized_label in UNKNOWN_DETECTOR_LABELS or normalized_id in UNKNOWN_DETECTOR_LABELS:
+        return {
+            **entry,
+            "id": "unknown",
+            "label": "unknown",
+            "category": "unknown",
+            "granularity": "generic",
+            "inventory_policy": "review",
+        }
+
+    return entry
 
 
 def _normalize_label(label: str) -> str:
