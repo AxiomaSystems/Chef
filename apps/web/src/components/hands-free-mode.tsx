@@ -2,610 +2,403 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { BaseRecipe } from "@cart/shared";
-
-const TARGET_SAMPLE_RATE = 16000; // ElevenLabs expects 16 kHz PCM16 input
-const MIC_CHUNK_SIZE = 2048;
+import type { CookingContext } from "@/lib/cooking-context";
+import {
+  HandsFreeAsidePanels,
+  HandsFreeTranscriptPanel,
+} from "./hands-free-mode-panels";
+import type {
+  CookingTimer,
+  HandsFreeModeStatus,
+  TranscriptEntry,
+} from "./hands-free-mode-types";
+import { useHandsFreeVoiceSession } from "./use-hands-free-voice-session";
 
 function formatTime(s: number) {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function splitTitle(text: string) {
-  const parts = text.split(/(?<=[.!?])\s+/);
-  return { title: parts[0] ?? text, body: parts.slice(1).join(" ") };
+function cleanAgentText(text: string) {
+  return text
+    .replace(/\[[^\]]+\]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
-function getStepIngredients(
-  stepText: string,
-  ingredients: BaseRecipe["ingredients"],
-) {
-  const lower = stepText.toLowerCase();
-  return ingredients.filter((ing) => {
-    const name = (
-      ing.display_ingredient ?? ing.canonical_ingredient
-    ).toLowerCase();
-    return name.split(" ").some((w) => w.length > 3 && lower.includes(w));
-  });
-}
-
-// Downsample Float32 from browser native rate to 16 kHz, then encode as base64 PCM16.
-function encodeAudioChunk(float32: Float32Array, fromRate: number): string {
-  const ratio = fromRate / TARGET_SAMPLE_RATE;
-  const outLen = Math.floor(float32.length / ratio);
-  const pcm16 = new Int16Array(outLen);
-  for (let i = 0; i < outLen; i++) {
-    const s = Math.max(-1, Math.min(1, float32[Math.floor(i * ratio)]));
-    pcm16[i] = s < 0 ? s * 32768 : s * 32767;
-  }
-  const bytes = new Uint8Array(pcm16.buffer);
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
-}
-
-// Decode base64 PCM16 to a Float32 playable buffer. Handles base64url from ElevenLabs.
-function decodePcm16Base64(b64: string): Float32Array {
-  const standard = b64.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = standard + "=".repeat((4 - (standard.length % 4)) % 4);
-  const bin = atob(padded);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  const pcm16 = new Int16Array(bytes.buffer);
-  const f32 = new Float32Array(pcm16.length);
-  for (let i = 0; i < pcm16.length; i++) f32[i] = pcm16[i] / 32768;
-  return f32;
-}
-
-type Mode = "connecting" | "listening" | "speaking" | "disconnected";
-type Props = { recipe: BaseRecipe; onClose: () => void };
-type TimerCommand = "pause" | "resume" | "toggle";
-type BrowserSpeechRecognition = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult:
-    | ((event: {
-        results: ArrayLike<ArrayLike<{ transcript: string }>>;
-      }) => void)
-    | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-type SignedUrlResponse = { signed_url?: string; error?: string };
-type ElevenLabsToolCall = {
-  tool_name?: string;
-  parameters?: Record<string, unknown>;
-  tool_call_id?: string;
-};
-type ElevenLabsMessage = {
-  type?: string;
-  audio_event?: { audio_base64?: string; audio_base_64?: string };
-  agent_response_event?: { agent_response?: string };
-  ping_event?: { event_id?: string; ping_ms?: number };
-  client_tool_call?: ElevenLabsToolCall;
+type Props = {
+  recipe: BaseRecipe;
+  cookingContext?: CookingContext;
+  onClose: () => void;
 };
 
-function getAudioPayload(msg: ElevenLabsMessage) {
-  return (
-    msg.audio_event?.audio_base64 ?? msg.audio_event?.audio_base_64 ?? null
-  );
-}
-
-function sendWsMessage(ws: WebSocket | null, payload: unknown) {
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(payload));
-  }
-}
-
-export function HandsFreeMode({ recipe, onClose }: Props) {
+export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
   const [activeStep, setActiveStep] = useState(0);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [isTimerPaused, setIsTimerPaused] = useState(false);
-  const [mode, setMode] = useState<Mode>("connecting");
-  const [agentMessage, setAgentMessage] = useState<string | null>(null);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [timers, setTimers] = useState<CookingTimer[]>([]);
+  const [lastHeard, setLastHeard] = useState<string | null>(null);
+  const [lastAction, setLastAction] = useState<string | null>(null);
+  const timerIdRef = useRef(0);
+  const timersRef = useRef<CookingTimer[]>([]);
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
 
   const activeStepRef = useRef(0);
-  const timerPausedRef = useRef(false);
-  const wsRef = useRef<WebSocket | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const scheduledUntilRef = useRef(0); // for gapless audio scheduling
-  const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
-  const localSpeechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const transcriptIdRef = useRef(0);
 
-  const currentStep = recipe.steps[activeStep] ?? null;
-  const { title, body } = currentStep
-    ? splitTitle(currentStep.what_to_do)
-    : { title: "No steps.", body: "" };
-  const stepIngredients = currentStep
-    ? getStepIngredients(currentStep.what_to_do, recipe.ingredients)
-    : [];
+  const currentPhase =
+    activeStep === 0
+      ? "Getting set up"
+      : activeStep >= recipe.steps.length - 1
+        ? "Finishing"
+        : activeStep < recipe.steps.length / 3
+          ? "Building momentum"
+          : activeStep < (recipe.steps.length * 2) / 3
+            ? "Active cooking"
+            : "Bring it home";
+  const contextLines = [
+    cookingContext?.dietaryRules.length
+      ? `${cookingContext.dietaryRules.length} food rules`
+      : null,
+    cookingContext?.goals.length ? `${cookingContext.goals[0]} goal` : null,
+    cookingContext?.inventory.length
+      ? `${cookingContext.inventory.length} pantry items`
+      : null,
+    cookingContext?.kitchen.length
+      ? `${cookingContext.kitchen.length} kitchen defaults`
+      : null,
+  ].filter((line): line is string => Boolean(line));
+
+  function addTranscript(speaker: TranscriptEntry["speaker"], text: string) {
+    const trimmed =
+      speaker === "chef"
+        ? cleanAgentText(text)
+        : text.replace(/\s+/g, " ").trim();
+    if (!trimmed) return;
+    transcriptIdRef.current += 1;
+    setTranscript((prev) => [
+      ...prev.slice(-5),
+      { id: transcriptIdRef.current, speaker, text: trimmed },
+    ]);
+  }
+
+  function recordAction(text: string) {
+    setLastAction(text);
+    addTranscript("system", text);
+  }
+
+  function announce(text: string, speak = true) {
+    addTranscript("chef", text);
+    if (speak) speakLocal(text);
+  }
 
   useEffect(() => {
     activeStepRef.current = activeStep;
   }, [activeStep]);
-
   useEffect(() => {
-    timerPausedRef.current = isTimerPaused;
-  }, [isTimerPaused]);
+    timersRef.current = timers;
+  }, [timers]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      if (!timerPausedRef.current) {
-        setElapsedSeconds((s) => s + 1);
-      }
+      setTimers((current) =>
+        current.map((timer) => {
+          if (timer.paused || timer.completed) return timer;
+          const remainingSeconds = Math.max(0, timer.remainingSeconds - 1);
+          if (remainingSeconds === 0 && timer.remainingSeconds > 0) {
+            window.setTimeout(() => {
+              announce(`${timer.label} timer is done.`);
+            }, 0);
+          }
+          return {
+            ...timer,
+            remainingSeconds,
+            completed: remainingSeconds === 0,
+          };
+        }),
+      );
     }, 1000);
     return () => window.clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    const SpeechRecognitionCtor =
-      (
-        window as typeof window & {
-          SpeechRecognition?: new () => BrowserSpeechRecognition;
-          webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
-        }
-      ).SpeechRecognition ??
-      (
-        window as typeof window & {
-          webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
-        }
-      ).webkitSpeechRecognition;
-
-    if (!SpeechRecognitionCtor) return;
-
-    const recognition = new SpeechRecognitionCtor();
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-    recognition.onresult = (event) => {
-      const result = event.results[event.results.length - 1];
-      const transcript = result?.[0]?.transcript?.trim();
-      if (transcript) {
-        handleLocalCommand(transcript);
-      }
-    };
-    recognition.onerror = () => {};
-    recognition.onend = () => {
-      if (wsRef.current?.readyState !== WebSocket.CLOSED) {
-        try {
-          recognition.start();
-        } catch {
-          // Recognition can already be active.
-        }
-      }
-    };
-
-    try {
-      recognition.start();
-    } catch {
-      return;
-    }
-
-    return () => {
-      recognition.onend = null;
-      recognition.stop();
-    };
-  }, []);
-
-  function stopQueuedSpeech() {
-    window.speechSynthesis?.cancel();
-    localSpeechUtteranceRef.current = null;
-    const ctx = audioCtxRef.current;
-    for (const source of audioSourcesRef.current) {
-      try {
-        source.stop();
-      } catch {
-        // The source may have already ended.
-      }
-      source.disconnect();
-    }
-    audioSourcesRef.current.clear();
-    scheduledUntilRef.current = ctx?.currentTime ?? 0;
-    setMode((current) => (current === "disconnected" ? current : "listening"));
-  }
-
-  function speakLocal(text: string) {
-    if (!("speechSynthesis" in window)) return;
-
-    stopQueuedSpeech();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.96;
-    utterance.pitch = 1;
-    localSpeechUtteranceRef.current = utterance;
-    setMode("speaking");
-    utterance.onend = () => {
-      if (localSpeechUtteranceRef.current === utterance) {
-        localSpeechUtteranceRef.current = null;
-        setMode((current) =>
-          current === "disconnected" ? current : "listening",
-        );
-      }
-    };
-    utterance.onerror = utterance.onend;
-    window.speechSynthesis.speak(utterance);
-  }
-
-  function setTimerPaused(nextPaused: boolean, announce = true) {
-    timerPausedRef.current = nextPaused;
-    setIsTimerPaused(nextPaused);
-    if (announce) {
-      speakLocal(nextPaused ? "Timer paused." : "Timer resumed.");
-    }
-  }
-
-  function controlTimer(command: TimerCommand, announce = true) {
-    const nextPaused =
-      command === "toggle" ? !timerPausedRef.current : command === "pause";
-    setTimerPaused(nextPaused, announce);
-  }
-
-  function readStep(idx = activeStepRef.current, prefix?: string) {
+  function readStep(
+    idx = activeStepRef.current,
+    prefix?: string,
+    speak = true,
+  ) {
     const step = recipe.steps[idx];
     if (!step) return;
-    speakLocal(
-      `${prefix ? `${prefix} ` : ""}Step ${idx + 1} of ${recipe.steps.length}. ${step.what_to_do}`,
-    );
+    const message = `${prefix ? `${prefix} ` : ""}Step ${idx + 1} of ${recipe.steps.length}. ${step.what_to_do}`;
+    addTranscript("chef", message);
+    if (speak) speakLocal(message);
   }
 
   function goToStep(idx: number, announce = true) {
     const boundedIdx = Math.max(0, Math.min(recipe.steps.length - 1, idx));
     activeStepRef.current = boundedIdx;
     setActiveStep(boundedIdx);
-    setElapsedSeconds(0);
-    setTimerPaused(false, false);
     if (announce) {
       readStep(boundedIdx);
     }
   }
 
-  function handleLocalCommand(text: string) {
-    const command = text.toLowerCase();
-    if (/\b(pause|stop|hold)\b.*\b(time|timer|clock)\b/.test(command)) {
-      controlTimer("pause");
-      return true;
-    }
-    if (/\b(resume|start|continue)\b.*\b(time|timer|clock)\b/.test(command)) {
-      controlTimer("resume");
-      return true;
-    }
-    if (/\b(next|continue|go on)\b/.test(command)) {
-      manualNav("next");
-      return true;
-    }
-    if (/\b(back|previous|go back)\b/.test(command)) {
-      manualNav("prev");
-      return true;
-    }
-    if (/\b(repeat|read that again|say that again)\b/.test(command)) {
-      readStep();
-      return true;
-    }
-    return false;
+  function startCookingTimer(
+    label: string,
+    totalSeconds: number,
+    speak = true,
+  ) {
+    timerIdRef.current += 1;
+    const timer: CookingTimer = {
+      id: timerIdRef.current,
+      label,
+      remainingSeconds: totalSeconds,
+      totalSeconds,
+      paused: false,
+      completed: false,
+    };
+    setTimers((current) => [timer, ...current.filter((t) => !t.completed)]);
+    announce(`Started ${label} timer for ${formatTime(totalSeconds)}.`, speak);
   }
 
-  useEffect(() => {
-    let mounted = true;
-    let stream: MediaStream | null = null;
-    let processor: ScriptProcessorNode | null = null;
-    let sourceNode: MediaStreamAudioSourceNode | null = null;
-    let silentGain: GainNode | null = null;
+  function updateCookingTimers(
+    action: "pause" | "resume" | "stop",
+    label?: string,
+    speak = true,
+  ) {
+    const normalizedLabel = label?.trim().toLowerCase();
+    const matchingTimers = timersRef.current.filter(
+      (timer) =>
+        !timer.completed &&
+        (!normalizedLabel ||
+          timer.label.toLowerCase().includes(normalizedLabel)),
+    );
+    if (matchingTimers.length === 0) {
+      announce(
+        normalizedLabel
+          ? `I don't see an active ${normalizedLabel} timer.`
+          : "I don't see any active timers.",
+        speak,
+      );
+      return;
+    }
+    const ids = new Set(matchingTimers.map((timer) => timer.id));
+    if (action === "stop") {
+      setTimers((current) => current.filter((timer) => !ids.has(timer.id)));
+      announce(
+        matchingTimers.length === 1
+          ? `Stopped the ${matchingTimers[0].label} timer.`
+          : `Stopped ${matchingTimers.length} timers.`,
+        speak,
+      );
+      return;
+    }
+    setTimers((current) =>
+      current.map((timer) =>
+        ids.has(timer.id) ? { ...timer, paused: action === "pause" } : timer,
+      ),
+    );
+    announce(
+      matchingTimers.length === 1
+        ? `${matchingTimers[0].label} timer ${action === "pause" ? "paused" : "resumed"}.`
+        : `${matchingTimers.length} timers ${action === "pause" ? "paused" : "resumed"}.`,
+      speak,
+    );
+  }
 
-    function playChunk(b64: string) {
-      const ctx = audioCtxRef.current;
-      if (!ctx || !mounted) return;
+  function announceTimerStatus(speak = true) {
+    const activeTimers = timersRef.current.filter((timer) => !timer.completed);
+    if (activeTimers.length === 0) {
+      announce("No active timers right now.", speak);
+      return;
+    }
+    announce(
+      activeTimers
+        .map(
+          (timer) =>
+            `${timer.label}: ${formatTime(timer.remainingSeconds)} ${timer.paused ? "paused" : "left"}`,
+        )
+        .join(". "),
+      speak,
+    );
+  }
 
-      if (ctx.state === "suspended") void ctx.resume();
-
-      const f32 = decodePcm16Base64(b64);
-      const buf = ctx.createBuffer(1, f32.length, TARGET_SAMPLE_RATE);
-      buf.getChannelData(0).set(f32);
-
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      audioSourcesRef.current.add(src);
-
-      const startAt = Math.max(ctx.currentTime, scheduledUntilRef.current);
-      src.start(startAt);
-      scheduledUntilRef.current = startAt + buf.duration;
-
-      if (mounted) setMode("speaking");
-      src.onended = () => {
-        audioSourcesRef.current.delete(src);
-        src.disconnect();
-        if (mounted && ctx.currentTime >= scheduledUntilRef.current - 0.05) {
-          setMode("listening");
-        }
-      };
+  function handleToolCall(
+    name: string,
+    params: Record<string, unknown>,
+    id: string,
+    context: {
+      sendToolResult: (
+        id: string,
+        result: { result: string; isError?: boolean },
+      ) => void;
+      stopQueuedSpeech: () => void;
+    },
+  ) {
+    if (name === "end_conversation" || name === "finish_cooking") {
+      recordAction("Ended cooking copilot session.");
+      context.sendToolResult(id, { result: "Cooking copilot ended." });
+      onClose();
+      return;
     }
 
-    function handleToolCall(
-      name: string,
-      params: Record<string, unknown>,
-      id: string,
-    ) {
-      const ws = wsRef.current;
-      if (!ws) return;
-
-      if (name === "timer_control" || name === "control_timer") {
-        const action = String(params.action ?? params.command ?? "");
-        if (action === "pause" || action === "resume" || action === "toggle") {
-          controlTimer(action);
-          sendWsMessage(ws, {
-            type: "client_tool_result",
-            tool_call_id: id,
-            result:
-              action === "pause"
-                ? "Timer paused."
-                : action === "resume"
-                  ? "Timer resumed."
-                  : timerPausedRef.current
-                    ? "Timer paused."
-                    : "Timer resumed.",
-            is_error: false,
+    if (name === "timer_control" || name === "control_timer") {
+      const action = String(params.action ?? params.command ?? "");
+      if (action === "start" || action === "set") {
+        const seconds = Number(
+          params.duration_seconds ??
+            params.seconds ??
+            Number(params.minutes ?? 0) * 60,
+        );
+        if (Number.isFinite(seconds) && seconds > 0) {
+          const label = String(params.label ?? "timer");
+          recordAction("Started a named cooking timer.");
+          startCookingTimer(label, seconds, false);
+          context.sendToolResult(id, {
+            result: `Started ${label} timer for ${formatTime(seconds)}.`,
           });
           return;
         }
-
-        sendWsMessage(ws, {
-          type: "client_tool_result",
-          tool_call_id: id,
-          result: `Unsupported timer action: ${action}`,
-          is_error: true,
-        });
+      }
+      if (action === "status") {
+        const activeTimers = timersRef.current.filter(
+          (timer) => !timer.completed,
+        );
+        const result =
+          activeTimers.length > 0
+            ? activeTimers
+                .map(
+                  (timer) =>
+                    `${timer.label}: ${formatTime(timer.remainingSeconds)} ${timer.paused ? "paused" : "left"}`,
+                )
+                .join(". ")
+            : "No active timers.";
+        context.sendToolResult(id, { result });
+        recordAction("Read active timer status.");
+        announceTimerStatus(false);
         return;
       }
-
-      if (name !== "navigate_step") {
-        sendWsMessage(ws, {
-          type: "client_tool_result",
-          tool_call_id: id,
-          result: `Unsupported client tool: ${name}`,
-          is_error: true,
-        });
+      if (action === "stop" || action === "cancel") {
+        recordAction("Stopped timer.");
+        updateCookingTimers("stop", String(params.label ?? ""), false);
+        context.sendToolResult(id, { result: "Timer stopped." });
         return;
       }
-
-      stopQueuedSpeech();
-
-      let idx = activeStepRef.current;
-      const dir = params.direction;
-      if (dir === "next") idx = Math.min(recipe.steps.length - 1, idx + 1);
-      else if (dir === "previous" || dir === "back") idx = Math.max(0, idx - 1);
-      else if (dir !== "repeat") {
-        sendWsMessage(ws, {
-          type: "client_tool_result",
-          tool_call_id: id,
-          result: `Unsupported navigation direction: ${String(dir)}`,
-          is_error: true,
-        });
-        return;
-      }
-
-      const step = recipe.steps[idx];
-      const result = step
-        ? `Step ${idx + 1} of ${recipe.steps.length}: ${step.what_to_do}`
-        : dir === "next"
-          ? "That's the last step - you're done!"
-          : "Already at the first step.";
-
-      sendWsMessage(ws, {
-        type: "client_tool_result",
-        tool_call_id: id,
-        result,
-        is_error: false,
-      });
-
-      if (step) {
-        goToStep(idx);
-      }
-    }
-
-    async function connect() {
-      try {
-        setConnectionError(null);
-
-        const tokenRes = await fetch("/api/elevenlabs/token", {
-          method: "POST",
-        });
-        const tokenData = (await tokenRes
-          .json()
-          .catch(() => null)) as SignedUrlResponse | null;
-        if (!tokenRes.ok || !tokenData?.signed_url) {
-          throw new Error(
-            tokenData?.error ?? "Unable to start ElevenLabs conversation.",
+      if (action === "pause" || action === "resume" || action === "toggle") {
+        const label = String(params.label ?? "").trim();
+        if (label) {
+          recordAction(
+            action === "resume"
+              ? "Resumed active timer."
+              : "Paused active timer.",
           );
-        }
-
-        if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error(
-            "Microphone access is not available in this browser.",
+          updateCookingTimers(
+            action === "toggle" ? "pause" : action,
+            label,
+            false,
           );
-        }
-
-        const ctx = new AudioContext({ latencyHint: "interactive" });
-        audioCtxRef.current = ctx;
-        if (ctx.state === "suspended") void ctx.resume();
-        const nativeRate = ctx.sampleRate;
-
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: false,
-        });
-
-        const ws = new WebSocket(tokenData.signed_url);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          if (!mounted) return;
-
-          const stepsText = recipe.steps
-            .map((s) => `Step ${s.step}: ${s.what_to_do}`)
-            .join("\n");
-          sendWsMessage(ws, {
-            type: "conversation_initiation_client_data",
-            dynamic_variables: {
-              recipe_name: recipe.name,
-              servings: String(recipe.servings),
-              steps: stepsText,
-              hands_free_client_rules:
-                "Keep responses under 2 short sentences. For next, back, previous, repeat, pause timer, or resume timer, call the client tool instead of explaining. The client reads steps aloud locally for speed.",
-            },
-          });
-
-          sourceNode = ctx.createMediaStreamSource(stream!);
-          processor = ctx.createScriptProcessor(MIC_CHUNK_SIZE, 1, 1);
-          silentGain = ctx.createGain();
-          silentGain.gain.value = 0;
-
-          processor.onaudioprocess = (e) => {
-            if (ws.readyState !== WebSocket.OPEN) return;
-            const chunk = encodeAudioChunk(
-              e.inputBuffer.getChannelData(0),
-              nativeRate,
-            );
-            sendWsMessage(ws, { user_audio_chunk: chunk });
-          };
-
-          sourceNode.connect(processor);
-          processor.connect(silentGain);
-          silentGain.connect(ctx.destination);
-
-          if (mounted) {
-            setMode("listening");
-            window.setTimeout(() => {
-              if (!mounted || activeStepRef.current !== 0) return;
-              readStep(0, "Hands-free is ready. I'll start with");
-            }, 250);
-          }
-        };
-
-        ws.onmessage = (ev) => {
-          if (!mounted) return;
-          let msg: ElevenLabsMessage;
-          try {
-            msg = JSON.parse(ev.data as string) as ElevenLabsMessage;
-          } catch {
+        } else {
+          const activeTimers = timersRef.current.filter(
+            (timer) => !timer.completed,
+          );
+          if (activeTimers.length === 0) {
+            context.sendToolResult(id, {
+              result: "No active timers.",
+              isError: true,
+            });
+            recordAction("No active timers to control.");
             return;
           }
-
-          try {
-            switch (msg.type) {
-              case "audio":
-                {
-                  const audioBase64 = getAudioPayload(msg);
-                  if (audioBase64) playChunk(audioBase64);
-                }
-                break;
-              case "agent_response":
-                if (msg.agent_response_event?.agent_response) {
-                  const responseText = msg.agent_response_event.agent_response;
-                  handleLocalCommand(responseText);
-                  setAgentMessage(responseText);
-                  window.setTimeout(() => setAgentMessage(null), 5000);
-                }
-                break;
-              case "interruption":
-                stopQueuedSpeech();
-                break;
-              case "ping": {
-                const pingEvent = msg.ping_event;
-                if (!pingEvent?.event_id) break;
-
-                const delayMs = pingEvent.ping_ms ?? 0;
-
-                window.setTimeout(() => {
-                  if (ws.readyState === WebSocket.OPEN) {
-                    sendWsMessage(ws, {
-                      type: "pong",
-                      event_id: pingEvent.event_id,
-                    });
-                  }
-                }, delayMs);
-
-                break;
-              }
-              case "client_tool_call":
-                if (
-                  msg.client_tool_call?.tool_name &&
-                  msg.client_tool_call.parameters &&
-                  msg.client_tool_call.tool_call_id
-                ) {
-                  handleToolCall(
-                    msg.client_tool_call.tool_name,
-                    msg.client_tool_call.parameters,
-                    msg.client_tool_call.tool_call_id,
-                  );
-                }
-                break;
-            }
-          } catch (error) {
-            setConnectionError(
-              error instanceof Error
-                ? error.message
-                : "Failed to handle ElevenLabs message.",
-            );
-          }
-        };
-
-        ws.onclose = (event) => {
-          if (!mounted) return;
-          setMode("disconnected");
-          if (!event.wasClean) {
-            setConnectionError(
-              event.reason ||
-                `ElevenLabs connection closed unexpectedly (${event.code}).`,
-            );
-          }
-        };
-
-        ws.onerror = () => {
-          if (!mounted) return;
-          setMode("disconnected");
-          setConnectionError(
-            "ElevenLabs connection failed. Check the agent and API key settings.",
+          const nextAction =
+            action === "toggle"
+              ? activeTimers.every((timer) => timer.paused)
+                ? "resume"
+                : "pause"
+              : action;
+          recordAction(
+            nextAction === "resume"
+              ? "Resumed active timers."
+              : "Paused active timers.",
           );
-        };
-      } catch (error) {
-        if (!mounted) return;
-        setMode("disconnected");
-        setConnectionError(
-          error instanceof Error
-            ? error.message
-            : "Hands-free mode failed to start.",
-        );
+          updateCookingTimers(nextAction, undefined, false);
+        }
+        context.sendToolResult(id, {
+          result:
+            action === "pause"
+              ? "Timer paused."
+              : action === "resume"
+                ? "Timer resumed."
+                : "Timer toggled.",
+        });
+        return;
       }
+
+      context.sendToolResult(id, {
+        result: `Unsupported timer action: ${action}`,
+        isError: true,
+      });
+      return;
     }
 
-    void connect();
+    if (name !== "navigate_step") {
+      context.sendToolResult(id, {
+        result: `Unsupported client tool: ${name}`,
+        isError: true,
+      });
+      return;
+    }
 
-    return () => {
-      mounted = false;
-      wsRef.current?.close();
-      wsRef.current = null;
-      stopQueuedSpeech();
-      processor?.disconnect();
-      sourceNode?.disconnect();
-      silentGain?.disconnect();
-      stream?.getTracks().forEach((t) => t.stop());
-      void audioCtxRef.current?.close();
-      audioCtxRef.current = null;
-    };
-  }, [recipe.ingredients, recipe.name, recipe.servings, recipe.steps]);
+    context.stopQueuedSpeech();
 
-  function manualNav(dir: "next" | "prev") {
-    const idx =
-      dir === "next"
-        ? Math.min(recipe.steps.length - 1, activeStep + 1)
-        : Math.max(0, activeStep - 1);
-    goToStep(idx);
+    let idx = activeStepRef.current;
+    const dir = String(params.direction ?? params.action ?? "").toLowerCase();
+    const requestedStep = Number(
+      params.step_number ?? params.step ?? params.index ?? NaN,
+    );
+    const directionStepMatch = dir.match(/\b(?:step\s*)?(\d+)\b/);
+
+    if (Number.isFinite(requestedStep) && requestedStep > 0) {
+      idx = requestedStep - 1;
+    } else if (directionStepMatch?.[1]) {
+      idx = Number(directionStepMatch[1]) - 1;
+    } else if (dir === "next") {
+      idx = Math.min(recipe.steps.length - 1, idx + 1);
+    } else if (dir === "previous" || dir === "back") {
+      idx = Math.max(0, idx - 1);
+    } else if (dir !== "repeat") {
+      context.sendToolResult(id, {
+        result: `Unsupported navigation direction: ${String(dir)}`,
+        isError: true,
+      });
+      return;
+    }
+    idx = Math.max(0, Math.min(recipe.steps.length - 1, idx));
+
+    const step = recipe.steps[idx];
+    const result = step
+      ? `Step ${idx + 1} of ${recipe.steps.length}: ${step.what_to_do}`
+      : dir === "next"
+        ? "That's the last step - you're done!"
+        : "Already at the first step.";
+
+    context.sendToolResult(id, { result });
+
+    if (step) {
+      recordAction(`Jumped to step ${idx + 1}.`);
+      goToStep(idx, false);
+    }
   }
 
+  const { agentMessage, connectionError, mode, speakLocal } =
+    useHandsFreeVoiceSession({
+      cookingContext,
+      onAgentResponse: (text) => addTranscript("chef", text),
+      onClientToolCall: handleToolCall,
+      onUserTranscript: (text) => {
+        setLastHeard(text);
+        addTranscript("you", text);
+      },
+      recipe,
+    });
+
   const modeConfig: Record<
-    Mode,
+    HandsFreeModeStatus,
     { label: string; icon: string; ring: string }
   > = {
     connecting: {
@@ -630,129 +423,118 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
     },
   };
   const { label, icon, ring } = modeConfig[mode];
-
+  const visibleTimers = timers.filter((timer) => !timer.completed).slice(0, 4);
+  const completedTimers = timers.filter((timer) => timer.completed).slice(0, 2);
   return (
-    <div className="fixed inset-0 z-80 flex flex-col bg-[#132326] text-white">
-      <div className="flex items-center justify-between px-6 pb-4 pt-6">
-        <div className="flex items-center gap-3">
-          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400/70">
-            Hands-free
-          </span>
-          <span className="rounded-full bg-white/10 px-3 py-1 text-sm text-white/60">
-            Step {activeStep + 1} of {recipe.steps.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => controlTimer("toggle")}
-            aria-label={isTimerPaused ? "Resume timer" : "Pause timer"}
-            className={`flex items-center gap-4 rounded-3xl border px-5 py-3 text-left transition-colors ${
-              isTimerPaused
-                ? "border-amber-300/50 bg-amber-300/15"
-                : "border-white/10 bg-white/10 hover:bg-white/15"
-            }`}
-          >
-            <span className="material-symbols-outlined text-[28px] text-amber-300">
-              {isTimerPaused ? "play_arrow" : "pause"}
-            </span>
-            <span>
-              <span className="block font-mono text-4xl font-black leading-none tabular-nums text-amber-300">
-                {formatTime(elapsedSeconds)}
-              </span>
-              <span className="mt-1 block text-[10px] font-bold uppercase tracking-widest text-white/45">
-                {isTimerPaused ? "Paused" : "This step"}
-              </span>
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Exit hands-free mode"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
-          >
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
-        </div>
+    <div className="fixed inset-0 z-80 overflow-y-auto bg-[#081514] text-white">
+      <div className="pointer-events-none fixed inset-0 opacity-80">
+        <div className="absolute left-1/2 top-[-18rem] h-[42rem] w-[42rem] -translate-x-1/2 rounded-full bg-[#ffb84d]/20 blur-3xl" />
+        <div className="absolute bottom-[-18rem] right-[-12rem] h-[34rem] w-[34rem] rounded-full bg-[#3dd6c6]/10 blur-3xl" />
       </div>
 
-      <div className="h-0.5 bg-white/10">
-        <div
-          className="h-full bg-amber-400/60 transition-all duration-300"
-          style={{
-            width: `${((activeStep + 1) / recipe.steps.length) * 100}%`,
-          }}
-        />
-      </div>
-
-      <div className="flex flex-1 flex-col items-center justify-center px-8 py-10 text-center">
-        <p className="mb-6 text-5xl font-bold leading-tight tracking-tight text-white sm:text-6xl">
-          {title}
-        </p>
-        {body ? (
-          <p className="max-w-2xl text-xl leading-8 text-white/60">{body}</p>
-        ) : null}
-        {stepIngredients.length > 0 ? (
-          <div className="mt-8 flex flex-wrap justify-center gap-2">
-            {stepIngredients.map((ing, i) => (
-              <span
-                key={i}
-                className="rounded-full bg-amber-400/15 px-4 py-1.5 text-sm text-amber-200/80"
-              >
-                {ing.amount} {ing.unit}{" "}
-                {ing.display_ingredient ?? ing.canonical_ingredient}
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      {agentMessage ? (
-        <div className="pointer-events-none absolute left-1/2 top-24 max-w-sm -translate-x-1/2 rounded-2xl bg-white/10 px-6 py-3 text-center text-sm text-white/70 backdrop-blur-sm">
-          {agentMessage}
-        </div>
-      ) : null}
-
-      <div className="flex items-center justify-between gap-4 px-8 pb-10 pt-4">
-        <button
-          type="button"
-          onClick={() => manualNav("prev")}
-          disabled={activeStep === 0}
-          aria-label="Previous step"
-          className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 disabled:opacity-30"
-        >
-          <span className="material-symbols-outlined text-[28px]">
-            arrow_back
-          </span>
-        </button>
-
-        <div className="flex flex-col items-center gap-2">
-          <div
-            className={`flex h-16 w-16 items-center justify-center rounded-full transition-all ${ring}`}
-          >
-            <span className="material-symbols-outlined text-[28px]">
-              {icon}
-            </span>
-          </div>
-          <p className="text-[11px] text-white/40">{label}</p>
-          {connectionError ? (
-            <p className="max-w-xs text-center text-xs leading-5 text-red-300/80">
-              {connectionError}
+      <div className="relative flex min-h-dvh flex-col">
+        <header className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-6">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.26em] text-amber-300">
+              Cook with Chef
             </p>
-          ) : null}
-        </div>
+            <h2 className="truncate text-lg font-black text-white sm:text-2xl">
+              {recipe.name}
+            </h2>
+          </div>
 
-        <button
-          type="button"
-          onClick={() => manualNav("next")}
-          disabled={activeStep >= recipe.steps.length - 1}
-          aria-label="Next step"
-          className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-400/20 text-amber-300 transition-colors hover:bg-amber-400/30 disabled:opacity-30"
-        >
-          <span className="material-symbols-outlined text-[28px]">
-            arrow_forward
-          </span>
-        </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Exit cooking copilot"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
+            >
+              <span className="material-symbols-outlined text-[22px]">
+                close
+              </span>
+            </button>
+          </div>
+        </header>
+
+        <main className="grid flex-1 gap-5 px-4 py-5 pb-28 sm:px-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] lg:pb-6">
+          <section className="flex min-h-[55dvh] flex-col justify-between rounded-[2rem] border border-white/10 bg-white/[0.055] p-5 shadow-[0_30px_100px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:p-7">
+            <div>
+              <div className="mb-6 flex items-center justify-center">
+                <div className="relative grid h-32 w-32 place-items-center sm:h-40 sm:w-40">
+                  <span
+                    className={`absolute inset-0 rounded-full ${
+                      mode === "listening"
+                        ? "animate-ping bg-amber-300/20"
+                        : mode === "speaking"
+                          ? "bg-teal-300/20"
+                          : "bg-white/10"
+                    }`}
+                  />
+                  <span className="absolute inset-4 rounded-full border border-white/15 bg-gradient-to-br from-white/18 to-white/5 shadow-inner" />
+                  <span
+                    className={`relative grid h-20 w-20 place-items-center rounded-full sm:h-24 sm:w-24 ${ring}`}
+                  >
+                    <span className="material-symbols-outlined text-[34px]">
+                      {icon}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="mx-auto max-w-3xl text-center">
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/45">
+                  {label}
+                </p>
+                <h1 className="mt-3 text-3xl font-black leading-tight tracking-tight text-white sm:text-5xl">
+                  {agentMessage ??
+                    (mode === "listening"
+                      ? "I'm listening. Ask what to do next."
+                      : mode === "speaking"
+                        ? "Chef is talking you through it."
+                        : mode === "connecting"
+                          ? "Setting up your kitchen copilot..."
+                          : "Voice is offline, but controls still work.")}
+                </h1>
+                {connectionError ? (
+                  <p className="mx-auto mt-4 max-w-xl rounded-2xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-sm leading-6 text-red-100/85">
+                    {connectionError}
+                  </p>
+                ) : null}
+                <div className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-2">
+                  {contextLines.length > 0 ? (
+                    contextLines.map((line) => (
+                      <span
+                        key={line}
+                        className="rounded-full border border-teal-200/10 bg-teal-200/10 px-3 py-2 text-xs font-semibold text-teal-50/80"
+                      >
+                        Chef knows {line}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs font-semibold text-white/45">
+                      Chef is cooking from this recipe only
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <HandsFreeTranscriptPanel
+              lastAction={lastAction}
+              lastHeard={lastHeard}
+              transcript={transcript}
+            />
+          </section>
+
+          <HandsFreeAsidePanels
+            completedTimers={completedTimers}
+            contextLines={contextLines}
+            currentPhase={currentPhase}
+            setTimers={setTimers}
+            visibleTimers={visibleTimers}
+          />
+        </main>
       </div>
     </div>
   );

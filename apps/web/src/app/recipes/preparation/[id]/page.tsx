@@ -1,7 +1,12 @@
-import type { BaseRecipe } from "@cart/shared";
+import type {
+  BaseRecipe,
+  KitchenInventoryItem,
+  UserProfileMemory,
+} from "@cart/shared";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
-import { fetchAuthedResource } from "@/lib/api";
+import { fetchAuthedCollection, fetchAuthedResource } from "@/lib/api";
+import { buildCookingContext } from "@/lib/cooking-context";
 import { RecipePreparationClient } from "./preparation-client";
 
 export default async function RecipePreparationPage({
@@ -10,7 +15,12 @@ export default async function RecipePreparationPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const recipeResult = await fetchAuthedResource<BaseRecipe>(`/recipes/${id}`);
+  const [recipeResult, profileMemoryResult, inventoryResult] =
+    await Promise.all([
+      fetchAuthedResource<BaseRecipe>(`/recipes/${id}`),
+      fetchAuthedResource<UserProfileMemory>("/me/profile-memory"),
+      fetchAuthedCollection<KitchenInventoryItem>("/me/kitchen-inventory"),
+    ]);
 
   if (!recipeResult.data) {
     redirect("/recipes");
@@ -18,7 +28,13 @@ export default async function RecipePreparationPage({
 
   return (
     <AppShell topBarTitle="Preparation" showBack>
-      <RecipePreparationClient recipe={recipeResult.data} />
+      <RecipePreparationClient
+        recipe={recipeResult.data}
+        cookingContext={buildCookingContext(
+          profileMemoryResult.data,
+          inventoryResult.data,
+        )}
+      />
     </AppShell>
   );
 }

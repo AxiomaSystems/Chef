@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { BaseRecipe } from "@cart/shared";
 import { HandsFreeMode } from "@/components/hands-free-mode";
 import { RecipeImage } from "@/components/ui/recipe-image";
+import type { CookingContext } from "@/lib/cooking-context";
 
 type RecipeTab = "ingredients" | "steps";
 
@@ -19,7 +20,13 @@ function splitStepCopy(copy: string) {
   };
 }
 
-export function RecipeDetailPageClient({ recipe }: { recipe: BaseRecipe }) {
+export function RecipeDetailPageClient({
+  recipe,
+  cookingContext,
+}: {
+  recipe: BaseRecipe;
+  cookingContext?: CookingContext;
+}) {
   const [activeTab, setActiveTab] = useState<RecipeTab>("ingredients");
   const [handsFreeOpen, setHandsFreeOpen] = useState(false);
   const nutrition = recipe.nutrition_data ?? {};
@@ -201,6 +208,7 @@ export function RecipeDetailPageClient({ recipe }: { recipe: BaseRecipe }) {
       {handsFreeOpen ? (
         <HandsFreeMode
           recipe={recipe}
+          cookingContext={cookingContext}
           onClose={() => setHandsFreeOpen(false)}
         />
       ) : null}
