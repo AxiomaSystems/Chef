@@ -19,6 +19,8 @@ This slice keeps the existing voice architecture and changes the product experie
 - The current recipe step is a secondary reference card.
 - A kitchen state panel shows phase, step timer, and progress.
 - The UI exposes practical voice hints such as “repeat”, “next step”, and “pause timer”.
+- Named countdown timers can be started, paused, resumed, stopped, and queried with voice-style commands.
+- Active timers appear in the kitchen state panel so parallel cooking tasks are visible.
 - Local Web Speech commands and ElevenLabs WebSocket behavior remain intact.
 
 ## Existing Architecture
@@ -51,11 +53,11 @@ Routes that exist but are not currently used by the main hands-free component:
 ## Next Slices
 
 1. Extract state and voice logic out of `hands-free-mode.tsx`.
-2. Add real multi-timer commands like “start a pasta timer for 8 minutes”.
-3. Send profile memory, inventory summary, appliances, and dietary rules into the cooking agent context.
-4. Persist cooking session state and transcript if the product wants continuity across refresh/exit.
-5. Upgrade transcript when ElevenLabs exposes partial user transcript events in this integration.
-6. Add an explicit degraded local-only mode when ElevenLabs is unavailable.
+2. Send profile memory, inventory summary, appliances, and dietary rules into the cooking agent context.
+3. Persist cooking session state and transcript if the product wants continuity across refresh/exit.
+4. Upgrade transcript when ElevenLabs exposes partial user transcript events in this integration.
+5. Add an explicit degraded local-only mode when ElevenLabs is unavailable.
+6. Split the component into smaller state, voice, transcript, and UI modules.
 
 ## Non-Goals For This Slice
 

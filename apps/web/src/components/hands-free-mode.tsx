@@ -136,13 +136,23 @@ function parseTimerLabel(command: string) {
   );
 }
 
+function parseTimerTargetLabel(command: string) {
+  const match = command.match(
+    /\b(?:pause|resume|start|continue|stop|cancel|clear)\s+(?:the\s+)?([a-z][a-z\s-]{1,24}?)\s+timer\b/,
+  );
+  return match?.[1]?.trim();
+}
+
 export function HandsFreeMode({ recipe, onClose }: Props) {
   const [activeStep, setActiveStep] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [timers, setTimers] = useState<CookingTimer[]>([]);
   const [isTimerPaused, setIsTimerPaused] = useState(false);
   const [mode, setMode] = useState<Mode>("connecting");
   const [agentMessage, setAgentMessage] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const timerIdRef = useRef(0);
+  const timersRef = useRef<CookingTimer[]>([]);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
 
   const activeStepRef = useRef(0);
@@ -186,14 +196,38 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
     ]);
   }
 
+  function announce(text: string) {
+    addTranscript("chef", text);
+    speakLocal(text);
+  }
+
   useEffect(() => {
     activeStepRef.current = activeStep;
   }, [activeStep]);
+  useEffect(() => {
+    timersRef.current = timers;
+  }, [timers]);
 
   useEffect(() => {
     timerPausedRef.current = isTimerPaused;
   }, [isTimerPaused]);
 
+  setTimers((current) =>
+    current.map((timer) => {
+      if (timer.paused || timer.completed) return timer;
+      const remainingSeconds = Math.max(0, timer.remainingSeconds - 1);
+      if (remainingSeconds === 0 && timer.remainingSeconds > 0) {
+        window.setTimeout(() => {
+          announce(`${timer.label} timer is done.`);
+        }, 0);
+      }
+      return {
+        ...timer,
+        remainingSeconds,
+        completed: remainingSeconds === 0,
+      };
+    }),
+  );
   useEffect(() => {
     const id = window.setInterval(() => {
       if (!timerPausedRef.current) {
@@ -327,13 +361,111 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
     }
   }
 
+  function startCookingTimer(label: string, totalSeconds: number) {
+    timerIdRef.current += 1;
+    const timer: CookingTimer = {
+      id: timerIdRef.current,
+      label,
+      remainingSeconds: totalSeconds,
+      totalSeconds,
+      paused: false,
+      completed: false,
+    };
+    setTimers((current) => [timer, ...current.filter((t) => !t.completed)]);
+    announce(`Started ${label} timer for ${formatTime(totalSeconds)}.`);
+  }
+
+  function updateCookingTimers(
+    action: "pause" | "resume" | "stop",
+    label?: string,
+  ) {
+    const normalizedLabel = label?.trim().toLowerCase();
+    const matchingTimers = timersRef.current.filter(
+      (timer) =>
+        !timer.completed &&
+        (!normalizedLabel ||
+          timer.label.toLowerCase().includes(normalizedLabel)),
+    );
+    if (matchingTimers.length === 0) {
+      announce(
+        normalizedLabel
+          ? `I don't see an active ${normalizedLabel} timer.`
+          : "I don't see any active timers.",
+      );
+      return;
+    }
+    const ids = new Set(matchingTimers.map((timer) => timer.id));
+    if (action === "stop") {
+      setTimers((current) => current.filter((timer) => !ids.has(timer.id)));
+      announce(
+        matchingTimers.length === 1
+          ? `Stopped the ${matchingTimers[0].label} timer.`
+          : `Stopped ${matchingTimers.length} timers.`,
+      );
+      return;
+    }
+    setTimers((current) =>
+      current.map((timer) =>
+        ids.has(timer.id) ? { ...timer, paused: action === "pause" } : timer,
+      ),
+    );
+    announce(
+      matchingTimers.length === 1
+        ? `${matchingTimers[0].label} timer ${action === "pause" ? "paused" : "resumed"}.`
+        : `${matchingTimers.length} timers ${action === "pause" ? "paused" : "resumed"}.`,
+    );
+  }
+
+  function announceTimerStatus() {
+    const activeTimers = timersRef.current.filter((timer) => !timer.completed);
+    if (activeTimers.length === 0) {
+      announce("No active timers right now.");
+      return;
+    }
+    announce(
+      activeTimers
+        .map(
+          (timer) =>
+            `${timer.label}: ${formatTime(timer.remainingSeconds)} ${timer.paused ? "paused" : "left"}`,
+        )
+        .join(". "),
+    );
+  }
+
   function handleLocalCommand(text: string) {
     const command = text.toLowerCase();
+    if (/\b(start|set)\b.*\btimer\b/.test(command)) {
+      const duration = parseTimerDuration(command);
+      if (duration) {
+        startCookingTimer(parseTimerLabel(command), duration);
+      } else {
+        announce("Tell me how long to set the timer for.");
+      }
+      return true;
+    }
+    if (/\b(how much time|time left|timer status|timers)\b/.test(command)) {
+      announceTimerStatus();
+      return true;
+    }
+    if (/\b(stop|cancel|clear)\b.*\btimer\b/.test(command)) {
+      updateCookingTimers("stop", parseTimerTargetLabel(command));
+      return true;
+    }
     if (/\b(pause|stop|hold)\b.*\b(time|timer|clock)\b/.test(command)) {
+      const targetLabel = parseTimerTargetLabel(command);
+      if (targetLabel || timersRef.current.some((timer) => !timer.completed)) {
+        updateCookingTimers("pause", targetLabel);
+        return true;
+      }
       controlTimer("pause");
       return true;
     }
     if (/\b(resume|start|continue)\b.*\b(time|timer|clock)\b/.test(command)) {
+      const targetLabel = parseTimerTargetLabel(command);
+      if (targetLabel || timersRef.current.some((timer) => !timer.completed)) {
+        updateCookingTimers("resume", targetLabel);
+        return true;
+      }
       controlTimer("resume");
       return true;
     }
@@ -398,8 +530,62 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
 
       if (name === "timer_control" || name === "control_timer") {
         const action = String(params.action ?? params.command ?? "");
+        if (action === "start" || action === "set") {
+          const seconds = Number(
+            params.duration_seconds ??
+              params.seconds ??
+              Number(params.minutes ?? 0) * 60,
+          );
+          if (Number.isFinite(seconds) && seconds > 0) {
+            startCookingTimer(String(params.label ?? "timer"), seconds);
+            sendWsMessage(ws, {
+              type: "client_tool_result",
+              tool_call_id: id,
+              result: `Started ${String(params.label ?? "timer")} timer for ${formatTime(seconds)}.`,
+              is_error: false,
+            });
+            return;
+          }
+        }
+        if (action === "status") {
+          const activeTimers = timersRef.current.filter(
+            (timer) => !timer.completed,
+          );
+          const result =
+            activeTimers.length > 0
+              ? activeTimers
+                  .map(
+                    (timer) =>
+                      `${timer.label}: ${formatTime(timer.remainingSeconds)} ${timer.paused ? "paused" : "left"}`,
+                  )
+                  .join(". ")
+              : "No active timers.";
+          sendWsMessage(ws, {
+            type: "client_tool_result",
+            tool_call_id: id,
+            result,
+            is_error: false,
+          });
+          announceTimerStatus();
+          return;
+        }
+        if (action === "stop" || action === "cancel") {
+          updateCookingTimers("stop", String(params.label ?? ""));
+          sendWsMessage(ws, {
+            type: "client_tool_result",
+            tool_call_id: id,
+            result: "Timer stopped.",
+            is_error: false,
+          });
+          return;
+        }
         if (action === "pause" || action === "resume" || action === "toggle") {
-          controlTimer(action);
+          const label = String(params.label ?? "").trim();
+          if (label) {
+            updateCookingTimers(action === "toggle" ? "pause" : action, label);
+          } else {
+            controlTimer(action);
+          }
           sendWsMessage(ws, {
             type: "client_tool_result",
             tool_call_id: id,
@@ -519,7 +705,7 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
               servings: String(recipe.servings),
               steps: stepsText,
               hands_free_client_rules:
-                "Keep responses under 2 short sentences. For next, back, previous, repeat, pause timer, or resume timer, call the client tool instead of explaining. The client reads steps aloud locally for speed.",
+                "Keep responses under 2 short sentences. For next, back, previous, repeat, pause timer, resume timer, stop timer, timer status, or starting a named timer, call the client tool instead of explaining. The client reads steps aloud locally for speed.",
             },
           });
 
@@ -698,6 +884,8 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
     },
   };
   const { label, icon, ring } = modeConfig[mode];
+  const visibleTimers = timers.filter((timer) => !timer.completed).slice(0, 4);
+  const completedTimers = timers.filter((timer) => timer.completed).slice(0, 2);
 
   return (
     <div className="fixed inset-0 z-80 overflow-y-auto bg-[#081514] text-white">
@@ -895,6 +1083,74 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
                   </span>
                 </div>
               </div>
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/15 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
+                    Active timers
+                  </span>
+                  <span className="text-xs text-white/35">
+                    Say “start a pasta timer for 8 minutes”
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {visibleTimers.length > 0 ? (
+                    visibleTimers.map((timer) => (
+                      <div
+                        key={timer.id}
+                        className="rounded-xl bg-white/8 px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="truncate text-sm font-bold text-white">
+                            {timer.label}
+                          </span>
+                          <span className="font-mono text-sm font-black tabular-nums text-amber-300">
+                            {formatTime(timer.remainingSeconds)}
+                          </span>
+                        </div>
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className="h-full rounded-full bg-amber-300 transition-all duration-500"
+                            style={{
+                              width: `${Math.max(
+                                0,
+                                Math.min(
+                                  100,
+                                  (timer.remainingSeconds /
+                                    timer.totalSeconds) *
+                                    100,
+                                ),
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm leading-6 text-white/45">
+                      No named timers yet. Chef can keep track of parallel
+                      cooking tasks while you work.
+                    </p>
+                  )}
+                  {completedTimers.map((timer) => (
+                    <button
+                      key={timer.id}
+                      type="button"
+                      onClick={() =>
+                        setTimers((current) =>
+                          current.filter((item) => item.id !== timer.id),
+                        )
+                      }
+                      className="flex w-full items-center justify-between rounded-xl border border-amber-300/30 bg-amber-300/12 px-3 py-2 text-left text-sm text-amber-100"
+                    >
+                      <span>{timer.label} timer done</span>
+                      <span className="material-symbols-outlined text-[16px]">
+                        close
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </section>
 
             <section className="rounded-[1.6rem] border border-white/10 bg-[#fff8e8] p-5 text-[#142326] shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
@@ -950,6 +1206,8 @@ export function HandsFreeMode({ recipe, onClose }: Props) {
               <div className="mt-3 flex flex-wrap gap-2">
                 {[
                   "What do I do now?",
+                  "Start a pasta timer for 8 minutes",
+                  "How much time left?",
                   "Repeat that",
                   "Pause timer",
                   "Next step",
