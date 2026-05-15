@@ -1,7 +1,12 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
+import type {
+  BaseRecipe,
+  CaptureRecipePreview,
+  Cuisine,
+  Tag,
+} from "@cart/shared";
 import { createRecipeAction, updateRecipeAction } from "@/app/home-actions";
 import {
   fetchUnsplashImageAction,
@@ -47,43 +52,119 @@ function normalizeTagSlug(name: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function isUserFacingImportedTag(name: string) {
+  const slug = normalizeTagSlug(name);
+  return ![
+    "instagram",
+    "tiktok",
+    "youtube",
+    "social",
+    "unverified",
+    "insufficient-data",
+    "imported",
+    "unknown",
+  ].includes(slug);
+}
+
+function normalizeCuisineTextForInitialMatch(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resolveInitialCuisineForText(cuisines: Cuisine[], label: string) {
+  const normalized = label.trim().toLowerCase();
+  const searchable = normalizeCuisineTextForInitialMatch(label);
+
+  if (!searchable) return null;
+
+  const exactMatch = cuisines.find(
+    (cuisine) =>
+      cuisine.label.trim().toLowerCase() === normalized ||
+      cuisine.slug.trim().toLowerCase() === normalized,
+  );
+
+  if (exactMatch) return exactMatch;
+
+  return (
+    cuisines.find((cuisine) => {
+      const labelText = normalizeCuisineTextForInitialMatch(cuisine.label);
+      const slugText = normalizeCuisineTextForInitialMatch(cuisine.slug);
+      return (
+        labelText === searchable ||
+        slugText === searchable ||
+        labelText.includes(searchable) ||
+        searchable.includes(labelText) ||
+        slugText.includes(searchable) ||
+        searchable.includes(slugText)
+      );
+    }) ??
+    cuisines.find((cuisine) => cuisine.slug === "other") ??
+    cuisines.find((cuisine) => cuisine.kind === "other") ??
+    cuisines[0] ??
+    null
+  );
+}
+
 export function RecipeCreateModal({
   cuisines,
   tags,
   onClose,
   onCreated,
   initialRecipe,
+  initialDraft,
+  presentation = "modal",
 }: {
   cuisines: Cuisine[];
   tags: Tag[];
   onClose: () => void;
   onCreated: (recipe: BaseRecipe) => void;
   initialRecipe?: BaseRecipe | null;
+  initialDraft?: CaptureRecipePreview | null;
+  presentation?: "modal" | "page";
 }) {
+  const isPage = presentation === "page";
   const isEditing = !!initialRecipe;
   const dietaryTags = tags.filter((tag) => tag.kind === "dietary_badge");
+  const draftCuisine = initialDraft?.cuisine
+    ? resolveInitialCuisineForText(cuisines, initialDraft.cuisine)
+    : null;
+  const initialCuisineId =
+    initialRecipe?.cuisine_id ?? draftCuisine?.id ?? cuisines[0]?.id ?? "";
 
-  const [name, setName] = useState(initialRecipe?.name ?? "");
+  const [name, setName] = useState(
+    initialRecipe?.name ?? initialDraft?.name ?? "",
+  );
   const [description, setDescription] = useState(
-    initialRecipe?.description ?? "",
+    initialRecipe?.description ?? initialDraft?.description ?? "",
   );
-  const [cuisineId, setCuisineId] = useState(
-    initialRecipe?.cuisine_id ?? cuisines[0]?.id ?? "",
-  );
+  const [cuisineId, setCuisineId] = useState(initialCuisineId);
   const initialCuisine = cuisines.find(
-    (cuisine) => cuisine.id === (initialRecipe?.cuisine_id ?? cuisines[0]?.id),
+    (cuisine) => cuisine.id === initialCuisineId,
   );
-  const [cuisineQuery, setCuisineQuery] = useState(initialCuisine?.label ?? "");
+  const [cuisineQuery, setCuisineQuery] = useState(
+    initialCuisine?.label ?? initialDraft?.cuisine ?? "",
+  );
   const [isCuisineMenuOpen, setIsCuisineMenuOpen] = useState(false);
   const [servings, setServings] = useState(
-    initialRecipe?.servings !== undefined ? String(initialRecipe.servings) : "2",
+    initialRecipe?.servings !== undefined
+      ? String(initialRecipe.servings)
+      : initialDraft?.servings !== undefined
+        ? String(initialDraft.servings)
+        : "2",
   );
   const [coverImageUrl, setCoverImageUrl] = useState(
-    initialRecipe?.cover_image_url ?? "",
+    initialRecipe?.cover_image_url ?? initialDraft?.cover_image_url ?? "",
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverImageSourceRef = useRef<"ai" | "upload" | "initial" | null>(
-    initialRecipe?.cover_image_url ? "initial" : null,
+    initialRecipe?.cover_image_url || initialDraft?.cover_image_url
+      ? "initial"
+      : null,
   );
   const uploadVersionRef = useRef(0);
 
@@ -115,7 +196,8 @@ export function RecipeCreateModal({
     reader.readAsDataURL(file);
   }
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
-    initialRecipe?.tag_ids ?? [],
+    initialRecipe?.tag_ids ??
+      (initialDraft?.tags ? findTagIdsFromNames(initialDraft.tags) : []),
   );
   const [ingredients, setIngredients] = useState<IngredientRow[]>(
     initialRecipe?.ingredients.map((ingredient) => ({
@@ -124,49 +206,84 @@ export function RecipeCreateModal({
       unit: ingredient.unit,
       preparation: ingredient.preparation ?? "",
       optional: !!ingredient.optional,
-    })) ?? [
-      {
-        canonical_ingredient: "",
-        amount: "",
-        unit: "cup",
-        preparation: "",
-        optional: false,
-      },
-    ],
+    })) ??
+      (initialDraft?.ingredients.length
+        ? initialDraft.ingredients.map((ingredient) => ({
+            canonical_ingredient:
+              ingredient.display_ingredient ?? ingredient.canonical_ingredient,
+            amount: String(ingredient.amount),
+            unit: ingredient.unit || "cup",
+            preparation: ingredient.preparation ?? "",
+            optional: !!ingredient.optional,
+          }))
+        : [
+            {
+              canonical_ingredient: "",
+              amount: "",
+              unit: "cup",
+              preparation: "",
+              optional: false,
+            },
+          ]),
   );
   const [steps, setSteps] = useState<StepRow[]>(
     initialRecipe?.steps.map((step) => ({
       what_to_do: step.what_to_do,
-    })) ?? [{ what_to_do: "" }],
+    })) ??
+      (initialDraft?.steps.length
+        ? initialDraft.steps.map((step) => ({
+            what_to_do: step.what_to_do,
+          }))
+        : [{ what_to_do: "" }]),
   );
   const [calories, setCalories] = useState(
     initialRecipe?.nutrition_data?.calories !== undefined
       ? String(initialRecipe.nutrition_data.calories)
-      : "",
+      : initialDraft?.nutrition_estimate?.calories !== undefined
+        ? String(initialDraft.nutrition_estimate.calories)
+        : "",
   );
   const [proteinG, setProteinG] = useState(
     initialRecipe?.nutrition_data?.protein_g !== undefined
       ? String(initialRecipe.nutrition_data.protein_g)
-      : "",
+      : initialDraft?.nutrition_estimate?.protein_g !== undefined
+        ? String(initialDraft.nutrition_estimate.protein_g)
+        : "",
   );
   const [carbsG, setCarbsG] = useState(
     initialRecipe?.nutrition_data?.carbs_g !== undefined
       ? String(initialRecipe.nutrition_data.carbs_g)
-      : "",
+      : initialDraft?.nutrition_estimate?.carbs_g !== undefined
+        ? String(initialDraft.nutrition_estimate.carbs_g)
+        : "",
   );
   const [fatG, setFatG] = useState(
     initialRecipe?.nutrition_data?.fat_g !== undefined
       ? String(initialRecipe.nutrition_data.fat_g)
-      : "",
+      : initialDraft?.nutrition_estimate?.fat_g !== undefined
+        ? String(initialDraft.nutrition_estimate.fat_g)
+        : "",
   );
   const [dietaryRestrictionInput, setDietaryRestrictionInput] = useState("");
-  const [customTagNames, setCustomTagNames] = useState<string[]>([]);
+  const [customTagNames, setCustomTagNames] = useState<string[]>(
+    initialRecipe
+      ? []
+      : initialDraft?.tags
+        ? findCustomTagNamesFromNames(
+            initialDraft.tags.filter(isUserFacingImportedTag),
+          )
+        : [],
+  );
   const [additionalInstructions, setAdditionalInstructions] = useState("");
   const [error, setError] = useState<string | undefined>();
   const [, startSave] = useTransition();
   const [isAutofilling, startAutofill] = useTransition();
   const [saving, setSaving] = useState(false);
-  const [autofillHint, setAutofillHint] = useState<string | undefined>();
+  const [autofillHint, setAutofillHint] = useState<string | undefined>(
+    initialDraft
+      ? "Chef imported this as a draft. Review the fields before creating the recipe."
+      : undefined,
+  );
   const [lastAutofilledName, setLastAutofilledName] = useState("");
   const [editSaveMode, setEditSaveMode] = useState<"update" | "copy">("update");
 
@@ -349,11 +466,33 @@ export function RecipeCreateModal({
   }
 
   function findTagIdsFromNames(nextTags: string[]) {
-    const normalizedTags = nextTags.map(normalizeTagSlug);
+    const normalizedTags = nextTags
+      .filter(isUserFacingImportedTag)
+      .map(normalizeTagSlug);
 
     return dietaryTags
       .filter((tag) => normalizedTags.includes(normalizeTagSlug(tag.name)))
       .map((tag) => tag.id);
+  }
+
+  function findCustomTagNamesFromNames(nextTags: string[]) {
+    const matchedSlugs = new Set(
+      tags.flatMap((tag) => [
+        normalizeTagSlug(tag.name),
+        normalizeTagSlug(tag.slug),
+      ]),
+    );
+
+    return Array.from(
+      new Map(
+        nextTags
+          .filter(isUserFacingImportedTag)
+          .map(normalizeTagName)
+          .filter(Boolean)
+          .filter((name) => !matchedSlugs.has(normalizeTagSlug(name)))
+          .map((name) => [normalizeTagSlug(name), name]),
+      ).values(),
+    );
   }
 
   function findTagFromName(name: string) {
@@ -411,7 +550,10 @@ export function RecipeCreateModal({
     setDietaryRestrictionInput("");
   }
 
-  function removeDietaryRestrictionChip(chip: { type: "tag" | "custom"; value: string }) {
+  function removeDietaryRestrictionChip(chip: {
+    type: "tag" | "custom";
+    value: string;
+  }) {
     if (chip.type === "tag") {
       setSelectedTagIds((prev) => prev.filter((tagId) => tagId !== chip.value));
       return;
@@ -579,15 +721,17 @@ export function RecipeCreateModal({
         cuisine: recipe.cuisine,
         ingredients: recipe.ingredients.map(
           (ingredient) =>
-            ingredient.display_ingredient ??
-            ingredient.canonical_ingredient,
+            ingredient.display_ingredient ?? ingredient.canonical_ingredient,
         ),
         instructions: additionalInstructions.trim() || undefined,
         dietaryRestrictions: dietaryRestrictionText || undefined,
       });
 
       applyAiRecipePreview(recipe, { renameRecipe: shouldSaveAsNew });
-      if (imageUrl && uploadVersionRef.current === uploadVersionAtAutofillStart) {
+      if (
+        imageUrl &&
+        uploadVersionRef.current === uploadVersionAtAutofillStart
+      ) {
         coverImageSourceRef.current = "ai";
         setCoverImageUrl(imageUrl);
       }
@@ -735,35 +879,59 @@ export function RecipeCreateModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-stretch justify-center p-0 sm:items-center sm:p-6">
+    <div
+      className={
+        isPage
+          ? "mx-auto w-full max-w-4xl"
+          : "fixed inset-0 z-[60] flex items-stretch justify-center p-0 sm:items-center sm:p-6"
+      }
+    >
+      {!isPage && (
+        <div
+          className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm"
+          onClick={onClose}
+        />
+      )}
+
       <div
-        className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-background shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl">
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-outline-variant/30 px-4 py-4 sm:items-center sm:px-6">
-          <div className="min-w-0">
-            <h2 className="truncate text-title-lg font-bold text-on-surface sm:text-headline-sm">
-              {isEditing ? "Edit Recipe" : "Create Recipe"}
-            </h2>
-            <p className="mt-0.5 text-body-sm leading-snug text-outline">
-              {isEditing
-                ? "Update this recipe or save the edit as a new version"
-                : "Build your own culinary masterpiece"}
-            </p>
+        className={
+          isPage
+            ? "relative flex w-full flex-col overflow-hidden rounded-[1.6rem] border border-outline-variant/40 bg-background shadow-[0_24px_80px_rgba(46,30,15,0.12)] sm:rounded-[2rem]"
+            : "relative flex h-dvh w-full flex-col overflow-hidden bg-background shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl"
+        }
+      >
+        {!isPage && (
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-outline-variant/30 px-4 py-4 sm:items-center sm:px-6">
+            <div className="min-w-0">
+              <h2 className="truncate text-title-lg font-bold text-on-surface sm:text-headline-sm">
+                {isEditing ? "Edit Recipe" : "Create Recipe"}
+              </h2>
+              <p className="mt-0.5 text-body-sm leading-snug text-outline">
+                {isEditing
+                  ? "Update this recipe or save the edit as a new version"
+                  : initialDraft
+                    ? "Review Chef's imported draft before saving it"
+                    : "Build your own culinary masterpiece"}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-surface-container"
+            >
+              <span className="material-symbols-outlined text-[20px] text-outline">
+                close
+              </span>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-surface-container"
-          >
-            <span className="material-symbols-outlined text-[20px] text-outline">
-              close
-            </span>
-          </button>
-        </div>
+        )}
 
-        <div className="flex-1 space-y-7 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
+        <div
+          className={
+            isPage
+              ? "space-y-7 px-4 py-5 sm:px-7 sm:py-7 lg:px-8"
+              : "flex-1 space-y-7 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6"
+          }
+        >
           {error && (
             <div className="rounded-xl bg-error-container p-3 text-body-sm text-on-error-container">
               {error}
@@ -871,7 +1039,9 @@ export function RecipeCreateModal({
             <div className="space-y-1">
               <label className="text-label-sm uppercase tracking-wide text-outline">
                 Additional Instructions{" "}
-                <span className="normal-case text-[11px] font-normal">(optional)</span>
+                <span className="normal-case text-[11px] font-normal">
+                  (optional)
+                </span>
               </label>
               <textarea
                 value={additionalInstructions}
@@ -1011,14 +1181,18 @@ export function RecipeCreateModal({
                     }}
                     className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
                   >
-                    <span className="material-symbols-outlined text-[14px]">close</span>
+                    <span className="material-symbols-outlined text-[14px]">
+                      close
+                    </span>
                   </button>
                   <button
                     type="button"
                     onClick={openFilePicker}
                     className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-black/70"
                   >
-                    <span className="material-symbols-outlined text-[12px]">edit</span>
+                    <span className="material-symbols-outlined text-[12px]">
+                      edit
+                    </span>
                     Change
                   </button>
                 </div>
@@ -1028,7 +1202,9 @@ export function RecipeCreateModal({
                   onClick={openFilePicker}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-outline-variant/50 bg-white px-4 py-6 text-body-sm text-outline transition-colors hover:bg-surface-container-low"
                 >
-                  <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
+                  <span className="material-symbols-outlined text-[20px]">
+                    add_photo_alternate
+                  </span>
                   Upload cover image
                 </button>
               )}
@@ -1071,7 +1247,14 @@ export function RecipeCreateModal({
 
             <div className="space-y-2">
               {ingredients.map((row, i) => (
-                <div key={i} className="flex items-start gap-2">
+                <div
+                  key={i}
+                  className={
+                    isPage
+                      ? "grid grid-cols-[minmax(0,1fr)_4.8rem_5.8rem_2.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_5.5rem_7rem_2.5rem]"
+                      : "flex items-start gap-2"
+                  }
+                >
                   <input
                     value={row.canonical_ingredient}
                     onChange={(event) =>
@@ -1093,14 +1276,14 @@ export function RecipeCreateModal({
                       updateIngredient(i, "amount", event.target.value)
                     }
                     placeholder="Qty"
-                    className="w-20 rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="w-full rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-20"
                   />
                   <select
                     value={row.unit}
                     onChange={(event) =>
                       updateIngredient(i, "unit", event.target.value)
                     }
-                    className="w-28 rounded-xl border border-outline-variant/50 bg-white px-2 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="w-full rounded-xl border border-outline-variant/50 bg-white px-2 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-28"
                   >
                     {UNITS.map((unit) => (
                       <option key={unit} value={unit}>
@@ -1111,7 +1294,7 @@ export function RecipeCreateModal({
                   <button
                     onClick={() => removeIngredient(i)}
                     disabled={ingredients.length === 1}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl text-outline transition-colors hover:bg-error-container/30 hover:text-error disabled:opacity-30"
+                    className="flex h-10 w-full items-center justify-center rounded-xl text-outline transition-colors hover:bg-error-container/30 hover:text-error disabled:opacity-30 sm:h-9 sm:w-9"
                   >
                     <span className="material-symbols-outlined text-[18px]">
                       delete
@@ -1137,7 +1320,14 @@ export function RecipeCreateModal({
 
             <div className="space-y-3">
               {steps.map((row, i) => (
-                <div key={i} className="flex items-start gap-3">
+                <div
+                  key={i}
+                  className={
+                    isPage
+                      ? "grid grid-cols-[2.25rem_minmax(0,1fr)_2.25rem] gap-2 sm:gap-3"
+                      : "flex items-start gap-3"
+                  }
+                >
                   <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-fixed-dim text-label-sm font-bold text-on-primary-fixed">
                     {i + 1}
                   </div>
@@ -1172,7 +1362,10 @@ export function RecipeCreateModal({
 
           <section className="space-y-3">
             <h3 className="border-b border-outline-variant/30 pb-2 text-label-lg font-bold text-on-surface">
-              Nutrition <span className="text-body-sm font-normal text-outline">(optional)</span>
+              Nutrition{" "}
+              <span className="text-body-sm font-normal text-outline">
+                (optional)
+              </span>
             </h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
@@ -1201,7 +1394,13 @@ export function RecipeCreateModal({
           </section>
         </div>
 
-        <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-outline-variant/30 bg-white px-4 py-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:px-6 sm:py-4">
+        <div
+          className={
+            isPage
+              ? "sticky bottom-[72px] z-10 grid shrink-0 grid-cols-2 gap-3 border-t border-outline-variant/30 bg-white/95 px-4 py-3 backdrop-blur sm:bottom-0 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:px-6 sm:py-4"
+              : "sticky bottom-0 grid shrink-0 grid-cols-2 gap-3 border-t border-outline-variant/30 bg-white/95 px-4 py-3 backdrop-blur sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:px-6 sm:py-4"
+          }
+        >
           <button
             onClick={onClose}
             className="min-h-11 rounded-full border border-outline-variant px-5 py-2.5 text-label-md text-on-surface-variant transition-colors hover:bg-surface-container-low"
@@ -1241,7 +1440,9 @@ export function RecipeCreateModal({
                     refresh
                   </span>
                 )}
-                {saving && editSaveMode === "update" ? "Saving..." : "Save Changes"}
+                {saving && editSaveMode === "update"
+                  ? "Saving..."
+                  : "Save Changes"}
               </button>
             </>
           ) : (

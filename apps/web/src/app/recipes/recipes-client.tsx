@@ -2,9 +2,11 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
+import type { BaseRecipe, Capture, Cuisine, Tag } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { RecipeCreateModal } from "@/components/recipes/recipe-create-modal";
+import { RecipeCaptureModal } from "@/components/recipes/recipe-capture-modal";
+import { IMPORTED_RECIPE_DRAFT_STORAGE_KEY } from "@/lib/imported-recipe-draft";
 import {
   submitDraftFlowAction,
   createShoppingCartAction,
@@ -31,12 +33,12 @@ export function RecipesClient({
   cuisines,
   tags,
   recipes: initialRecipes,
-  openCreateOnLoad = false,
+  openImportOnLoad = false,
 }: {
   cuisines: Cuisine[];
   tags: Tag[];
   recipes: BaseRecipe[];
-  openCreateOnLoad?: boolean;
+  openImportOnLoad?: boolean;
 }) {
   const router = useRouter();
 
@@ -46,7 +48,7 @@ export function RecipesClient({
   const [activeCuisine, setActiveCuisine] = useState<string | null>(null);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<BaseRecipe | null>(null);
-  const [showCreate, setShowCreate] = useState(openCreateOnLoad);
+  const [showImport, setShowImport] = useState(openImportOnLoad);
   const [selections, setSelections] = useState<Map<string, BaseRecipe>>(
     new Map(),
   );
@@ -57,10 +59,10 @@ export function RecipesClient({
   const recipeGridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (openCreateOnLoad) {
+    if (openImportOnLoad) {
       router.replace("/recipes", { scroll: false });
     }
-  }, [router, openCreateOnLoad]);
+  }, [router, openImportOnLoad]);
 
   const dietaryTags = tags
     .filter((t) => t.kind === "dietary_badge")
@@ -166,6 +168,16 @@ export function RecipesClient({
     });
   }
 
+  function handleCaptureReview(capture: Capture) {
+    if (!capture.recipe_preview) return;
+    window.sessionStorage.setItem(
+      IMPORTED_RECIPE_DRAFT_STORAGE_KEY,
+      JSON.stringify(capture.recipe_preview),
+    );
+    setShowImport(false);
+    router.push("/recipes/new?draft=import");
+  }
+
   /* ── render ─────────────────────────────────────── */
 
   return (
@@ -195,7 +207,7 @@ export function RecipesClient({
           <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Create own */}
             <button
-              onClick={() => setShowCreate(true)}
+              onClick={() => router.push("/recipes/new")}
               className="bg-secondary-container rounded-2xl p-5 flex flex-col gap-3 cursor-pointer hover:brightness-95 transition-all text-left"
             >
               <div className="w-12 h-12 bg-white/60 rounded-xl flex items-center justify-center">
@@ -216,19 +228,9 @@ export function RecipesClient({
               </span>
             </button>
 
-            {/* Public recipes */}
+            {/* Import recipe */}
             <button
-              onClick={() => {
-                setTab("public");
-                setTimeout(
-                  () =>
-                    recipeGridRef.current?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    }),
-                  50,
-                );
-              }}
+              onClick={() => setShowImport(true)}
               className="bg-primary-surface rounded-2xl p-5 flex flex-col gap-3 cursor-pointer hover:brightness-95 transition-all text-left border border-primary-fixed-dim/20"
             >
               <div className="w-12 h-12 bg-primary-fixed-dim/20 rounded-xl flex items-center justify-center">
@@ -238,10 +240,10 @@ export function RecipesClient({
               </div>
               <div>
                 <p className="text-label-lg font-bold text-on-surface">
-                  Public recipes
+                  Import recipe
                 </p>
                 <p className="text-body-sm text-outline mt-0.5 leading-snug">
-                  Browse shared recipes and save the ones you like.
+                  Paste a link or recipe text and Chef will draft it for review.
                 </p>
               </div>
               <span className="material-symbols-outlined text-outline text-[20px]">
@@ -397,7 +399,7 @@ export function RecipesClient({
             </div>
             {tab === "mine" && (
               <button
-                onClick={() => setShowCreate(true)}
+                onClick={() => router.push("/recipes/new")}
                 className="flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary rounded-full font-semibold text-label-md"
               >
                 <span className="material-symbols-outlined text-[16px]">
@@ -528,16 +530,10 @@ export function RecipesClient({
       </div>
 
       {/* ── Modals & overlays ────────────────────────────────── */}
-      {showCreate && (
-        <RecipeCreateModal
-          cuisines={cuisines}
-          tags={tags}
-          onClose={() => setShowCreate(false)}
-          onCreated={(recipe) => {
-            setRecipes((prev) => [recipe, ...prev]);
-            setShowCreate(false);
-            setTab("mine");
-          }}
+      {showImport && (
+        <RecipeCaptureModal
+          onClose={() => setShowImport(false)}
+          onReviewDraft={handleCaptureReview}
         />
       )}
 

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/dashboard", icon: "home", label: "Home" },
   { href: "/meal-plan", icon: "calendar_month", label: "Plan" },
-  { href: "/create", icon: "add", label: "Create" },
+  { href: "/recipes?import=1", icon: "add", label: "Create" },
   { href: "/shopping", icon: "shopping_cart", label: "Shopping" },
   { href: "/inventory", icon: "inventory_2", label: "Inventory" },
 ];
@@ -17,7 +17,9 @@ export function BottomNav() {
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface-bright/95 border-t border-outline-variant/30 grid grid-cols-5 items-center px-2 py-2 z-50 shadow-[0_-10px_30px_rgba(60,154,158,0.08)] backdrop-blur-md">
       {navItems.map(({ href, icon, label }) => {
-        const active = pathname === href || pathname.startsWith(href + "/");
+        const hrefPath = href.split("?")[0];
+        const active =
+          pathname === hrefPath || pathname.startsWith(hrefPath + "/");
         return (
           <Link
             key={href}
