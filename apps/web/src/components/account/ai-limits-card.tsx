@@ -29,6 +29,12 @@ function formatProvider(provider: string) {
   return provider === "openai" ? "OpenAI" : "Mock AI";
 }
 
+const FALLBACK_USAGE_CATEGORIES = [
+  { category: "chat", label: "Chat", used: 0 },
+  { category: "autofill", label: "Autofill", used: 0 },
+  { category: "imports", label: "Imports", used: 0 },
+] satisfies AiLimitsStatus["usage_categories"];
+
 export function AiLimitsCard({ status }: { status: AiLimitsStatus | null }) {
   const resetAtValue = status?.rate_limit.reset_at;
   const parsedResetAtMs = resetAtValue ? Date.parse(resetAtValue) : null;
@@ -76,6 +82,10 @@ export function AiLimitsCard({ status }: { status: AiLimitsStatus | null }) {
     ? Math.max(0, Math.ceil((resetAtMs - now) / 1000))
     : limit.reset_in_seconds;
   const resetText = formatDuration(resetInSeconds);
+  const usageCategories =
+    status.usage_categories.length > 0
+      ? status.usage_categories
+      : FALLBACK_USAGE_CATEGORIES;
 
   return (
     <section className="overflow-hidden rounded-2xl border border-outline-variant/30 bg-white shadow-sm">
@@ -143,6 +153,30 @@ export function AiLimitsCard({ status }: { status: AiLimitsStatus | null }) {
             <p className="mt-1 truncate text-sm font-semibold text-on-surface">
               {status.model ?? "Mock provider"}
             </p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-outline-variant/30 bg-surface-container-low p-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-on-surface">
+              AI requests this window
+            </p>
+            <p className="text-xs font-semibold text-outline">{used} total</p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {usageCategories.map((item) => (
+              <div
+                key={item.category}
+                className="rounded-lg bg-white px-3 py-2"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-wide text-outline">
+                  {item.label}
+                </p>
+                <p className="mt-1 text-lg font-bold text-on-surface">
+                  {item.used}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
 

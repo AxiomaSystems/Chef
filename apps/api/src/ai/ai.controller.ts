@@ -8,6 +8,7 @@ import { AiLimitsStatusResponseDto } from '../common/http/swagger.dto';
 import { AiRateLimitGuard } from './ai-rate-limit.guard';
 import { AiRateLimitService } from './ai-rate-limit.service';
 import { AiService } from './ai.service';
+import { AiUsageCategory } from './ai-usage-category.decorator';
 import type {
   AiChatResult,
   AiIngredientSwapResult,
@@ -58,10 +59,12 @@ export class AiController {
           : null,
       openai_configured: Boolean(process.env.OPENAI_API_KEY),
       rate_limit: this.aiRateLimitService.getSnapshot(request),
+      usage_categories: this.aiRateLimitService.getUsageCategories(request),
     };
   }
 
   @Post('meals/generate')
+  @AiUsageCategory('autofill')
   @UseGuards(AiRateLimitGuard)
   @ApiOkResponse({ description: 'Generates structured recipe previews.' })
   generateMeals(
@@ -71,6 +74,7 @@ export class AiController {
   }
 
   @Post('recipes/swap-ingredient')
+  @AiUsageCategory('autofill')
   @UseGuards(AiRateLimitGuard)
   @ApiOkResponse({
     description: 'Proposes and returns a structured ingredient swap.',
@@ -82,6 +86,7 @@ export class AiController {
   }
 
   @Post('recipe-imports/structure')
+  @AiUsageCategory('imports')
   @UseGuards(AiRateLimitGuard)
   @ApiOkResponse({
     description:
@@ -92,6 +97,7 @@ export class AiController {
   }
 
   @Post('chat')
+  @AiUsageCategory('chat')
   @UseGuards(AiRateLimitGuard)
   @ApiOkResponse({
     description: 'Answers a contextual Chef assistant chat prompt.',

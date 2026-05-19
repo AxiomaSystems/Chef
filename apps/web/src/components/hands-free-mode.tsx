@@ -73,9 +73,10 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
         : text.replace(/\s+/g, " ").trim();
     if (!trimmed) return;
     transcriptIdRef.current += 1;
+    const id = transcriptIdRef.current;
     setTranscript((prev) => [
       ...prev.slice(-5),
-      { id: transcriptIdRef.current, speaker, text: trimmed },
+      { id, speaker, text: trimmed },
     ]);
   }
 

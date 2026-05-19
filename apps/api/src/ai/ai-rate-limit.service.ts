@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { Request } from 'express';
-import type { AiRateLimitScope, AiRateLimitSnapshot } from '@cart/shared';
+import type {
+  AiRateLimitScope,
+  AiRateLimitSnapshot,
+  AiUsageCategory,
+  AiUsageCategorySnapshot,
+} from '@cart/shared';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
 type RequestWithUser = Request & {
@@ -9,15 +14,29 @@ type RequestWithUser = Request & {
 
 type Bucket = {
   count: number;
+  categoryCounts: Record<AiUsageCategory, number>;
   resetAt: number;
 };
+
+const AI_USAGE_CATEGORIES: {
+  category: AiUsageCategory;
+  label: string;
+}[] = [
+  { category: 'chat', label: 'Chat' },
+  { category: 'autofill', label: 'Autofill' },
+  { category: 'imports', label: 'Imports' },
+];
 
 @Injectable()
 export class AiRateLimitService {
   private readonly buckets = new Map<string, Bucket>();
   private lastSweepAt = Date.now();
 
-  consume(request: RequestWithUser, now = Date.now()): AiRateLimitSnapshot {
+  consume(
+    request: RequestWithUser,
+    category: AiUsageCategory,
+    now = Date.now(),
+  ): AiRateLimitSnapshot {
     const config = this.getConfig();
     const identity = this.buildIdentity(request);
 
@@ -28,6 +47,7 @@ export class AiRateLimitService {
     if (!bucket || bucket.resetAt <= now) {
       const nextBucket = {
         count: 1,
+        categoryCounts: this.createCategoryCounts(category),
         resetAt: now + config.windowMs,
       };
 
@@ -43,6 +63,7 @@ export class AiRateLimitService {
     }
 
     bucket.count += 1;
+    bucket.categoryCounts[category] += 1;
 
     return this.toSnapshot({
       scope: identity.scope,
@@ -51,6 +72,23 @@ export class AiRateLimitService {
       windowMs: config.windowMs,
       maxRequests: config.maxRequests,
     });
+  }
+
+  getUsageCategories(
+    request: RequestWithUser,
+    now = Date.now(),
+  ): AiUsageCategorySnapshot[] {
+    const identity = this.buildIdentity(request);
+
+    this.sweepExpiredBuckets(now);
+
+    const bucket = this.buckets.get(identity.key);
+
+    if (!bucket || bucket.resetAt <= now) {
+      return this.toUsageCategories();
+    }
+
+    return this.toUsageCategories(bucket.categoryCounts);
   }
 
   getSnapshot(request: RequestWithUser, now = Date.now()): AiRateLimitSnapshot {
@@ -142,6 +180,32 @@ export class AiRateLimitService {
         Math.ceil((input.bucket.resetAt - input.now) / 1000),
       ),
     };
+  }
+
+  private createCategoryCounts(
+    incrementCategory?: AiUsageCategory,
+  ): Record<AiUsageCategory, number> {
+    const counts = {
+      chat: 0,
+      autofill: 0,
+      imports: 0,
+    };
+
+    if (incrementCategory) {
+      counts[incrementCategory] = 1;
+    }
+
+    return counts;
+  }
+
+  private toUsageCategories(
+    counts: Record<AiUsageCategory, number> = this.createCategoryCounts(),
+  ): AiUsageCategorySnapshot[] {
+    return AI_USAGE_CATEGORIES.map(({ category, label }) => ({
+      category,
+      label,
+      used: counts[category],
+    }));
   }
 }
 

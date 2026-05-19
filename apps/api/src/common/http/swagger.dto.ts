@@ -840,6 +840,17 @@ export class AiRateLimitSnapshotResponseDto {
   reset_in_seconds!: number | null;
 }
 
+export class AiUsageCategorySnapshotResponseDto {
+  @ApiProperty({ example: 'chat', enum: ['chat', 'autofill', 'imports'] })
+  category!: 'chat' | 'autofill' | 'imports';
+
+  @ApiProperty({ example: 'Chat' })
+  label!: string;
+
+  @ApiProperty({ example: 2 })
+  used!: number;
+}
+
 export class AiLimitsStatusResponseDto {
   @ApiProperty({ example: 'openai' })
   provider!: string;
@@ -852,6 +863,9 @@ export class AiLimitsStatusResponseDto {
 
   @ApiProperty({ type: () => AiRateLimitSnapshotResponseDto })
   rate_limit!: AiRateLimitSnapshotResponseDto;
+
+  @ApiProperty({ type: () => [AiUsageCategorySnapshotResponseDto] })
+  usage_categories!: AiUsageCategorySnapshotResponseDto[];
 }
 
 export class DishResponseDto {

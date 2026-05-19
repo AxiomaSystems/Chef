@@ -116,7 +116,7 @@ export function HandsFreeAsidePanels({
               Active timers
             </span>
             <span className="text-xs text-white/35">
-              Say "start a pasta timer for 8 minutes"
+              Say &quot;start a pasta timer for 8 minutes&quot;
             </span>
           </div>
           <div className="mt-3 space-y-2">

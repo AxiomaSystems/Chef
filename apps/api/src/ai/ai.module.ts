@@ -17,6 +17,6 @@ import { OpenAiAiProvider } from './providers/openai-ai.provider';
     MockAiProvider,
     OpenAiAiProvider,
   ],
-  exports: [AiService],
+  exports: [AiService, AiRateLimitGuard, AiRateLimitService],
 })
 export class AiModule {}
