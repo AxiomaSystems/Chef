@@ -184,3 +184,71 @@ export const recipeImportSchema = {
   },
   $defs: mealGenerationSchema.$defs,
 } as const;
+
+export const inventoryStructureSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['items', 'potential_errors', 'transcript_summary', 'warnings'],
+  properties: {
+    items: {
+      type: 'array',
+      items: { $ref: '#/$defs/inventoryItem' },
+    },
+    potential_errors: {
+      type: 'array',
+      items: { $ref: '#/$defs/inventoryItem' },
+    },
+    transcript_summary: { type: 'string' },
+    warnings: { type: 'array', items: { type: 'string' } },
+  },
+  $defs: {
+    inventoryItem: {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'display_name',
+        'item_name',
+        'brand',
+        'quantity',
+        'unit',
+        'matched_existing_id',
+        'confidence',
+        'notes',
+        'conflicts',
+      ],
+      properties: {
+        display_name: { type: 'string' },
+        item_name: { type: 'string' },
+        brand: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        quantity: { type: 'number', exclusiveMinimum: 0 },
+        unit: { type: 'string' },
+        matched_existing_id: {
+          anyOf: [{ type: 'string' }, { type: 'null' }],
+        },
+        confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
+        notes: { type: 'array', items: { type: 'string' } },
+        conflicts: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['type', 'message', 'existing_value', 'spoken_value'],
+            properties: {
+              type: {
+                type: 'string',
+                enum: ['quantity', 'brand', 'duplicate', 'unit', 'other'],
+              },
+              message: { type: 'string' },
+              existing_value: {
+                anyOf: [{ type: 'string' }, { type: 'null' }],
+              },
+              spoken_value: {
+                anyOf: [{ type: 'string' }, { type: 'null' }],
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;

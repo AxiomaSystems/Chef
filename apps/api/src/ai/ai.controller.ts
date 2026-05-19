@@ -12,12 +12,14 @@ import { AiUsageCategory } from './ai-usage-category.decorator';
 import type {
   AiChatResult,
   AiIngredientSwapResult,
+  AiInventoryStructureResult,
   AiMealGenerationResult,
   AiRecipeImportResult,
 } from './ai.types';
 import { AiChatDto } from './dto/chat.dto';
 import { GenerateMealsDto } from './dto/generate-meals.dto';
 import { ImportRecipeDto } from './dto/import-recipe.dto';
+import { StructureInventoryDto } from './dto/structure-inventory.dto';
 import { SwapIngredientDto } from './dto/swap-ingredient.dto';
 
 type RequestWithUser = Request & {
@@ -104,5 +106,18 @@ export class AiController {
   })
   chat(@Body() input: AiChatDto): Promise<AiChatResult> {
     return this.aiService.chat(input);
+  }
+
+  @Post('inventory/structure')
+  @AiUsageCategory('inventory_fill')
+  @UseGuards(AiRateLimitGuard)
+  @ApiOkResponse({
+    description:
+      'Structures a spoken inventory transcript into editable inventory rows.',
+  })
+  structureInventory(
+    @Body() input: StructureInventoryDto,
+  ): Promise<AiInventoryStructureResult> {
+    return this.aiService.structureInventory(input);
   }
 }

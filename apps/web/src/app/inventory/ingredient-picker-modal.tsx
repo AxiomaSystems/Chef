@@ -302,6 +302,10 @@ function IngredientPicker({
   const [adding, setAdding] = useState<Set<string>>(new Set());
   const [amountByName, setAmountByName] = useState<Record<string, string>>({});
   const [unitByName, setUnitByName] = useState<Record<string, string>>({});
+  const [detailItem, setDetailItem] = useState<{
+    name: string;
+    category: string;
+  } | null>(null);
   const trimmedSearch = search.trim();
   const normalizedSearch = trimmedSearch.toLowerCase();
 
@@ -331,6 +335,17 @@ function IngredientPicker({
     !catalogHasSearchMatch &&
     !existingNames.has(normalizedSearch);
   const isAddingCustomItem = adding.has(trimmedSearch);
+  const detailUnit = detailItem
+    ? (unitByName[detailItem.name] ?? inferInventoryUnit(detailItem.name))
+    : "unit";
+  const detailAmount = detailItem
+    ? (amountByName[detailItem.name] ??
+      String(inferInventoryAmount(detailUnit)))
+    : "";
+  const detailInKitchen = detailItem
+    ? existingNames.has(detailItem.name.toLowerCase())
+    : false;
+  const detailIsAdding = detailItem ? adding.has(detailItem.name) : false;
 
   async function handleCheck(name: string) {
     if (existingNames.has(name.toLowerCase()) || adding.has(name)) return;
@@ -457,32 +472,42 @@ function IngredientPicker({
                   return (
                     <div
                       key={name}
-                      className={`flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors ${
+                      className={`flex min-w-0 items-center gap-2 px-5 py-2.5 cursor-pointer transition-colors sm:gap-3 ${
                         inKitchen
                           ? "bg-primary-fixed-dim/10 cursor-default"
                           : "hover:bg-surface-container-low/50"
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-lg overflow-hidden bg-surface-container shrink-0 relative">
-                        <IngredientImage name={name} size={32} />
-                        <span
-                          className="hidden absolute inset-0 items-center justify-center text-outline"
-                          style={{ display: "none" }}
-                        >
-                          <span className="material-symbols-outlined text-[14px]">
-                            nutrition
-                          </span>
-                        </span>
-                      </div>
-                      <span
-                        className={`flex-1 text-sm font-medium truncate ${
-                          inKitchen ? "text-on-surface/50" : "text-on-surface"
-                        }`}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDetailItem({ name, category: group.category })
+                        }
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left sm:gap-3"
+                        aria-label={`View details for ${name}`}
                       >
-                        {name}
-                      </span>
+                        <div className="w-8 h-8 rounded-lg overflow-hidden bg-surface-container shrink-0 relative">
+                          <IngredientImage name={name} size={32} />
+                          <span
+                            className="hidden absolute inset-0 items-center justify-center text-outline"
+                            style={{ display: "none" }}
+                          >
+                            <span className="material-symbols-outlined text-[14px]">
+                              nutrition
+                            </span>
+                          </span>
+                        </div>
+                        <span
+                          className={`min-w-0 flex-1 truncate text-sm font-medium ${
+                            inKitchen ? "text-on-surface/50" : "text-on-surface"
+                          }`}
+                          title={name}
+                        >
+                          {name}
+                        </span>
+                      </button>
                       {!inKitchen && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                           <input
                             type="number"
                             min="0"
@@ -498,7 +523,8 @@ function IngredientPicker({
                               }))
                             }
                             placeholder="Qty"
-                            className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-white text-xs outline-none focus:border-primary"
+                            className="w-12 rounded-lg border border-outline-variant bg-white px-1.5 py-1.5 text-xs outline-none focus:border-primary sm:w-14"
+                            aria-label={`Quantity for ${name}`}
                           />
                           <select
                             value={selectedUnit}
@@ -508,7 +534,7 @@ function IngredientPicker({
                                 [name]: event.target.value,
                               }))
                             }
-                            className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-white text-xs outline-none focus:border-primary"
+                            className="w-14 rounded-lg border border-outline-variant bg-white px-1.5 py-1.5 text-xs outline-none focus:border-primary sm:w-16"
                             aria-label={`Unit for ${name}`}
                           >
                             {INVENTORY_UNIT_OPTIONS.map((unit) => (
@@ -543,6 +569,128 @@ function IngredientPicker({
           ))
         )}
       </div>
+
+      {detailItem ? (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 px-4 pb-4 sm:items-center sm:pb-0">
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-outline-variant/30 px-5 py-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-surface-container-low">
+                  <IngredientImage name={detailItem.name} size={48} />
+                  <span
+                    className="hidden h-full w-full items-center justify-center text-outline"
+                    style={{ display: "none" }}
+                  >
+                    <span className="material-symbols-outlined text-[22px]">
+                      nutrition
+                    </span>
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
+                    Manual add
+                  </p>
+                  <h3 className="mt-1 break-words text-lg font-bold leading-tight text-on-surface">
+                    {detailItem.name}
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailItem(null)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-container text-outline"
+                aria-label="Close ingredient details"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+
+            <div className="space-y-3 px-5 py-4">
+              <div className="rounded-2xl bg-surface-container-low px-4 py-3">
+                <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                  Category
+                </span>
+                <p className="mt-1 text-sm font-semibold text-on-surface">
+                  {detailItem.category}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-[1fr_1fr] gap-3">
+                <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
+                  <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                    Quantity
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={detailAmount}
+                    onChange={(event) =>
+                      setAmountByName((previous) => ({
+                        ...previous,
+                        [detailItem.name]: event.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                  />
+                </label>
+                <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
+                  <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                    Unit
+                  </span>
+                  <select
+                    value={detailUnit}
+                    onChange={(event) =>
+                      setUnitByName((previous) => ({
+                        ...previous,
+                        [detailItem.name]: event.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                  >
+                    {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                      <option key={unit} value={unit}>
+                        {unit}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="rounded-2xl bg-surface-container-low px-4 py-3">
+                <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                  Status
+                </span>
+                <p className="mt-1 text-sm font-semibold text-on-surface">
+                  {detailInKitchen ? "Already in your kitchen" : "Ready to add"}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void handleCheck(detailItem.name)}
+                disabled={detailInKitchen || detailIsAdding}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-fixed-dim px-4 py-3 text-sm font-bold text-on-primary-fixed transition-colors hover:bg-primary-fixed disabled:opacity-50"
+              >
+                <span
+                  className={`material-symbols-outlined text-[18px] ${
+                    detailIsAdding ? "animate-spin" : ""
+                  }`}
+                >
+                  {detailIsAdding ? "refresh" : "add"}
+                </span>
+                {detailInKitchen
+                  ? "Already added"
+                  : detailIsAdding
+                    ? "Adding..."
+                    : "Add to inventory"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -553,7 +701,7 @@ export function IngredientPickerModal({
   onClose,
 }: IngredientPickerModalProps) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 p-4 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-[70] bg-black/80 p-4 flex items-end sm:items-center justify-center">
       <div className="bg-white w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-3xl shadow-2xl flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/30">
           <div>

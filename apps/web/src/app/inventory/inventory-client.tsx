@@ -37,6 +37,15 @@ const IngredientPickerModal = dynamic(
   },
 );
 
+const VoiceInventoryModal = dynamic(
+  () =>
+    import("./voice-inventory-modal").then((mod) => mod.VoiceInventoryModal),
+  {
+    loading: () => null,
+    ssr: false,
+  },
+);
+
 // Component ────────────────────────────────────────────────────────────────
 
 type DisplayItem = {
@@ -70,6 +79,14 @@ function realToDisplay(item: KitchenInventoryItem): DisplayItem {
   };
 }
 
+function formatInventoryDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
 export function InventoryClient({
   realItems,
 }: {
@@ -79,7 +96,10 @@ export function InventoryClient({
   const [inventorySearch, setInventorySearch] = useState("");
   const [categoryFiltersExpanded, setCategoryFiltersExpanded] = useState(false);
   const [ingredientPickerOpen, setIngredientPickerOpen] = useState(false);
+  const [voiceInventoryOpen, setVoiceInventoryOpen] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const [inventoryItems, setInventoryItems] =
+    useState<KitchenInventoryItem[]>(realItems);
   const [items, setItems] = useState<DisplayItem[]>(
     realItems.map(realToDisplay),
   );
@@ -87,6 +107,7 @@ export function InventoryClient({
   const [savingId, setSavingId] = useState<string | null>(null);
   const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({});
   const [unitDrafts, setUnitDrafts] = useState<Record<string, string>>({});
+  const [detailItemId, setDetailItemId] = useState<string | null>(null);
 
   // Set of existing ingredient names (lowercase) for the picker
   const existingNames = useMemo(
@@ -119,6 +140,13 @@ export function InventoryClient({
     },
     {},
   );
+  const detailItem = useMemo(
+    () => inventoryItems.find((item) => item.id === detailItemId),
+    [detailItemId, inventoryItems],
+  );
+  const detailDisplay = detailItem ? realToDisplay(detailItem) : null;
+  const inventoryOverlayOpen =
+    barcodeOpen || ingredientPickerOpen || voiceInventoryOpen || !!detailItemId;
 
   async function handlePickerAdd(
     name: string,
@@ -126,18 +154,42 @@ export function InventoryClient({
   ) {
     const result = await addInventoryItemAction(name, options);
     if (result.data) {
+      setInventoryItems((prev) => [result.data!, ...prev]);
       setItems((prev) => [realToDisplay(result.data!), ...prev]);
     }
   }
 
   function handleAdded(item: KitchenInventoryItem) {
+    setInventoryItems((prev) => [item, ...prev]);
     setItems((prev) => [realToDisplay(item), ...prev]);
+  }
+
+  function handleVoiceSaved(savedItems: KitchenInventoryItem[]) {
+    setInventoryItems((prev) => {
+      const byId = new Map(prev.map((item) => [item.id, item]));
+      for (const item of savedItems) {
+        byId.set(item.id, item);
+      }
+      return Array.from(byId.values()).sort((a, b) =>
+        b.updated_at.localeCompare(a.updated_at),
+      );
+    });
+    setItems((prev) => {
+      const byId = new Map(prev.map((item) => [item.id, item]));
+      for (const item of savedItems) {
+        byId.set(item.id, realToDisplay(item));
+      }
+      return Array.from(byId.values()).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+    });
   }
 
   function handleRemove(id: string) {
     setRemovingId(id);
     const remove = async () => {
       await removeInventoryItemAction(id);
+      setInventoryItems((prev) => prev.filter((i) => i.id !== id));
       setItems((prev) => prev.filter((i) => i.id !== id));
       setRemovingId(null);
     };
@@ -166,6 +218,11 @@ export function InventoryClient({
 
     if (result.data) {
       const next = realToDisplay(result.data);
+      setInventoryItems((prev) =>
+        prev.map((entry) =>
+          entry.id === result.data!.id ? result.data! : entry,
+        ),
+      );
       setItems((prev) =>
         prev.map((entry) => (entry.id === item.id ? next : entry)),
       );
@@ -181,7 +238,10 @@ export function InventoryClient({
 
   return (
     <>
-      <AppShell topBarTitle="Inventory">
+      <AppShell
+        topBarTitle="Inventory"
+        hideBottomCreateButton={inventoryOverlayOpen}
+      >
         <div className="px-4 py-6 max-w-6xl mx-auto space-y-6">
           {/* Hero */}
           <div className="relative rounded-3xl overflow-hidden min-h-44 p-6 flex flex-col justify-between">
@@ -204,13 +264,14 @@ export function InventoryClient({
             </div>
             <div className="relative z-10 flex gap-3 mt-4 flex-wrap">
               <button
-                onClick={() => setBarcodeOpen(true)}
+                onClick={() => setVoiceInventoryOpen(true)}
+                aria-expanded={voiceInventoryOpen}
                 className="flex items-center gap-2 bg-white text-[#132326] font-semibold text-sm px-4 py-2.5 rounded-full shadow hover:bg-white/90 transition-colors"
               >
                 <span className="material-symbols-outlined text-[18px]">
-                  barcode_scanner
+                  mic
                 </span>
-                Barcode
+                Voice Add
               </button>
               <button
                 onClick={() => setIngredientPickerOpen(true)}
@@ -225,6 +286,20 @@ export function InventoryClient({
                   add
                 </span>
                 Add
+              </button>
+              <button
+                onClick={() => setBarcodeOpen(true)}
+                aria-expanded={barcodeOpen}
+                className={`flex items-center gap-2 font-semibold text-sm px-4 py-2.5 rounded-full border transition-colors ${
+                  barcodeOpen
+                    ? "bg-white text-[#132326] border-white shadow hover:bg-white/90"
+                    : "bg-white/15 text-white border-white/30 hover:bg-white/25"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  barcode_scanner
+                </span>
+                Barcode
               </button>
             </div>
           </div>
@@ -326,33 +401,38 @@ export function InventoryClient({
                     {groupItems.map((item) => (
                       <div
                         key={item.id}
-                        className={`flex items-center gap-3 px-4 py-3 transition-opacity ${
+                        className={`flex min-w-0 items-center gap-2 px-4 py-3 transition-opacity sm:gap-3 ${
                           removingId === item.id ? "opacity-40" : ""
                         }`}
                       >
-                        <div className="w-10 h-10 rounded-xl overflow-hidden bg-surface-container-low shrink-0 relative">
-                          <IngredientImage name={item.name} size={40} />
-                          <span
-                            className="hidden absolute inset-0 items-center justify-center text-outline"
-                            style={{ display: "none" }}
-                          >
-                            <span className="material-symbols-outlined text-[20px]">
-                              nutrition
+                        <button
+                          type="button"
+                          onClick={() => setDetailItemId(item.id)}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                          aria-label={`View details for ${item.name}`}
+                        >
+                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-surface-container-low shrink-0 relative">
+                            <IngredientImage name={item.name} size={40} />
+                            <span
+                              className="hidden absolute inset-0 items-center justify-center text-outline"
+                              style={{ display: "none" }}
+                            >
+                              <span className="material-symbols-outlined text-[20px]">
+                                nutrition
+                              </span>
                             </span>
-                          </span>
-                        </div>
+                          </div>
 
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-on-surface truncate">
+                          <span
+                            className="min-w-0 flex-1 truncate text-sm font-semibold text-on-surface"
+                            title={item.name}
+                          >
                             {item.name}
-                          </p>
-                          <p className="text-xs text-outline">
-                            {item.category}
-                          </p>
-                        </div>
+                          </span>
+                        </button>
 
-                        <div className="flex items-center gap-2.5 shrink-0">
-                          <div className="flex items-center gap-1.5">
+                        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+                          <div className="flex items-center gap-1 sm:gap-1.5">
                             <input
                               type="number"
                               min="0"
@@ -369,7 +449,8 @@ export function InventoryClient({
                               }
                               onBlur={() => void handleQuantitySave(item)}
                               placeholder="Qty"
-                              className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
+                              className="w-12 rounded-lg border border-outline-variant bg-surface-container-low px-1.5 py-1.5 text-xs font-semibold outline-none focus:border-primary sm:w-14"
+                              aria-label={`Quantity for ${item.name}`}
                             />
                             <select
                               value={unitDrafts[item.id] ?? item.unit ?? ""}
@@ -383,7 +464,7 @@ export function InventoryClient({
                                   unit: nextUnit,
                                 });
                               }}
-                              className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
+                              className="w-14 rounded-lg border border-outline-variant bg-surface-container-low px-1.5 py-1.5 text-xs font-semibold outline-none focus:border-primary sm:w-16"
                               aria-label={`Unit for ${item.name}`}
                             >
                               {INVENTORY_UNIT_OPTIONS.map((unit) => (
@@ -417,6 +498,139 @@ export function InventoryClient({
         </div>
       </AppShell>
 
+      {detailItem && detailDisplay ? (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 px-4 pb-4 sm:items-center sm:pb-0">
+          <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-outline-variant/30 px-5 py-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-surface-container-low">
+                  <IngredientImage name={detailDisplay.name} size={48} />
+                  <span
+                    className="hidden h-full w-full items-center justify-center text-outline"
+                    style={{ display: "none" }}
+                  >
+                    <span className="material-symbols-outlined text-[22px]">
+                      nutrition
+                    </span>
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
+                    Inventory item
+                  </p>
+                  <h3 className="mt-1 break-words text-lg font-bold leading-tight text-on-surface">
+                    {detailDisplay.name}
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailItemId(null)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-container text-outline"
+                aria-label="Close inventory item details"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+
+            <div className="space-y-3 px-5 py-4">
+              <div className="grid grid-cols-[1fr_1fr] gap-3">
+                <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
+                  <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                    Quantity
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={
+                      amountDrafts[detailDisplay.id] ??
+                      String(detailDisplay.estimatedAmount ?? "")
+                    }
+                    onChange={(event) =>
+                      setAmountDrafts((prev) => ({
+                        ...prev,
+                        [detailDisplay.id]: event.target.value,
+                      }))
+                    }
+                    onBlur={() => void handleQuantitySave(detailDisplay)}
+                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                    aria-label={`Quantity for ${detailDisplay.name}`}
+                  />
+                </label>
+                <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
+                  <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                    Unit
+                  </span>
+                  <select
+                    value={
+                      unitDrafts[detailDisplay.id] ?? detailDisplay.unit ?? ""
+                    }
+                    onChange={(event) => {
+                      const nextUnit = event.target.value;
+                      setUnitDrafts((prev) => ({
+                        ...prev,
+                        [detailDisplay.id]: nextUnit,
+                      }));
+                      void handleQuantitySave(detailDisplay, {
+                        unit: nextUnit,
+                      });
+                    }}
+                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                    aria-label={`Unit for ${detailDisplay.name}`}
+                  >
+                    {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                      <option key={unit} value={unit}>
+                        {unit}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {[
+                ["Display name", detailItem.display_name],
+                ["Category", detailDisplay.category],
+                [
+                  "Canonical",
+                  detailItem.ingredient?.canonical_name ?? "Not linked",
+                ],
+                ["Normalized", detailItem.normalized_name],
+                ["Brand / label", detailItem.label ?? "None"],
+                ["Ingredient ID", detailItem.ingredient_id ?? "Not linked"],
+                [
+                  "Ingredient slug",
+                  detailItem.ingredient?.slug ?? "Not linked",
+                ],
+                [
+                  "Default unit",
+                  detailItem.ingredient?.default_unit ?? "Not configured",
+                ],
+                ["Source", detailItem.source],
+                ["Confidence", detailItem.confidence],
+                ["Status", detailItem.review_status],
+                ["Created", formatInventoryDate(detailItem.created_at)],
+                ["Updated", formatInventoryDate(detailItem.updated_at)],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="flex items-start justify-between gap-4 rounded-2xl bg-surface-container-low px-4 py-3"
+                >
+                  <span className="shrink-0 text-xs font-bold uppercase tracking-wide text-outline">
+                    {label}
+                  </span>
+                  <span className="min-w-0 break-words text-right text-sm font-semibold text-on-surface">
+                    {value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Modals */}
       {barcodeOpen && (
         <CameraModal
@@ -430,6 +644,13 @@ export function InventoryClient({
           existingNames={existingNames}
           onAdd={handlePickerAdd}
           onClose={() => setIngredientPickerOpen(false)}
+        />
+      )}
+      {voiceInventoryOpen && (
+        <VoiceInventoryModal
+          currentItems={inventoryItems}
+          onClose={() => setVoiceInventoryOpen(false)}
+          onSaved={handleVoiceSaved}
         />
       )}
     </>

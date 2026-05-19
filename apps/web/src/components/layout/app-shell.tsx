@@ -7,6 +7,7 @@ interface AppShellProps {
   topBarTitle?: string;
   topBarActions?: React.ReactNode;
   showBack?: boolean;
+  hideBottomCreateButton?: boolean;
 }
 
 export function AppShell({
@@ -14,15 +15,20 @@ export function AppShell({
   topBarTitle,
   topBarActions,
   showBack,
+  hideBottomCreateButton,
 }: AppShellProps) {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
       <div className="lg:ml-64 flex flex-col min-h-screen">
-        <TopBar title={topBarTitle} actions={topBarActions} showBack={showBack} />
+        <TopBar
+          title={topBarTitle}
+          actions={topBarActions}
+          showBack={showBack}
+        />
         <main className="flex-1 pb-20 lg:pb-0">{children}</main>
       </div>
-      <BottomNav />
+      <BottomNav hideCreateButton={hideBottomCreateButton} />
     </div>
   );
 }

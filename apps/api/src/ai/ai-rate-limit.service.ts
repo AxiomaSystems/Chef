@@ -25,6 +25,7 @@ const AI_USAGE_CATEGORIES: {
   { category: 'chat', label: 'Chat' },
   { category: 'autofill', label: 'Autofill' },
   { category: 'imports', label: 'Imports' },
+  { category: 'inventory_fill', label: 'Inventory fill' },
 ];
 
 @Injectable()
@@ -189,6 +190,7 @@ export class AiRateLimitService {
       chat: 0,
       autofill: 0,
       imports: 0,
+      inventory_fill: 0,
     };
 
     if (incrementCategory) {

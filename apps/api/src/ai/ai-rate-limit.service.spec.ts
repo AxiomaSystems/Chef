@@ -87,6 +87,7 @@ describe('AiRateLimitService', () => {
       { category: 'chat', label: 'Chat', used: 1 },
       { category: 'autofill', label: 'Autofill', used: 0 },
       { category: 'imports', label: 'Imports', used: 0 },
+      { category: 'inventory_fill', label: 'Inventory fill', used: 0 },
     ]);
   });
 
@@ -105,6 +106,7 @@ describe('AiRateLimitService', () => {
       { category: 'chat', label: 'Chat', used: 2 },
       { category: 'autofill', label: 'Autofill', used: 0 },
       { category: 'imports', label: 'Imports', used: 0 },
+      { category: 'inventory_fill', label: 'Inventory fill', used: 0 },
     ]);
   });
 
@@ -143,6 +145,7 @@ describe('AiRateLimitService', () => {
       { category: 'chat', label: 'Chat', used: 1 },
       { category: 'autofill', label: 'Autofill', used: 0 },
       { category: 'imports', label: 'Imports', used: 1 },
+      { category: 'inventory_fill', label: 'Inventory fill', used: 0 },
     ]);
   });
 
@@ -156,6 +159,7 @@ describe('AiRateLimitService', () => {
       { category: 'chat', label: 'Chat', used: 0 },
       { category: 'autofill', label: 'Autofill', used: 0 },
       { category: 'imports', label: 'Imports', used: 1 },
+      { category: 'inventory_fill', label: 'Inventory fill', used: 0 },
     ]);
 
     expect(service.getSnapshot(request as never, 601001)).toMatchObject({
@@ -168,10 +172,11 @@ describe('AiRateLimitService', () => {
       { category: 'chat', label: 'Chat', used: 0 },
       { category: 'autofill', label: 'Autofill', used: 0 },
       { category: 'imports', label: 'Imports', used: 0 },
+      { category: 'inventory_fill', label: 'Inventory fill', used: 0 },
     ]);
   });
 
-  it('marks recipe import and capture routes as import usage', () => {
+  it('marks import, capture, and inventory fill routes with usage metadata', () => {
     expect(
       Reflect.getMetadata(
         AI_USAGE_CATEGORY_KEY,
@@ -184,5 +189,11 @@ describe('AiRateLimitService', () => {
         CaptureController.prototype.createCapture,
       ),
     ).toBe('imports');
+    expect(
+      Reflect.getMetadata(
+        AI_USAGE_CATEGORY_KEY,
+        AiController.prototype.structureInventory,
+      ),
+    ).toBe('inventory_fill');
   });
 });

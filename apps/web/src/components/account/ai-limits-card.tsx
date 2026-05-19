@@ -33,6 +33,7 @@ const FALLBACK_USAGE_CATEGORIES = [
   { category: "chat", label: "Chat", used: 0 },
   { category: "autofill", label: "Autofill", used: 0 },
   { category: "imports", label: "Imports", used: 0 },
+  { category: "inventory_fill", label: "Inventory fill", used: 0 },
 ] satisfies AiLimitsStatus["usage_categories"];
 
 export function AiLimitsCard({ status }: { status: AiLimitsStatus | null }) {
@@ -163,7 +164,7 @@ export function AiLimitsCard({ status }: { status: AiLimitsStatus | null }) {
             </p>
             <p className="text-xs font-semibold text-outline">{used} total</p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-4">
             {usageCategories.map((item) => (
               <div
                 key={item.category}

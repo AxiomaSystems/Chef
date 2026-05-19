@@ -1,5 +1,7 @@
 import type { RecipeNutritionData } from '@cart/shared';
 
+export type { AiInventoryStructureResult } from '@cart/shared';
+
 export type AiProviderName = 'mock' | 'openai';
 
 export type AiDishIngredient = {

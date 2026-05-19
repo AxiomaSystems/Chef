@@ -841,8 +841,11 @@ export class AiRateLimitSnapshotResponseDto {
 }
 
 export class AiUsageCategorySnapshotResponseDto {
-  @ApiProperty({ example: 'chat', enum: ['chat', 'autofill', 'imports'] })
-  category!: 'chat' | 'autofill' | 'imports';
+  @ApiProperty({
+    example: 'chat',
+    enum: ['chat', 'autofill', 'imports', 'inventory_fill'],
+  })
+  category!: 'chat' | 'autofill' | 'imports' | 'inventory_fill';
 
   @ApiProperty({ example: 'Chat' })
   label!: string;
