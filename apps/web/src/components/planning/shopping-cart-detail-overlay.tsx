@@ -72,9 +72,11 @@ type SearchCtx =
 export function ShoppingCartDetailOverlay({
   shoppingCart,
   onClose,
+  readOnly = false,
 }: {
   shoppingCart: ShoppingCart | null;
   onClose: () => void;
+  readOnly?: boolean;
 }) {
   const [cart, setCart] = useState<ShoppingCart | null>(shoppingCart);
   const [editing, setEditing] = useState(false);
@@ -219,7 +221,11 @@ export function ShoppingCartDetailOverlay({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {editing ? (
+            {readOnly ? (
+              <span className="rounded-full bg-surface-container px-3 py-2 text-label-sm text-outline">
+                Checked out
+              </span>
+            ) : editing ? (
               <>
                 <button
                   onClick={() => {
@@ -263,7 +269,7 @@ export function ShoppingCartDetailOverlay({
         {/* Body */}
         <div className="flex-1 overflow-y-auto">
           <div className="flex flex-col gap-4 px-4 pb-28 pt-4 sm:gap-6 sm:p-6 lg:flex-row">
-            {editing && (
+            {editing && !readOnly && (
               <div className="grid grid-cols-2 gap-2 sm:hidden">
                 <button
                   onClick={() => {
@@ -397,7 +403,7 @@ export function ShoppingCartDetailOverlay({
                           {/* Delete icon — always visible */}
                           <button
                             onClick={() => deleteAndSave(i)}
-                            disabled={isDeleting}
+                            disabled={isDeleting || readOnly}
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-outline transition-colors hover:bg-error-container/30 hover:text-error disabled:opacity-30"
                             aria-label="Remove item"
                           >
@@ -412,7 +418,7 @@ export function ShoppingCartDetailOverlay({
                 );
               })}
 
-              {editing && (
+              {editing && !readOnly && (
                 <button
                   onClick={() => {
                     setCtx({ mode: "add", query: "" });
@@ -447,7 +453,7 @@ export function ShoppingCartDetailOverlay({
                     {fmt$(total)}
                   </span>
                 </div>
-                {cart.id && (
+                {cart.id && !readOnly && (
                   <Link
                     href={`/shopping/checkout/${cart.id}`}
                     className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#f4be6b] px-5 py-3 text-label-lg font-semibold text-[#351800] transition-colors hover:bg-[#f4be6b]"

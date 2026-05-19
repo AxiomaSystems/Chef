@@ -25,7 +25,11 @@ export class CartPersistenceRepository {
     });
   }
 
-  updateDraft(userId: string, id: string, input: UpdateCartDraftPersistenceInput) {
+  updateDraft(
+    userId: string,
+    id: string,
+    input: UpdateCartDraftPersistenceInput,
+  ) {
     return this.prisma.cartDraft.updateMany({
       where: { id, userId },
       data: {
@@ -115,6 +119,12 @@ export class CartPersistenceRepository {
         estimatedTotal: input.estimated_total,
         externalUrl: input.external_url,
         externalReferenceId: input.external_reference_id,
+        checkedOutAt:
+          input.checked_out_at === undefined
+            ? undefined
+            : input.checked_out_at
+              ? new Date(input.checked_out_at)
+              : null,
       },
     });
   }

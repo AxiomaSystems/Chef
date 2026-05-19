@@ -145,6 +145,37 @@ export const ingredientSwapSchema = {
   $defs: mealGenerationSchema.$defs,
 } as const;
 
+export const inventoryAlternativesSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['suggestions'],
+  properties: {
+    suggestions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: [
+          'ingredient_name',
+          'inventory_item_id',
+          'replacement_ingredient',
+          'confidence',
+          'reason',
+        ],
+        properties: {
+          ingredient_name: { type: 'string' },
+          inventory_item_id: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+          replacement_ingredient: {
+            anyOf: [{ type: 'string' }, { type: 'null' }],
+          },
+          confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
+          reason: { type: 'string' },
+        },
+      },
+    },
+  },
+} as const;
+
 export const chatSchema = {
   type: 'object',
   additionalProperties: false,

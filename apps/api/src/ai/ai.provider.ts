@@ -2,9 +2,11 @@ import type {
   AiChatMessage,
   AiChatResult,
   AiIngredientSwapResult,
+  AiInventoryAlternativesResult,
   AiMealGenerationResult,
   AiRecipeImportResult,
 } from './ai.types';
+import type { InventoryAlternativesDto } from './dto/inventory-alternatives.dto';
 import type { GenerateMealsDto } from './dto/generate-meals.dto';
 import type { ImportRecipeDto } from './dto/import-recipe.dto';
 import type { SwapIngredientDto } from './dto/swap-ingredient.dto';
@@ -13,6 +15,9 @@ export interface AiProvider {
   readonly name: string;
   generateMeals(input: GenerateMealsDto): Promise<AiMealGenerationResult>;
   swapIngredient(input: SwapIngredientDto): Promise<AiIngredientSwapResult>;
+  suggestInventoryAlternatives(
+    input: InventoryAlternativesDto,
+  ): Promise<AiInventoryAlternativesResult>;
   importRecipe(input: {
     request: ImportRecipeDto;
     platform: 'youtube' | 'instagram' | 'tiktok' | 'generic';

@@ -51,6 +51,18 @@ export type AiIngredientSwapResult = {
   ingredient_delta_notes: string[];
 };
 
+export type AiInventoryAlternativeSuggestion = {
+  ingredient_name: string;
+  inventory_item_id: string | null;
+  replacement_ingredient: string | null;
+  confidence: 'low' | 'medium' | 'high';
+  reason: string;
+};
+
+export type AiInventoryAlternativesResult = {
+  suggestions: AiInventoryAlternativeSuggestion[];
+};
+
 export type AiChatResult = {
   message: string;
   follow_up_prompts: string[];

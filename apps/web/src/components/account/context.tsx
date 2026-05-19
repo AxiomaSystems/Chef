@@ -40,6 +40,7 @@ export const AccountDataContext = createContext<AccountData>({
     preferred_cuisines: [],
     preferred_tag_ids: [],
     preferred_tags: [],
+    weekly_nutrition_targets: {},
   },
   cuisines: [],
   systemTags: [],

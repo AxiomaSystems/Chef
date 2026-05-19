@@ -485,6 +485,21 @@ export class UserPreferencesResponseDto {
   @ApiPropertyOptional({ example: 'casual' })
   calorie_tracking_mode?: string;
 
+  @ApiPropertyOptional({
+    example: {
+      calories: 14000,
+      protein_g: 350,
+      carbs_g: 1750,
+      fat_g: 490,
+    },
+  })
+  weekly_nutrition_targets?: {
+    calories?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+  };
+
   @ApiPropertyOptional({ example: '50_to_100' })
   weekly_budget?: string;
 
@@ -1164,6 +1179,9 @@ export class ShoppingCartHistorySummaryResponseDto {
   @ApiPropertyOptional({ example: 'cart-1' })
   external_reference_id?: string;
 
+  @ApiPropertyOptional({ example: '2026-03-20T03:12:00.000Z' })
+  checked_out_at?: string;
+
   @ApiProperty({ example: 5 })
   overview_count!: number;
 
@@ -1209,6 +1227,9 @@ export class ShoppingCartResponseDto {
 
   @ApiPropertyOptional({ example: 'cart-1' })
   external_reference_id?: string;
+
+  @ApiPropertyOptional({ example: '2026-03-20T03:12:00.000Z' })
+  checked_out_at?: string;
 
   @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
   created_at!: string;

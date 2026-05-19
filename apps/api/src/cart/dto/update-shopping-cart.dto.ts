@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray } from 'class-validator';
+import { IsArray, IsDateString, IsOptional } from 'class-validator';
 
 export class UpdateShoppingCartDto {
   @ApiProperty({
@@ -35,6 +35,16 @@ export class UpdateShoppingCartDto {
       },
     ],
   })
+  @IsOptional()
   @IsArray()
-  matched_items!: Array<Record<string, unknown>>;
+  matched_items?: Array<Record<string, unknown>>;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: '2026-05-18T18:30:00.000Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  checked_out_at?: string | null;
 }

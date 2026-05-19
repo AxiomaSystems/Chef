@@ -3,11 +3,13 @@ import type { AiProvider } from '../ai.provider';
 import type {
   AiChatResult,
   AiIngredientSwapResult,
+  AiInventoryAlternativesResult,
   AiMealGenerationResult,
   AiRecipeImportResult,
   AiRecipePreview,
 } from '../ai.types';
 import type { GenerateMealsDto } from '../dto/generate-meals.dto';
+import type { InventoryAlternativesDto } from '../dto/inventory-alternatives.dto';
 import type { ImportRecipeDto } from '../dto/import-recipe.dto';
 import type { SwapIngredientDto } from '../dto/swap-ingredient.dto';
 
@@ -93,6 +95,30 @@ export class MockAiProvider implements AiProvider {
         ],
       },
       ingredient_delta_notes: [`Changed ${original} to ${replacement}.`],
+    });
+  }
+
+  suggestInventoryAlternatives(
+    input: InventoryAlternativesDto,
+  ): Promise<AiInventoryAlternativesResult> {
+    return Promise.resolve({
+      suggestions: input.ingredients.map((ingredient) => {
+        const replacement =
+          findMockAlternative(
+            ingredient.canonical_ingredient,
+            input.inventory,
+          ) ?? null;
+
+        return {
+          ingredient_name: ingredient.canonical_ingredient,
+          inventory_item_id: replacement?.id ?? null,
+          replacement_ingredient: replacement?.display_name ?? null,
+          confidence: replacement ? ('medium' as const) : ('low' as const),
+          reason: replacement
+            ? `Mock AI found ${replacement.display_name} as the closest inventory substitute.`
+            : 'Mock AI did not find a close inventory substitute.',
+        };
+      }),
     });
   }
 
@@ -250,6 +276,38 @@ function normalizeRecipe(recipe: SwapIngredientDto['recipe']): AiRecipePreview {
       group: ingredient.group ?? null,
     })),
   };
+}
+
+function findMockAlternative(
+  ingredient: string,
+  inventory: InventoryAlternativesDto['inventory'],
+) {
+  const normalized = ingredient.toLowerCase();
+  const proteins = [
+    'chicken',
+    'turkey',
+    'beef',
+    'pork',
+    'tofu',
+    'salmon',
+    'fish',
+    'shrimp',
+    'beans',
+    'lentils',
+  ];
+  const needsProtein = proteins.some((protein) => normalized.includes(protein));
+
+  if (!needsProtein) {
+    return inventory[0];
+  }
+
+  return (
+    inventory.find((item) =>
+      proteins.some((protein) =>
+        item.display_name.toLowerCase().includes(protein),
+      ),
+    ) ?? inventory[0]
+  );
 }
 
 function titleCase(input: string) {

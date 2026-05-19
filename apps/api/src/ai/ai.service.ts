@@ -3,12 +3,14 @@ import type { AiProvider } from './ai.provider';
 import type {
   AiChatResult,
   AiIngredientSwapResult,
+  AiInventoryAlternativesResult,
   AiMealGenerationResult,
   AiRecipeImportPlatform,
   AiRecipeImportResult,
 } from './ai.types';
 import type { AiChatDto } from './dto/chat.dto';
 import type { GenerateMealsDto } from './dto/generate-meals.dto';
+import type { InventoryAlternativesDto } from './dto/inventory-alternatives.dto';
 import type { ImportRecipeDto } from './dto/import-recipe.dto';
 import type { SwapIngredientDto } from './dto/swap-ingredient.dto';
 import { MockAiProvider } from './providers/mock-ai.provider';
@@ -45,6 +47,12 @@ export class AiService {
       budget_mode: input.budget_mode ?? 'balanced',
       notes: input.notes ?? '',
     });
+  }
+
+  suggestInventoryAlternatives(
+    input: InventoryAlternativesDto,
+  ): Promise<AiInventoryAlternativesResult> {
+    return this.provider.suggestInventoryAlternatives(input);
   }
 
   async importRecipe(input: ImportRecipeDto): Promise<AiRecipeImportResult> {

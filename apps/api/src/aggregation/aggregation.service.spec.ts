@@ -47,6 +47,42 @@ describe('AggregationService', () => {
     ]);
   });
 
+  it('aggregates ingredients with equivalent normalized names', () => {
+    const result = service.compute([
+      {
+        name: 'Dish A',
+        ingredients: [
+          {
+            canonical_ingredient: 'Chicken',
+            amount: 1,
+            unit: 'lb',
+          },
+        ],
+        steps: [],
+      },
+      {
+        name: 'Dish B',
+        ingredients: [
+          {
+            canonical_ingredient: 'chicken!',
+            amount: 1,
+            unit: 'lb',
+          },
+        ],
+        steps: [],
+      },
+    ]);
+
+    expect(result.overview).toHaveLength(1);
+    expect(result.overview[0]).toEqual(
+      expect.objectContaining({
+        canonical_ingredient: 'Chicken',
+        total_amount: 2,
+        unit: 'lb',
+      }),
+    );
+  });
+
   it('aggregates by ingredient id before display name when available', () => {
     const result = service.compute([
       {

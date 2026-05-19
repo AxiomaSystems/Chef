@@ -90,6 +90,7 @@ export type ShoppingCart = {
   retailer: Retailer;
   external_url?: string;
   external_reference_id?: string;
+  checked_out_at?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -102,6 +103,7 @@ export type ShoppingCartHistorySummary = {
   estimated_subtotal: number;
   external_url?: string;
   external_reference_id?: string;
+  checked_out_at?: string;
   overview_count: number;
   matched_item_count: number;
   created_at: string;

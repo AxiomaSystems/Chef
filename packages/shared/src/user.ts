@@ -305,11 +305,19 @@ export type UserPreferences = {
   typical_meal_times?: TypicalMealTime[];
   goal_priorities?: GoalPriority[];
   calorie_tracking_mode?: CalorieTrackingMode;
+  weekly_nutrition_targets?: WeeklyNutritionTargets;
   weekly_budget?: WeeklyBudget;
   preferred_stores?: PreferredStore[];
   shopping_mode?: ShoppingMode;
   recipe_discovery_sources?: RecipeDiscoverySource[];
   biggest_cooking_frustration?: BiggestCookingFrustration;
+};
+
+export type WeeklyNutritionTargets = {
+  calories?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
 };
 
 export const USER_FOOD_RULE_KIND_VALUES = [
@@ -343,11 +351,7 @@ export const USER_MEMORY_SOURCE_VALUES = [
 
 export type UserMemorySource = (typeof USER_MEMORY_SOURCE_VALUES)[number];
 
-export const USER_MEMORY_CONFIDENCE_VALUES = [
-  "low",
-  "medium",
-  "high",
-] as const;
+export const USER_MEMORY_CONFIDENCE_VALUES = ["low", "medium", "high"] as const;
 
 export type UserMemoryConfidence =
   (typeof USER_MEMORY_CONFIDENCE_VALUES)[number];

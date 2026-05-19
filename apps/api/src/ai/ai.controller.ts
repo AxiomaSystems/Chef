@@ -6,11 +6,13 @@ import { AiService } from './ai.service';
 import type {
   AiChatResult,
   AiIngredientSwapResult,
+  AiInventoryAlternativesResult,
   AiMealGenerationResult,
   AiRecipeImportResult,
 } from './ai.types';
 import { AiChatDto } from './dto/chat.dto';
 import { GenerateMealsDto } from './dto/generate-meals.dto';
+import { InventoryAlternativesDto } from './dto/inventory-alternatives.dto';
 import { ImportRecipeDto } from './dto/import-recipe.dto';
 import { SwapIngredientDto } from './dto/swap-ingredient.dto';
 
@@ -45,6 +47,17 @@ export class AiController {
     @Body() input: SwapIngredientDto,
   ): Promise<AiIngredientSwapResult> {
     return this.aiService.swapIngredient(input);
+  }
+
+  @Post('recipes/inventory-alternatives')
+  @ApiOkResponse({
+    description:
+      'Suggests recipe ingredient alternatives from the current kitchen inventory.',
+  })
+  inventoryAlternatives(
+    @Body() input: InventoryAlternativesDto,
+  ): Promise<AiInventoryAlternativesResult> {
+    return this.aiService.suggestInventoryAlternatives(input);
   }
 
   @Post('recipe-imports/structure')

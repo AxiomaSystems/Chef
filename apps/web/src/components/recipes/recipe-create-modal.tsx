@@ -882,7 +882,7 @@ export function RecipeCreateModal({
     <div
       className={
         isPage
-          ? "mx-auto w-full max-w-4xl"
+          ? "w-full"
           : "fixed inset-0 z-[60] flex items-stretch justify-center p-0 sm:items-center sm:p-6"
       }
     >
@@ -896,7 +896,7 @@ export function RecipeCreateModal({
       <div
         className={
           isPage
-            ? "relative flex w-full flex-col overflow-hidden rounded-[1.6rem] border border-outline-variant/40 bg-background shadow-[0_24px_80px_rgba(46,30,15,0.12)] sm:rounded-[2rem]"
+            ? "relative flex w-full flex-col"
             : "relative flex h-dvh w-full flex-col overflow-hidden bg-background shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl"
         }
       >
@@ -928,7 +928,7 @@ export function RecipeCreateModal({
         <div
           className={
             isPage
-              ? "space-y-7 px-4 py-5 sm:px-7 sm:py-7 lg:px-8"
+              ? "space-y-8"
               : "flex-1 space-y-7 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6"
           }
         >
@@ -1397,7 +1397,7 @@ export function RecipeCreateModal({
         <div
           className={
             isPage
-              ? "grid shrink-0 grid-cols-2 gap-3 border-t border-outline-variant/30 bg-white px-4 py-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:px-6 sm:py-4"
+              ? "mt-8 grid shrink-0 grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end"
               : "sticky bottom-0 grid shrink-0 grid-cols-2 gap-3 border-t border-outline-variant/30 bg-white/95 px-4 py-3 backdrop-blur sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:px-6 sm:py-4"
           }
         >

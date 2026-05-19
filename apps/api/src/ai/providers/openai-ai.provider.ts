@@ -3,6 +3,7 @@ import type { AiProvider } from '../ai.provider';
 import {
   chatSchema,
   ingredientSwapSchema,
+  inventoryAlternativesSchema,
   mealGenerationSchema,
   recipeImportSchema,
 } from '../ai.schemas';
@@ -10,10 +11,12 @@ import type {
   AiChatMessage,
   AiChatResult,
   AiIngredientSwapResult,
+  AiInventoryAlternativesResult,
   AiMealGenerationResult,
   AiRecipeImportResult,
 } from '../ai.types';
 import type { GenerateMealsDto } from '../dto/generate-meals.dto';
+import type { InventoryAlternativesDto } from '../dto/inventory-alternatives.dto';
 import type { SwapIngredientDto } from '../dto/swap-ingredient.dto';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
@@ -59,6 +62,23 @@ export class OpenAiAiProvider implements AiProvider {
       schemaName: 'chef_ingredient_swap',
       schema: ingredientSwapSchema,
       task: 'Evaluate this ingredient swap, explain downsides and benefits, then return an updated structured recipe preview. The UI will ask the user to confirm before applying it.',
+      payload: input,
+    });
+  }
+
+  async suggestInventoryAlternatives(
+    input: InventoryAlternativesDto,
+  ): Promise<AiInventoryAlternativesResult> {
+    return this.createStructuredResponse<AiInventoryAlternativesResult>({
+      schemaName: 'chef_inventory_alternatives',
+      schema: inventoryAlternativesSchema,
+      task: [
+        'For each recipe ingredient, decide whether one item from the provided kitchen inventory is a reasonable cooking substitute.',
+        'Only choose replacements from the provided inventory list. Do not invent items.',
+        'Return null inventory_item_id and null replacement_ingredient when there is no good substitute.',
+        'Prefer close culinary fit over broad category matching. Chicken to turkey can be reasonable; chicken to beans may be lower confidence unless the dish can tolerate it.',
+        'Do not mark exact matches; this endpoint is only for alternatives when the deterministic inventory check did not find the ingredient.',
+      ].join(' '),
       payload: input,
     });
   }

@@ -1,4 +1,4 @@
-import type { BaseRecipe, MealPlan } from "@cart/shared";
+import type { BaseRecipe, MealPlan, UserPreferences } from "@cart/shared";
 import { fetchAuthedCollection, fetchAuthedResource } from "@/lib/api";
 import { MealPlanClient } from "./meal-plan-client";
 
@@ -17,18 +17,26 @@ export default async function MealPlanPage() {
   const mealPlanResult = await fetchAuthedResource<MealPlan>(
     `/meal-plans?week_start=${weekStart}`,
   );
+  const preferencesResult =
+    await fetchAuthedResource<UserPreferences>("/me/preferences");
 
-  const initialMealPlan = mealPlanResult.ok && mealPlanResult.data
-    ? mealPlanResult.data
-    : {
-        week_start: weekStart,
-        days: Array.from({ length: 7 }, () => ({})),
-      };
+  const initialMealPlan =
+    mealPlanResult.ok && mealPlanResult.data
+      ? mealPlanResult.data
+      : {
+          week_start: weekStart,
+          days: Array.from({ length: 7 }, () => ({})),
+        };
 
   return (
     <MealPlanClient
       recipes={recipesResult.data}
       initialMealPlan={initialMealPlan}
+      weeklyNutritionTargets={
+        preferencesResult.ok && preferencesResult.data
+          ? preferencesResult.data.weekly_nutrition_targets
+          : undefined
+      }
     />
   );
 }

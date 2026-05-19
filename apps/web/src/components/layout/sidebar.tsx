@@ -7,11 +7,15 @@ const navItems = [
   { href: "/dashboard", icon: "home", label: "Home" },
   { href: "/meal-plan", icon: "calendar_month", label: "Plan" },
   { href: "/recipes", icon: "add_circle", label: "Create" },
-  { href: "/shopping", icon: "shopping_cart", label: "Shopping" },
+  { href: "/shopping", icon: "shopping_cart", label: "Cart" },
   { href: "/inventory", icon: "inventory_2", label: "Inventory" },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  hideCreateActions = false,
+}: {
+  hideCreateActions?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -60,15 +64,17 @@ export function Sidebar() {
       </nav>
 
       {/* New Recipe CTA */}
-      <div className="px-4 pb-4">
-        <Link
-          href="/recipes/new"
-          className="flex items-center justify-center gap-2 w-full py-3 bg-primary-fixed-dim text-on-primary-fixed font-bold text-label-lg rounded-full hover:bg-primary-fixed transition-colors shadow-sm"
-        >
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          New Recipe
-        </Link>
-      </div>
+      {!hideCreateActions && (
+        <div className="px-4 pb-4">
+          <Link
+            href="/recipes/new"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary-fixed-dim py-3 text-label-lg font-bold text-on-primary-fixed shadow-sm transition-colors hover:bg-primary-fixed"
+          >
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            New Recipe
+          </Link>
+        </div>
+      )}
 
       {/* User profile */}
       <div className="px-3 pb-5 border-t border-outline-variant/30 pt-3">

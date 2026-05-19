@@ -14,6 +14,7 @@ import type {
   ShoppingCart,
   UpdateIngredientReviewItemRequest,
 } from '@cart/shared';
+import { normalizeIngredientKey } from '@cart/shared';
 import { AggregationService } from '../aggregation/aggregation.service';
 import { CartExportService } from '../cart-export/cart-export.service';
 import { IngredientsService } from '../ingredients/ingredients.service';
@@ -390,7 +391,7 @@ export class CartService {
       actor.preferredZipCode,
       actor.preferredKrogerLocationId,
     );
-    const matchedItems =
+    const matchedItems = this.mergeMatchedItems(
       input.retailer === 'instacart'
         ? ingredientsToBuy.map((ingredient) => ({
             ...mapMissingIngredientMatch(ingredient),
@@ -401,7 +402,8 @@ export class CartService {
             ingredientsToBuy,
             input.retailer,
             searchContext,
-          );
+          ),
+    );
     const estimatedSubtotal =
       this.matchingService.estimateSubtotal(matchedItems);
     const handoff = await this.cartExportService.createHandoff({
@@ -466,15 +468,23 @@ export class CartService {
       throw new NotFoundException(`Shopping cart ${id} not found`);
     }
 
-    const matchedItems = (
-      input.matched_items as MatchedIngredientProduct[]
-    ).map((item) => ({
-      ...item,
-      kind: item.kind ?? 'ingredient_match',
-    }));
+    if (existing.checked_out_at && input.matched_items !== undefined) {
+      throw new BadRequestException(
+        'Checked-out shopping carts are read-only. Reopen the cart before editing items.',
+      );
+    }
 
-    const estimatedSubtotal =
-      this.matchingService.estimateSubtotal(matchedItems);
+    const matchedItems =
+      input.matched_items === undefined
+        ? undefined
+        : (input.matched_items as MatchedIngredientProduct[]).map((item) => ({
+            ...item,
+            kind: item.kind ?? 'ingredient_match',
+          }));
+
+    const estimatedSubtotal = matchedItems
+      ? this.matchingService.estimateSubtotal(matchedItems)
+      : undefined;
 
     const updated = await this.cartPersistenceService.updateShoppingCart(
       actor.id,
@@ -482,6 +492,7 @@ export class CartService {
       {
         matched_items: matchedItems,
         estimated_subtotal: estimatedSubtotal,
+        checked_out_at: input.checked_out_at,
       },
     );
 
@@ -705,6 +716,41 @@ export class CartService {
     keys.push(this.buildIngredientReviewKey(item));
 
     return keys;
+  }
+
+  private mergeMatchedItems(
+    items: MatchedIngredientProduct[],
+  ): MatchedIngredientProduct[] {
+    const itemMap = new Map<string, MatchedIngredientProduct>();
+
+    for (const item of items) {
+      const key = [
+        item.kind ?? 'ingredient_match',
+        normalizeIngredientKey(item.canonical_ingredient),
+        item.needed_unit.trim().toLowerCase(),
+        item.selected_product?.product_id ?? item.walmart_search_query,
+      ].join('::');
+      const existing = itemMap.get(key);
+
+      if (!existing) {
+        itemMap.set(key, { ...item });
+        continue;
+      }
+
+      existing.needed_amount += item.needed_amount;
+      existing.selected_quantity =
+        (existing.selected_quantity ?? 1) + (item.selected_quantity ?? 1);
+      if (
+        existing.estimated_line_total !== undefined ||
+        item.estimated_line_total !== undefined
+      ) {
+        existing.estimated_line_total =
+          (existing.estimated_line_total ?? 0) +
+          (item.estimated_line_total ?? 0);
+      }
+    }
+
+    return Array.from(itemMap.values());
   }
 
   private findIngredientReviewKey<T>(

@@ -3,10 +3,20 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import type { BaseRecipe } from "@cart/shared";
+import type { BaseRecipe, KitchenInventoryItem } from "@cart/shared";
+import { normalizeIngredientKey } from "@cart/shared";
 import { RecipeImage } from "@/components/ui/recipe-image";
-import { getIngredientPrepAction } from "@/app/ai-actions";
+import {
+  getIngredientPrepAction,
+  getInventoryAlternativesAction,
+  type InventoryAlternativeSuggestion,
+} from "@/app/ai-actions";
 import type { CookingContext } from "@/lib/cooking-context";
+import {
+  getIngredientReadiness,
+  getIngredientReadinessSummary,
+  type IngredientReadiness,
+} from "@/lib/inventory-readiness";
 
 const PreparationChefAssistant = dynamic(
   () =>
@@ -51,9 +61,11 @@ function estimatePrepMinutes(recipe: BaseRecipe) {
 
 export function RecipePreparationClient({
   recipe,
+  inventory,
   cookingContext,
 }: {
   recipe: BaseRecipe;
+  inventory: KitchenInventoryItem[];
   cookingContext?: CookingContext;
 }) {
   const [started, setStarted] = useState(false);
@@ -62,6 +74,14 @@ export function RecipePreparationClient({
   const [handsFreeOpen, setHandsFreeOpen] = useState(false);
   const [checkedIngredients, setCheckedIngredients] = useState<string[]>([]);
   const [prepNotes, setPrepNotes] = useState<string[]>([]);
+  const [aiAlternatives, setAiAlternatives] = useState<
+    InventoryAlternativeSuggestion[]
+  >([]);
+  const [aiAlternativesPending, setAiAlternativesPending] = useState(false);
+  const [inventoryChecked, setInventoryChecked] = useState(false);
+  const [inventoryCheckError, setInventoryCheckError] = useState<string | null>(
+    null,
+  );
   const [prepError, setPrepError] = useState<string | null>(null);
   const [isPrepPending, startPrepTransition] = useTransition();
 
@@ -82,6 +102,28 @@ export function RecipePreparationClient({
   const prepMinutes = estimatePrepMinutes(recipe);
   const currentStep = recipe.steps[activeStep] ?? null;
   const checkedCount = checkedIngredients.length;
+  const alternativeByIngredient = useMemo(
+    () =>
+      new Map(
+        aiAlternatives.map((suggestion) => [
+          normalizeIngredientKey(suggestion.ingredient_name),
+          suggestion,
+        ]),
+      ),
+    [aiAlternatives],
+  );
+  const inventorySummary = useMemo(
+    () =>
+      getIngredientReadinessSummary(
+        recipe.ingredients,
+        inventory,
+        (ingredient) =>
+          alternativeByIngredient.get(
+            normalizeIngredientKey(ingredient.canonical_ingredient),
+          ),
+      ),
+    [alternativeByIngredient, inventory, recipe.ingredients],
+  );
   const ingredientCompletion = recipe.ingredients.length
     ? Math.round((checkedCount / recipe.ingredients.length) * 100)
     : 0;
@@ -118,6 +160,45 @@ export function RecipePreparationClient({
       },
     ];
   }, [nutrition.carbs_g, nutrition.fat_g, nutrition.protein_g]);
+
+  async function handleCheckInventory() {
+    setInventoryCheckError(null);
+    setInventoryChecked(true);
+    const candidates = recipe.ingredients.filter(
+      (ingredient) =>
+        getIngredientReadiness(ingredient, inventory).status !== "available",
+    );
+
+    if (candidates.length === 0 || inventory.length === 0) {
+      setAiAlternatives([]);
+      setAiAlternativesPending(false);
+      return;
+    }
+
+    setAiAlternativesPending(true);
+    const result = await getInventoryAlternativesAction({
+      recipeName: recipe.name,
+      ingredients: candidates.map((ingredient) => ({
+        canonical_ingredient: ingredient.canonical_ingredient,
+        display_ingredient: ingredient.display_ingredient ?? null,
+        amount: ingredient.amount,
+        unit: ingredient.unit,
+      })),
+      inventory: inventory.map((item) => ({
+        id: item.id,
+        display_name: item.display_name,
+        category: item.ingredient?.category ?? null,
+      })),
+    });
+
+    if (result.error) {
+      setInventoryCheckError(result.error);
+    }
+    if (result.suggestions) {
+      setAiAlternatives(result.suggestions);
+    }
+    setAiAlternativesPending(false);
+  }
 
   function loadPrepGuide() {
     setPrepError(null);
@@ -300,9 +381,73 @@ export function RecipePreparationClient({
               )}
 
               <div className="space-y-4">
+                <div className="rounded-[22px] border border-[#c0dedf] bg-white p-3 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={handleCheckInventory}
+                    disabled={aiAlternativesPending}
+                    className="flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-[#2f7f83] px-4 py-2 text-label-md font-black text-white transition-colors hover:bg-[#25696d] disabled:opacity-60"
+                  >
+                    <span
+                      className={`material-symbols-outlined text-[16px] ${
+                        aiAlternativesPending ? "animate-spin" : ""
+                      }`}
+                    >
+                      {aiAlternativesPending
+                        ? "progress_activity"
+                        : "inventory_2"}
+                    </span>
+                    {aiAlternativesPending
+                      ? "Checking..."
+                      : inventoryChecked
+                        ? "Check again"
+                        : "Check inventory"}
+                  </button>
+                  {inventoryCheckError ? (
+                    <p className="mt-2 text-center text-[11px] text-error">
+                      {inventoryCheckError}
+                    </p>
+                  ) : null}
+                </div>
+
+                {inventoryChecked ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    <InventoryStatusCount
+                      icon="check_circle"
+                      value={inventorySummary.available}
+                      label="Have"
+                      className="bg-[#ecf8f4] text-[#256f5c]"
+                    />
+                    <InventoryStatusCount
+                      icon="swap_horiz"
+                      value={inventorySummary.alternative}
+                      label="Alt"
+                      className="bg-[#fff7dc] text-[#8a5d00]"
+                    />
+                    <InventoryStatusCount
+                      icon="add_shopping_cart"
+                      value={inventorySummary.missing}
+                      label="Buy"
+                      className="bg-[#fff0ed] text-[#a33720]"
+                    />
+                  </div>
+                ) : null}
                 {recipe.ingredients.map((ingredient, index) => {
                   const ingredientKey = `${ingredient.canonical_ingredient}-${index}`;
                   const checked = checkedIngredients.includes(ingredientKey);
+                  const readiness = getIngredientReadiness(
+                    ingredient,
+                    inventory,
+                    alternativeByIngredient.get(
+                      normalizeIngredientKey(ingredient.canonical_ingredient),
+                    ),
+                  );
+                  const inventoryNote = getReadinessNote(
+                    readiness,
+                    aiAlternativesPending &&
+                      getIngredientReadiness(ingredient, inventory).status !==
+                        "available",
+                  );
 
                   return (
                     <button
@@ -339,7 +484,7 @@ export function RecipePreparationClient({
                           <p className="mt-1 text-[11px] italic text-primary/80">
                             {prepNotes[index]}
                           </p>
-                        ) : (
+                        ) : !inventoryChecked ? (
                           <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">
                             {checked
                               ? "Ready"
@@ -347,7 +492,21 @@ export function RecipePreparationClient({
                                 ? "Optional"
                                 : "Check before cooking"}
                           </p>
+                        ) : (
+                          <p
+                            className={`mt-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${inventoryNote.className}`}
+                          >
+                            <span className="material-symbols-outlined text-[14px]">
+                              {inventoryNote.icon}
+                            </span>
+                            {checked ? "Ready" : inventoryNote.label}
+                          </p>
                         )}
+                        {inventoryChecked && inventoryNote.detail ? (
+                          <p className="mt-1 text-[11px] text-on-surface-variant">
+                            {inventoryNote.detail}
+                          </p>
+                        ) : null}
                       </div>
                     </button>
                   );
@@ -552,4 +711,67 @@ export function RecipePreparationClient({
       </div>
     </div>
   );
+}
+
+function InventoryStatusCount({
+  icon,
+  value,
+  label,
+  className,
+}: {
+  icon: string;
+  value: number;
+  label: string;
+  className: string;
+}) {
+  return (
+    <div
+      className={`flex min-w-0 items-center justify-center gap-1.5 rounded-2xl px-2.5 py-2 text-label-sm font-bold ${className}`}
+    >
+      <span className="material-symbols-outlined text-[16px]">{icon}</span>
+      <span>{value}</span>
+      <span className="truncate">{label}</span>
+    </div>
+  );
+}
+
+function getReadinessNote(
+  readiness: IngredientReadiness,
+  checkingAlternative: boolean,
+) {
+  if (checkingAlternative) {
+    return {
+      icon: "progress_activity",
+      label: "Checking swaps",
+      detail: "Asking AI to compare your inventory.",
+      className: "text-[#5f8689]",
+    };
+  }
+
+  if (readiness.status === "available") {
+    return {
+      icon: "check_circle",
+      label: "In kitchen",
+      detail: readiness.item.display_name,
+      className: "text-[#2d806a]",
+    };
+  }
+
+  if (readiness.status === "alternative") {
+    return {
+      icon: "swap_horiz",
+      label: "Alternative in kitchen",
+      detail: readiness.reason
+        ? `${readiness.alternative.display_name}: ${readiness.reason}`
+        : `You have ${readiness.alternative.display_name}. Add this ingredient to the cart if you want the recipe as written.`,
+      className: "text-[#9a6900]",
+    };
+  }
+
+  return {
+    icon: "add_shopping_cart",
+    label: "Need to buy",
+    detail: "Will be added when you generate a cart.",
+    className: "text-[#b24028]",
+  };
 }

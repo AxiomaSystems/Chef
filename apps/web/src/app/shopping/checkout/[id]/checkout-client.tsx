@@ -8,6 +8,10 @@ import type {
   ShoppingCart,
 } from "@cart/shared";
 import { Button } from "@/components/ui/button";
+import {
+  updateShoppingCartAction,
+  updateShoppingCartCheckoutStateAction,
+} from "@/app/home-actions";
 
 function fmt$(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -79,6 +83,23 @@ function lineSubtitle(item: MatchedIngredientProduct) {
   return `${item.needed_amount} ${item.needed_unit}`;
 }
 
+function applyQuantityToItem(
+  item: MatchedIngredientProduct,
+  quantity: number,
+): MatchedIngredientProduct {
+  if (!item.selected_product) {
+    return item;
+  }
+
+  return {
+    ...item,
+    selected_quantity: quantity,
+    estimated_line_total: Number(
+      (item.selected_product.price * quantity).toFixed(2),
+    ),
+  };
+}
+
 export function CheckoutClient({
   shoppingCart,
   cartName,
@@ -92,6 +113,7 @@ export function CheckoutClient({
     buildInitialQuantities(shoppingCart.matched_items),
   );
   const [placed, setPlaced] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const addresses = checkoutProfile.saved_addresses;
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
@@ -128,7 +150,36 @@ export function CheckoutClient({
     );
   }
 
-  function completeCheckout() {
+  async function completeCheckout() {
+    if (!shoppingCart.id) {
+      setCheckoutError("Shopping cart not found.");
+      return;
+    }
+
+    setCheckoutError(null);
+    const finalItems = shoppingCart.matched_items.map((item, index) =>
+      applyQuantityToItem(item, quantities[index] ?? 1),
+    );
+    const saveResult = await updateShoppingCartAction(
+      shoppingCart.id,
+      finalItems,
+    );
+
+    if (saveResult.error) {
+      setCheckoutError(saveResult.error);
+      return;
+    }
+
+    const checkoutResult = await updateShoppingCartCheckoutStateAction(
+      shoppingCart.id,
+      new Date().toISOString(),
+    );
+
+    if (checkoutResult.error) {
+      setCheckoutError(checkoutResult.error);
+      return;
+    }
+
     setPlaced(true);
     if (shoppingCart.external_url) {
       window.open(shoppingCart.external_url, "_blank", "noopener,noreferrer");
@@ -569,7 +620,7 @@ export function CheckoutClient({
                   size="lg"
                   icon="arrow_forward"
                   iconPosition="right"
-                  onClick={completeCheckout}
+                  onClick={() => void completeCheckout()}
                   className="rounded-[22px] bg-[#f4be6b] text-[#351800] hover:bg-[#f4be6b]"
                 >
                   {shoppingCart.external_url
@@ -581,6 +632,11 @@ export function CheckoutClient({
                     ? `You will continue to ${retailerLabel(shoppingCart.retailer)} to finalize the order.`
                     : "This checkout is a frontend prototype for your in-app flow."}
                 </p>
+                {checkoutError && (
+                  <div className="mt-4 rounded-[20px] bg-error-container px-4 py-3 text-body-sm text-on-error-container">
+                    {checkoutError}
+                  </div>
+                )}
                 {placed && (
                   <div className="mt-4 rounded-[20px] bg-secondary-container px-4 py-3 text-body-sm text-on-secondary-container">
                     {shoppingCart.external_url

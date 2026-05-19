@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { BaseRecipe, MealPlan, MealPlanDay } from "@cart/shared";
-import {
-  createShoppingCartAction,
-  submitDraftFlowAction,
-} from "@/app/home-actions";
+import type {
+  BaseRecipe,
+  MealPlan,
+  MealPlanDay,
+  WeeklyNutritionTargets,
+} from "@cart/shared";
+import { submitDraftFlowAction } from "@/app/home-actions";
 import { getMealPlanAction, saveMealPlanAction } from "@/app/meal-plan/actions";
 import { RecipeImage } from "@/components/ui/recipe-image";
 
@@ -22,9 +24,10 @@ const MEAL_CONFIG: { type: MealType; label: string; icon: string }[] = [
 ];
 
 const WEEKLY_TARGETS = {
+  calories: 14000,
   protein_g: 350,
   carbs_g: 1750,
-  fiber_g: 175,
+  fat_g: 490,
 };
 
 const MONTH_NAMES = [
@@ -62,9 +65,11 @@ function toDateKey(date: Date) {
 export function WeeklyMealPlan({
   recipes,
   initialMealPlan,
+  weeklyNutritionTargets,
 }: {
   recipes: BaseRecipe[];
   initialMealPlan: MealPlan;
+  weeklyNutritionTargets?: WeeklyNutritionTargets;
 }) {
   const router = useRouter();
   const today = new Date();
@@ -291,14 +296,21 @@ export function WeeklyMealPlan({
       }
 
       return {
+        calories: accumulator.calories + (recipe.nutrition_data.calories ?? 0),
         protein_g:
           accumulator.protein_g + (recipe.nutrition_data.protein_g ?? 0),
         carbs_g: accumulator.carbs_g + (recipe.nutrition_data.carbs_g ?? 0),
-        fiber_g: accumulator.fiber_g + (recipe.nutrition_data.fiber_g ?? 0),
+        fat_g: accumulator.fat_g + (recipe.nutrition_data.fat_g ?? 0),
       };
     },
-    { protein_g: 0, carbs_g: 0, fiber_g: 0 },
+    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
   );
+  const nutritionTargets = {
+    calories: weeklyNutritionTargets?.calories ?? WEEKLY_TARGETS.calories,
+    protein_g: weeklyNutritionTargets?.protein_g ?? WEEKLY_TARGETS.protein_g,
+    carbs_g: weeklyNutritionTargets?.carbs_g ?? WEEKLY_TARGETS.carbs_g,
+    fat_g: weeklyNutritionTargets?.fat_g ?? WEEKLY_TARGETS.fat_g,
+  };
 
   const groceryMap = new Map<string, { amount: number; unit: string }>();
   for (const id of allRecipeIds) {
@@ -448,17 +460,8 @@ export function WeeklyMealPlan({
         return;
       }
 
-      const shoppingCartResult = await createShoppingCartAction(
-        cartResult.resourceId,
-        "kroger",
-      );
-      if (shoppingCartResult.error) {
-        setCartError(shoppingCartResult.error);
-        return;
-      }
-
       setShowFullGroceryList(false);
-      router.push("/shopping");
+      router.push(`/carts/${cartResult.resourceId}`);
     });
   }
 
@@ -1036,30 +1039,38 @@ export function WeeklyMealPlan({
             <div className="space-y-4">
               {[
                 {
+                  label: "Calories",
+                  value: nutrition.calories,
+                  target: nutritionTargets.calories,
+                  unit: " kcal",
+                  color: "bg-[#ef4444]",
+                },
+                {
                   label: "Protein",
                   value: nutrition.protein_g,
-                  target: WEEKLY_TARGETS.protein_g,
+                  target: nutritionTargets.protein_g,
                   unit: "g",
                   color: "bg-[#fe8e17]",
                 },
                 {
                   label: "Carbs",
                   value: nutrition.carbs_g,
-                  target: WEEKLY_TARGETS.carbs_g,
+                  target: nutritionTargets.carbs_g,
                   unit: "g",
                   color: "bg-[#3b82f6]",
                 },
                 {
-                  label: "Fiber",
-                  value: nutrition.fiber_g,
-                  target: WEEKLY_TARGETS.fiber_g,
+                  label: "Fats",
+                  value: nutrition.fat_g,
+                  target: nutritionTargets.fat_g,
                   unit: "g",
                   color: "bg-[#22c55e]",
                 },
               ].map(({ label, value, target, unit, color }) => {
+                const safeTarget = target > 0 ? target : 1;
                 const percent = Math.min(
                   100,
-                  Math.round((value / target) * 100),
+                  Math.round((value / safeTarget) * 100),
                 );
 
                 return (

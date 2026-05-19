@@ -178,6 +178,69 @@ export type IngredientPrepActionState = {
   notes?: string[];
 };
 
+export type InventoryAlternativeSuggestion = {
+  ingredient_name: string;
+  inventory_item_id: string | null;
+  replacement_ingredient: string | null;
+  confidence: "low" | "medium" | "high";
+  reason: string;
+};
+
+export async function getInventoryAlternativesAction(input: {
+  recipeName: string;
+  ingredients: {
+    canonical_ingredient: string;
+    display_ingredient?: string | null;
+    amount: number;
+    unit: string;
+  }[];
+  inventory: {
+    id: string;
+    display_name: string;
+    category?: string | null;
+  }[];
+}): Promise<{
+  suggestions?: InventoryAlternativeSuggestion[];
+  error?: string;
+}> {
+  if (input.ingredients.length === 0 || input.inventory.length === 0) {
+    return { suggestions: [] };
+  }
+
+  const accessToken = await requireAccessToken();
+  const response = await fetch(
+    buildApiUrl("/ai/recipes/inventory-alternatives"),
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        recipe_name: input.recipeName,
+        ingredients: input.ingredients,
+        inventory: input.inventory,
+      }),
+      cache: "no-store",
+    },
+  ).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: await readErrorMessage(
+        response,
+        "Could not check inventory alternatives.",
+      ),
+    };
+  }
+
+  const payload = (await response.json()) as {
+    suggestions?: InventoryAlternativeSuggestion[];
+  };
+
+  return { suggestions: payload.suggestions ?? [] };
+}
+
 export async function getIngredientPrepAction(input: {
   recipeName: string;
   ingredients: {
