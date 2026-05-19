@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { buildApiUrl, ACCESS_TOKEN_COOKIE } from "@/lib/auth";
 import type {
+  AiInventoryStructureInputItem,
+  AiInventoryStructureResult,
   AddVisionObservationToInventoryRequest,
   CreateVisionObservationRequest,
   KitchenInventoryItem,
@@ -42,7 +44,12 @@ export async function createRestockCartAction(
 
 export async function addInventoryItemAction(
   canonicalName: string,
-  options: { estimatedAmount?: number; unit?: string; label?: string } = {},
+  options: {
+    displayName?: string;
+    estimatedAmount?: number;
+    unit?: string;
+    label?: string;
+  } = {},
 ): Promise<{ data?: KitchenInventoryItem; error?: string }> {
   const cookieStore = await cookies();
   const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
@@ -60,6 +67,7 @@ export async function addInventoryItemAction(
     },
     body: JSON.stringify({
       canonical_name: canonicalName.trim(),
+      display_name: options.displayName?.trim() || undefined,
       label: options.label,
       estimated_amount: options.estimatedAmount,
       unit: options.unit,
@@ -75,6 +83,40 @@ export async function addInventoryItemAction(
 
   revalidatePath("/inventory");
   return { data: await res.json() };
+}
+
+export async function structureInventoryTranscriptAction(input: {
+  transcript: string;
+  allowedUnits: string[];
+  inventory: AiInventoryStructureInputItem[];
+  instructions?: string;
+}): Promise<{ data?: AiInventoryStructureResult; error?: string }> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
+  if (!token) return { error: "Not authenticated" };
+
+  const res = await fetch(buildApiUrl("/ai/inventory/structure"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      transcript: input.transcript,
+      allowed_units: input.allowedUnits,
+      inventory: input.inventory,
+      user_instructions: input.instructions?.trim() || undefined,
+      source: "voice_inventory",
+    }),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    return { error: body.message ?? "Failed to structure inventory" };
+  }
+
+  return { data: (await res.json()) as AiInventoryStructureResult };
 }
 
 export async function createVisionObservationAction(
@@ -159,6 +201,7 @@ export async function addVisionObservationToInventoryAction(
 export async function updateInventoryItemAction(
   id: string,
   options: {
+    displayName?: string | null;
     estimatedAmount?: number | null;
     unit?: string | null;
     label?: string | null;
@@ -175,6 +218,7 @@ export async function updateInventoryItemAction(
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
+      display_name: options.displayName,
       label: options.label,
       estimated_amount: options.estimatedAmount,
       unit: options.unit,

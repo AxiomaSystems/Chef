@@ -3,6 +3,7 @@
 import { createContext } from "react";
 import type {
   Cuisine,
+  AiLimitsStatus,
   Tag,
   User,
   UserPreferences,
@@ -13,6 +14,7 @@ export type AccountData = {
   user: User;
   stats: UserStats;
   preferences: UserPreferences;
+  aiLimits: AiLimitsStatus | null;
   cuisines: Cuisine[];
   systemTags: Tag[];
 };
@@ -42,6 +44,7 @@ export const AccountDataContext = createContext<AccountData>({
     preferred_tags: [],
     weekly_nutrition_targets: {},
   },
+  aiLimits: null,
   cuisines: [],
   systemTags: [],
 });

@@ -6,6 +6,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { BaseRecipe, Capture } from '@cart/shared';
+import { AiRateLimitGuard } from '../ai/ai-rate-limit.guard';
+import { AiUsageCategory } from '../ai/ai-usage-category.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { RequestActorGuard } from '../auth/request-actor.guard';
@@ -20,6 +22,8 @@ export class CaptureController {
   constructor(private readonly captureService: CaptureService) {}
 
   @Post()
+  @AiUsageCategory('imports')
+  @UseGuards(AiRateLimitGuard)
   @ApiCreatedResponse({
     description: 'Creates a Chef Capture draft for user review.',
   })

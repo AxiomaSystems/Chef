@@ -12,9 +12,9 @@ const navItems = [
 ];
 
 export function BottomNav({
-  hideCreateActions = false,
+  hideCreateButton = false,
 }: {
-  hideCreateActions?: boolean;
+  hideCreateButton?: boolean;
 }) {
   const pathname = usePathname();
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
@@ -30,7 +30,7 @@ export function BottomNav({
 
   return (
     <>
-      {isCreateMenuOpen && !hideCreateActions ? (
+      {isCreateMenuOpen && !hideCreateButton ? (
         <button
           type="button"
           aria-label="Close create menu"
@@ -64,7 +64,7 @@ export function BottomNav({
           );
         })}
       </nav>
-      {!hideCreateActions && (
+      {!hideCreateButton ? (
         <div className="fixed bottom-20 right-5 z-[60] flex flex-col items-end gap-3 lg:hidden">
           {isCreateMenuOpen ? (
             <div className="w-[min(18rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-outline-variant/30 bg-white py-2 shadow-[0_18px_50px_rgba(31,24,15,0.18)]">
@@ -119,7 +119,7 @@ export function BottomNav({
             </span>
           </button>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import {
   displayIngredientCategory,
@@ -10,15 +11,42 @@ import {
   type KitchenInventoryItem,
 } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
-import { CameraModal } from "./camera-modal";
+import { IngredientImage } from "./ingredient-image";
 import {
   removeInventoryItemAction,
-  createRestockCartAction,
   addInventoryItemAction,
   updateInventoryItemAction,
 } from "./actions";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+const CameraModal = dynamic(
+  () => import("./camera-modal").then((mod) => mod.CameraModal),
+  {
+    loading: () => null,
+    ssr: false,
+  },
+);
+
+const IngredientPickerModal = dynamic(
+  () =>
+    import("./ingredient-picker-modal").then(
+      (mod) => mod.IngredientPickerModal,
+    ),
+  {
+    loading: () => null,
+    ssr: false,
+  },
+);
+
+const VoiceInventoryModal = dynamic(
+  () =>
+    import("./voice-inventory-modal").then((mod) => mod.VoiceInventoryModal),
+  {
+    loading: () => null,
+    ssr: false,
+  },
+);
+
+// Component ────────────────────────────────────────────────────────────────
 
 type DisplayItem = {
   id: string;
@@ -28,310 +56,6 @@ type DisplayItem = {
   estimatedAmount?: number;
   unit?: string;
 };
-
-// ─── Ingredient Catalog ───────────────────────────────────────────────────────
-
-const INGREDIENT_CATALOG: { category: string; items: string[] }[] = [
-  {
-    category: "Proteins",
-    items: [
-      "Chicken Breast",
-      "Chicken Thighs",
-      "Ground Beef",
-      "Beef Steak",
-      "Pork Chops",
-      "Bacon",
-      "Salmon",
-      "Tuna",
-      "Shrimp",
-      "Eggs",
-      "Tofu",
-      "Tempeh",
-      "Lentils",
-      "Chickpeas",
-      "Black Beans",
-      "Kidney Beans",
-      "Edamame",
-      "Turkey Breast",
-      "Lamb Chops",
-      "Sardines",
-      "Crab",
-      "Lobster",
-      "Scallops",
-      "Cod",
-    ],
-  },
-  {
-    category: "Vegetables",
-    items: [
-      "Onion",
-      "Garlic",
-      "Tomato",
-      "Bell Pepper",
-      "Broccoli",
-      "Spinach",
-      "Kale",
-      "Carrot",
-      "Celery",
-      "Cucumber",
-      "Zucchini",
-      "Eggplant",
-      "Mushrooms",
-      "Asparagus",
-      "Green Beans",
-      "Peas",
-      "Corn",
-      "Cauliflower",
-      "Brussels Sprouts",
-      "Cabbage",
-      "Lettuce",
-      "Arugula",
-      "Sweet Potato",
-      "Potato",
-      "Beet",
-      "Artichoke",
-      "Leek",
-      "Bok Choy",
-      "Radish",
-      "Turnip",
-      "Parsnip",
-    ],
-  },
-  {
-    category: "Fruits",
-    items: [
-      "Apple",
-      "Banana",
-      "Lemon",
-      "Lime",
-      "Orange",
-      "Strawberry",
-      "Blueberry",
-      "Raspberry",
-      "Mango",
-      "Avocado",
-      "Grapes",
-      "Pineapple",
-      "Watermelon",
-      "Peach",
-      "Pear",
-      "Plum",
-      "Kiwi",
-      "Papaya",
-      "Coconut",
-      "Cherry",
-      "Pomegranate",
-      "Fig",
-      "Grapefruit",
-      "Cantaloupe",
-    ],
-  },
-  {
-    category: "Dairy & Eggs",
-    items: [
-      "Milk",
-      "Butter",
-      "Heavy Cream",
-      "Sour Cream",
-      "Greek Yogurt",
-      "Cream Cheese",
-      "Cheddar Cheese",
-      "Mozzarella",
-      "Parmesan",
-      "Feta",
-      "Brie",
-      "Gouda",
-      "Ricotta",
-      "Cottage Cheese",
-      "Mascarpone",
-      "Half and Half",
-    ],
-  },
-  {
-    category: "Grains & Bread",
-    items: [
-      "White Rice",
-      "Brown Rice",
-      "Pasta",
-      "Spaghetti",
-      "Penne",
-      "Bread",
-      "Sourdough",
-      "Flour Tortillas",
-      "Corn Tortillas",
-      "Oats",
-      "Quinoa",
-      "Barley",
-      "Couscous",
-      "Breadcrumbs",
-      "Panko",
-      "Pita Bread",
-      "Naan",
-      "All-Purpose Flour",
-      "Whole Wheat Flour",
-      "Cornmeal",
-    ],
-  },
-  {
-    category: "Oils & Condiments",
-    items: [
-      "Olive Oil",
-      "Vegetable Oil",
-      "Coconut Oil",
-      "Sesame Oil",
-      "Butter",
-      "Soy Sauce",
-      "Fish Sauce",
-      "Worcestershire Sauce",
-      "Hot Sauce",
-      "Sriracha",
-      "Ketchup",
-      "Mustard",
-      "Mayonnaise",
-      "Dijon Mustard",
-      "Hoisin Sauce",
-      "Oyster Sauce",
-      "Tahini",
-      "Pesto",
-      "Tomato Paste",
-      "Tomato Sauce",
-      "BBQ Sauce",
-      "Teriyaki Sauce",
-      "Balsamic Vinegar",
-      "Apple Cider Vinegar",
-      "White Wine Vinegar",
-      "Rice Vinegar",
-    ],
-  },
-  {
-    category: "Spices & Herbs",
-    items: [
-      "Salt",
-      "Black Pepper",
-      "Cumin",
-      "Paprika",
-      "Smoked Paprika",
-      "Turmeric",
-      "Cinnamon",
-      "Oregano",
-      "Thyme",
-      "Rosemary",
-      "Basil",
-      "Bay Leaves",
-      "Chili Powder",
-      "Cayenne Pepper",
-      "Red Pepper Flakes",
-      "Garlic Powder",
-      "Onion Powder",
-      "Ginger",
-      "Nutmeg",
-      "Cloves",
-      "Cardamom",
-      "Coriander",
-      "Cumin Seeds",
-      "Mustard Seeds",
-      "Fennel Seeds",
-      "Dill",
-      "Parsley",
-      "Cilantro",
-      "Chives",
-      "Sage",
-      "Marjoram",
-      "Allspice",
-      "Star Anise",
-      "Vanilla Extract",
-      "Saffron",
-      "Curry Powder",
-      "Garam Masala",
-      "Za'atar",
-      "Sumac",
-      "Harissa",
-      "Ras el Hanout",
-    ],
-  },
-  {
-    category: "Pantry Staples",
-    items: [
-      "Sugar",
-      "Brown Sugar",
-      "Honey",
-      "Maple Syrup",
-      "Baking Powder",
-      "Baking Soda",
-      "Cornstarch",
-      "Yeast",
-      "Cocoa Powder",
-      "Chocolate Chips",
-      "Vanilla Extract",
-      "Chicken Broth",
-      "Vegetable Broth",
-      "Beef Broth",
-      "Coconut Milk",
-      "Canned Tomatoes",
-      "Canned Corn",
-      "Canned Black Beans",
-      "Canned Chickpeas",
-      "Peanut Butter",
-      "Almond Butter",
-      "Jam",
-      "Olive Tapenade",
-      "Capers",
-      "Sun-Dried Tomatoes",
-    ],
-  },
-  {
-    category: "Nuts & Seeds",
-    items: [
-      "Almonds",
-      "Walnuts",
-      "Cashews",
-      "Pecans",
-      "Pistachios",
-      "Pine Nuts",
-      "Pumpkin Seeds",
-      "Sunflower Seeds",
-      "Chia Seeds",
-      "Flaxseeds",
-      "Sesame Seeds",
-      "Hemp Seeds",
-      "Hazelnuts",
-      "Macadamia Nuts",
-      "Brazil Nuts",
-    ],
-  },
-];
-
-// ─── Ingredient image ─────────────────────────────────────────────────────────
-
-function ingredientImageUrl(name: string) {
-  const slug = name
-    .trim()
-    .split(/\s+/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(" ");
-  return `https://www.themealdb.com/images/ingredients/${encodeURIComponent(slug)}-Small.png`;
-}
-
-function IngredientImage({ name, size }: { name: string; size: number }) {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={ingredientImageUrl(name)}
-      alt={name}
-      width={size}
-      height={size}
-      className="w-full h-full object-cover"
-      onError={(e) => {
-        const img = e.currentTarget;
-        img.style.display = "none";
-        const fallback = img.nextElementSibling as HTMLElement | null;
-        if (fallback) fallback.style.display = "flex";
-      }}
-    />
-  );
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function realToDisplay(item: KitchenInventoryItem): DisplayItem {
   const rawCategory = item.ingredient?.category?.trim();
@@ -355,278 +79,13 @@ function realToDisplay(item: KitchenInventoryItem): DisplayItem {
   };
 }
 
-// ─── Ingredient Picker Panel ──────────────────────────────────────────────────
-
-function IngredientPicker({
-  existingNames,
-  onAdd,
-  embedded = false,
-}: {
-  existingNames: Set<string>;
-  onAdd: (
-    name: string,
-    options?: { estimatedAmount?: number; unit?: string },
-  ) => void;
-  embedded?: boolean;
-}) {
-  const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState("All");
-  const [adding, setAdding] = useState<Set<string>>(new Set());
-  const [amountByName, setAmountByName] = useState<Record<string, string>>({});
-  const [unitByName, setUnitByName] = useState<Record<string, string>>({});
-
-  const tabs = ["All", ...INGREDIENT_CATALOG.map((c) => c.category)];
-
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return INGREDIENT_CATALOG.map((group) => ({
-      ...group,
-      items: group.items.filter(
-        (item) =>
-          (activeTab === "All" || group.category === activeTab) &&
-          item.toLowerCase().includes(q),
-      ),
-    })).filter((g) => g.items.length > 0);
-  }, [search, activeTab]);
-
-  async function handleCheck(name: string) {
-    if (existingNames.has(name.toLowerCase()) || adding.has(name)) return;
-    const defaultUnit = inferInventoryUnit(name);
-    const unit = unitByName[name]?.trim() || defaultUnit;
-    const parsedAmount = Number(
-      amountByName[name] ?? String(inferInventoryAmount(unit)),
-    );
-    const estimatedAmount =
-      Number.isFinite(parsedAmount) && parsedAmount > 0
-        ? parsedAmount
-        : inferInventoryAmount(unit);
-    setAdding((prev) => new Set(prev).add(name));
-    await onAdd(name, { estimatedAmount, unit });
-    setAdding((prev) => {
-      const next = new Set(prev);
-      next.delete(name);
-      return next;
-    });
-  }
-
-  return (
-    <div
-      className={`bg-white overflow-hidden ${
-        embedded
-          ? "rounded-2xl border border-outline-variant/30"
-          : "rounded-3xl border border-outline-variant/30 shadow-sm"
-      }`}
-    >
-      {/* Header */}
-      <div className="px-5 pt-5 pb-4 border-b border-outline-variant/20">
-        {!embedded && (
-          <h3 className="font-bold text-on-surface text-base mb-3">
-            Add Ingredients
-          </h3>
-        )}
-        {/* Search */}
-        <div className="relative">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
-            search
-          </span>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search ingredients…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-outline-variant text-sm outline-none focus:border-primary transition-colors bg-surface-container-low"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-outline"
-            >
-              <span className="material-symbols-outlined text-[16px]">
-                close
-              </span>
-            </button>
-          )}
-        </div>
-        {/* Category tabs */}
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
-                activeTab === tab
-                  ? "bg-primary-fixed-dim text-on-primary-fixed"
-                  : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* List */}
-      <div
-        className={`overflow-y-auto divide-y divide-outline-variant/10 ${
-          embedded ? "max-h-[58vh]" : "max-h-[480px]"
-        }`}
-      >
-        {filtered.length === 0 ? (
-          <p className="text-sm text-outline text-center py-10">
-            {`No results for "${search}"`}
-          </p>
-        ) : (
-          filtered.map((group) => (
-            <div key={group.category}>
-              <div className="px-5 py-2 bg-surface-container-low/60 sticky top-0 z-10">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-outline">
-                  {group.category}
-                </span>
-              </div>
-              <div className="divide-y divide-outline-variant/10">
-                {group.items.map((name) => {
-                  const inKitchen = existingNames.has(name.toLowerCase());
-                  const isAdding = adding.has(name);
-                  const selectedUnit =
-                    unitByName[name] ?? inferInventoryUnit(name);
-                  return (
-                    <div
-                      key={name}
-                      className={`flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors ${
-                        inKitchen
-                          ? "bg-primary-fixed-dim/10 cursor-default"
-                          : "hover:bg-surface-container-low/50"
-                      }`}
-                    >
-                      {/* Ingredient image */}
-                      <div className="w-8 h-8 rounded-lg overflow-hidden bg-surface-container shrink-0 relative">
-                        <IngredientImage name={name} size={32} />
-                        <span
-                          className="hidden absolute inset-0 items-center justify-center text-outline"
-                          style={{ display: "none" }}
-                        >
-                          <span className="material-symbols-outlined text-[14px]">
-                            nutrition
-                          </span>
-                        </span>
-                      </div>
-                      <span
-                        className={`flex-1 text-sm font-medium truncate ${
-                          inKitchen ? "text-on-surface/50" : "text-on-surface"
-                        }`}
-                      >
-                        {name}
-                      </span>
-                      {!inKitchen && (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            value={
-                              amountByName[name] ??
-                              String(inferInventoryAmount(selectedUnit))
-                            }
-                            onChange={(e) =>
-                              setAmountByName((prev) => ({
-                                ...prev,
-                                [name]: e.target.value,
-                              }))
-                            }
-                            placeholder="Qty"
-                            className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-white text-xs outline-none focus:border-primary"
-                          />
-                          <select
-                            value={selectedUnit}
-                            onChange={(e) =>
-                              setUnitByName((prev) => ({
-                                ...prev,
-                                [name]: e.target.value,
-                              }))
-                            }
-                            className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-white text-xs outline-none focus:border-primary"
-                            aria-label={`Unit for ${name}`}
-                          >
-                            {INVENTORY_UNIT_OPTIONS.map((unit) => (
-                              <option key={unit} value={unit}>
-                                {unit}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                      {/* Checkbox / state */}
-                      {inKitchen ? (
-                        <span className="material-symbols-outlined text-primary-fixed-dim text-[20px]">
-                          check_circle
-                        </span>
-                      ) : isAdding ? (
-                        <span className="material-symbols-outlined text-outline text-[18px] animate-spin">
-                          refresh
-                        </span>
-                      ) : (
-                        <input
-                          type="checkbox"
-                          checked={false}
-                          onChange={() => handleCheck(name)}
-                          className="w-4 h-4 accent-primary-fixed-dim cursor-pointer"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
+function formatInventoryDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
 }
-
-function IngredientPickerModal({
-  existingNames,
-  onAdd,
-  onClose,
-}: {
-  existingNames: Set<string>;
-  onAdd: (
-    name: string,
-    options?: { estimatedAmount?: number; unit?: string },
-  ) => void;
-  onClose: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 bg-black/80 p-4 flex items-end sm:items-center justify-center">
-      <div className="bg-white w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-3xl shadow-2xl flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/30">
-          <div>
-            <p className="font-bold text-on-surface">Add ingredients</p>
-            <p className="text-xs text-outline">
-              Choose what is in your kitchen
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-surface-container transition-colors"
-            aria-label="Close"
-          >
-            <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
-
-        <div className="overflow-y-auto p-5 space-y-5">
-          <IngredientPicker
-            existingNames={existingNames}
-            onAdd={onAdd}
-            embedded
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function InventoryClient({
   realItems,
@@ -635,8 +94,12 @@ export function InventoryClient({
 }) {
   const [activeCategory, setActiveCategory] = useState("All Items");
   const [inventorySearch, setInventorySearch] = useState("");
+  const [categoryFiltersExpanded, setCategoryFiltersExpanded] = useState(false);
   const [ingredientPickerOpen, setIngredientPickerOpen] = useState(false);
+  const [voiceInventoryOpen, setVoiceInventoryOpen] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const [inventoryItems, setInventoryItems] =
+    useState<KitchenInventoryItem[]>(realItems);
   const [items, setItems] = useState<DisplayItem[]>(
     realItems.map(realToDisplay),
   );
@@ -644,8 +107,7 @@ export function InventoryClient({
   const [savingId, setSavingId] = useState<string | null>(null);
   const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({});
   const [unitDrafts, setUnitDrafts] = useState<Record<string, string>>({});
-  const [restockError, setRestockError] = useState<string | undefined>();
-  const [isRestocking, startRestock] = useTransition();
+  const [detailItemId, setDetailItemId] = useState<string | null>(null);
 
   // Set of existing ingredient names (lowercase) for the picker
   const existingNames = useMemo(
@@ -678,6 +140,13 @@ export function InventoryClient({
     },
     {},
   );
+  const detailItem = useMemo(
+    () => inventoryItems.find((item) => item.id === detailItemId),
+    [detailItemId, inventoryItems],
+  );
+  const detailDisplay = detailItem ? realToDisplay(detailItem) : null;
+  const inventoryOverlayOpen =
+    barcodeOpen || ingredientPickerOpen || voiceInventoryOpen || !!detailItemId;
 
   async function handlePickerAdd(
     name: string,
@@ -685,18 +154,42 @@ export function InventoryClient({
   ) {
     const result = await addInventoryItemAction(name, options);
     if (result.data) {
+      setInventoryItems((prev) => [result.data!, ...prev]);
       setItems((prev) => [realToDisplay(result.data!), ...prev]);
     }
   }
 
   function handleAdded(item: KitchenInventoryItem) {
+    setInventoryItems((prev) => [item, ...prev]);
     setItems((prev) => [realToDisplay(item), ...prev]);
+  }
+
+  function handleVoiceSaved(savedItems: KitchenInventoryItem[]) {
+    setInventoryItems((prev) => {
+      const byId = new Map(prev.map((item) => [item.id, item]));
+      for (const item of savedItems) {
+        byId.set(item.id, item);
+      }
+      return Array.from(byId.values()).sort((a, b) =>
+        b.updated_at.localeCompare(a.updated_at),
+      );
+    });
+    setItems((prev) => {
+      const byId = new Map(prev.map((item) => [item.id, item]));
+      for (const item of savedItems) {
+        byId.set(item.id, realToDisplay(item));
+      }
+      return Array.from(byId.values()).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+    });
   }
 
   function handleRemove(id: string) {
     setRemovingId(id);
     const remove = async () => {
       await removeInventoryItemAction(id);
+      setInventoryItems((prev) => prev.filter((i) => i.id !== id));
       setItems((prev) => prev.filter((i) => i.id !== id));
       setRemovingId(null);
     };
@@ -725,6 +218,11 @@ export function InventoryClient({
 
     if (result.data) {
       const next = realToDisplay(result.data);
+      setInventoryItems((prev) =>
+        prev.map((entry) =>
+          entry.id === result.data!.id ? result.data! : entry,
+        ),
+      );
       setItems((prev) =>
         prev.map((entry) => (entry.id === item.id ? next : entry)),
       );
@@ -738,142 +236,77 @@ export function InventoryClient({
     setSavingId(null);
   }
 
-  function handleAddToCart() {
-    if (items.length === 0) return;
-    setRestockError(undefined);
-    startRestock(async () => {
-      const names = items.map((i) => i.name);
-      const result = await createRestockCartAction(names);
-      if (result?.error) setRestockError(result.error);
-    });
-  }
-
   return (
     <>
-      <AppShell topBarTitle="Inventory">
+      <AppShell
+        topBarTitle="Inventory"
+        hideBottomCreateButton={inventoryOverlayOpen}
+      >
         <div className="px-4 py-6 max-w-6xl mx-auto space-y-6">
-          {/* ── Hero + Quick Restock ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Hero banner */}
-            <div className="lg:col-span-7 relative rounded-3xl overflow-hidden min-h-44 p-6 flex flex-col justify-between">
-              <Image
-                src="/images/tomato.png"
-                alt=""
-                fill
-                className="object-cover"
-                aria-hidden="true"
-              />
-              <div className="absolute inset-0 bg-black/40" />
-              <div className="relative z-10">
-                <h2 className="text-white font-bold text-2xl leading-tight">
-                  Your Kitchen
-                </h2>
-                <p className="text-white/70 text-sm mt-1 max-w-xs leading-5">
-                  Track what you have at home and generate a shopping cart for
-                  anything you need.
-                </p>
-              </div>
-              <div className="relative z-10 flex gap-3 mt-4 flex-wrap">
-                <button
-                  onClick={() => setBarcodeOpen(true)}
-                  className="flex items-center gap-2 bg-white text-[#132326] font-semibold text-sm px-4 py-2.5 rounded-full shadow hover:bg-white/90 transition-colors"
-                >
-                  <span className="material-symbols-outlined text-[18px]">
-                    barcode_scanner
-                  </span>
-                  Barcode
-                </button>
-                <button
-                  onClick={() => setIngredientPickerOpen(true)}
-                  aria-expanded={ingredientPickerOpen}
-                  className={`flex items-center gap-2 font-semibold text-sm px-4 py-2.5 rounded-full border transition-colors ${
-                    ingredientPickerOpen
-                      ? "bg-white text-[#132326] border-white shadow hover:bg-white/90"
-                      : "bg-white/15 text-white border-white/30 hover:bg-white/25"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[18px]">
-                    add
-                  </span>
-                  Add
-                </button>
-              </div>
+          {/* Hero */}
+          <div className="relative rounded-3xl overflow-hidden min-h-44 p-6 flex flex-col justify-between">
+            <Image
+              src="/images/tomato.png"
+              alt=""
+              fill
+              className="object-cover"
+              aria-hidden="true"
+            />
+            <div className="absolute inset-0 bg-black/40" />
+            <div className="relative z-10">
+              <h2 className="text-white font-bold text-2xl leading-tight">
+                Your Kitchen
+              </h2>
+              <p className="text-white/70 text-sm mt-1 max-w-xs leading-5">
+                Track what you have at home and keep your kitchen inventory up
+                to date.
+              </p>
             </div>
-
-            {/* Quick Restock card */}
-            <div className="lg:col-span-5 bg-white rounded-3xl p-5 border border-outline-variant/30 shadow-sm flex flex-col">
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-bold text-on-surface">Quick Restock</span>
-                <span className="bg-primary-fixed-dim text-on-primary-fixed text-[11px] font-bold px-2.5 py-1 rounded-full">
-                  {items.length} ITEMS
-                </span>
-              </div>
-
-              {items.length === 0 ? (
-                <p className="text-sm text-outline flex-1 flex items-center">
-                  Add ingredients to get started.
-                </p>
-              ) : (
-                <div className="space-y-3 flex-1">
-                  {items.slice(0, 4).map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-7 h-7 rounded-full overflow-hidden bg-surface-container shrink-0 relative">
-                          <IngredientImage name={item.name} size={28} />
-                          <span
-                            className="hidden absolute inset-0 items-center justify-center text-xs text-outline"
-                            style={{ display: "none" }}
-                          >
-                            <span className="material-symbols-outlined text-[14px]">
-                              nutrition
-                            </span>
-                          </span>
-                        </div>
-                        <span className="text-sm font-medium text-on-surface truncate">
-                          {item.name}
-                        </span>
-                      </div>
-                      <span className="text-xs font-medium ml-2 shrink-0 text-outline">
-                        {item.quantity}
-                      </span>
-                    </div>
-                  ))}
-                  {items.length > 4 && (
-                    <p className="text-xs text-outline">
-                      +{items.length - 4} more
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {restockError && (
-                <p className="text-xs text-red-500 mt-2">{restockError}</p>
-              )}
+            <div className="relative z-10 flex gap-3 mt-4 flex-wrap">
               <button
-                onClick={handleAddToCart}
-                disabled={isRestocking || items.length === 0}
-                className="mt-4 w-full bg-on-surface text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-on-surface/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                onClick={() => setVoiceInventoryOpen(true)}
+                aria-expanded={voiceInventoryOpen}
+                className="flex items-center gap-2 bg-white text-[#132326] font-semibold text-sm px-4 py-2.5 rounded-full shadow hover:bg-white/90 transition-colors"
               >
-                {isRestocking ? (
-                  <>
-                    <span className="material-symbols-outlined text-[16px] animate-spin">
-                      refresh
-                    </span>
-                    Building cart…
-                  </>
-                ) : (
-                  "Add All to Cart"
-                )}
+                <span className="material-symbols-outlined text-[18px]">
+                  mic
+                </span>
+                Voice Add
+              </button>
+              <button
+                onClick={() => setIngredientPickerOpen(true)}
+                aria-expanded={ingredientPickerOpen}
+                className={`flex items-center gap-2 font-semibold text-sm px-4 py-2.5 rounded-full border transition-colors ${
+                  ingredientPickerOpen
+                    ? "bg-white text-[#132326] border-white shadow hover:bg-white/90"
+                    : "bg-white/15 text-white border-white/30 hover:bg-white/25"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  add
+                </span>
+                Add
+              </button>
+              <button
+                onClick={() => setBarcodeOpen(true)}
+                aria-expanded={barcodeOpen}
+                className={`flex items-center gap-2 font-semibold text-sm px-4 py-2.5 rounded-full border transition-colors ${
+                  barcodeOpen
+                    ? "bg-white text-[#132326] border-white shadow hover:bg-white/90"
+                    : "bg-white/15 text-white border-white/30 hover:bg-white/25"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  barcode_scanner
+                </span>
+                Barcode
               </button>
             </div>
           </div>
 
           {/* ── Category filters ── */}
-          <div className="flex gap-2 flex-wrap">
-            <div className="relative w-full sm:w-64">
+          <div className="space-y-2">
+            <div className="relative w-full sm:w-80">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
                 search
               </span>
@@ -896,20 +329,46 @@ export function InventoryClient({
                 </button>
               )}
             </div>
-            {items.length > 0 &&
-              categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    activeCategory === cat
-                      ? "bg-primary-fixed-dim text-on-primary-fixed"
-                      : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+            {items.length > 0 && (
+              <div className="flex items-start gap-2">
+                <div
+                  className={`flex flex-1 flex-wrap gap-2 overflow-hidden transition-[max-height] duration-200 ${
+                    categoryFiltersExpanded ? "max-h-40" : "max-h-8"
                   }`}
                 >
-                  {cat}
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        activeCategory === cat
+                          ? "bg-primary-fixed-dim text-on-primary-fixed"
+                          : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCategoryFiltersExpanded((expanded) => !expanded)
+                  }
+                  aria-label={
+                    categoryFiltersExpanded
+                      ? "Collapse category filters"
+                      : "Expand category filters"
+                  }
+                  aria-expanded={categoryFiltersExpanded}
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-container-high"
+                >
+                  <span className="material-symbols-outlined text-[20px]">
+                    {categoryFiltersExpanded ? "expand_less" : "expand_more"}
+                  </span>
                 </button>
-              ))}
+              </div>
+            )}
           </div>
 
           {/* ── Item groups ── */}
@@ -942,33 +401,38 @@ export function InventoryClient({
                     {groupItems.map((item) => (
                       <div
                         key={item.id}
-                        className={`flex items-center gap-3 px-4 py-3 transition-opacity ${
+                        className={`flex min-w-0 items-center gap-2 px-4 py-3 transition-opacity sm:gap-3 ${
                           removingId === item.id ? "opacity-40" : ""
                         }`}
                       >
-                        <div className="w-10 h-10 rounded-xl overflow-hidden bg-surface-container-low shrink-0 relative">
-                          <IngredientImage name={item.name} size={40} />
-                          <span
-                            className="hidden absolute inset-0 items-center justify-center text-outline"
-                            style={{ display: "none" }}
-                          >
-                            <span className="material-symbols-outlined text-[20px]">
-                              nutrition
+                        <button
+                          type="button"
+                          onClick={() => setDetailItemId(item.id)}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                          aria-label={`View details for ${item.name}`}
+                        >
+                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-surface-container-low shrink-0 relative">
+                            <IngredientImage name={item.name} size={40} />
+                            <span
+                              className="hidden absolute inset-0 items-center justify-center text-outline"
+                              style={{ display: "none" }}
+                            >
+                              <span className="material-symbols-outlined text-[20px]">
+                                nutrition
+                              </span>
                             </span>
-                          </span>
-                        </div>
+                          </div>
 
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-on-surface truncate">
+                          <span
+                            className="min-w-0 flex-1 truncate text-sm font-semibold text-on-surface"
+                            title={item.name}
+                          >
                             {item.name}
-                          </p>
-                          <p className="text-xs text-outline">
-                            {item.category}
-                          </p>
-                        </div>
+                          </span>
+                        </button>
 
-                        <div className="flex items-center gap-2.5 shrink-0">
-                          <div className="flex items-center gap-1.5">
+                        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+                          <div className="flex items-center gap-1 sm:gap-1.5">
                             <input
                               type="number"
                               min="0"
@@ -985,7 +449,8 @@ export function InventoryClient({
                               }
                               onBlur={() => void handleQuantitySave(item)}
                               placeholder="Qty"
-                              className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
+                              className="w-12 rounded-lg border border-outline-variant bg-surface-container-low px-1.5 py-1.5 text-xs font-semibold outline-none focus:border-primary sm:w-14"
+                              aria-label={`Quantity for ${item.name}`}
                             />
                             <select
                               value={unitDrafts[item.id] ?? item.unit ?? ""}
@@ -999,7 +464,7 @@ export function InventoryClient({
                                   unit: nextUnit,
                                 });
                               }}
-                              className="w-20 px-2 py-1.5 rounded-lg border border-outline-variant bg-surface-container-low text-xs font-semibold outline-none focus:border-primary"
+                              className="w-14 rounded-lg border border-outline-variant bg-surface-container-low px-1.5 py-1.5 text-xs font-semibold outline-none focus:border-primary sm:w-16"
                               aria-label={`Unit for ${item.name}`}
                             >
                               {INVENTORY_UNIT_OPTIONS.map((unit) => (
@@ -1033,6 +498,139 @@ export function InventoryClient({
         </div>
       </AppShell>
 
+      {detailItem && detailDisplay ? (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 px-4 pb-4 sm:items-center sm:pb-0">
+          <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-outline-variant/30 px-5 py-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-surface-container-low">
+                  <IngredientImage name={detailDisplay.name} size={48} />
+                  <span
+                    className="hidden h-full w-full items-center justify-center text-outline"
+                    style={{ display: "none" }}
+                  >
+                    <span className="material-symbols-outlined text-[22px]">
+                      nutrition
+                    </span>
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
+                    Inventory item
+                  </p>
+                  <h3 className="mt-1 break-words text-lg font-bold leading-tight text-on-surface">
+                    {detailDisplay.name}
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailItemId(null)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-container text-outline"
+                aria-label="Close inventory item details"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+
+            <div className="space-y-3 px-5 py-4">
+              <div className="grid grid-cols-[1fr_1fr] gap-3">
+                <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
+                  <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                    Quantity
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={
+                      amountDrafts[detailDisplay.id] ??
+                      String(detailDisplay.estimatedAmount ?? "")
+                    }
+                    onChange={(event) =>
+                      setAmountDrafts((prev) => ({
+                        ...prev,
+                        [detailDisplay.id]: event.target.value,
+                      }))
+                    }
+                    onBlur={() => void handleQuantitySave(detailDisplay)}
+                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                    aria-label={`Quantity for ${detailDisplay.name}`}
+                  />
+                </label>
+                <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
+                  <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                    Unit
+                  </span>
+                  <select
+                    value={
+                      unitDrafts[detailDisplay.id] ?? detailDisplay.unit ?? ""
+                    }
+                    onChange={(event) => {
+                      const nextUnit = event.target.value;
+                      setUnitDrafts((prev) => ({
+                        ...prev,
+                        [detailDisplay.id]: nextUnit,
+                      }));
+                      void handleQuantitySave(detailDisplay, {
+                        unit: nextUnit,
+                      });
+                    }}
+                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                    aria-label={`Unit for ${detailDisplay.name}`}
+                  >
+                    {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                      <option key={unit} value={unit}>
+                        {unit}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {[
+                ["Display name", detailItem.display_name],
+                ["Category", detailDisplay.category],
+                [
+                  "Canonical",
+                  detailItem.ingredient?.canonical_name ?? "Not linked",
+                ],
+                ["Normalized", detailItem.normalized_name],
+                ["Brand / label", detailItem.label ?? "None"],
+                ["Ingredient ID", detailItem.ingredient_id ?? "Not linked"],
+                [
+                  "Ingredient slug",
+                  detailItem.ingredient?.slug ?? "Not linked",
+                ],
+                [
+                  "Default unit",
+                  detailItem.ingredient?.default_unit ?? "Not configured",
+                ],
+                ["Source", detailItem.source],
+                ["Confidence", detailItem.confidence],
+                ["Status", detailItem.review_status],
+                ["Created", formatInventoryDate(detailItem.created_at)],
+                ["Updated", formatInventoryDate(detailItem.updated_at)],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="flex items-start justify-between gap-4 rounded-2xl bg-surface-container-low px-4 py-3"
+                >
+                  <span className="shrink-0 text-xs font-bold uppercase tracking-wide text-outline">
+                    {label}
+                  </span>
+                  <span className="min-w-0 break-words text-right text-sm font-semibold text-on-surface">
+                    {value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Modals */}
       {barcodeOpen && (
         <CameraModal
@@ -1046,6 +644,13 @@ export function InventoryClient({
           existingNames={existingNames}
           onAdd={handlePickerAdd}
           onClose={() => setIngredientPickerOpen(false)}
+        />
+      )}
+      {voiceInventoryOpen && (
+        <VoiceInventoryModal
+          currentItems={inventoryItems}
+          onClose={() => setVoiceInventoryOpen(false)}
+          onSaved={handleVoiceSaved}
         />
       )}
     </>

@@ -832,6 +832,60 @@ export class UserStatsResponseDto {
   preferred_tag_count!: number;
 }
 
+export class AiRateLimitSnapshotResponseDto {
+  @ApiProperty({ example: 'user', enum: ['user', 'ip'] })
+  scope!: 'user' | 'ip';
+
+  @ApiProperty({ example: 600000 })
+  window_ms!: number;
+
+  @ApiProperty({ example: 5 })
+  max_requests!: number;
+
+  @ApiProperty({ example: 2 })
+  used!: number;
+
+  @ApiProperty({ example: 3 })
+  remaining!: number;
+
+  @ApiPropertyOptional({ example: '2026-05-19T18:30:00.000Z', nullable: true })
+  reset_at!: string | null;
+
+  @ApiPropertyOptional({ example: 420, nullable: true })
+  reset_in_seconds!: number | null;
+}
+
+export class AiUsageCategorySnapshotResponseDto {
+  @ApiProperty({
+    example: 'chat',
+    enum: ['chat', 'autofill', 'imports', 'inventory_fill'],
+  })
+  category!: 'chat' | 'autofill' | 'imports' | 'inventory_fill';
+
+  @ApiProperty({ example: 'Chat' })
+  label!: string;
+
+  @ApiProperty({ example: 2 })
+  used!: number;
+}
+
+export class AiLimitsStatusResponseDto {
+  @ApiProperty({ example: 'openai' })
+  provider!: string;
+
+  @ApiPropertyOptional({ example: 'gpt-5.4-mini', nullable: true })
+  model!: string | null;
+
+  @ApiProperty({ example: true })
+  openai_configured!: boolean;
+
+  @ApiProperty({ type: () => AiRateLimitSnapshotResponseDto })
+  rate_limit!: AiRateLimitSnapshotResponseDto;
+
+  @ApiProperty({ type: () => [AiUsageCategorySnapshotResponseDto] })
+  usage_categories!: AiUsageCategorySnapshotResponseDto[];
+}
+
 export class DishResponseDto {
   @ApiPropertyOptional({ example: 'recipe-1' })
   id?: string;

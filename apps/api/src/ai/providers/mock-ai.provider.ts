@@ -3,7 +3,7 @@ import type { AiProvider } from '../ai.provider';
 import type {
   AiChatResult,
   AiIngredientSwapResult,
-  AiInventoryAlternativesResult,
+  AiInventoryStructureResult,
   AiMealGenerationResult,
   AiRecipeImportResult,
   AiRecipePreview,
@@ -11,6 +11,7 @@ import type {
 import type { GenerateMealsDto } from '../dto/generate-meals.dto';
 import type { InventoryAlternativesDto } from '../dto/inventory-alternatives.dto';
 import type { ImportRecipeDto } from '../dto/import-recipe.dto';
+import type { StructureInventoryDto } from '../dto/structure-inventory.dto';
 import type { SwapIngredientDto } from '../dto/swap-ingredient.dto';
 
 @Injectable()
@@ -187,6 +188,120 @@ export class MockAiProvider implements AiProvider {
       safety_notes: [
         'For allergies, medical diets, and food safety, verify details with trusted sources.',
       ],
+    });
+  }
+
+  structureInventory(
+    input: StructureInventoryDto,
+  ): Promise<AiInventoryStructureResult> {
+    const transcript = input.transcript.toLowerCase();
+    const flourMatch = input.inventory.find((item) =>
+      item.name.toLowerCase().includes('flour'),
+    );
+    const saltMatch = input.inventory.find((item) =>
+      item.name.toLowerCase().includes('salt'),
+    );
+    const monsterMatch = input.inventory.find((item) =>
+      item.name.toLowerCase().includes('energy drink'),
+    );
+    const mockItems: AiInventoryStructureResult['items'] = transcript.includes(
+      'monster',
+    )
+      ? [
+          {
+            display_name: transcript.includes('salted caramel')
+              ? 'Monster Salted Caramel Energy Drink'
+              : 'Monster Energy Drink',
+            item_name: 'energy drink',
+            brand: 'Monster',
+            quantity: 1,
+            unit: input.allowed_units.includes('unit') ? 'unit' : 'bottle',
+            matched_existing_id: monsterMatch?.id ?? null,
+            confidence: 'high',
+            notes: ['Mock separated brand, item, and variant.'],
+            conflicts: [],
+          },
+        ]
+      : [
+          {
+            display_name: transcript.includes('walmart')
+              ? 'Walmart Wheat Flour'
+              : transcript.includes('flour')
+                ? 'Wheat Flour'
+                : 'Rice',
+            item_name: transcript.includes('flour') ? 'wheat flour' : 'rice',
+            brand: transcript.includes('walmart') ? 'Walmart' : null,
+            quantity:
+              transcript.includes('5') || transcript.includes('five') ? 5 : 1,
+            unit: input.allowed_units.includes('kg') ? 'kg' : 'unit',
+            matched_existing_id: flourMatch?.id ?? null,
+            confidence: 'high',
+            notes: ['Mock structured this row from the voice inventory flow.'],
+            conflicts: flourMatch
+              ? [
+                  {
+                    type: 'quantity',
+                    message:
+                      'Spoken quantity may replace the existing flour quantity.',
+                    existing_value:
+                      flourMatch.estimated_amount && flourMatch.unit
+                        ? `${flourMatch.estimated_amount} ${flourMatch.unit}`
+                        : null,
+                    spoken_value: '5 kg',
+                  },
+                ]
+              : [],
+          },
+          {
+            display_name: transcript.includes('great value')
+              ? 'Great Value Salt'
+              : 'Salt',
+            item_name: 'salt',
+            brand: transcript.includes('great value') ? 'Great Value' : null,
+            quantity: 1,
+            unit: input.allowed_units.includes('bag') ? 'bag' : 'unit',
+            matched_existing_id: saltMatch?.id ?? null,
+            confidence: 'medium',
+            notes: ['Mock added a second pantry item for review.'],
+            conflicts: [],
+          },
+        ];
+
+    return Promise.resolve({
+      transcript_summary:
+        input.transcript.trim() ||
+        'Mock inventory transcript with pantry staples.',
+      warnings: transcript.trim()
+        ? []
+        : [
+            'Mock AI used sample inventory rows because the transcript was empty.',
+          ],
+      items: mockItems,
+      potential_errors: transcript.includes('perfume')
+        ? [
+            {
+              display_name: 'Perfume',
+              item_name: 'perfume',
+              brand: null,
+              quantity: 1,
+              unit: input.allowed_units.includes('unit') ? 'unit' : 'bag',
+              matched_existing_id: null,
+              confidence: 'low',
+              notes: [
+                'This does not sound like a kitchen or food inventory item.',
+              ],
+              conflicts: [
+                {
+                  type: 'other',
+                  message:
+                    'Perfume is probably not relevant to kitchen inventory.',
+                  existing_value: null,
+                  spoken_value: 'perfume',
+                },
+              ],
+            },
+          ]
+        : [],
     });
   }
 }
