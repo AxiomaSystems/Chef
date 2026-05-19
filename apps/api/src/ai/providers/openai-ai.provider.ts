@@ -3,6 +3,7 @@ import type { AiProvider } from '../ai.provider';
 import {
   chatSchema,
   ingredientSwapSchema,
+  inventoryAlternativesSchema,
   inventoryStructureSchema,
   mealGenerationSchema,
   recipeImportSchema,
@@ -11,11 +12,13 @@ import type {
   AiChatMessage,
   AiChatResult,
   AiIngredientSwapResult,
+  AiInventoryAlternativesResult,
   AiInventoryStructureResult,
   AiMealGenerationResult,
   AiRecipeImportResult,
 } from '../ai.types';
 import type { GenerateMealsDto } from '../dto/generate-meals.dto';
+import type { InventoryAlternativesDto } from '../dto/inventory-alternatives.dto';
 import type { StructureInventoryDto } from '../dto/structure-inventory.dto';
 import type { SwapIngredientDto } from '../dto/swap-ingredient.dto';
 

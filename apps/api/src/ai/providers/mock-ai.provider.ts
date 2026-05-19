@@ -3,6 +3,7 @@ import type { AiProvider } from '../ai.provider';
 import type {
   AiChatResult,
   AiIngredientSwapResult,
+  AiInventoryAlternativesResult,
   AiInventoryStructureResult,
   AiMealGenerationResult,
   AiRecipeImportResult,

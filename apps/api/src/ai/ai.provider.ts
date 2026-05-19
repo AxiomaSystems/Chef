@@ -2,6 +2,7 @@ import type {
   AiChatMessage,
   AiChatResult,
   AiIngredientSwapResult,
+  AiInventoryAlternativesResult,
   AiInventoryStructureResult,
   AiMealGenerationResult,
   AiRecipeImportResult,

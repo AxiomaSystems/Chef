@@ -12,6 +12,7 @@ import { AiUsageCategory } from './ai-usage-category.decorator';
 import type {
   AiChatResult,
   AiIngredientSwapResult,
+  AiInventoryAlternativesResult,
   AiInventoryStructureResult,
   AiMealGenerationResult,
   AiRecipeImportResult,
