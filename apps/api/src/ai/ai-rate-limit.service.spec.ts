@@ -176,7 +176,13 @@ describe('AiRateLimitService', () => {
     ]);
   });
 
-  it('marks import, capture, and inventory fill routes with usage metadata', () => {
+  it('marks AI-backed routes with usage metadata', () => {
+    expect(
+      Reflect.getMetadata(
+        AI_USAGE_CATEGORY_KEY,
+        AiController.prototype.inventoryAlternatives,
+      ),
+    ).toBe('autofill');
     expect(
       Reflect.getMetadata(
         AI_USAGE_CATEGORY_KEY,

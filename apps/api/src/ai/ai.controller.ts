@@ -90,6 +90,8 @@ export class AiController {
   }
 
   @Post('recipes/inventory-alternatives')
+  @AiUsageCategory('autofill')
+  @UseGuards(AiRateLimitGuard)
   @ApiOkResponse({
     description:
       'Suggests recipe ingredient alternatives from the current kitchen inventory.',
