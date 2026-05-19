@@ -8,8 +8,33 @@ import type { HandsFreeModeStatus } from "./hands-free-mode-types";
 
 const TARGET_SAMPLE_RATE = 16000; // ElevenLabs expects 16 kHz PCM16 input
 const MIC_CHUNK_SIZE = 2048;
+const WAKE_COMMAND_TIMEOUT_MS = 20000;
+const WAKE_WORD = "Chef";
+const WAKE_WORD_VARIANTS = ["chef", "chief", "shef", "jeff"];
+const WAKE_WORD_PATTERN = new RegExp(
+  `\\b(?:${WAKE_WORD_VARIANTS.join("|")})\\b`,
+  "i",
+);
 
 type SignedUrlResponse = { signed_url?: string; error?: string };
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onend: (() => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  onresult:
+    | ((event: {
+        results: ArrayLike<{
+          isFinal: boolean;
+          0: { transcript: string };
+        }>;
+      }) => void)
+    | null;
+  start: () => void;
+  stop: () => void;
+};
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
 type ElevenLabsToolCall = {
   tool_name?: string;
   parameters?: Record<string, unknown>;
@@ -113,6 +138,16 @@ function decodePcm16Base64(b64: string): Float32Array {
   return f32;
 }
 
+function getSpeechRecognitionConstructor(): BrowserSpeechRecognitionConstructor | null {
+  if (typeof window === "undefined") return null;
+  const w = window as typeof window & {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  };
+
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
 export function useHandsFreeVoiceSession({
   cookingContext,
   onAgentResponse,
@@ -123,14 +158,19 @@ export function useHandsFreeVoiceSession({
   const [mode, setMode] = useState<HandsFreeModeStatus>("connecting");
   const [agentMessage, setAgentMessage] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [wakeDebug, setWakeDebug] = useState<string | null>(null);
+  const acceptsVoiceRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const agentSpeakingRef = useRef(false);
+  const commandTimeoutRef = useRef<number | null>(null);
   const localSpeechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const onAgentResponseRef = useRef(onAgentResponse);
   const onClientToolCallRef = useRef(onClientToolCall);
   const onUserTranscriptRef = useRef(onUserTranscript);
   const scheduledUntilRef = useRef(0); // for gapless audio scheduling
+  const startWakeRecognitionRef = useRef<() => void>(() => {});
+  const stopAudioForwardingRef = useRef<() => void>(() => {});
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -154,6 +194,44 @@ export function useHandsFreeVoiceSession({
     });
   }
 
+  function clearCommandTimeout() {
+    if (commandTimeoutRef.current === null) return;
+    window.clearTimeout(commandTimeoutRef.current);
+    commandTimeoutRef.current = null;
+  }
+
+  function formatWakePrompt() {
+    return `Say "${WAKE_WORD}" when you need me.`;
+  }
+
+  function armWakeGate(message?: string) {
+    clearCommandTimeout();
+    acceptsVoiceRef.current = false;
+    agentSpeakingRef.current = false;
+    stopAudioForwardingRef.current();
+    startWakeRecognitionRef.current();
+    setMode((current) =>
+      current === "disconnected" ? current : "waiting_for_wake",
+    );
+    if (message) {
+      setAgentMessage(message);
+      window.setTimeout(() => setAgentMessage(null), 3500);
+    }
+  }
+
+  function openCommandGate(message = `Heard "${WAKE_WORD}". Go ahead.`) {
+    clearCommandTimeout();
+    acceptsVoiceRef.current = true;
+    agentSpeakingRef.current = false;
+    setMode((current) => (current === "disconnected" ? current : "listening"));
+    setAgentMessage(message);
+    setWakeDebug(null);
+    window.setTimeout(() => setAgentMessage(null), 2500);
+    commandTimeoutRef.current = window.setTimeout(() => {
+      armWakeGate(formatWakePrompt());
+    }, WAKE_COMMAND_TIMEOUT_MS);
+  }
+
   function stopQueuedSpeech() {
     agentSpeakingRef.current = false;
     window.speechSynthesis?.cancel();
@@ -170,7 +248,13 @@ export function useHandsFreeVoiceSession({
     }
     audioSourcesRef.current.clear();
     scheduledUntilRef.current = ctx?.currentTime ?? 0;
-    setMode((current) => (current === "disconnected" ? current : "listening"));
+    setMode((current) =>
+      current === "disconnected"
+        ? current
+        : acceptsVoiceRef.current
+          ? "listening"
+          : "waiting_for_wake",
+    );
   }
 
   function speakLocal(text: string) {
@@ -186,9 +270,7 @@ export function useHandsFreeVoiceSession({
       if (localSpeechUtteranceRef.current === utterance) {
         localSpeechUtteranceRef.current = null;
         agentSpeakingRef.current = false;
-        setMode((current) =>
-          current === "disconnected" ? current : "listening",
-        );
+        armWakeGate(formatWakePrompt());
       }
     };
     utterance.onerror = utterance.onend;
@@ -199,6 +281,8 @@ export function useHandsFreeVoiceSession({
     let mounted = true;
     let stream: MediaStream | null = null;
     let processor: ScriptProcessorNode | null = null;
+    let recognition: BrowserSpeechRecognition | null = null;
+    let recognitionShouldRun = false;
     let sourceNode: MediaStreamAudioSourceNode | null = null;
     let silentGain: GainNode | null = null;
 
@@ -216,6 +300,9 @@ export function useHandsFreeVoiceSession({
       src.buffer = buf;
       src.connect(ctx.destination);
       audioSourcesRef.current.add(src);
+      clearCommandTimeout();
+      acceptsVoiceRef.current = false;
+      stopAudioForwardingRef.current();
       agentSpeakingRef.current = true;
 
       const startAt = Math.max(ctx.currentTime, scheduledUntilRef.current);
@@ -227,8 +314,7 @@ export function useHandsFreeVoiceSession({
         audioSourcesRef.current.delete(src);
         src.disconnect();
         if (mounted && ctx.currentTime >= scheduledUntilRef.current - 0.05) {
-          agentSpeakingRef.current = false;
-          setMode("listening");
+          armWakeGate(formatWakePrompt());
         }
       };
     }
@@ -260,13 +346,132 @@ export function useHandsFreeVoiceSession({
         if (ctx.state === "suspended") void ctx.resume();
         const nativeRate = ctx.sampleRate;
 
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: false,
-        });
-
+        const SpeechRecognition = getSpeechRecognitionConstructor();
+        const wakeGateSupported = Boolean(SpeechRecognition);
         const ws = new WebSocket(tokenData.signed_url);
         wsRef.current = ws;
+
+        function stopAudioForwarding() {
+          processor?.disconnect();
+          sourceNode?.disconnect();
+          silentGain?.disconnect();
+          processor = null;
+          sourceNode = null;
+          silentGain = null;
+          stream?.getTracks().forEach((t) => t.stop());
+          stream = null;
+        }
+
+        async function startAudioForwarding() {
+          if (stream || ws.readyState !== WebSocket.OPEN) return;
+
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+              video: false,
+            });
+          } catch (error) {
+            if (!mounted) return;
+            setMode("disconnected");
+            setConnectionError(
+              error instanceof Error
+                ? error.message
+                : "Microphone access failed.",
+            );
+            return;
+          }
+
+          sourceNode = ctx.createMediaStreamSource(stream);
+          processor = ctx.createScriptProcessor(MIC_CHUNK_SIZE, 1, 1);
+          silentGain = ctx.createGain();
+          silentGain.gain.value = 0;
+
+          processor.onaudioprocess = (e) => {
+            if (ws.readyState !== WebSocket.OPEN) return;
+            if (!acceptsVoiceRef.current) return;
+            if (agentSpeakingRef.current) return;
+            const chunk = encodeAudioChunk(
+              e.inputBuffer.getChannelData(0),
+              nativeRate,
+            );
+            sendWsMessage(ws, { user_audio_chunk: chunk });
+          };
+
+          sourceNode.connect(processor);
+          processor.connect(silentGain);
+          silentGain.connect(ctx.destination);
+        }
+
+        stopAudioForwardingRef.current = stopAudioForwarding;
+
+        if (SpeechRecognition) {
+          const warmupStream = await navigator.mediaDevices
+            .getUserMedia({ audio: true, video: false })
+            .catch(() => null);
+          warmupStream?.getTracks().forEach((track) => track.stop());
+
+          recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = "en-US";
+          recognition.onresult = (event) => {
+            if (!mounted || acceptsVoiceRef.current) return;
+            for (let i = 0; i < event.results.length; i++) {
+              const heard = event.results[i]?.[0]?.transcript ?? "";
+              const normalizedHeard = heard.trim();
+              if (normalizedHeard) {
+                setWakeDebug(`Wake heard: ${normalizedHeard}`);
+              }
+              if (WAKE_WORD_PATTERN.test(heard)) {
+                recognitionShouldRun = false;
+                try {
+                  recognition?.stop();
+                } catch {
+                  // Recognition may already be stopped.
+                }
+                openCommandGate();
+                void startAudioForwarding();
+                return;
+              }
+            }
+          };
+          recognition.onerror = (event) => {
+            if (!mounted) return;
+            recognitionShouldRun = false;
+            acceptsVoiceRef.current = true;
+            setMode("listening");
+            setAgentMessage(
+              "Wake phrase detection is unavailable. I am listening normally.",
+            );
+            setWakeDebug(
+              `Wake detector error: ${
+                "error" in event ? String(event.error) : "unknown"
+              }`,
+            );
+            void startAudioForwarding();
+          };
+          recognition.onend = () => {
+            if (!mounted || !recognitionShouldRun) return;
+            window.setTimeout(() => {
+              try {
+                recognition?.start();
+              } catch {
+                // Browser may already be starting recognition.
+              }
+            }, 250);
+          };
+          startWakeRecognitionRef.current = () => {
+            if (!mounted || acceptsVoiceRef.current) return;
+            recognitionShouldRun = true;
+            try {
+              recognition?.start();
+            } catch {
+              // Browser may already be starting recognition.
+            }
+          };
+        } else {
+          startWakeRecognitionRef.current = () => {};
+        }
 
         ws.onopen = () => {
           if (!mounted) return;
@@ -289,34 +494,22 @@ export function useHandsFreeVoiceSession({
               cooking_plan_rules: cookingPlan,
               user_cooking_context: stringifyCookingContext(cookingContext),
               hands_free_client_rules:
-                "Act like an adaptive cooking copilot, not a recipe step reader. Keep responses under 2 short sentences. Use cooking_plan_rules and user_cooking_context for safe personalization. Never override hard dietary/allergy rules. Do not speak unless the user asks something, a timer finishes, or a client tool result requires a short confirmation. Do not ask 'are you still there' or send idle check-ins. When the user asks for next/back/repeat/go to step N or timer actions, call the matching client tool. The client has no WebSpeech fallback.",
+                "Act like an adaptive cooking copilot, not a recipe step reader. Keep responses under 2 short sentences. Use cooking_plan_rules and user_cooking_context for safe personalization. Never override hard dietary/allergy rules. The client only forwards audio after the local wake phrase, so treat incoming user speech as intentionally addressed to Chef. Do not ask 'are you still there' or send idle check-ins. When the user asks for next/back/repeat/go to step N or timer actions, call the matching client tool.",
             },
           });
 
-          sourceNode = ctx.createMediaStreamSource(stream!);
-          processor = ctx.createScriptProcessor(MIC_CHUNK_SIZE, 1, 1);
-          silentGain = ctx.createGain();
-          silentGain.gain.value = 0;
-
-          processor.onaudioprocess = (e) => {
-            if (ws.readyState !== WebSocket.OPEN) return;
-            if (agentSpeakingRef.current) return;
-            const chunk = encodeAudioChunk(
-              e.inputBuffer.getChannelData(0),
-              nativeRate,
-            );
-            sendWsMessage(ws, { user_audio_chunk: chunk });
-          };
-
-          sourceNode.connect(processor);
-          processor.connect(silentGain);
-          silentGain.connect(ctx.destination);
-
           if (mounted) {
-            setMode("listening");
-            setAgentMessage(
-              "Hands-free is ready. Ask Chef to guide the next move.",
-            );
+            if (wakeGateSupported) {
+              armWakeGate(`Hands-free is ready. ${formatWakePrompt()}`);
+              setWakeDebug("Wake detector is listening locally.");
+            } else {
+              acceptsVoiceRef.current = true;
+              void startAudioForwarding();
+              setMode("listening");
+              setAgentMessage(
+                "Wake phrase detection is unavailable. I am listening normally.",
+              );
+            }
             window.setTimeout(() => setAgentMessage(null), 4000);
           }
         };
@@ -340,6 +533,7 @@ export function useHandsFreeVoiceSession({
                 break;
               case "agent_response":
                 if (msg.agent_response_event?.agent_response) {
+                  clearCommandTimeout();
                   const responseText = cleanAgentText(
                     msg.agent_response_event.agent_response,
                   );
@@ -440,6 +634,13 @@ export function useHandsFreeVoiceSession({
 
     return () => {
       mounted = false;
+      recognitionShouldRun = false;
+      clearCommandTimeout();
+      try {
+        recognition?.stop();
+      } catch {
+        // Recognition may already be stopped.
+      }
       wsRef.current?.close();
       wsRef.current = null;
       stopQueuedSpeech();
@@ -464,5 +665,6 @@ export function useHandsFreeVoiceSession({
     mode,
     speakLocal,
     stopQueuedSpeech,
+    wakeDebug,
   };
 }
