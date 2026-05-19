@@ -10,3 +10,4 @@ export * from "./src/ingredient";
 export * from "./src/meal-plan";
 export * from "./src/vision";
 export * from "./src/capture";
+export * from "./src/ai";
