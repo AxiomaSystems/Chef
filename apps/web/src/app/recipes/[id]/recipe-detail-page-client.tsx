@@ -14,6 +14,8 @@ import {
 } from "@/app/ai-actions";
 import { submitDraftFlowAction } from "@/app/home-actions";
 import { HandsFreeMode } from "@/components/hands-free-mode";
+import type { HandsFreeSessionContext } from "@/components/hands-free-mode-types";
+import { HandsFreeSetupModal } from "@/components/hands-free-setup-modal";
 import { RecipeImage } from "@/components/ui/recipe-image";
 import type { CookingContext } from "@/lib/cooking-context";
 import {
@@ -48,6 +50,10 @@ export function RecipeDetailPageClient({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<RecipeTab>("ingredients");
   const [handsFreeOpen, setHandsFreeOpen] = useState(false);
+  const [handsFreeSetupOpen, setHandsFreeSetupOpen] = useState(false);
+  const [handsFreeSessionContext, setHandsFreeSessionContext] = useState<
+    HandsFreeSessionContext | undefined
+  >();
   const [aiAlternatives, setAiAlternatives] = useState<
     InventoryAlternativeSuggestion[]
   >([]);
@@ -379,7 +385,7 @@ export function RecipeDetailPageClient({
           </button>
           <button
             type="button"
-            onClick={() => setHandsFreeOpen(true)}
+            onClick={() => setHandsFreeSetupOpen(true)}
             className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-primary-fixed-dim px-5 py-3 text-label-lg font-black text-on-primary-fixed shadow-[0_12px_28px_rgba(244,121,13,0.25)]"
           >
             <span className="material-symbols-outlined text-[20px]">mic</span>
@@ -391,10 +397,23 @@ export function RecipeDetailPageClient({
         </section>
       </article>
 
+      {handsFreeSetupOpen ? (
+        <HandsFreeSetupModal
+          recipe={recipe}
+          onCancel={() => setHandsFreeSetupOpen(false)}
+          onStart={(context) => {
+            setHandsFreeSessionContext(context);
+            setHandsFreeSetupOpen(false);
+            setHandsFreeOpen(true);
+          }}
+        />
+      ) : null}
+
       {handsFreeOpen ? (
         <HandsFreeMode
           recipe={recipe}
           cookingContext={cookingContext}
+          sessionContext={handsFreeSessionContext}
           onClose={() => setHandsFreeOpen(false)}
         />
       ) : null}

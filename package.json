@@ -25,6 +25,8 @@
     "api:up": "docker compose -f infra/docker/docker-compose.yml up -d && pnpm dev:api",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
+    "elevenlabs:diff": "node scripts/sync-elevenlabs-agent.mjs --dry-run",
+    "elevenlabs:sync": "node scripts/sync-elevenlabs-agent.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "postman:test": "pnpm --filter api postman:test",

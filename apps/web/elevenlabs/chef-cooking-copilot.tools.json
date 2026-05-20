@@ -1,0 +1,137 @@
+[
+  {
+    "type": "client",
+    "name": "navigate_step",
+    "description": "Navigate the visible recipe reference marker. Use this when the user asks to go next, back, previous, repeat, or to a specific step number.",
+    "disable_interruptions": false,
+    "force_pre_tool_speech": false,
+    "pre_tool_speech": "auto",
+    "tool_call_sound": null,
+    "tool_call_sound_behavior": "auto",
+    "tool_error_handling_mode": "auto",
+    "execution_mode": "immediate",
+    "assignments": [],
+    "expects_response": true,
+    "response_timeout_secs": 3,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "type": "string",
+          "description": "Navigation direction. Use one of: next, previous, back, repeat. If the user asks for a specific step, use repeat and provide step_number."
+        },
+        "step_number": {
+          "type": "number",
+          "description": "Optional 1-based step number when the user says things like 'go to step 3'."
+        }
+      },
+      "required": []
+    },
+    "dynamic_variables": {
+      "dynamic_variable_placeholders": {}
+    },
+    "response_mocks": []
+  },
+  {
+    "type": "client",
+    "name": "timer_control",
+    "description": "Control named cooking timers. Use this when the user asks to start, set, pause, resume, stop, cancel, or check a timer.",
+    "disable_interruptions": false,
+    "force_pre_tool_speech": false,
+    "pre_tool_speech": "auto",
+    "tool_call_sound": null,
+    "tool_call_sound_behavior": "auto",
+    "tool_error_handling_mode": "auto",
+    "execution_mode": "immediate",
+    "assignments": [],
+    "expects_response": true,
+    "response_timeout_secs": 3,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "description": "Timer action. Must be one of: start, set, pause, resume, toggle, stop, cancel, status."
+        },
+        "label": {
+          "type": "string",
+          "description": "Optional timer label, such as pasta, sauce, chicken, rice, oven, or simmer."
+        },
+        "duration_seconds": {
+          "type": "number",
+          "description": "Timer duration in seconds. Required for start/set when duration is known."
+        },
+        "minutes": {
+          "type": "number",
+          "description": "Timer duration in minutes if easier to infer from the user request."
+        }
+      },
+      "required": ["action"]
+    },
+    "dynamic_variables": {
+      "dynamic_variable_placeholders": {}
+    },
+    "response_mocks": []
+  },
+  {
+    "type": "client",
+    "name": "adapt_current_step",
+    "description": "Record a live cooking adjustment for the current session when the user's real kitchen situation changes. Use this for missing ingredients, substitutions, burned/overcooked/undercooked food, timing changes, equipment limits, or improvisations. This does not edit the saved recipe.",
+    "disable_interruptions": false,
+    "force_pre_tool_speech": false,
+    "pre_tool_speech": "auto",
+    "tool_call_sound": null,
+    "tool_call_sound_behavior": "auto",
+    "tool_error_handling_mode": "auto",
+    "execution_mode": "immediate",
+    "assignments": [],
+    "expects_response": true,
+    "response_timeout_secs": 3,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Short label for the adjustment, such as 'No chicken available' or 'Sauce is reducing too fast'."
+        },
+        "note": {
+          "type": "string",
+          "description": "Short practical cooking adjustment to remember for this session."
+        },
+        "step_number": {
+          "type": "number",
+          "description": "Optional 1-based visible step marker this adjustment relates to. Omit to attach it to the current visible marker."
+        }
+      },
+      "required": ["note"]
+    },
+    "dynamic_variables": {
+      "dynamic_variable_placeholders": {}
+    },
+    "response_mocks": []
+  },
+  {
+    "type": "client",
+    "name": "finish_cooking",
+    "description": "End the hands-free cooking copilot session. Use this when the user says they are done cooking, finished, wants to exit, stop hands-free mode, or end the conversation.",
+    "disable_interruptions": false,
+    "force_pre_tool_speech": false,
+    "pre_tool_speech": "auto",
+    "tool_call_sound": null,
+    "tool_call_sound_behavior": "auto",
+    "tool_error_handling_mode": "auto",
+    "execution_mode": "immediate",
+    "assignments": [],
+    "expects_response": true,
+    "response_timeout_secs": 3,
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "dynamic_variables": {
+      "dynamic_variable_placeholders": {}
+    },
+    "response_mocks": []
+  }
+]

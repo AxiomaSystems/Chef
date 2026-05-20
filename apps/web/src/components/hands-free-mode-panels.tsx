@@ -1,6 +1,11 @@
 "use client";
 
-import type { CookingTimer, TranscriptEntry } from "./hands-free-mode-types";
+import type { BaseRecipe } from "@cart/shared";
+import type {
+  CookingAdaptation,
+  CookingTimer,
+  TranscriptEntry,
+} from "./hands-free-mode-types";
 
 type TranscriptPanelProps = {
   transcript: TranscriptEntry[];
@@ -84,9 +89,12 @@ export function HandsFreeTranscriptPanel({
 }
 
 type AsidePanelsProps = {
+  activeStep: number;
+  adaptations: CookingAdaptation[];
   completedTimers: CookingTimer[];
   contextLines: string[];
   currentPhase: string;
+  recipe: BaseRecipe;
   setTimers: React.Dispatch<React.SetStateAction<CookingTimer[]>>;
   visibleTimers: CookingTimer[];
 };
@@ -96,12 +104,17 @@ function formatTime(s: number) {
 }
 
 export function HandsFreeAsidePanels({
+  activeStep,
+  adaptations,
   completedTimers,
   contextLines,
   currentPhase,
+  recipe,
   setTimers,
   visibleTimers,
 }: AsidePanelsProps) {
+  const currentStep = recipe.steps[activeStep];
+
   return (
     <aside className="space-y-4">
       <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.07] p-5 backdrop-blur-xl">
@@ -109,6 +122,20 @@ export function HandsFreeAsidePanels({
           Kitchen state
         </p>
         <h3 className="mt-2 text-2xl font-black text-white">{currentPhase}</h3>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
+              Visible marker
+            </span>
+            <span className="shrink-0 text-xs font-black text-amber-300">
+              Step {activeStep + 1}/{recipe.steps.length}
+            </span>
+          </div>
+          <p className="mt-2 line-clamp-4 text-sm leading-6 text-white/76">
+            {currentStep?.what_to_do ?? "No recipe step loaded."}
+          </p>
+        </div>
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-black/15 p-4">
           <div className="flex items-center justify-between gap-3">
@@ -172,6 +199,41 @@ export function HandsFreeAsidePanels({
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-[1.6rem] border border-amber-300/15 bg-amber-300/[0.08] p-5 backdrop-blur-xl">
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-200/70">
+          Live adjustments
+        </p>
+        {adaptations.length > 0 ? (
+          <div className="mt-3 space-y-2">
+            {adaptations.map((adaptation) => (
+              <div
+                key={adaptation.id}
+                className="rounded-2xl border border-amber-200/15 bg-black/12 px-4 py-3"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="min-w-0 truncate text-sm font-black text-amber-50">
+                    {adaptation.title}
+                  </p>
+                  {adaptation.stepNumber ? (
+                    <span className="shrink-0 rounded-full bg-amber-200/15 px-2 py-1 text-[10px] font-bold text-amber-100/80">
+                      Step {adaptation.stepNumber}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1 line-clamp-3 text-xs leading-5 text-amber-50/70">
+                  {adaptation.note}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm leading-6 text-white/45">
+            No live changes yet. If the kitchen situation changes, Chef can keep
+            a session note without changing the saved recipe.
+          </p>
+        )}
       </section>
 
       <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.07] p-5 backdrop-blur-xl">

@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { BaseRecipe, KitchenInventoryItem } from "@cart/shared";
 import { normalizeIngredientKey } from "@cart/shared";
+import type { HandsFreeSessionContext } from "@/components/hands-free-mode-types";
+import { HandsFreeSetupModal } from "@/components/hands-free-setup-modal";
 import { RecipeImage } from "@/components/ui/recipe-image";
 import {
   getIngredientPrepAction,
@@ -72,6 +74,10 @@ export function RecipePreparationClient({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [activeStep, setActiveStep] = useState(0);
   const [handsFreeOpen, setHandsFreeOpen] = useState(false);
+  const [handsFreeSetupOpen, setHandsFreeSetupOpen] = useState(false);
+  const [handsFreeSessionContext, setHandsFreeSessionContext] = useState<
+    HandsFreeSessionContext | undefined
+  >();
   const [checkedIngredients, setCheckedIngredients] = useState<string[]>([]);
   const [prepNotes, setPrepNotes] = useState<string[]>([]);
   const [aiAlternatives, setAiAlternatives] = useState<
@@ -681,7 +687,7 @@ export function RecipePreparationClient({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setHandsFreeOpen(true)}
+                  onClick={() => setHandsFreeSetupOpen(true)}
                   className="flex items-center gap-2 rounded-full border border-outline-variant bg-white px-5 py-2.5 text-label-lg text-on-surface transition-colors hover:bg-surface-container-low"
                 >
                   <span className="material-symbols-outlined text-[18px]">
@@ -699,10 +705,23 @@ export function RecipePreparationClient({
               </div>
             </div>
 
+            {handsFreeSetupOpen ? (
+              <HandsFreeSetupModal
+                recipe={recipe}
+                onCancel={() => setHandsFreeSetupOpen(false)}
+                onStart={(context) => {
+                  setHandsFreeSessionContext(context);
+                  setHandsFreeSetupOpen(false);
+                  setHandsFreeOpen(true);
+                }}
+              />
+            ) : null}
+
             {handsFreeOpen ? (
               <HandsFreeMode
                 recipe={recipe}
                 cookingContext={cookingContext}
+                sessionContext={handsFreeSessionContext}
                 onClose={() => setHandsFreeOpen(false)}
               />
             ) : null}
