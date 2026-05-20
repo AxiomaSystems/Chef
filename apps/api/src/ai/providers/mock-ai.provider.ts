@@ -133,11 +133,14 @@ export class MockAiProvider implements AiProvider {
     source_image_url: string | null;
     extracted_text: string;
     extraction_notes: string[];
+    image_data_url?: string;
   }): Promise<AiRecipeImportResult> {
     const baseName = titleCase(
       input.source_title ||
         deriveTitleFromUrl(input.request.url) ||
-        'Imported creator recipe',
+        (input.image_data_url
+          ? 'Image capture recipe'
+          : 'Imported creator recipe'),
     );
     const importedRecipe = buildRecipe({
       name: baseName,
@@ -173,7 +176,9 @@ export class MockAiProvider implements AiProvider {
       },
       extraction_notes: [
         ...input.extraction_notes,
-        'Mock import used URL and metadata cues instead of a live model extraction.',
+        input.image_data_url
+          ? 'Image source type: written_recipe. Mock import used image capture metadata instead of live visual extraction.'
+          : 'Mock import used URL and metadata cues instead of a live model extraction.',
       ],
     });
   }

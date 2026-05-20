@@ -95,15 +95,21 @@ export class OpenAiAiProvider implements AiProvider {
     source_image_url: string | null;
     extracted_text: string;
     extraction_notes: string[];
+    image_data_url?: string;
   }): Promise<AiRecipeImportResult> {
+    const { image_data_url: imageDataUrl, ...textPayload } = input;
+
     return this.createStructuredResponse<AiRecipeImportResult>({
       schemaName: 'chef_recipe_import',
       schema: recipeImportSchema,
       task: [
         'Turn the imported recipe source into one structured Chef recipe preview. Use the extracted source text, metadata, and any supplemental caption/transcript text. Be explicit when fields are inferred or uncertain.',
+        'If an image is provided, inspect it directly. It may be a screenshot, cookbook page, handwritten/printed recipe, menu, social post, ingredient list, or finished dish photo. Return a cookable draft even when the image is only inspiration.',
+        'For image imports, add one extraction note beginning with "Image source type:" and one of written_recipe, screenshot_caption, plated_dish, menu_or_label, or unclear.',
         'Always include nutrition_estimate with numeric calories, protein_g, carbs_g, and fat_g per serving. Estimate reasonable values when exact nutrition is not provided by the source.',
       ].join(' '),
-      payload: input,
+      payload: textPayload,
+      imageDataUrl,
     });
   }
 
@@ -154,6 +160,7 @@ export class OpenAiAiProvider implements AiProvider {
     schema: object;
     task: string;
     payload: unknown;
+    imageDataUrl?: string;
   }): Promise<T> {
     const apiKey = process.env.OPENAI_API_KEY;
 
@@ -169,20 +176,11 @@ export class OpenAiAiProvider implements AiProvider {
       },
       body: JSON.stringify({
         model: this.model,
-        input: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          {
-            role: 'user',
-            content: JSON.stringify(
-              {
-                task: input.task,
-                payload: input.payload,
-              },
-              null,
-              2,
-            ),
-          },
-        ],
+        input: buildResponseInput(
+          input.task,
+          input.payload,
+          input.imageDataUrl,
+        ),
         text: {
           format: {
             type: 'json_schema',
@@ -246,6 +244,39 @@ function extractOutputText(body: Record<string, unknown> | null): string {
   }
 
   return chunks.join('');
+}
+
+function buildResponseInput(
+  task: string,
+  payload: unknown,
+  imageDataUrl?: string,
+) {
+  const userPayload = JSON.stringify(
+    {
+      task,
+      payload,
+    },
+    null,
+    2,
+  );
+
+  if (!imageDataUrl) {
+    return [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userPayload },
+    ];
+  }
+
+  return [
+    { role: 'system', content: SYSTEM_PROMPT },
+    {
+      role: 'user',
+      content: [
+        { type: 'input_text', text: userPayload },
+        { type: 'input_image', image_url: imageDataUrl, detail: 'low' },
+      ],
+    },
+  ];
 }
 
 function isResponseTextBlock(value: unknown): value is { text: string } {

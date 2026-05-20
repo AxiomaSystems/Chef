@@ -133,6 +133,34 @@ describe('Chef Capture (e2e)', () => {
       .expect(200);
   });
 
+  it('creates a reviewable image capture draft', async () => {
+    const token = await registerUser();
+
+    const createResponse = await request(app.getHttpServer())
+      .post('/api/v1/captures')
+      .set('authorization', `Bearer ${token}`)
+      .send({
+        input_kind: 'image',
+        image_data_url: 'data:image/jpeg;base64,AAAA',
+        text: 'photo of a recipe card',
+      })
+      .expect(201);
+
+    expect(createResponse.body).toEqual(
+      expect.objectContaining({
+        input_kind: 'image',
+        source_kind: 'image',
+        result_kind: 'partial_recipe_import',
+        status: 'ready_for_review',
+        needs_review: true,
+        source_text_snippet: 'photo of a recipe card',
+      }),
+    );
+    expect(
+      createResponse.body.recipe_preview.ingredients.length,
+    ).toBeGreaterThan(0);
+  });
+
   it('requires authentication for capture endpoints', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/captures')

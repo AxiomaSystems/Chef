@@ -10,10 +10,10 @@ Supported inputs now:
 
 - URL
 - pasted text
+- image capture or upload
 
 Reserved for later:
 
-- screenshot or photo
 - video upload
 - cookbook page scan
 - restaurant menu scan
@@ -121,7 +121,7 @@ Next backend slices should build on this instead of adding parallel import flows
 
 - generate grocery list/cart from reviewed capture
 - attach image/video assets through CDN-backed storage
-- feed screenshots/photos/videos through OCR or vision sidecars
+- feed screenshots/photos/videos through OCR or vision sidecars when deterministic extraction is needed
 - use ingredient canonicalization when capture inputs mention ingredients
 
 For vision-related capture, keep Gallo's boundary intact:

@@ -70,12 +70,14 @@ enum VisionObservationAction {
 enum CaptureInputKind {
   url
   text
+  image
 }
 
 enum CaptureSourceKind {
   recipe_url
   social_url
   pasted_text
+  image
   unknown
 }
 

@@ -37,6 +37,7 @@ Supported inputs in this slice:
 - `input_kind: "url"` with `url`
 - `input_kind: "text"` with `text`
 - `input_kind: "url"` with optional `text` as supplemental caption/transcript context
+- `input_kind: "image"` with compressed `image_data_url` and optional `text` notes
 
 Social URLs are best-effort:
 
@@ -45,6 +46,8 @@ Social URLs are best-effort:
 - Private, login-gated, blocked, or script-only social pages can still produce weak placeholder drafts unless the user pastes caption/transcript text.
 
 Captured recipes now support optional source thumbnails via `recipe_preview.cover_image_url`; saving the capture carries that through as the recipe cover image when available.
+
+Image captures use OpenAI vision inside the Capture boundary for this slice. The raw image data is sent ephemerally for structuring and is not persisted in the `Capture` record.
 
 ## UX States
 
@@ -68,5 +71,5 @@ The Capture modal has three main states:
 - Replace deterministic progress copy with real LLM task-state streaming.
 - Add safe generated fallback images when source metadata has no usable thumbnail.
 - Add official/credentialed social provider ingestion only if product/legal requirements justify it.
-- Add image/screenshot/video capture only after backend supports those input kinds.
+- Add persisted image assets only after storage/CDN ownership is defined.
 - Consider a global create/capture modal provider in `AppShell` once multiple routes need to launch the same flows.

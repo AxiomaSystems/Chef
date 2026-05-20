@@ -21,7 +21,7 @@ export interface AiProvider {
     input: InventoryAlternativesDto,
   ): Promise<AiInventoryAlternativesResult>;
   importRecipe(input: {
-    request: ImportRecipeDto;
+    request: ImportRecipeDto | { url: string; supplemental_text?: string };
     platform: 'youtube' | 'instagram' | 'tiktok' | 'generic';
     source_title: string;
     source_creator: string | null;
@@ -29,6 +29,7 @@ export interface AiProvider {
     source_image_url: string | null;
     extracted_text: string;
     extraction_notes: string[];
+    image_data_url?: string;
   }): Promise<AiRecipeImportResult>;
   chat(input: {
     message: string;
