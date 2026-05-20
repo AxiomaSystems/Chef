@@ -520,6 +520,94 @@ describe('CartService', () => {
     );
   });
 
+  it('does not reuse the same inventory quantity across cart ingredients', async () => {
+    cartPersistenceService.findCartById.mockResolvedValue({
+      id: 'cart-1',
+      user_id: 'user-1',
+      name: 'Weekly dinner plan',
+      retailer: 'walmart',
+      selections: [],
+      dishes: [
+        {
+          id: 'recipe-1',
+          name: recipe.name,
+          cuisine: recipe.cuisine.label,
+          servings: recipe.servings,
+          ingredients: [
+            {
+              ingredient_id: 'ingredient-rice',
+              canonical_ingredient: 'rice',
+              amount: 1,
+              unit: 'cup',
+            },
+            {
+              ingredient_id: 'ingredient-rice',
+              canonical_ingredient: 'rice',
+              amount: 16,
+              unit: 'tbsp',
+            },
+          ],
+          steps: recipe.steps,
+          tags: recipe.tags.map((tag) => tag.name),
+        },
+      ],
+      overview: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    ingredientsService.listInventory.mockResolvedValue([
+      {
+        id: 'inventory-rice',
+        user_id: 'user-1',
+        ingredient_id: 'ingredient-rice',
+        display_name: 'rice',
+        normalized_name: 'rice',
+        ingredient: {
+          id: 'ingredient-rice',
+          canonical_name: 'rice',
+          slug: 'rice',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        estimated_amount: 1,
+        unit: 'cup',
+        source: 'manual',
+        confidence: 'high',
+        review_status: 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]);
+
+    await service.createShoppingCart('cart-1', { retailer: 'walmart' });
+
+    const createdShoppingCart =
+      cartPersistenceService.createShoppingCart.mock.calls[0][0].shoppingCart;
+    expect(createdShoppingCart.overview).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonical_ingredient: 'rice',
+          unit: 'cup',
+          remaining_to_buy: 0,
+        }),
+        expect.objectContaining({
+          canonical_ingredient: 'rice',
+          unit: 'tbsp',
+          remaining_to_buy: 16,
+        }),
+      ]),
+    );
+    expect(createdShoppingCart.matched_items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonical_ingredient: 'rice',
+          needed_amount: 16,
+          needed_unit: 'tbsp',
+        }),
+      ]),
+    );
+  });
+
   it('creates an Instacart handoff shopping cart without product matching', async () => {
     cartExportService.createHandoff.mockResolvedValue({
       externalUrl: 'https://www.instacart.com/store/products/example',

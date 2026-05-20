@@ -360,7 +360,12 @@ export async function deletePlanningResourceAction(
 
 export async function updateCartDetailsAction(
   cartId: string,
-  input: { name?: string; retailer?: Retailer },
+  input: {
+    name?: string;
+    retailer?: Retailer;
+    selections?: CartSelection[];
+    dishes?: Cart["dishes"];
+  },
 ): Promise<UpdateCartDetailsActionState> {
   const normalizedCartId = String(cartId).trim();
 
@@ -377,6 +382,8 @@ export async function updateCartDetailsAction(
     body: JSON.stringify({
       name: name || undefined,
       retailer: input.retailer,
+      selections: input.selections,
+      dishes: input.dishes,
     }),
   }).catch(() => null);
 
