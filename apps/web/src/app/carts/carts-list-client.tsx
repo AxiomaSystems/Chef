@@ -86,9 +86,9 @@ export function CartsListClient({ carts }: { carts: Cart[] }) {
                 deletingId === cart.id ? "opacity-50" : ""
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="truncate text-label-lg font-black text-[#132326]">
+              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                <div className="min-w-0 overflow-hidden">
+                  <h2 className="max-w-full truncate text-label-lg font-black text-[#132326]">
                     {fallbackCartName(cart)}
                   </h2>
                   <p className="mt-1 text-body-sm text-[#5f8689]">

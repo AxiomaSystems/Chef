@@ -1,7 +1,8 @@
 import type { Cart } from "@cart/shared";
+import { CartSubNav } from "@/components/cart/cart-sub-nav";
 import { AppShell } from "@/components/layout/app-shell";
 import { fetchAuthedCollection } from "@/lib/api";
-import { CartsListClient } from "./carts-list-client";
+import { CartDetailClient } from "./[id]/cart-detail-client";
 
 export default async function CartsPage() {
   const cartsResult = await fetchAuthedCollection<Cart>("/carts");
@@ -10,24 +11,36 @@ export default async function CartsPage() {
       left.updated_at ?? left.created_at ?? "",
     ),
   );
+  const activeCart = carts[0] ?? null;
 
   return (
     <AppShell topBarTitle="Cart">
       <main className="mx-auto grid max-w-4xl gap-5 px-4 pb-36 pt-5 sm:px-6 lg:pb-10">
-        <header className="rounded-[1.75rem] border border-[#c0dedf] bg-white p-5 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f4790d]">
-            Cart
-          </p>
-          <h1 className="mt-2 text-[2.2rem] font-black leading-[0.96] text-[#132326]">
-            Carts
-          </h1>
-          <p className="mt-3 text-body-sm leading-6 text-[#5f8689]">
+        <header>
+          <h1 className="text-headline-lg font-bold text-on-surface">Cart</h1>
+          <p className="mt-1 max-w-xl text-body-md text-outline">
             Open a cart to check it against inventory, cross off items you
             already have, then create a shopping list.
           </p>
         </header>
 
-        <CartsListClient carts={carts} />
+        <CartSubNav />
+
+        {activeCart ? (
+          <CartDetailClient cart={activeCart} />
+        ) : (
+          <section className="rounded-[1.5rem] border border-dashed border-[#c0dedf] bg-white/70 p-6 text-center">
+            <span className="material-symbols-outlined text-[42px] text-[#5f8689]">
+              shopping_cart
+            </span>
+            <h2 className="mt-3 text-label-lg font-black text-[#132326]">
+              No cart yet
+            </h2>
+            <p className="mt-1 text-body-sm text-[#5f8689]">
+              Add recipes to cart first, then they will appear here.
+            </p>
+          </section>
+        )}
       </main>
     </AppShell>
   );
