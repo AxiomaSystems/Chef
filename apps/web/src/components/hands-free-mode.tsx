@@ -509,18 +509,26 @@ export function HandsFreeMode({
     });
   }
 
-  const { agentMessage, connectionError, mode, speakLocal, wakeDebug } =
-    useHandsFreeVoiceSession({
-      cookingContext,
-      onAgentResponse: (text) => addTranscript("chef", text),
-      onClientToolCall: handleToolCall,
-      onUserTranscript: (text) => {
-        setLastHeard(text);
-        addTranscript("you", text);
-      },
-      recipe,
-      sessionContext,
-    });
+  const {
+    agentMessage,
+    canTapToTalk,
+    connectionError,
+    mode,
+    speakLocal,
+    startTapToTalk,
+    stopTapToTalk,
+    wakeDebug,
+  } = useHandsFreeVoiceSession({
+    cookingContext,
+    onAgentResponse: (text) => addTranscript("chef", text),
+    onClientToolCall: handleToolCall,
+    onUserTranscript: (text) => {
+      setLastHeard(text);
+      addTranscript("you", text);
+    },
+    recipe,
+    sessionContext,
+  });
 
   const modeConfig: Record<
     HandsFreeModeStatus,
@@ -534,6 +542,11 @@ export function HandsFreeMode({
     waiting_for_wake: {
       label: 'Say "Chef"',
       icon: "radio_button_checked",
+      ring: "bg-teal-300/15 text-teal-200",
+    },
+    waiting_for_tap: {
+      label: "Tap to talk",
+      icon: "touch_app",
       ring: "bg-teal-300/15 text-teal-200",
     },
     listening: {
@@ -620,13 +633,15 @@ export function HandsFreeMode({
                   {agentMessage ??
                     (mode === "waiting_for_wake"
                       ? 'Say "Chef" when you need me.'
-                      : mode === "listening"
-                        ? "I'm listening. Ask what to do next."
-                        : mode === "speaking"
-                          ? "Chef is talking you through it."
-                          : mode === "connecting"
-                            ? "Setting up your kitchen copilot..."
-                            : "Voice is offline, but controls still work.")}
+                      : mode === "waiting_for_tap"
+                        ? "Tap the mic when you need me."
+                        : mode === "listening"
+                          ? "I'm listening. Ask what to do next."
+                          : mode === "speaking"
+                            ? "Chef is talking you through it."
+                            : mode === "connecting"
+                              ? "Setting up your kitchen copilot..."
+                              : "Voice is offline, but controls still work.")}
                 </h1>
                 {connectionError ? (
                   <p className="mx-auto mt-4 max-w-xl rounded-2xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-sm leading-6 text-red-100/85">
@@ -637,6 +652,23 @@ export function HandsFreeMode({
                   <p className="mx-auto mt-4 max-w-xl rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm leading-6 text-white/55">
                     {wakeDebug}
                   </p>
+                ) : null}
+                {canTapToTalk &&
+                (mode === "waiting_for_tap" || mode === "listening") ? (
+                  <div className="mt-5 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={
+                        mode === "listening" ? stopTapToTalk : startTapToTalk
+                      }
+                      className="inline-flex items-center gap-2 rounded-full bg-amber-300 px-5 py-3 text-sm font-black text-[#23180c] shadow-[0_14px_34px_rgba(251,191,36,0.22)]"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">
+                        {mode === "listening" ? "mic_off" : "mic"}
+                      </span>
+                      {mode === "listening" ? "Stop listening" : "Tap to talk"}
+                    </button>
+                  </div>
                 ) : null}
                 <div className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-2">
                   {contextLines.length > 0 ? (

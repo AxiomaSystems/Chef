@@ -5,6 +5,7 @@ import type { BaseRecipe } from "@cart/shared";
 import type {
   HandsFreeGuidanceStyle,
   HandsFreeSessionContext,
+  HandsFreeVoiceActivationMode,
 } from "./hands-free-mode-types";
 
 type Props = {
@@ -40,6 +41,45 @@ const GUIDANCE_OPTIONS: Array<{
   },
 ];
 
+const VOICE_ACTIVATION_STORAGE_KEY = "chef:hands-free:voice-activation-mode";
+
+const VOICE_ACTIVATION_OPTIONS: Array<{
+  value: HandsFreeVoiceActivationMode;
+  label: string;
+  detail: string;
+}> = [
+  {
+    value: "wake_word",
+    label: 'Say "Chef"',
+    detail: "Best when your browser supports local speech recognition.",
+  },
+  {
+    value: "tap_to_talk",
+    label: "Tap to talk",
+    detail: "Most reliable across Safari, Firefox, Brave, and mobile.",
+  },
+  {
+    value: "always_listening",
+    label: "Always listening",
+    detail: "Mic stays open while hands-free mode is active.",
+  },
+];
+
+function readSavedVoiceActivationMode(): HandsFreeVoiceActivationMode {
+  if (typeof window === "undefined") return "wake_word";
+  const saved = window.localStorage.getItem(VOICE_ACTIVATION_STORAGE_KEY);
+  if (
+    saved === "wake_word" ||
+    saved === "tap_to_talk" ||
+    saved === "always_listening"
+  ) {
+    return saved;
+  }
+  return "SpeechRecognition" in window || "webkitSpeechRecognition" in window
+    ? "wake_word"
+    : "tap_to_talk";
+}
+
 export function HandsFreeSetupModal({ recipe, onCancel, onStart }: Props) {
   const [notes, setNotes] = useState("");
   const [ingredientChanges, setIngredientChanges] = useState("");
@@ -47,11 +87,18 @@ export function HandsFreeSetupModal({ recipe, onCancel, onStart }: Props) {
   const [guidanceStyle, setGuidanceStyle] =
     useState<HandsFreeGuidanceStyle>("on_demand");
   const [startingStep, setStartingStep] = useState(1);
+  const [voiceActivationMode, setVoiceActivationMode] =
+    useState<HandsFreeVoiceActivationMode>(readSavedVoiceActivationMode);
 
   const boundedStartingStep = useMemo(
     () => Math.max(1, Math.min(recipe.steps.length || 1, startingStep)),
     [recipe.steps.length, startingStep],
   );
+
+  function selectVoiceActivationMode(mode: HandsFreeVoiceActivationMode) {
+    setVoiceActivationMode(mode);
+    window.localStorage.setItem(VOICE_ACTIVATION_STORAGE_KEY, mode);
+  }
 
   function start() {
     onStart({
@@ -60,6 +107,7 @@ export function HandsFreeSetupModal({ recipe, onCancel, onStart }: Props) {
       equipmentNotes: equipmentNotes.trim(),
       guidanceStyle,
       startingStep: boundedStartingStep,
+      voiceActivationMode,
     });
   }
 
@@ -184,6 +232,33 @@ export function HandsFreeSetupModal({ recipe, onCancel, onStart }: Props) {
                 ))}
               </select>
             </label>
+
+            <div>
+              <p className="text-sm font-black text-on-surface">
+                Voice activation
+              </p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                {VOICE_ACTIVATION_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => selectVoiceActivationMode(option.value)}
+                    className={`rounded-2xl border px-4 py-3 text-left transition ${
+                      voiceActivationMode === option.value
+                        ? "border-primary-fixed-dim bg-[#fff2e3]"
+                        : "border-outline-variant/40 bg-white hover:border-primary-fixed-dim/50"
+                    }`}
+                  >
+                    <span className="block text-sm font-black text-on-surface">
+                      {option.label}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-on-surface-variant">
+                      {option.detail}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
