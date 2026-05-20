@@ -8,7 +8,7 @@ export default function CartDetailLoading() {
       steps={[
         "Loading cart",
         "Preparing ingredient review",
-        "Checking shopping cart options",
+        "Preparing shopping list options",
       ]}
       shell={false}
     />

@@ -19,30 +19,27 @@ export function HandsFreeTranscriptPanel({
   lastAction,
 }: TranscriptPanelProps) {
   return (
-    <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-black/18 p-4">
+    <div className="rounded-[1.5rem] border border-[#c0dedf] bg-white/80 p-4 shadow-[0_12px_34px_rgba(60,154,158,0.08)] backdrop-blur-xl">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
           Live transcript
-        </p>
-        <p className="text-[11px] text-white/35">
-          Ask naturally. Chef can use steps, timers, and context.
         </p>
       </div>
       {(lastHeard || lastAction) && (
-        <div className="mb-4 grid gap-2 sm:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3">
-            <span className="block text-[9px] font-black uppercase tracking-widest text-white/35">
+        <div className="mb-4 grid gap-2">
+          <div className="rounded-2xl border border-[#c0dedf]/70 bg-[#fffdfa] px-4 py-3">
+            <span className="block text-[9px] font-black uppercase tracking-widest text-outline">
               Heard
             </span>
-            <span className="mt-1 line-clamp-2 block text-sm text-white/75">
+            <span className="mt-1 line-clamp-2 block text-sm text-on-surface-variant">
               {lastHeard ?? "Waiting for your voice..."}
             </span>
           </div>
-          <div className="rounded-2xl border border-amber-300/15 bg-amber-300/10 px-4 py-3">
-            <span className="block text-[9px] font-black uppercase tracking-widest text-amber-200/60">
+          <div className="rounded-2xl border border-[#f4be6b]/50 bg-[#fff2e3] px-4 py-3">
+            <span className="block text-[9px] font-black uppercase tracking-widest text-primary">
               Chef did
             </span>
-            <span className="mt-1 line-clamp-2 block text-sm text-amber-50/85">
+            <span className="mt-1 line-clamp-2 block text-sm text-on-surface">
               {lastAction ?? "No command action yet."}
             </span>
           </div>
@@ -60,10 +57,10 @@ export function HandsFreeTranscriptPanel({
               <div
                 className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6 ${
                   entry.speaker === "you"
-                    ? "bg-amber-300 text-[#1b1405]"
+                    ? "bg-primary text-on-primary"
                     : entry.speaker === "system"
-                      ? "bg-white/8 text-white/55"
-                      : "bg-white/12 text-white/86"
+                      ? "bg-[#fff8ef] text-on-surface-variant"
+                      : "bg-[#ecf8f4] text-on-surface"
                 }`}
               >
                 <span className="mb-1 block text-[9px] font-black uppercase tracking-widest opacity-60">
@@ -78,9 +75,8 @@ export function HandsFreeTranscriptPanel({
             </div>
           ))
         ) : (
-          <p className="text-sm leading-6 text-white/45">
-            Your conversation will appear here so you can see what Chef heard
-            and what it did.
+          <p className="text-sm leading-6 text-on-surface-variant">
+            Your conversation will appear here.
           </p>
         )}
       </div>
@@ -92,7 +88,6 @@ type AsidePanelsProps = {
   activeStep: number;
   adaptations: CookingAdaptation[];
   completedTimers: CookingTimer[];
-  contextLines: string[];
   currentPhase: string;
   recipe: BaseRecipe;
   setTimers: React.Dispatch<React.SetStateAction<CookingTimer[]>>;
@@ -107,60 +102,118 @@ export function HandsFreeAsidePanels({
   activeStep,
   adaptations,
   completedTimers,
-  contextLines,
   currentPhase,
   recipe,
   setTimers,
   visibleTimers,
 }: AsidePanelsProps) {
   const currentStep = recipe.steps[activeStep];
+  const primaryTimer = visibleTimers[0] ?? null;
+  const stepProgress = recipe.steps.length
+    ? ((activeStep + 1) / recipe.steps.length) * 100
+    : 0;
 
   return (
-    <aside className="space-y-4">
-      <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.07] p-5 backdrop-blur-xl">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300/80">
-          Kitchen state
-        </p>
-        <h3 className="mt-2 text-2xl font-black text-white">{currentPhase}</h3>
-
-        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.055] p-4">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
-              Visible marker
-            </span>
-            <span className="shrink-0 text-xs font-black text-amber-300">
-              Step {activeStep + 1}/{recipe.steps.length}
-            </span>
+    <section className="space-y-4">
+      <div className="rounded-[2rem] border border-[#c0dedf] bg-white/82 p-5 shadow-[0_18px_50px_rgba(60,154,158,0.12)] backdrop-blur-xl sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+              Now cooking
+            </p>
+            <h1 className="mt-2 text-3xl font-black leading-tight text-on-surface sm:text-5xl">
+              Step {activeStep + 1}
+            </h1>
+            <p className="mt-1 text-sm font-semibold text-on-surface-variant">
+              {currentPhase} - {recipe.steps.length} total steps
+            </p>
           </div>
-          <p className="mt-2 line-clamp-4 text-sm leading-6 text-white/76">
+          <span className="shrink-0 rounded-full bg-[#fff2e3] px-3 py-1.5 text-xs font-black text-primary">
+            {activeStep + 1}/{recipe.steps.length}
+          </span>
+        </div>
+
+        <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-[#fff2e3]">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-500"
+            style={{ width: `${stepProgress}%` }}
+          />
+        </div>
+
+        <div className="mt-5 rounded-[1.5rem] border border-[#f4be6b]/45 bg-[#fff8ef]/78 p-5 backdrop-blur">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+            Current instruction
+          </p>
+          <p className="mt-3 text-2xl font-black leading-9 text-on-surface">
             {currentStep?.what_to_do ?? "No recipe step loaded."}
           </p>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-white/10 bg-black/15 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
-              Active timers
-            </span>
-            <span className="text-xs text-white/35">
-              Say &quot;start a pasta timer for 8 minutes&quot;
-            </span>
+        {primaryTimer ? (
+          <div className="mt-4 rounded-[1.5rem] border border-[#f4be6b]/55 bg-[#fff2e3]/88 p-4 backdrop-blur">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+                  Timer running
+                </p>
+                <h3 className="mt-1 truncate text-lg font-black text-on-surface">
+                  {primaryTimer.label}
+                </h3>
+              </div>
+              <span className="font-mono text-2xl font-black tabular-nums text-primary">
+                {formatTime(primaryTimer.remainingSeconds)}
+              </span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{
+                  width: `${Math.max(
+                    0,
+                    Math.min(
+                      100,
+                      (primaryTimer.remainingSeconds /
+                        primaryTimer.totalSeconds) *
+                        100,
+                    ),
+                  )}%`,
+                }}
+              />
+            </div>
           </div>
-          <div className="mt-3 space-y-2">
-            {visibleTimers.length > 0 ? (
-              visibleTimers.map((timer) => (
-                <div key={timer.id} className="rounded-xl bg-white/8 px-3 py-2">
+        ) : null}
+      </div>
+
+      {visibleTimers.length > 1 || completedTimers.length > 0 ? (
+        <div className="rounded-[2rem] border border-[#c0dedf] bg-white/82 p-5 shadow-[0_18px_50px_rgba(60,154,158,0.08)] backdrop-blur-xl">
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+                Other timers
+              </span>
+            </div>
+            <div className="mt-3 space-y-3">
+              {visibleTimers.slice(1).map((timer) => (
+                <div
+                  key={timer.id}
+                  className="rounded-2xl border border-[#f4be6b]/50 bg-[#fff2e3] px-4 py-3"
+                >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="truncate text-sm font-bold text-white">
-                      {timer.label}
-                    </span>
-                    <span className="font-mono text-sm font-black tabular-nums text-amber-300">
+                    <div className="min-w-0">
+                      <span className="block truncate text-sm font-black text-on-surface">
+                        {timer.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs font-semibold text-on-surface-variant">
+                        {timer.paused ? "Paused" : "Running"}
+                      </span>
+                    </div>
+                    <span className="font-mono text-2xl font-black tabular-nums text-primary">
                       {formatTime(timer.remainingSeconds)}
                     </span>
                   </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
                     <div
-                      className="h-full rounded-full bg-amber-300 transition-all duration-500"
+                      className="h-full rounded-full bg-primary transition-all duration-500"
                       style={{
                         width: `${Math.max(
                           0,
@@ -173,116 +226,58 @@ export function HandsFreeAsidePanels({
                     />
                   </div>
                 </div>
-              ))
-            ) : (
-              <p className="text-sm leading-6 text-white/45">
-                No named timers yet. Chef can keep track of parallel cooking
-                tasks while you work.
-              </p>
-            )}
-            {completedTimers.map((timer) => (
-              <button
-                key={timer.id}
-                type="button"
-                onClick={() =>
-                  setTimers((current) =>
-                    current.filter((item) => item.id !== timer.id),
-                  )
-                }
-                className="flex w-full items-center justify-between rounded-xl border border-amber-300/30 bg-amber-300/12 px-3 py-2 text-left text-sm text-amber-100"
-              >
-                <span>{timer.label} timer done</span>
-                <span className="material-symbols-outlined text-[16px]">
-                  close
-                </span>
-              </button>
-            ))}
+              ))}
+              {completedTimers.map((timer) => (
+                <button
+                  key={timer.id}
+                  type="button"
+                  onClick={() =>
+                    setTimers((current) =>
+                      current.filter((item) => item.id !== timer.id),
+                    )
+                  }
+                  className="flex w-full items-center justify-between rounded-xl border border-[#f4be6b]/40 bg-[#fff2e3] px-3 py-2 text-left text-sm text-on-surface"
+                >
+                  <span>{timer.label} timer done</span>
+                  <span className="material-symbols-outlined text-[16px]">
+                    close
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </section>
+      ) : null}
 
-      <section className="rounded-[1.6rem] border border-amber-300/15 bg-amber-300/[0.08] p-5 backdrop-blur-xl">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-200/70">
-          Live adjustments
-        </p>
-        {adaptations.length > 0 ? (
+      {adaptations.length > 0 ? (
+        <div className="rounded-[2rem] border border-[#f4be6b]/45 bg-[#fff2e3] p-5 shadow-[0_18px_50px_rgba(244,121,13,0.08)]">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+            Live adjustments
+          </p>
           <div className="mt-3 space-y-2">
             {adaptations.map((adaptation) => (
               <div
                 key={adaptation.id}
-                className="rounded-2xl border border-amber-200/15 bg-black/12 px-4 py-3"
+                className="rounded-2xl border border-[#f4be6b]/35 bg-white px-4 py-3"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="min-w-0 truncate text-sm font-black text-amber-50">
+                  <p className="min-w-0 truncate text-sm font-black text-on-surface">
                     {adaptation.title}
                   </p>
                   {adaptation.stepNumber ? (
-                    <span className="shrink-0 rounded-full bg-amber-200/15 px-2 py-1 text-[10px] font-bold text-amber-100/80">
+                    <span className="shrink-0 rounded-full bg-[#fff2e3] px-2 py-1 text-[10px] font-bold text-primary">
                       Step {adaptation.stepNumber}
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-1 line-clamp-3 text-xs leading-5 text-amber-50/70">
+                <p className="mt-1 line-clamp-3 text-xs leading-5 text-on-surface-variant">
                   {adaptation.note}
                 </p>
               </div>
             ))}
           </div>
-        ) : (
-          <p className="mt-3 text-sm leading-6 text-white/45">
-            No live changes yet. If the kitchen situation changes, Chef can keep
-            a session note without changing the saved recipe.
-          </p>
-        )}
-      </section>
-
-      <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.07] p-5 backdrop-blur-xl">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
-          Try saying
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {[
-            "What do I do now?",
-            "Start a pasta timer for 8 minutes",
-            "How much time left?",
-            "Go to step 3",
-            "Repeat that",
-            "Pause timer",
-            "I'm done cooking",
-            "What can I prep?",
-          ].map((prompt) => (
-            <span
-              key={prompt}
-              className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs font-semibold text-white/70"
-            >
-              {prompt}
-            </span>
-          ))}
         </div>
-      </section>
-
-      <section className="rounded-[1.6rem] border border-teal-200/10 bg-teal-200/[0.07] p-5 backdrop-blur-xl">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-teal-200/70">
-          Chef knows
-        </p>
-        {contextLines.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {contextLines.map((line) => (
-              <span
-                key={line}
-                className="rounded-full border border-teal-200/10 bg-teal-200/10 px-3 py-2 text-xs font-semibold text-teal-50/80"
-              >
-                {line}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-3 text-sm leading-6 text-white/45">
-            No profile or pantry context loaded yet. Chef will guide from the
-            recipe only.
-          </p>
-        )}
-      </section>
-    </aside>
+      ) : null}
+    </section>
   );
 }

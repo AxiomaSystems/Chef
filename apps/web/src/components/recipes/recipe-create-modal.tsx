@@ -110,6 +110,20 @@ function resolveInitialCuisineForText(cuisines: Cuisine[], label: string) {
   );
 }
 
+function nutritionValue(
+  nutrition:
+    | BaseRecipe["nutrition_data"]
+    | CaptureRecipePreview["nutrition_estimate"]
+    | null
+    | undefined,
+  key: "calories" | "protein_g" | "carbs_g" | "fat_g",
+) {
+  const value = nutrition?.[key];
+  return typeof value === "number" && Number.isFinite(value)
+    ? String(value)
+    : "";
+}
+
 export function RecipeCreateModal({
   cuisines,
   tags,
@@ -237,32 +251,20 @@ export function RecipeCreateModal({
         : [{ what_to_do: "" }]),
   );
   const [calories, setCalories] = useState(
-    initialRecipe?.nutrition_data?.calories !== undefined
-      ? String(initialRecipe.nutrition_data.calories)
-      : initialDraft?.nutrition_estimate?.calories !== undefined
-        ? String(initialDraft.nutrition_estimate.calories)
-        : "",
+    nutritionValue(initialRecipe?.nutrition_data, "calories") ||
+      nutritionValue(initialDraft?.nutrition_estimate, "calories"),
   );
   const [proteinG, setProteinG] = useState(
-    initialRecipe?.nutrition_data?.protein_g !== undefined
-      ? String(initialRecipe.nutrition_data.protein_g)
-      : initialDraft?.nutrition_estimate?.protein_g !== undefined
-        ? String(initialDraft.nutrition_estimate.protein_g)
-        : "",
+    nutritionValue(initialRecipe?.nutrition_data, "protein_g") ||
+      nutritionValue(initialDraft?.nutrition_estimate, "protein_g"),
   );
   const [carbsG, setCarbsG] = useState(
-    initialRecipe?.nutrition_data?.carbs_g !== undefined
-      ? String(initialRecipe.nutrition_data.carbs_g)
-      : initialDraft?.nutrition_estimate?.carbs_g !== undefined
-        ? String(initialDraft.nutrition_estimate.carbs_g)
-        : "",
+    nutritionValue(initialRecipe?.nutrition_data, "carbs_g") ||
+      nutritionValue(initialDraft?.nutrition_estimate, "carbs_g"),
   );
   const [fatG, setFatG] = useState(
-    initialRecipe?.nutrition_data?.fat_g !== undefined
-      ? String(initialRecipe.nutrition_data.fat_g)
-      : initialDraft?.nutrition_estimate?.fat_g !== undefined
-        ? String(initialDraft.nutrition_estimate.fat_g)
-        : "",
+    nutritionValue(initialRecipe?.nutrition_data, "fat_g") ||
+      nutritionValue(initialDraft?.nutrition_estimate, "fat_g"),
   );
   const [dietaryRestrictionInput, setDietaryRestrictionInput] = useState("");
   const [customTagNames, setCustomTagNames] = useState<string[]>(
@@ -633,26 +635,10 @@ export function RecipeCreateModal({
     setSelectedTagIds((prev) =>
       Array.from(new Set([...prev, ...findTagIdsFromNames(recipe.tags ?? [])])),
     );
-    setCalories(
-      recipe.nutrition_estimate?.calories !== undefined
-        ? String(recipe.nutrition_estimate.calories)
-        : "",
-    );
-    setProteinG(
-      recipe.nutrition_estimate?.protein_g !== undefined
-        ? String(recipe.nutrition_estimate.protein_g)
-        : "",
-    );
-    setCarbsG(
-      recipe.nutrition_estimate?.carbs_g !== undefined
-        ? String(recipe.nutrition_estimate.carbs_g)
-        : "",
-    );
-    setFatG(
-      recipe.nutrition_estimate?.fat_g !== undefined
-        ? String(recipe.nutrition_estimate.fat_g)
-        : "",
-    );
+    setCalories(nutritionValue(recipe.nutrition_estimate, "calories"));
+    setProteinG(nutritionValue(recipe.nutrition_estimate, "protein_g"));
+    setCarbsG(nutritionValue(recipe.nutrition_estimate, "carbs_g"));
+    setFatG(nutritionValue(recipe.nutrition_estimate, "fat_g"));
   }
 
   function autofillFromName(trigger: "auto" | "manual") {
@@ -676,6 +662,7 @@ export function RecipeCreateModal({
         dietaryPreferences: dietaryRestrictionChips.map((chip) => chip.label),
         notes: [
           "Return one practical recipe preview suitable for pre-filling a manual recipe creation form.",
+          "Always include estimated calories, protein grams, carbs grams, and fat grams per serving.",
           isEditing
             ? "Use the current recipe as the base and revise it according to the user's instructions."
             : "",

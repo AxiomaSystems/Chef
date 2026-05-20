@@ -23,6 +23,10 @@ const ACCOUNT_NAV = [
     href: "/account/settings/security",
     label: "Security",
   },
+  {
+    href: "/account/settings/ai-usage",
+    label: "AI usage",
+  },
 ] as const;
 
 export function AccountSidebar(props: {

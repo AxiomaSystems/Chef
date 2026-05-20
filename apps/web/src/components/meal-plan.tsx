@@ -442,12 +442,12 @@ export function WeeklyMealPlan({
     startGeneratingCart(async () => {
       const fd = new FormData();
       fd.set("intent", "generate");
-      fd.set("name", `Meal plan - ${weekLabel}`);
       fd.set(
         "selections_json",
         JSON.stringify(
           selectedCartRecipeGroups.map((group) => ({
             recipe_id: group.id,
+            recipe_name: group.recipe.name,
             quantity: group.count,
           })),
         ),

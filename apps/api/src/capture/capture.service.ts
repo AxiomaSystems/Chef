@@ -46,10 +46,12 @@ export class CaptureService {
   ): Promise<Capture> {
     const normalizedUrl = input.url?.trim();
     const normalizedText = input.text?.trim();
+    const normalizedImageDataUrl = input.image_data_url?.trim();
     const inputKind = this.resolveInputKind(
       input.input_kind,
       normalizedUrl,
       normalizedText,
+      normalizedImageDataUrl,
     );
 
     if (inputKind === 'url' && !normalizedUrl) {
@@ -64,9 +66,37 @@ export class CaptureService {
       throw new BadRequestException('text captures should not include url');
     }
 
+    if (inputKind === 'image' && !normalizedImageDataUrl) {
+      throw new BadRequestException(
+        'image_data_url is required for image captures',
+      );
+    }
+
+    if (inputKind === 'image' && normalizedUrl) {
+      throw new BadRequestException('image captures should not include url');
+    }
+
+    if (normalizedImageDataUrl && inputKind !== 'image') {
+      throw new BadRequestException(
+        'image_data_url is only supported for image captures',
+      );
+    }
+
+    if (
+      normalizedImageDataUrl &&
+      !/^data:image\/(?:jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(
+        normalizedImageDataUrl,
+      )
+    ) {
+      throw new BadRequestException(
+        'image_data_url must be a base64 data URL for jpeg, png, or webp',
+      );
+    }
+
     const importResult = await this.aiService.importRecipeFromCapture({
       url: inputKind === 'url' ? normalizedUrl : undefined,
       text: normalizedText,
+      imageDataUrl: inputKind === 'image' ? normalizedImageDataUrl : undefined,
     });
     const sourceKind = resolveSourceKind(
       inputKind,
@@ -185,6 +215,7 @@ export class CaptureService {
     requested: CaptureInputKind | undefined,
     url: string | undefined,
     text: string | undefined,
+    imageDataUrl: string | undefined,
   ): CaptureInputKind {
     if (requested) {
       return requested;
@@ -196,6 +227,10 @@ export class CaptureService {
 
     if (text) {
       return 'text';
+    }
+
+    if (imageDataUrl) {
+      return 'image';
     }
 
     throw new BadRequestException('Provide a url or text capture input');
@@ -295,6 +330,10 @@ function resolveSourceKind(
     return 'pasted_text';
   }
 
+  if (inputKind === 'image') {
+    return 'image';
+  }
+
   if (
     platform === 'youtube' ||
     platform === 'instagram' ||
@@ -314,6 +353,20 @@ function resolveResultKind(
 ): CaptureResultKind {
   if (sourceKind === 'social_url') {
     return 'reconstructed_recipe';
+  }
+
+  if (inputKind === 'image') {
+    const notes = result.extraction_notes.join(' ').toLowerCase();
+    if (notes.includes('plated_dish') || notes.includes('finished dish')) {
+      return 'inspired_recipe';
+    }
+    if (
+      notes.includes('screenshot_caption') ||
+      notes.includes('menu_or_label')
+    ) {
+      return 'reconstructed_recipe';
+    }
+    return 'partial_recipe_import';
   }
 
   if (inputKind === 'text' && looksLikeLooseIdea(text ?? '')) {
@@ -384,17 +437,20 @@ function buildAttribution(
   const title = result.source_title || undefined;
   const creator = result.source_creator ?? undefined;
   const attributionLabel =
-    inputKind === 'text'
-      ? 'Generated from pasted text'
-      : [title, creator || site].filter(Boolean).join(' - ') ||
-        'Imported source';
+    inputKind === 'image'
+      ? 'Generated from image capture'
+      : inputKind === 'text'
+        ? 'Generated from pasted text'
+        : [title, creator || site].filter(Boolean).join(' - ') ||
+          'Imported source';
 
   return {
     url,
     title,
     creator,
     site,
-    platform: inputKind === 'text' ? 'chef' : result.platform,
+    platform:
+      inputKind === 'text' || inputKind === 'image' ? 'chef' : result.platform,
     attribution_label: attributionLabel,
   };
 }

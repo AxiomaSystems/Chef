@@ -2,15 +2,26 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { AggregatedIngredient, Cart, DishIngredient } from "@cart/shared";
+import type {
+  AggregatedIngredient,
+  Cart,
+  DishIngredient,
+  IngredientReview,
+} from "@cart/shared";
 import { normalizeIngredientKey } from "@cart/shared";
-import { createShoppingCartAction } from "@/app/home-actions";
+import {
+  createShoppingCartAction,
+  updateIngredientReviewAction,
+} from "@/app/home-actions";
 
 type IngredientNeed = {
+  key: string;
   ingredient: DishIngredient;
   coveredAmount: number;
+  crossedOffAmount: number;
   amountToBuy: number;
   aggregate?: AggregatedIngredient;
+  crossedOff: boolean;
 };
 
 function ingredientKey(
@@ -32,7 +43,15 @@ function aggregateKey(ingredient: AggregatedIngredient) {
   return `name:${normalizeIngredientKey(ingredient.canonical_ingredient)}::${unit}`;
 }
 
-function buildDishNeeds(cart: Cart, inventoryChecked: boolean) {
+function rowKey(dishIndex: number, ingredientIndex: number) {
+  return `${dishIndex}:${ingredientIndex}`;
+}
+
+function buildDishNeeds(
+  cart: Cart,
+  inventoryChecked: boolean,
+  crossedOffRows: Set<string>,
+) {
   const aggregateByKey = new Map(
     cart.overview.map((ingredient) => [aggregateKey(ingredient), ingredient]),
   );
@@ -47,35 +66,67 @@ function buildDishNeeds(cart: Cart, inventoryChecked: boolean) {
     ]),
   );
 
-  return cart.dishes.map((dish) => {
-    const ingredients: IngredientNeed[] = dish.ingredients.map((ingredient) => {
-      const key = ingredientKey(ingredient);
-      const aggregate = aggregateByKey.get(key);
-      const coveredAvailable = coveredRemaining.get(key) ?? 0;
-      const coveredAmount = inventoryChecked
-        ? Math.min(ingredient.amount, coveredAvailable)
-        : 0;
-      const amountToBuy = inventoryChecked
-        ? Math.max(0, ingredient.amount - coveredAmount)
-        : ingredient.amount;
+  return cart.dishes.map((dish, dishIndex) => {
+    const ingredients: IngredientNeed[] = dish.ingredients.map(
+      (ingredient, ingredientIndex) => {
+        const key = ingredientKey(ingredient);
+        const rowId = rowKey(dishIndex, ingredientIndex);
+        const aggregate = aggregateByKey.get(key);
+        const coveredAvailable = coveredRemaining.get(key) ?? 0;
+        const crossedOff = crossedOffRows.has(rowId);
+        const coveredAmount = inventoryChecked
+          ? Math.min(ingredient.amount, coveredAvailable)
+          : 0;
+        const crossedOffAmount = crossedOff
+          ? Math.max(0, ingredient.amount - coveredAmount)
+          : 0;
+        const amountToBuy = inventoryChecked
+          ? Math.max(0, ingredient.amount - coveredAmount - crossedOffAmount)
+          : crossedOff
+            ? 0
+            : ingredient.amount;
 
-      if (inventoryChecked) {
-        coveredRemaining.set(
-          key,
-          Math.max(0, coveredAvailable - coveredAmount),
-        );
-      }
+        if (inventoryChecked) {
+          coveredRemaining.set(
+            key,
+            Math.max(0, coveredAvailable - coveredAmount),
+          );
+        }
 
-      return { ingredient, aggregate, coveredAmount, amountToBuy };
-    });
+        return {
+          key: rowId,
+          ingredient,
+          aggregate,
+          coveredAmount,
+          crossedOffAmount,
+          amountToBuy,
+          crossedOff,
+        };
+      },
+    );
 
     return {
       dish,
-      ingredients: inventoryChecked
-        ? ingredients.filter((ingredient) => ingredient.amountToBuy > 0)
-        : ingredients,
+      ingredients,
     };
   });
+}
+
+function buildManualCoveredByAggregate(
+  cart: Cart,
+  crossedOffRows: Set<string>,
+) {
+  const covered = new Map<string, number>();
+
+  cart.dishes.forEach((dish, dishIndex) => {
+    dish.ingredients.forEach((ingredient, ingredientIndex) => {
+      if (!crossedOffRows.has(rowKey(dishIndex, ingredientIndex))) return;
+      const key = ingredientKey(ingredient);
+      covered.set(key, (covered.get(key) ?? 0) + ingredient.amount);
+    });
+  });
+
+  return covered;
 }
 
 function formatAmount(amount: number) {
@@ -85,17 +136,25 @@ function formatAmount(amount: number) {
 export function CartDetailClient({ cart }: { cart: Cart }) {
   const router = useRouter();
   const [inventoryChecked, setInventoryChecked] = useState(false);
+  const [crossedOffRows, setCrossedOffRows] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [cartError, setCartError] = useState<string | null>(null);
   const [isCreatingShoppingCart, startCreateShoppingCart] = useTransition();
   const dishNeeds = useMemo(
-    () => buildDishNeeds(cart, inventoryChecked),
-    [cart, inventoryChecked],
+    () => buildDishNeeds(cart, inventoryChecked, crossedOffRows),
+    [cart, crossedOffRows, inventoryChecked],
   );
-  const totalToBuy = cart.overview.reduce(
-    (total, ingredient) =>
-      total + (ingredient.remaining_to_buy ?? ingredient.total_amount),
-    0,
+  const manualCoveredByAggregate = useMemo(
+    () => buildManualCoveredByAggregate(cart, crossedOffRows),
+    [cart, crossedOffRows],
   );
+  const totalToBuy = cart.overview.reduce((total, ingredient) => {
+    const key = aggregateKey(ingredient);
+    const manualCovered = manualCoveredByAggregate.get(key) ?? 0;
+    const remaining = ingredient.remaining_to_buy ?? ingredient.total_amount;
+    return total + Math.max(0, remaining - manualCovered);
+  }, 0);
   const coveredCount = cart.overview.filter(
     (ingredient) =>
       (ingredient.remaining_to_buy ?? ingredient.total_amount) <= 0,
@@ -111,6 +170,41 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
     if (!cart.id) return;
     setCartError(null);
     startCreateShoppingCart(async () => {
+      const reviewItems: IngredientReview["items"] = cart.overview.map(
+        (ingredient) => {
+          const manualCovered =
+            manualCoveredByAggregate.get(aggregateKey(ingredient)) ?? 0;
+          const adjustedAmount = Math.max(
+            0,
+            ingredient.total_amount - manualCovered,
+          );
+
+          return {
+            ingredient_id: ingredient.ingredient_id,
+            canonical_ingredient: ingredient.canonical_ingredient,
+            total_amount: ingredient.total_amount,
+            unit: ingredient.unit,
+            source_dishes: ingredient.source_dishes,
+            action:
+              manualCovered <= 0
+                ? "buy"
+                : adjustedAmount === 0
+                  ? "already_have"
+                  : "adjust",
+            adjusted_amount: manualCovered > 0 ? adjustedAmount : undefined,
+            adjusted_unit: manualCovered > 0 ? ingredient.unit : undefined,
+          };
+        },
+      );
+      const reviewResult = await updateIngredientReviewAction(
+        cart.id!,
+        reviewItems,
+      );
+      if (reviewResult.error) {
+        setCartError(reviewResult.error);
+        return;
+      }
+
       const result = await createShoppingCartAction(cart.id!, cart.retailer);
       if (result.error) {
         setCartError(result.error);
@@ -121,15 +215,26 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
     });
   }
 
+  function toggleIngredient(key: string) {
+    setCrossedOffRows((current) => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
   return (
     <div className="grid gap-5">
       <section className="rounded-[1.75rem] border border-[#c0dedf] bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-headline-sm text-[#132326]">Shopping list</h2>
+            <h2 className="text-headline-sm text-[#132326]">Cart</h2>
             <p className="mt-1 text-body-sm text-[#5f8689]">
-              Review what each recipe needs before creating the retailer
-              shopping cart.
+              Review what each recipe needs before creating the shopping list.
             </p>
           </div>
           <button
@@ -184,6 +289,7 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
                     key={`${item.ingredient.canonical_ingredient}-${ingredientIndex}`}
                     item={item}
                     inventoryChecked={inventoryChecked}
+                    onToggle={() => toggleIngredient(item.key)}
                   />
                 ))
               ) : (
@@ -216,8 +322,8 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
             {isCreatingShoppingCart ? "progress_activity" : "shopping_cart"}
           </span>
           {isCreatingShoppingCart
-            ? "Creating shopping cart..."
-            : "Create shopping cart"}
+            ? "Creating shopping list..."
+            : "Create shopping list"}
         </button>
       </section>
     </div>
@@ -251,50 +357,65 @@ function SummaryPill({
 function IngredientRow({
   item,
   inventoryChecked,
+  onToggle,
 }: {
   item: IngredientNeed;
   inventoryChecked: boolean;
+  onToggle: () => void;
 }) {
   const ingredient = item.ingredient;
   const displayName =
     ingredient.display_ingredient ?? ingredient.canonical_ingredient;
-  const status = !inventoryChecked
+  const status = item.crossedOff
     ? {
-        icon: "shopping_cart",
-        label: "",
-        className: "border-[#c0dedf] text-[#5f8689]",
-        detail: "",
+        icon: "check",
+        label: "Already have",
+        className: "border-[#b9e3d2] text-[#256f5c]",
+        detail: "Removed from shopping list",
       }
-    : item.coveredAmount <= 0
+    : !inventoryChecked
       ? {
           icon: "shopping_cart",
-          label: "In cart",
-          className: "border-[#f0b4a8] text-[#b24028]",
-          detail: `${formatAmount(item.amountToBuy)} ${ingredient.unit}`,
+          label: "",
+          className: "border-[#c0dedf] text-[#5f8689]",
+          detail: "",
         }
-      : item.amountToBuy > 0
+      : item.coveredAmount <= 0
         ? {
-            icon: "contrast",
-            label: "Partially covered",
-            className: "border-[#f4d47c] text-[#9a6900]",
-            detail: `${formatAmount(item.coveredAmount)} covered, ${formatAmount(item.amountToBuy)} ${ingredient.unit} to buy`,
+            icon: "shopping_cart",
+            label: "In cart",
+            className: "border-[#f0b4a8] text-[#b24028]",
+            detail: `${formatAmount(item.amountToBuy)} ${ingredient.unit}`,
           }
-        : {
-            icon: "check_circle",
-            label: "Covered",
-            className: "border-[#b9e3d2] text-[#256f5c]",
-            detail: `${formatAmount(item.coveredAmount)} ${ingredient.unit} in inventory`,
-          };
+        : item.amountToBuy > 0
+          ? {
+              icon: "contrast",
+              label: "Partially covered",
+              className: "border-[#f4d47c] text-[#9a6900]",
+              detail: `${formatAmount(item.coveredAmount)} covered, ${formatAmount(item.amountToBuy)} ${ingredient.unit} to buy`,
+            }
+          : {
+              icon: "check_circle",
+              label: "Covered",
+              className: "border-[#b9e3d2] text-[#256f5c]",
+              detail: `${formatAmount(item.coveredAmount)} ${ingredient.unit} in inventory`,
+            };
 
   return (
-    <div
-      className={`flex items-start gap-3 rounded-[1.15rem] border bg-white px-4 py-3 ${status.className}`}
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`flex w-full items-start gap-3 rounded-[1.15rem] border bg-white px-4 py-3 text-left transition-colors hover:bg-[#fff8ef] ${status.className}`}
     >
       <span className="material-symbols-outlined mt-0.5 text-[18px]">
         {status.icon}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-body-sm font-semibold text-[#132326]">
+        <p
+          className={`text-body-sm font-semibold text-[#132326] ${
+            item.crossedOff ? "line-through decoration-2" : ""
+          }`}
+        >
           {displayName}
           {ingredient.preparation ? `, ${ingredient.preparation}` : ""}
         </p>
@@ -308,6 +429,6 @@ function IngredientRow({
       <span className="shrink-0 text-body-sm text-[#5f8689]">
         {formatAmount(ingredient.amount)} {ingredient.unit}
       </span>
-    </div>
+    </button>
   );
 }

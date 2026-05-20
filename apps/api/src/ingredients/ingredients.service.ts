@@ -11,6 +11,7 @@ import {
   normalizeIngredientSlug,
   type Ingredient,
   type KitchenInventoryItem,
+  type MatchedIngredientProduct,
 } from '@cart/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddKitchenInventoryItemDto } from './dto/add-kitchen-inventory-item.dto';
@@ -182,6 +183,68 @@ export class IngredientsService {
     });
 
     return mapKitchenInventoryItem(item);
+  }
+
+  async addPurchasedCartItemsToInventory(
+    userId: string,
+    items: MatchedIngredientProduct[],
+  ): Promise<void> {
+    for (const item of items) {
+      const canonicalName = item.canonical_ingredient.trim();
+      if (!canonicalName) continue;
+
+      const ingredient = await this.ensureIngredient(canonicalName);
+      const unit = item.needed_unit?.trim() || ingredient.defaultUnit || 'unit';
+      const amount = Math.max(0, item.needed_amount || 0);
+      const displayName =
+        item.selected_product?.title?.trim() ||
+        item.manual_label?.trim() ||
+        canonicalName;
+
+      const existing = await this.prisma.kitchenInventoryItem.findFirst({
+        where: {
+          userId,
+          ingredientId: ingredient.id,
+          unit,
+          reviewStatus: { in: ['pending', 'active'] },
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      if (existing) {
+        const nextAmount =
+          existing.estimatedAmount !== null && amount > 0
+            ? existing.estimatedAmount + amount
+            : (existing.estimatedAmount ?? (amount || undefined));
+
+        await this.prisma.kitchenInventoryItem.update({
+          where: { id: existing.id },
+          data: {
+            displayName: existing.displayName || displayName,
+            estimatedAmount: nextAmount,
+            source: 'cart',
+            confidence: 'medium',
+            reviewStatus: 'active',
+          },
+        });
+        continue;
+      }
+
+      await this.prisma.kitchenInventoryItem.create({
+        data: {
+          userId,
+          ingredientId: ingredient.id,
+          displayName,
+          normalizedName: this.normalizeName(displayName),
+          label: canonicalName,
+          estimatedAmount: amount || inferInventoryAmount(unit),
+          unit,
+          source: 'cart',
+          confidence: 'medium',
+          reviewStatus: 'active',
+        },
+      });
+    }
   }
 
   async updateInventoryItem(

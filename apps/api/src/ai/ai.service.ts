@@ -78,8 +78,38 @@ export class AiService {
   async importRecipeFromCapture(input: {
     url?: string;
     text?: string;
+    imageDataUrl?: string;
   }): Promise<AiRecipeImportResult> {
     const supplementalText = input.text?.trim() ?? '';
+
+    if (input.imageDataUrl) {
+      const importResult = await this.provider.importRecipe({
+        request: {
+          url: 'chef-capture://image',
+          supplemental_text: supplementalText || undefined,
+        },
+        platform: 'generic',
+        source_title: deriveTitleFromText(supplementalText) || 'Image capture',
+        source_creator: null,
+        source_description:
+          supplementalText.slice(0, 280) ||
+          'User-provided image capture for recipe structuring.',
+        source_image_url: null,
+        extracted_text: supplementalText.slice(0, 12000),
+        extraction_notes: [
+          'Structured from a user-provided image capture. Raw image data was used ephemerally and is not persisted by Capture.',
+          supplementalText
+            ? 'Included pasted supplemental source text from the user.'
+            : 'No supplemental source text was provided.',
+        ],
+        image_data_url: input.imageDataUrl,
+      });
+
+      return {
+        ...importResult,
+        source_image_url: input.imageDataUrl,
+      };
+    }
 
     if (input.url) {
       const extracted = await extractRecipeSource(input.url, supplementalText);

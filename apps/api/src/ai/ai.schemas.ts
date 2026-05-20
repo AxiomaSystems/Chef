@@ -53,9 +53,7 @@ export const mealGenerationSchema = {
           items: { $ref: '#/$defs/recipeStep' },
         },
         tags: { type: 'array', items: { type: 'string' } },
-        nutrition_estimate: {
-          anyOf: [{ $ref: '#/$defs/nutritionEstimate' }, { type: 'null' }],
-        },
+        nutrition_estimate: { $ref: '#/$defs/nutritionEstimate' },
         estimated_cost_tier: {
           type: 'string',
           enum: ['low', 'medium', 'high'],
@@ -108,10 +106,10 @@ export const mealGenerationSchema = {
         'sodium_mg',
       ],
       properties: {
-        calories: { anyOf: [{ type: 'number' }, { type: 'null' }] },
-        protein_g: { anyOf: [{ type: 'number' }, { type: 'null' }] },
-        carbs_g: { anyOf: [{ type: 'number' }, { type: 'null' }] },
-        fat_g: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+        calories: { type: 'number', minimum: 0 },
+        protein_g: { type: 'number', minimum: 0 },
+        carbs_g: { type: 'number', minimum: 0 },
+        fat_g: { type: 'number', minimum: 0 },
         fiber_g: { anyOf: [{ type: 'number' }, { type: 'null' }] },
         sodium_mg: { anyOf: [{ type: 'number' }, { type: 'null' }] },
       },

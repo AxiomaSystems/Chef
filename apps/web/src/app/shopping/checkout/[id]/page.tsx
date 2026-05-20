@@ -24,7 +24,7 @@ export default async function ShoppingCartCheckoutPage({
     fetchAuthedResource<CheckoutProfile>("/me/checkout-profile"),
   ]);
 
-  const cartName = cartResult.data?.name?.trim() || "Shopping Cart Checkout";
+  const cartName = cartResult.data?.name?.trim() || "Shopping List Checkout";
   const checkoutProfile = checkoutProfileResult.data ?? {
     saved_addresses: [],
     payment_cards: [],

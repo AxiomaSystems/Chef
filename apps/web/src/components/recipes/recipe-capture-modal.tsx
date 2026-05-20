@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import type { Capture } from "@cart/shared";
 import { createCaptureAction } from "@/app/import/actions";
 
-type CaptureMode = "url" | "text";
+type CaptureMode = "url" | "text" | "image";
 
 const THINKING_STEPS = [
   "Reading the source",
@@ -73,6 +73,8 @@ export function RecipeCaptureModal({
   const [mode, setMode] = useState<CaptureMode>(initialOpenMode);
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
+  const [imageDataUrl, setImageDataUrl] = useState("");
+  const [imageName, setImageName] = useState("");
   const [capture, setCapture] = useState<Capture | null>(null);
   const [error, setError] = useState<string | undefined>();
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
@@ -80,9 +82,16 @@ export function RecipeCaptureModal({
   const [isCapturing, startCapture] = useTransition();
   const captionInputRef = useRef<HTMLTextAreaElement>(null);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const recipe = capture?.recipe_preview;
-  const canSubmit = mode === "url" ? !!url.trim() : !!text.trim();
+  const canSubmit =
+    mode === "url"
+      ? !!url.trim()
+      : mode === "text"
+        ? !!text.trim()
+        : !!imageDataUrl;
   const shouldShowCoverImage =
     !!recipe?.cover_image_url && failedImageUrl !== recipe.cover_image_url;
   const sourceLabel =
@@ -120,7 +129,13 @@ export function RecipeCaptureModal({
               url: url.trim(),
               text: text.trim() || undefined,
             }
-          : { input_kind: "text", text: text.trim() },
+          : mode === "text"
+            ? { input_kind: "text", text: text.trim() }
+            : {
+                input_kind: "image",
+                image_data_url: imageDataUrl,
+                text: text.trim() || undefined,
+              },
       );
 
       if (result.error || !result.capture) {
@@ -164,6 +179,23 @@ export function RecipeCaptureModal({
     setFailedImageUrl(null);
   }
 
+  async function handleImageFile(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Choose a photo or screenshot image file.");
+      return;
+    }
+
+    setError(undefined);
+    try {
+      const compressed = await compressImageToDataUrl(file);
+      setImageDataUrl(compressed);
+      setImageName(file.name);
+    } catch {
+      setError("Chef could not read that image. Try another photo.");
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[80] bg-[#fffaf0]">
       <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-[#fffaf0]">
@@ -178,8 +210,8 @@ export function RecipeCaptureModal({
               Turn a food idea into a recipe
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-on-surface-variant">
-              Paste a recipe link or raw text. If Chef finds enough detail, it
-              will open an editable recipe form.
+              Paste a recipe link, raw text, or capture an image. If Chef finds
+              enough detail, it will open an editable recipe form.
             </p>
           </div>
           <button
@@ -196,8 +228,8 @@ export function RecipeCaptureModal({
           {!capture || onReviewDraft ? (
             <div className="mx-auto max-w-xl">
               <section className="-mx-5 border-y border-[#ecdcc8] bg-white p-5 sm:mx-0 sm:rounded-[1.7rem] sm:border sm:p-5 sm:shadow-sm">
-                <div className="grid grid-cols-2 rounded-2xl bg-[#f7f0e7] p-1">
-                  {(["url", "text"] as const).map((option) => (
+                <div className="grid grid-cols-3 rounded-2xl bg-[#f7f0e7] p-1">
+                  {(["url", "text", "image"] as const).map((option) => (
                     <button
                       key={option}
                       type="button"
@@ -211,7 +243,11 @@ export function RecipeCaptureModal({
                           : "text-on-surface-variant hover:text-on-surface"
                       }`}
                     >
-                      {option === "url" ? "Paste link" : "Paste text"}
+                      {option === "url"
+                        ? "Paste link"
+                        : option === "text"
+                          ? "Paste text"
+                          : "Camera"}
                     </button>
                   ))}
                 </div>
@@ -267,7 +303,7 @@ export function RecipeCaptureModal({
                       </p>
                     </div>
                   </div>
-                ) : (
+                ) : mode === "text" ? (
                   <div className="mt-5 space-y-2">
                     <label
                       htmlFor="capture-text"
@@ -284,6 +320,107 @@ export function RecipeCaptureModal({
                       placeholder="Paste a caption, transcript, cookbook note, or recipe text..."
                       className="w-full resize-none rounded-2xl border border-outline-variant/60 bg-white px-4 py-3 text-base outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
                     />
+                  </div>
+                ) : (
+                  <div className="mt-5 space-y-4">
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(event) => {
+                        void handleImageFile(event.target.files?.[0]);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                    <input
+                      ref={uploadInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        void handleImageFile(event.target.files?.[0]);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+
+                    {imageDataUrl ? (
+                      <div className="overflow-hidden rounded-2xl border border-outline-variant/50 bg-[#f7f0e7]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imageDataUrl}
+                          alt="Selected capture"
+                          className="h-56 w-full object-cover"
+                        />
+                        <div className="flex items-center justify-between gap-3 px-4 py-3">
+                          <p className="truncate text-sm font-bold text-on-surface">
+                            {imageName || "Selected image"}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setImageDataUrl("");
+                              setImageName("");
+                            }}
+                            className="rounded-full px-3 py-1 text-xs font-black text-primary hover:bg-white"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-outline-variant/70 bg-[#f7f0e7] p-5 text-center">
+                        <span className="material-symbols-outlined text-[42px] text-primary">
+                          add_a_photo
+                        </span>
+                        <p className="mt-2 text-sm font-black text-on-surface">
+                          Capture a recipe, menu, screenshot, or dish
+                        </p>
+                        <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-on-surface-variant">
+                          Chef will inspect the image and create a reviewable
+                          recipe draft. Nothing raw is saved to your recipe
+                          until you review it.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="rounded-2xl bg-primary px-4 py-3 text-sm font-black text-on-primary"
+                      >
+                        Take photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => uploadInputRef.current?.click()}
+                        className="rounded-2xl border border-outline-variant/60 bg-white px-4 py-3 text-sm font-black text-on-surface"
+                      >
+                        Upload image
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="capture-image-notes"
+                        className="text-xs font-black uppercase tracking-[0.16em] text-on-surface-variant"
+                      >
+                        Notes{" "}
+                        <span className="font-bold normal-case tracking-normal text-outline">
+                          optional
+                        </span>
+                      </label>
+                      <textarea
+                        id="capture-image-notes"
+                        value={text}
+                        onChange={(event) => setText(event.target.value)}
+                        rows={4}
+                        placeholder="Tell Chef what this is, or what you want changed: make it vegetarian, use the visible dish as inspiration..."
+                        className="w-full resize-none rounded-2xl border border-outline-variant/60 bg-white px-4 py-3 text-base outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -510,4 +647,35 @@ function InfoList({
       </ul>
     </div>
   );
+}
+
+async function compressImageToDataUrl(file: File) {
+  const sourceUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = sourceUrl;
+    });
+
+    const maxEdge = 1100;
+    const scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("Canvas is unavailable.");
+    }
+
+    context.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", 0.72);
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
 }

@@ -1,18 +1,21 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type {
   BaseRecipe,
+  Cuisine,
   DishIngredient,
   KitchenInventoryItem,
+  Tag,
 } from "@cart/shared";
 import { normalizeIngredientKey } from "@cart/shared";
 import {
   getInventoryAlternativesAction,
   type InventoryAlternativeSuggestion,
 } from "@/app/ai-actions";
-import { submitDraftFlowAction } from "@/app/home-actions";
+import { deleteRecipeAction, submitDraftFlowAction } from "@/app/home-actions";
 import { HandsFreeMode } from "@/components/hands-free-mode";
 import type { HandsFreeSessionContext } from "@/components/hands-free-mode-types";
 import { HandsFreeSetupModal } from "@/components/hands-free-setup-modal";
@@ -25,6 +28,17 @@ import {
 } from "@/lib/inventory-readiness";
 
 type RecipeTab = "ingredients" | "steps";
+
+const RecipeCreateModal = dynamic(
+  () =>
+    import("@/components/recipes/recipe-create-modal").then(
+      (mod) => mod.RecipeCreateModal,
+    ),
+  {
+    loading: () => null,
+    ssr: false,
+  },
+);
 
 function prepMinutes(recipe: BaseRecipe) {
   return Math.max(20, recipe.steps.length * 7);
@@ -41,19 +55,26 @@ function splitStepCopy(copy: string) {
 export function RecipeDetailPageClient({
   recipe,
   inventory,
+  cuisines,
+  tags,
   cookingContext,
 }: {
   recipe: BaseRecipe;
   inventory: KitchenInventoryItem[];
+  cuisines: Cuisine[];
+  tags: Tag[];
   cookingContext?: CookingContext;
 }) {
   const router = useRouter();
+  const [currentRecipe, setCurrentRecipe] = useState(recipe);
   const [activeTab, setActiveTab] = useState<RecipeTab>("ingredients");
   const [handsFreeOpen, setHandsFreeOpen] = useState(false);
   const [handsFreeSetupOpen, setHandsFreeSetupOpen] = useState(false);
   const [handsFreeSessionContext, setHandsFreeSessionContext] = useState<
     HandsFreeSessionContext | undefined
   >();
+  const [editingRecipe, setEditingRecipe] = useState<BaseRecipe | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [aiAlternatives, setAiAlternatives] = useState<
     InventoryAlternativeSuggestion[]
   >([]);
@@ -64,10 +85,13 @@ export function RecipeDetailPageClient({
   );
   const [cartError, setCartError] = useState<string | null>(null);
   const [isAddingToCart, startAddToCart] = useTransition();
-  const nutrition = recipe.nutrition_data ?? {};
-  const badges = recipe.tags
+  const [isDeleting, startDelete] = useTransition();
+  const nutrition = currentRecipe.nutrition_data ?? {};
+  const badges = currentRecipe.tags
     .filter((tag) => tag.kind === "dietary_badge")
     .slice(0, 2);
+  const canManageRecipe =
+    !!currentRecipe.owner_user_id && !currentRecipe.is_system_recipe;
   const alternativeByIngredient = useMemo(
     () =>
       new Map(
@@ -81,20 +105,20 @@ export function RecipeDetailPageClient({
   const inventorySummary = useMemo(
     () =>
       getIngredientReadinessSummary(
-        recipe.ingredients,
+        currentRecipe.ingredients,
         inventory,
         (ingredient) =>
           alternativeByIngredient.get(
             normalizeIngredientKey(ingredient.canonical_ingredient),
           ),
       ),
-    [alternativeByIngredient, inventory, recipe.ingredients],
+    [alternativeByIngredient, currentRecipe.ingredients, inventory],
   );
 
   async function handleCheckInventory() {
     setInventoryCheckError(null);
     setInventoryChecked(true);
-    const candidates = recipe.ingredients.filter(
+    const candidates = currentRecipe.ingredients.filter(
       (ingredient) =>
         getIngredientReadiness(ingredient, inventory).status !== "available",
     );
@@ -107,7 +131,7 @@ export function RecipeDetailPageClient({
 
     setAiAlternativesPending(true);
     const result = await getInventoryAlternativesAction({
-      recipeName: recipe.name,
+      recipeName: currentRecipe.name,
       ingredients: candidates.map((ingredient) => ({
         canonical_ingredient: ingredient.canonical_ingredient,
         display_ingredient: ingredient.display_ingredient ?? null,
@@ -161,7 +185,13 @@ export function RecipeDetailPageClient({
       formData.set("intent", "generate");
       formData.set(
         "selections_json",
-        JSON.stringify([{ recipe_id: recipe.id, quantity: 1 }]),
+        JSON.stringify([
+          {
+            recipe_id: currentRecipe.id,
+            recipe_name: currentRecipe.name,
+            quantity: 1,
+          },
+        ]),
       );
       formData.set("retailer", "kroger");
 
@@ -175,15 +205,31 @@ export function RecipeDetailPageClient({
     });
   }
 
+  function handleDeleteRecipe() {
+    const confirmed = window.confirm(`Delete ${currentRecipe.name}?`);
+    if (!confirmed) return;
+
+    setDeleteError(null);
+    startDelete(async () => {
+      const result = await deleteRecipeAction(currentRecipe.id);
+      if (result.error) {
+        setDeleteError(result.error);
+        return;
+      }
+
+      router.push("/recipes");
+    });
+  }
+
   return (
     <main className="mx-auto max-w-4xl px-4 pb-36 pt-4 sm:px-6 lg:pb-10 lg:pt-8">
       <article className="overflow-hidden rounded-[2rem] bg-[#fffdfa] shadow-[0_18px_60px_rgba(60,154,158,0.12)] lg:rounded-[2.25rem]">
         <section className="relative">
           <div className="relative h-[21rem] overflow-hidden bg-surface-container sm:h-[30rem]">
             <RecipeImage
-              src={recipe.cover_image_url}
-              alt={recipe.name}
-              seed={recipe.id}
+              src={currentRecipe.cover_image_url}
+              alt={currentRecipe.name}
+              seed={currentRecipe.id}
               className="h-full w-full"
               imgClassName="h-full w-full object-cover"
             />
@@ -199,12 +245,12 @@ export function RecipeDetailPageClient({
             </button>
             <div className="absolute inset-x-0 bottom-0 p-5 pb-12 text-white sm:p-7 sm:pb-16">
               <h1 className="max-w-2xl text-[2.35rem] font-black leading-[0.95] sm:text-[3.6rem]">
-                {recipe.name}
+                {currentRecipe.name}
               </h1>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-bold">
-                <span>{prepMinutes(recipe)} min</span>
+                <span>{prepMinutes(currentRecipe)} min</span>
                 <span className="h-1 w-1 rounded-full bg-white/70" />
-                <span>{recipe.cuisine.label}</span>
+                <span>{currentRecipe.cuisine.label}</span>
                 {badges.map((badge) => (
                   <span
                     key={badge.id}
@@ -309,7 +355,7 @@ export function RecipeDetailPageClient({
                 </div>
               ) : null}
 
-              {recipe.ingredients.map((ingredient, index) =>
+              {currentRecipe.ingredients.map((ingredient, index) =>
                 inventoryChecked ? (
                   <IngredientReadinessRow
                     key={`${ingredient.canonical_ingredient}-${index}`}
@@ -337,7 +383,7 @@ export function RecipeDetailPageClient({
             </div>
           ) : (
             <div className="space-y-3">
-              {recipe.steps.map((step) => {
+              {currentRecipe.steps.map((step) => {
                 const copy = splitStepCopy(step.what_to_do);
                 return (
                   <div
@@ -367,6 +413,38 @@ export function RecipeDetailPageClient({
         <section className="sticky bottom-0 space-y-3 border-t border-outline-variant/25 bg-[#fffdfa]/95 px-4 py-4 backdrop-blur-sm sm:px-7">
           {cartError ? (
             <p className="text-center text-body-sm text-error">{cartError}</p>
+          ) : null}
+          {deleteError ? (
+            <p className="text-center text-body-sm text-error">{deleteError}</p>
+          ) : null}
+          {canManageRecipe ? (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingRecipe(currentRecipe)}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#c0dedf] px-4 py-2.5 text-label-md font-black text-[#5f8689] transition-colors hover:bg-[#fff8ef]"
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  edit
+                </span>
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteRecipe}
+                disabled={isDeleting}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-error/35 px-4 py-2.5 text-label-md font-black text-error transition-colors hover:bg-error-container/30 disabled:opacity-60"
+              >
+                <span
+                  className={`material-symbols-outlined text-[18px] ${
+                    isDeleting ? "animate-spin" : ""
+                  }`}
+                >
+                  {isDeleting ? "progress_activity" : "delete"}
+                </span>
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
           ) : null}
           <button
             type="button"
@@ -411,10 +489,22 @@ export function RecipeDetailPageClient({
 
       {handsFreeOpen ? (
         <HandsFreeMode
-          recipe={recipe}
+          recipe={currentRecipe}
           cookingContext={cookingContext}
           sessionContext={handsFreeSessionContext}
           onClose={() => setHandsFreeOpen(false)}
+        />
+      ) : null}
+      {editingRecipe ? (
+        <RecipeCreateModal
+          cuisines={cuisines}
+          tags={tags}
+          initialRecipe={editingRecipe}
+          onClose={() => setEditingRecipe(null)}
+          onCreated={(updatedRecipe) => {
+            setCurrentRecipe(updatedRecipe);
+            setEditingRecipe(null);
+          }}
         />
       ) : null}
     </main>

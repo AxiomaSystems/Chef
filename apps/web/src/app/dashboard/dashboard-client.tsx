@@ -72,7 +72,13 @@ export function DashboardClient({
       fd.set("intent", "generate");
       fd.set(
         "selections_json",
-        JSON.stringify(items.map((r) => ({ recipe_id: r.id, quantity: 1 }))),
+        JSON.stringify(
+          items.map((r) => ({
+            recipe_id: r.id,
+            recipe_name: r.name,
+            quantity: 1,
+          })),
+        ),
       );
       fd.set("retailer", "kroger");
 

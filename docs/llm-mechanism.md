@@ -93,9 +93,14 @@ apps/api/src/ai/
 Implemented endpoints:
 
 - `GET /api/v1/ai/status`
+- `GET /api/v1/ai/limits`
 - `POST /api/v1/ai/chat`
 - `POST /api/v1/ai/meals/generate`
 - `POST /api/v1/ai/recipes/swap-ingredient`
+- `POST /api/v1/ai/recipes/inventory-alternatives`
+- `POST /api/v1/ai/recipe-imports/structure`
+- `POST /api/v1/ai/inventory/structure`
+- `POST /api/v1/captures`
 
 All current AI endpoints require the normal bearer-token auth path.
 
@@ -106,6 +111,32 @@ Provider behavior:
 - `OPENAI_MODEL` controls the active OpenAI model.
 - AI endpoints are rate-limited by `AiRateLimitGuard`.
 - `AI_RATE_LIMIT_WINDOW_MS` and `AI_RATE_LIMIT_MAX_REQUESTS` control the in-memory per-user limit.
+- `GET /api/v1/ai/limits` is intentionally unmetered so the UI can show current usage without consuming the limit.
+
+## OpenAI Usage Contract
+
+Any new feature that can call OpenAI must include rate-limit and visibility wiring in the same change. This is a product and cost-control requirement, not optional polish.
+
+Required backend wiring:
+
+- protect the OpenAI-backed route with `AiRateLimitGuard`
+- declare an explicit usage category with `@AiUsageCategory(...)`
+- map the route into the shared user-facing limit, not a hidden separate bucket
+- update shared AI types, Swagger DTOs, and `AiRateLimitService` category labels when adding a new category
+- add or update tests proving the route is rate-limited and increments the expected category
+
+Required frontend wiring:
+
+- the Account/Profile AI usage section must show the category that the feature consumes
+- if the feature fits an existing category, no new row is needed, but the mapping must be intentional and tested
+- if the feature needs a new category, add the row to the usage breakdown and use copy such as "AI requests this window" rather than implying exact OpenAI spend
+
+Current usage categories:
+
+- `chat`: Chef chat and conversational cooking help
+- `autofill`: meal generation, ingredient swaps, and inventory alternative suggestions
+- `imports`: recipe import structuring and capture creation
+- `inventory_fill`: voice inventory structuring
 
 The frontend now has a global Chef chat widget:
 

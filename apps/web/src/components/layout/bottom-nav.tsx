@@ -8,7 +8,7 @@ const navItems = [
   { href: "/dashboard", icon: "home", label: "Home" },
   { href: "/recipes", icon: "receipt_long", label: "Recipes" },
   { href: "/inventory", icon: "inventory_2", label: "Inventory" },
-  { href: "/shopping", icon: "shopping_cart", label: "Cart" },
+  { href: "/carts", icon: "shopping_cart", label: "Cart" },
 ];
 
 export function BottomNav({

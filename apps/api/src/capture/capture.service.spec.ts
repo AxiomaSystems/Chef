@@ -171,6 +171,47 @@ describe('CaptureService', () => {
     );
   });
 
+  it('creates an image capture without storing raw image data', async () => {
+    aiService.importRecipeFromCapture.mockResolvedValueOnce({
+      source_url: 'chef-capture://image',
+      platform: 'generic',
+      source_title: 'Image capture',
+      source_creator: null,
+      source_description: 'Grandma recipe card',
+      source_image_url: 'data:image/jpeg;base64,AAAA',
+      imported_recipe: importedRecipe,
+      extraction_notes: [
+        'Image source type: written_recipe. Structured from a user-provided image.',
+      ],
+    });
+
+    await service.createCapture('user-1', {
+      input_kind: 'image',
+      image_data_url: 'data:image/jpeg;base64,AAAA',
+      text: 'Grandma recipe card',
+    });
+
+    expect(aiService.importRecipeFromCapture).toHaveBeenCalledWith({
+      url: undefined,
+      text: 'Grandma recipe card',
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
+    });
+    expect(prisma.capture.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          inputKind: 'image',
+          sourceKind: 'image',
+          resultKind: 'partial_recipe_import',
+          sourceUrl: undefined,
+          sourceTextSnippet: 'Grandma recipe card',
+          recipePreview: expect.objectContaining({
+            cover_image_url: 'data:image/jpeg;base64,AAAA',
+          }),
+        }),
+      }),
+    );
+  });
+
   it('rejects empty capture input', async () => {
     await expect(service.createCapture('user-1', {})).rejects.toBeInstanceOf(
       BadRequestException,
@@ -183,6 +224,15 @@ describe('CaptureService', () => {
         input_kind: 'text',
         url: 'https://example.com/recipe',
         text: 'make pasta',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects image captures without image data', async () => {
+    await expect(
+      service.createCapture('user-1', {
+        input_kind: 'image',
+        text: 'make this',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });

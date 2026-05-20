@@ -26,17 +26,24 @@ export type HandsFreeGuidanceStyle =
   | "brief"
   | "beginner";
 
+export type HandsFreeVoiceActivationMode =
+  | "wake_word"
+  | "tap_to_talk"
+  | "always_listening";
+
 export type HandsFreeSessionContext = {
   notes: string;
   ingredientChanges: string;
   equipmentNotes: string;
   guidanceStyle: HandsFreeGuidanceStyle;
   startingStep: number;
+  voiceActivationMode: HandsFreeVoiceActivationMode;
 };
 
 export type HandsFreeModeStatus =
   | "connecting"
   | "waiting_for_wake"
+  | "waiting_for_tap"
   | "listening"
   | "speaking"
   | "disconnected";

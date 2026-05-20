@@ -1,11 +1,12 @@
 import type { DishIngredient, RecipeNutritionData, RecipeStep } from "./recipe";
 
-export type CaptureInputKind = "url" | "text";
+export type CaptureInputKind = "url" | "text" | "image";
 
 export type CaptureSourceKind =
   | "recipe_url"
   | "social_url"
   | "pasted_text"
+  | "image"
   | "unknown";
 
 export type CaptureResultKind =
@@ -77,4 +78,5 @@ export type CreateCaptureRequest = {
   input_kind?: CaptureInputKind;
   url?: string;
   text?: string;
+  image_data_url?: string;
 };
