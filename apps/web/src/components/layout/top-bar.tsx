@@ -23,7 +23,7 @@ export function TopBar({ title, showBack, actions }: TopBarProps) {
         ? "Recipes"
         : pathname.startsWith("/create")
           ? "Create"
-          : pathname.startsWith("/shopping")
+          : pathname.startsWith("/carts") || pathname.startsWith("/shopping")
             ? "Cart"
             : pathname.startsWith("/chef-ai")
               ? "Butter Me AI"
@@ -71,9 +71,10 @@ export function TopBar({ title, showBack, actions }: TopBarProps) {
         {actions}
         <Link
           href="/account/settings/overview"
-          className="p-2 rounded-full hover:bg-primary-surface transition-colors"
+          className="grid h-11 w-11 place-items-center rounded-full hover:bg-primary-surface transition-colors"
+          aria-label="Open profile"
         >
-          <span className="material-symbols-outlined text-on-surface-variant">
+          <span className="material-symbols-outlined text-[28px] leading-none text-on-surface-variant">
             account_circle
           </span>
         </Link>

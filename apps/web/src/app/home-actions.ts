@@ -2,7 +2,9 @@
 
 import type {
   BaseRecipe,
+  Cart,
   CartSelection,
+  IngredientReview,
   MatchedIngredientProduct,
   ProductCandidate,
   Retailer,
@@ -45,6 +47,18 @@ export type UpdateShoppingCartActionState = {
   error?: string;
   success?: string;
   shoppingCart?: ShoppingCart;
+};
+
+export type UpdateIngredientReviewActionState = {
+  error?: string;
+  success?: string;
+  review?: IngredientReview;
+};
+
+export type UpdateCartDetailsActionState = {
+  error?: string;
+  success?: string;
+  cart?: Cart;
 };
 
 async function readErrorMessage(response: Response | null, fallback: string) {
@@ -98,6 +112,7 @@ export async function submitDraftFlowAction(
     try {
       const parsed = JSON.parse(selectionsJson) as Array<{
         recipe_id?: string;
+        recipe_name?: string;
         quantity?: number;
       }>;
       selections = parsed
@@ -119,7 +134,32 @@ export async function submitDraftFlowAction(
   }
 
   const customName = String(formData.get("name") ?? "").trim();
-  const fallbackName = `Planning run - ${selections.length} recipe${selections.length === 1 ? "" : "s"}`;
+  let recipeNames: string[] = [];
+  if (selectionsJson) {
+    try {
+      const parsed = JSON.parse(selectionsJson) as Array<{
+        recipe_name?: string;
+      }>;
+      recipeNames = Array.from(
+        new Set(
+          parsed
+            .map((selection) => String(selection.recipe_name ?? "").trim())
+            .filter(Boolean),
+        ),
+      );
+    } catch {
+      recipeNames = [];
+    }
+  }
+
+  const fallbackName =
+    recipeNames.length === 1
+      ? recipeNames[0]
+      : recipeNames.length === 2
+        ? `${recipeNames[0]} + ${recipeNames[1]}`
+        : recipeNames.length > 2
+          ? `${recipeNames[0]}, ${recipeNames[1]} + ${recipeNames.length - 2} more`
+          : `${selections.length} recipe cart`;
   const name = customName || fallbackName;
   const retailer = (String(formData.get("retailer") ?? "walmart").trim() ||
     "walmart") as Retailer;
@@ -183,6 +223,7 @@ export async function submitDraftFlowAction(
 
   revalidatePath("/dashboard");
   revalidatePath("/recipes");
+  revalidatePath("/carts");
   revalidatePath("/shopping");
 
   return {
@@ -225,12 +266,58 @@ export async function deletePlanningResourceAction(
 
   revalidatePath("/dashboard");
   revalidatePath("/recipes");
+  revalidatePath("/carts");
   revalidatePath("/shopping");
 
   return {
     success: resourceType === "draft" ? "Draft deleted." : "Cart deleted.",
     resourceType,
     resourceId: normalizedResourceId,
+  };
+}
+
+export async function updateCartDetailsAction(
+  cartId: string,
+  input: { name?: string; retailer?: Retailer },
+): Promise<UpdateCartDetailsActionState> {
+  const normalizedCartId = String(cartId).trim();
+
+  if (!normalizedCartId) {
+    return { error: "Cart not found for update." };
+  }
+
+  const name = input.name?.trim();
+  const response = await callAuthedJson(`/carts/${normalizedCartId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: name || undefined,
+      retailer: input.retailer,
+    }),
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: await readErrorMessage(
+        response,
+        "Unable to update this cart right now.",
+      ),
+    };
+  }
+
+  const cart = (await response.json()) as Cart;
+
+  revalidatePath("/dashboard");
+  revalidatePath("/recipes");
+  revalidatePath("/carts");
+  revalidatePath(`/carts/${normalizedCartId}`);
+  revalidatePath("/shopping");
+
+  return {
+    success: "Cart updated.",
+    cart,
   };
 }
 
@@ -275,6 +362,56 @@ export async function createShoppingCartAction(
   return {
     success: "Shopping cart generated.",
     shoppingCart,
+  };
+}
+
+export async function updateIngredientReviewAction(
+  cartId: string,
+  items: IngredientReview["items"],
+): Promise<UpdateIngredientReviewActionState> {
+  const normalizedCartId = String(cartId).trim();
+
+  if (!normalizedCartId) {
+    return { error: "Cart not found for inventory review." };
+  }
+
+  const response = await callAuthedJson(
+    `/carts/${normalizedCartId}/ingredient-review`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        items: items.map((item) => ({
+          ingredient_id: item.ingredient_id,
+          canonical_ingredient: item.canonical_ingredient,
+          unit: item.unit,
+          action: item.action,
+          adjusted_amount: item.adjusted_amount,
+          adjusted_unit: item.adjusted_unit,
+        })),
+      }),
+    },
+  ).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: await readErrorMessage(
+        response,
+        "Unable to save this cart review right now.",
+      ),
+    };
+  }
+
+  const review = (await response.json()) as IngredientReview;
+
+  revalidatePath(`/carts/${normalizedCartId}`);
+  revalidatePath("/shopping");
+
+  return {
+    success: "Cart review saved.",
+    review,
   };
 }
 

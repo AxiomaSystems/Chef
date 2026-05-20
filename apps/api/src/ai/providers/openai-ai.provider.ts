@@ -99,7 +99,10 @@ export class OpenAiAiProvider implements AiProvider {
     return this.createStructuredResponse<AiRecipeImportResult>({
       schemaName: 'chef_recipe_import',
       schema: recipeImportSchema,
-      task: 'Turn the imported recipe source into one structured Chef recipe preview. Use the extracted source text, metadata, and any supplemental caption/transcript text. Be explicit when fields are inferred or uncertain.',
+      task: [
+        'Turn the imported recipe source into one structured Chef recipe preview. Use the extracted source text, metadata, and any supplemental caption/transcript text. Be explicit when fields are inferred or uncertain.',
+        'Always include nutrition_estimate with numeric calories, protein_g, carbs_g, and fat_g per serving. Estimate reasonable values when exact nutrition is not provided by the source.',
+      ].join(' '),
       payload: input,
     });
   }

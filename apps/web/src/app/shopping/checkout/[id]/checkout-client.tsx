@@ -152,7 +152,7 @@ export function CheckoutClient({
 
   async function completeCheckout() {
     if (!shoppingCart.id) {
-      setCheckoutError("Shopping cart not found.");
+      setCheckoutError("Shopping list not found.");
       return;
     }
 
@@ -225,7 +225,7 @@ export function CheckoutClient({
                     Your Grocery List
                   </p>
                   <p className="mt-1 text-body-sm text-outline">
-                    Fresh from your saved shopping cart.
+                    Fresh from your saved shopping list.
                   </p>
                 </div>
                 <span className="rounded-full bg-secondary-container px-3 py-1 text-label-md text-on-secondary-container">

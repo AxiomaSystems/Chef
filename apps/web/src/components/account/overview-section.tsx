@@ -2,7 +2,6 @@
 
 import { use } from "react";
 import { AccountDataContext } from "./context";
-import { AiLimitsCard } from "./ai-limits-card";
 import { ProfileForm } from "./profile-form";
 import { StatsStrip } from "./stats-strip";
 
@@ -12,7 +11,6 @@ export function OverviewSection() {
   return (
     <div className="grid gap-6">
       <StatsStrip stats={accountData.stats} />
-      <AiLimitsCard status={accountData.aiLimits} />
       <ProfileForm user={accountData.user} />
     </div>
   );

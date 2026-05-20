@@ -155,7 +155,7 @@ export function PlanningDetailOverlay(props: {
       );
       if (result.error || !result.shoppingCart) {
         setShoppingError(
-          result.error ?? "Unable to generate this shopping cart right now.",
+          result.error ?? "Unable to generate this shopping list right now.",
         );
         return;
       }
@@ -463,7 +463,7 @@ export function PlanningDetailOverlay(props: {
                   </span>
                   {isGeneratingShoppingCart
                     ? "Generating..."
-                    : "Generate shopping cart"}
+                    : "Generate shopping list"}
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">

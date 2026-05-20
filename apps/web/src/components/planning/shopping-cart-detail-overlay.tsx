@@ -214,7 +214,7 @@ export function ShoppingCartDetailOverlay({
               {cart.retailer}
             </p>
             <h2 className="mt-1 truncate text-title-lg text-on-surface sm:text-headline-sm">
-              Shopping Cart
+              Shopping List
             </h2>
             <p className="text-body-sm text-outline mt-0.5">
               {lineCount} items · updated {fmtDate(updatedAt)}
@@ -257,7 +257,7 @@ export function ShoppingCartDetailOverlay({
             <button
               onClick={onClose}
               className="flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant transition-colors hover:bg-surface-container-low"
-              aria-label="Close shopping cart"
+              aria-label="Close shopping list"
             >
               <span className="material-symbols-outlined text-on-surface-variant text-[20px]">
                 close

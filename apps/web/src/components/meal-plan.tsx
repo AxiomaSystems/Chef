@@ -448,6 +448,7 @@ export function WeeklyMealPlan({
         JSON.stringify(
           selectedCartRecipeGroups.map((group) => ({
             recipe_id: group.id,
+            recipe_name: group.recipe.name,
             quantity: group.count,
           })),
         ),
