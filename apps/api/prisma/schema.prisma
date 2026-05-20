@@ -103,6 +103,17 @@ enum CaptureConfidence {
   high
 }
 
+enum CartStatus {
+  active
+  archived
+}
+
+enum ShoppingCartStatus {
+  active
+  checked_out
+  archived
+}
+
 enum MealType {
   breakfast
   lunch
@@ -526,6 +537,7 @@ model Cart {
   userId           String
   name             String?
   retailer         String
+  status           CartStatus        @default(active)
   selections       Json
   dishes           Json
   createdAt        DateTime          @default(now())
@@ -535,6 +547,7 @@ model Cart {
   shoppingCarts    ShoppingCart[]
 
   @@index([userId, createdAt])
+  @@index([userId, status, updatedAt])
 }
 
 model IngredientReview {
@@ -549,11 +562,13 @@ model IngredientReview {
 }
 
 model ShoppingCart {
-  id                  String     @id @default(cuid())
+  id                  String             @id @default(cuid())
   userId              String
   cartId              String
   cartDraftId         String?
+  name                String?
   retailer            String
+  status              ShoppingCartStatus @default(active)
   overview            Json
   matchedItems        Json
   estimatedSubtotal   Float
@@ -561,13 +576,15 @@ model ShoppingCart {
   externalUrl         String?
   externalReferenceId String?
   checkedOutAt        DateTime?
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
-  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cart                Cart       @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  cartDraft           CartDraft? @relation(fields: [cartDraftId], references: [id], onDelete: SetNull)
+  inventoryAppliedAt  DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cart                Cart               @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartDraft           CartDraft?         @relation(fields: [cartDraftId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
+  @@index([userId, status, updatedAt])
   @@index([cartId])
   @@index([cartDraftId])
 }

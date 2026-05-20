@@ -49,6 +49,7 @@ export type UpdateCartPersistenceInput = {
   retailer?: string;
   selections?: CartSelection[];
   dishes?: Cart['dishes'];
+  status?: Cart['status'];
 };
 
 export type UpsertIngredientReviewPersistenceInput = {
@@ -81,4 +82,6 @@ export type UpdateShoppingCartPersistenceInput = {
   external_url?: ShoppingCart['external_url'];
   external_reference_id?: ShoppingCart['external_reference_id'];
   checked_out_at?: ShoppingCart['checked_out_at'] | null;
+  status?: ShoppingCart['status'];
+  inventory_applied_at?: ShoppingCart['inventory_applied_at'] | null;
 };

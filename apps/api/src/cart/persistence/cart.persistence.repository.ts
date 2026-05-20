@@ -46,15 +46,23 @@ export class CartPersistenceRepository {
     });
   }
 
-  createCart(input: CreateCartPersistenceInput) {
-    return this.prisma.cart.create({
-      data: {
-        userId: input.userId,
-        name: input.name,
-        retailer: input.retailer,
-        selections: input.selections,
-        dishes: input.dishes,
-      },
+  async createCart(input: CreateCartPersistenceInput) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.cart.updateMany({
+        where: { userId: input.userId, status: 'active' },
+        data: { status: 'archived' },
+      });
+
+      return tx.cart.create({
+        data: {
+          userId: input.userId,
+          name: input.name,
+          retailer: input.retailer,
+          status: 'active',
+          selections: input.selections,
+          dishes: input.dishes,
+        },
+      });
     });
   }
 
@@ -66,6 +74,7 @@ export class CartPersistenceRepository {
         retailer: input.retailer,
         selections: input.selections,
         dishes: input.dishes,
+        status: input.status,
       },
     });
   }
@@ -89,43 +98,72 @@ export class CartPersistenceRepository {
     });
   }
 
-  createShoppingCart(input: CreateShoppingCartPersistenceInput) {
-    return this.prisma.shoppingCart.create({
-      data: {
-        userId: input.userId,
-        cartId: input.cartId,
-        cartDraftId: input.cartDraftId,
-        retailer: input.shoppingCart.retailer,
-        overview: input.shoppingCart.overview,
-        matchedItems: input.shoppingCart.matched_items,
-        estimatedSubtotal: input.shoppingCart.estimated_subtotal,
-        estimatedTotal: input.shoppingCart.estimated_total,
-        externalUrl: input.shoppingCart.external_url,
-        externalReferenceId: input.shoppingCart.external_reference_id,
-      },
+  async createShoppingCart(input: CreateShoppingCartPersistenceInput) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.shoppingCart.updateMany({
+        where: { userId: input.userId, status: 'active' },
+        data: { status: 'archived' },
+      });
+
+      return tx.shoppingCart.create({
+        data: {
+          userId: input.userId,
+          cartId: input.cartId,
+          cartDraftId: input.cartDraftId,
+          name: input.shoppingCart.name,
+          retailer: input.shoppingCart.retailer,
+          status: 'active',
+          overview: input.shoppingCart.overview,
+          matchedItems: input.shoppingCart.matched_items,
+          estimatedSubtotal: input.shoppingCart.estimated_subtotal,
+          estimatedTotal: input.shoppingCart.estimated_total,
+          externalUrl: input.shoppingCart.external_url,
+          externalReferenceId: input.shoppingCart.external_reference_id,
+        },
+      });
     });
   }
 
-  updateShoppingCart(
+  async updateShoppingCart(
     userId: string,
     id: string,
     input: UpdateShoppingCartPersistenceInput,
   ) {
-    return this.prisma.shoppingCart.updateMany({
-      where: { id, userId },
-      data: {
-        matchedItems: input.matched_items,
-        estimatedSubtotal: input.estimated_subtotal,
-        estimatedTotal: input.estimated_total,
-        externalUrl: input.external_url,
-        externalReferenceId: input.external_reference_id,
-        checkedOutAt:
-          input.checked_out_at === undefined
-            ? undefined
-            : input.checked_out_at
-              ? new Date(input.checked_out_at)
-              : null,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      if (input.status === 'active') {
+        await tx.shoppingCart.updateMany({
+          where: {
+            userId,
+            status: 'active',
+            NOT: { id },
+          },
+          data: { status: 'archived' },
+        });
+      }
+
+      return tx.shoppingCart.updateMany({
+        where: { id, userId },
+        data: {
+          matchedItems: input.matched_items,
+          estimatedSubtotal: input.estimated_subtotal,
+          estimatedTotal: input.estimated_total,
+          externalUrl: input.external_url,
+          externalReferenceId: input.external_reference_id,
+          status: input.status,
+          checkedOutAt:
+            input.checked_out_at === undefined
+              ? undefined
+              : input.checked_out_at
+                ? new Date(input.checked_out_at)
+                : null,
+          inventoryAppliedAt:
+            input.inventory_applied_at === undefined
+              ? undefined
+              : input.inventory_applied_at
+                ? new Date(input.inventory_applied_at)
+                : null,
+        },
+      });
     });
   }
 
@@ -173,6 +211,13 @@ export class CartPersistenceRepository {
   }
 
   findShoppingCartsByUser(userId: string) {
+    return this.prisma.shoppingCart.findMany({
+      where: { userId, status: 'active' },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  findShoppingCartHistoryByUser(userId: string) {
     return this.prisma.shoppingCart.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
