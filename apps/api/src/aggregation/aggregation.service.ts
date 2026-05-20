@@ -4,6 +4,7 @@ import type {
   CartComputationResult,
   Dish,
 } from '@cart/shared';
+import { normalizeIngredientKey } from '@cart/shared';
 
 @Injectable()
 export class AggregationService {
@@ -63,6 +64,6 @@ export class AggregationService {
       return `ingredient:${ingredient.ingredient_id}::${unit}`;
     }
 
-    return `name:${ingredient.canonical_ingredient.trim().toLowerCase()}::${unit}`;
+    return `name:${normalizeIngredientKey(ingredient.canonical_ingredient)}::${unit}`;
   }
 }

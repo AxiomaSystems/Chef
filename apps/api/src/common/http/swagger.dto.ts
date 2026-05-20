@@ -485,6 +485,21 @@ export class UserPreferencesResponseDto {
   @ApiPropertyOptional({ example: 'casual' })
   calorie_tracking_mode?: string;
 
+  @ApiPropertyOptional({
+    example: {
+      calories: 14000,
+      protein_g: 350,
+      carbs_g: 1750,
+      fat_g: 490,
+    },
+  })
+  weekly_nutrition_targets?: {
+    calories?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+  };
+
   @ApiPropertyOptional({ example: '50_to_100' })
   weekly_budget?: string;
 
@@ -815,6 +830,60 @@ export class UserStatsResponseDto {
 
   @ApiProperty({ example: 4 })
   preferred_tag_count!: number;
+}
+
+export class AiRateLimitSnapshotResponseDto {
+  @ApiProperty({ example: 'user', enum: ['user', 'ip'] })
+  scope!: 'user' | 'ip';
+
+  @ApiProperty({ example: 600000 })
+  window_ms!: number;
+
+  @ApiProperty({ example: 5 })
+  max_requests!: number;
+
+  @ApiProperty({ example: 2 })
+  used!: number;
+
+  @ApiProperty({ example: 3 })
+  remaining!: number;
+
+  @ApiPropertyOptional({ example: '2026-05-19T18:30:00.000Z', nullable: true })
+  reset_at!: string | null;
+
+  @ApiPropertyOptional({ example: 420, nullable: true })
+  reset_in_seconds!: number | null;
+}
+
+export class AiUsageCategorySnapshotResponseDto {
+  @ApiProperty({
+    example: 'chat',
+    enum: ['chat', 'autofill', 'imports', 'inventory_fill'],
+  })
+  category!: 'chat' | 'autofill' | 'imports' | 'inventory_fill';
+
+  @ApiProperty({ example: 'Chat' })
+  label!: string;
+
+  @ApiProperty({ example: 2 })
+  used!: number;
+}
+
+export class AiLimitsStatusResponseDto {
+  @ApiProperty({ example: 'openai' })
+  provider!: string;
+
+  @ApiPropertyOptional({ example: 'gpt-5.4-mini', nullable: true })
+  model!: string | null;
+
+  @ApiProperty({ example: true })
+  openai_configured!: boolean;
+
+  @ApiProperty({ type: () => AiRateLimitSnapshotResponseDto })
+  rate_limit!: AiRateLimitSnapshotResponseDto;
+
+  @ApiProperty({ type: () => [AiUsageCategorySnapshotResponseDto] })
+  usage_categories!: AiUsageCategorySnapshotResponseDto[];
 }
 
 export class DishResponseDto {
@@ -1164,6 +1233,9 @@ export class ShoppingCartHistorySummaryResponseDto {
   @ApiPropertyOptional({ example: 'cart-1' })
   external_reference_id?: string;
 
+  @ApiPropertyOptional({ example: '2026-03-20T03:12:00.000Z' })
+  checked_out_at?: string;
+
   @ApiProperty({ example: 5 })
   overview_count!: number;
 
@@ -1209,6 +1281,9 @@ export class ShoppingCartResponseDto {
 
   @ApiPropertyOptional({ example: 'cart-1' })
   external_reference_id?: string;
+
+  @ApiPropertyOptional({ example: '2026-03-20T03:12:00.000Z' })
+  checked_out_at?: string;
 
   @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
   created_at!: string;

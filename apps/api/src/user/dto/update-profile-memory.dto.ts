@@ -61,6 +61,28 @@ export class ProfileMemoryShoppingLocationPatchDto {
   kroger_location_id?: string;
 }
 
+export class ProfileMemoryWeeklyNutritionTargetsPatchDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  calories?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  protein_g?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  carbs_g?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fat_g?: number;
+}
+
 export class ProfileMemoryPreferencesPatchDto {
   @IsOptional()
   @IsArray()
@@ -126,6 +148,11 @@ export class ProfileMemoryPreferencesPatchDto {
   @IsOptional()
   @IsIn(CALORIE_TRACKING_MODE_VALUES)
   calorie_tracking_mode?: (typeof CALORIE_TRACKING_MODE_VALUES)[number];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ProfileMemoryWeeklyNutritionTargetsPatchDto)
+  weekly_nutrition_targets?: ProfileMemoryWeeklyNutritionTargetsPatchDto;
 
   @IsOptional()
   @IsIn(WEEKLY_BUDGET_VALUES)

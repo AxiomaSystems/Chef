@@ -47,10 +47,7 @@ export type UpdateShoppingCartActionState = {
   shoppingCart?: ShoppingCart;
 };
 
-async function readErrorMessage(
-  response: Response | null,
-  fallback: string,
-) {
+async function readErrorMessage(response: Response | null, fallback: string) {
   if (!response) {
     return fallback;
   }
@@ -131,10 +128,8 @@ export async function submitDraftFlowAction(
 
   let path = intent === "save" ? "/cart-drafts" : "/carts";
   let method: "POST" | "PATCH" = "POST";
-  let success =
-    intent === "save" ? "Draft saved." : "Cart generated.";
-  let nextResourceType: "draft" | "cart" =
-    intent === "save" ? "draft" : "cart";
+  let success = intent === "save" ? "Draft saved." : "Cart generated.";
+  let nextResourceType: "draft" | "cart" = intent === "save" ? "draft" : "cart";
 
   if (resourceType === "draft" && resourceId) {
     if (intent === "save") {
@@ -169,23 +164,18 @@ export async function submitDraftFlowAction(
 
   if (!response?.ok) {
     return {
-      error:
-        await readErrorMessage(
-          response,
-          nextResourceType === "draft"
-            ? "Unable to save this draft right now."
-            : "Unable to save this cart right now.",
-        ),
+      error: await readErrorMessage(
+        response,
+        nextResourceType === "draft"
+          ? "Unable to save this draft right now."
+          : "Unable to save this cart right now.",
+      ),
     };
   }
 
   const createdResource = (await response.json()) as { id?: string };
 
-  if (
-    resourceType === "draft" &&
-    resourceId &&
-    intent === "generate"
-  ) {
+  if (resourceType === "draft" && resourceId && intent === "generate") {
     await callAuthedJson(`/cart-drafts/${resourceId}`, {
       method: "DELETE",
     }).catch(() => null);
@@ -336,7 +326,12 @@ export async function forkRecipeAction(
   }).catch(() => null);
 
   if (!response?.ok) {
-    return { error: await readErrorMessage(response, "Unable to save this recipe right now.") };
+    return {
+      error: await readErrorMessage(
+        response,
+        "Unable to save this recipe right now.",
+      ),
+    };
   }
 
   const recipe = (await response.json()) as BaseRecipe;
@@ -352,11 +347,22 @@ export type CreateRecipePayload = {
   cover_image_url?: string;
   tag_ids?: string[];
   custom_tag_names?: string[];
-  ingredients: { canonical_ingredient: string; amount: number; unit: string; preparation?: string; optional?: boolean }[];
+  ingredients: {
+    canonical_ingredient: string;
+    amount: number;
+    unit: string;
+    preparation?: string;
+    optional?: boolean;
+  }[];
   steps: { step: number; what_to_do: string }[];
   nutrition_data?: {
-    calories?: number; protein_g?: number; carbs_g?: number;
-    fat_g?: number; fiber_g?: number; sugar_g?: number; sodium_mg?: number;
+    calories?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+    fiber_g?: number;
+    sugar_g?: number;
+    sodium_mg?: number;
   };
 };
 
@@ -472,7 +478,12 @@ export async function createRecipeAction(
   }).catch(() => null);
 
   if (!response?.ok) {
-    return { error: await readErrorMessage(response, "Unable to create recipe right now.") };
+    return {
+      error: await readErrorMessage(
+        response,
+        "Unable to create recipe right now.",
+      ),
+    };
   }
 
   const recipe = (await response.json()) as BaseRecipe;
@@ -511,7 +522,10 @@ export async function updateRecipeAction(
 
   if (!response?.ok) {
     return {
-      error: await readErrorMessage(response, "Unable to update recipe right now."),
+      error: await readErrorMessage(
+        response,
+        "Unable to update recipe right now.",
+      ),
     };
   }
 
@@ -531,7 +545,12 @@ export async function deleteRecipeAction(
   }).catch(() => null);
 
   if (!response?.ok) {
-    return { error: await readErrorMessage(response, "Unable to delete recipe right now.") };
+    return {
+      error: await readErrorMessage(
+        response,
+        "Unable to delete recipe right now.",
+      ),
+    };
   }
 
   revalidatePath("/recipes");
@@ -592,6 +611,48 @@ export async function updateShoppingCartAction(
 
   revalidatePath("/");
   revalidatePath("/recipes");
+
+  return {
+    success: "Shopping cart updated.",
+    shoppingCart,
+  };
+}
+
+export async function updateShoppingCartCheckoutStateAction(
+  shoppingCartId: string,
+  checkedOutAt: string | null,
+): Promise<UpdateShoppingCartActionState> {
+  const normalizedShoppingCartId = String(shoppingCartId).trim();
+
+  if (!normalizedShoppingCartId) {
+    return {
+      error: "Shopping cart not found for update.",
+    };
+  }
+
+  const response = await callAuthedJson(
+    `/shopping-carts/${normalizedShoppingCartId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        checked_out_at: checkedOutAt,
+      }),
+    },
+  ).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: "Unable to update this shopping cart right now.",
+    };
+  }
+
+  const shoppingCart = (await response.json()) as ShoppingCart;
+
+  revalidatePath("/shopping");
+  revalidatePath(`/shopping/checkout/${normalizedShoppingCartId}`);
 
   return {
     success: "Shopping cart updated.",

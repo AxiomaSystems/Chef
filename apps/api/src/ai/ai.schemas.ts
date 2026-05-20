@@ -145,6 +145,37 @@ export const ingredientSwapSchema = {
   $defs: mealGenerationSchema.$defs,
 } as const;
 
+export const inventoryAlternativesSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['suggestions'],
+  properties: {
+    suggestions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: [
+          'ingredient_name',
+          'inventory_item_id',
+          'replacement_ingredient',
+          'confidence',
+          'reason',
+        ],
+        properties: {
+          ingredient_name: { type: 'string' },
+          inventory_item_id: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+          replacement_ingredient: {
+            anyOf: [{ type: 'string' }, { type: 'null' }],
+          },
+          confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
+          reason: { type: 'string' },
+        },
+      },
+    },
+  },
+} as const;
+
 export const chatSchema = {
   type: 'object',
   additionalProperties: false,
@@ -183,4 +214,72 @@ export const recipeImportSchema = {
     extraction_notes: { type: 'array', items: { type: 'string' } },
   },
   $defs: mealGenerationSchema.$defs,
+} as const;
+
+export const inventoryStructureSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['items', 'potential_errors', 'transcript_summary', 'warnings'],
+  properties: {
+    items: {
+      type: 'array',
+      items: { $ref: '#/$defs/inventoryItem' },
+    },
+    potential_errors: {
+      type: 'array',
+      items: { $ref: '#/$defs/inventoryItem' },
+    },
+    transcript_summary: { type: 'string' },
+    warnings: { type: 'array', items: { type: 'string' } },
+  },
+  $defs: {
+    inventoryItem: {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'display_name',
+        'item_name',
+        'brand',
+        'quantity',
+        'unit',
+        'matched_existing_id',
+        'confidence',
+        'notes',
+        'conflicts',
+      ],
+      properties: {
+        display_name: { type: 'string' },
+        item_name: { type: 'string' },
+        brand: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        quantity: { type: 'number', exclusiveMinimum: 0 },
+        unit: { type: 'string' },
+        matched_existing_id: {
+          anyOf: [{ type: 'string' }, { type: 'null' }],
+        },
+        confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
+        notes: { type: 'array', items: { type: 'string' } },
+        conflicts: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['type', 'message', 'existing_value', 'spoken_value'],
+            properties: {
+              type: {
+                type: 'string',
+                enum: ['quantity', 'brand', 'duplicate', 'unit', 'other'],
+              },
+              message: { type: 'string' },
+              existing_value: {
+                anyOf: [{ type: 'string' }, { type: 'null' }],
+              },
+              spoken_value: {
+                anyOf: [{ type: 'string' }, { type: 'null' }],
+              },
+            },
+          },
+        },
+      },
+    },
+  },
 } as const;

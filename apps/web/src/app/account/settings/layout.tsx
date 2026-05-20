@@ -1,4 +1,5 @@
 import type {
+  AiLimitsStatus,
   Cuisine,
   Tag,
   User,
@@ -12,13 +13,15 @@ import { fetchAuthedResource, fetchCollection } from "@/lib/api";
 export default async function AccountSettingsLayout(props: {
   children: React.ReactNode;
 }) {
-  const [me, stats, preferences, cuisines, publicTags] = await Promise.all([
-    fetchAuthedResource<User>("/me"),
-    fetchAuthedResource<UserStats>("/me/stats"),
-    fetchAuthedResource<UserPreferences>("/me/preferences"),
-    fetchCollection<Cuisine>("/cuisines"),
-    fetchCollection<Tag>("/tags"),
-  ]);
+  const [me, stats, preferences, aiLimits, cuisines, publicTags] =
+    await Promise.all([
+      fetchAuthedResource<User>("/me"),
+      fetchAuthedResource<UserStats>("/me/stats"),
+      fetchAuthedResource<UserPreferences>("/me/preferences"),
+      fetchAuthedResource<AiLimitsStatus>("/ai/limits"),
+      fetchCollection<Cuisine>("/cuisines"),
+      fetchCollection<Tag>("/tags"),
+    ]);
 
   if (!me.data) {
     redirect("/login");
@@ -28,30 +31,30 @@ export default async function AccountSettingsLayout(props: {
     redirect("/onboarding");
   }
 
-  const safePreferences =
-    preferences.data ?? {
-      preferred_cuisine_ids: [],
-      preferred_cuisines: [],
-      preferred_tag_ids: [],
-      preferred_tags: [],
-    };
+  const safePreferences = preferences.data ?? {
+    preferred_cuisine_ids: [],
+    preferred_cuisines: [],
+    preferred_tag_ids: [],
+    preferred_tags: [],
+  };
 
   return (
     <AccountShell
-        user={me.data}
-        stats={
-          stats.data ?? {
-            owned_recipe_count: 0,
-            cart_draft_count: 0,
-            cart_count: 0,
-            shopping_cart_count: 0,
-            preferred_cuisine_count: 0,
-            preferred_tag_count: 0,
-          }
+      user={me.data}
+      stats={
+        stats.data ?? {
+          owned_recipe_count: 0,
+          cart_draft_count: 0,
+          cart_count: 0,
+          shopping_cart_count: 0,
+          preferred_cuisine_count: 0,
+          preferred_tag_count: 0,
         }
-        preferences={safePreferences}
-        cuisines={cuisines.data}
-        systemTags={publicTags.data.filter((tag) => tag.scope === "system")}
+      }
+      preferences={safePreferences}
+      aiLimits={aiLimits.data}
+      cuisines={cuisines.data}
+      systemTags={publicTags.data.filter((tag) => tag.scope === "system")}
     >
       {props.children}
     </AccountShell>

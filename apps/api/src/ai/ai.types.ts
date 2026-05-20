@@ -1,5 +1,7 @@
 import type { RecipeNutritionData } from '@cart/shared';
 
+export type { AiInventoryStructureResult } from '@cart/shared';
+
 export type AiProviderName = 'mock' | 'openai';
 
 export type AiDishIngredient = {
@@ -49,6 +51,18 @@ export type AiIngredientSwapResult = {
   benefits: string[];
   updated_recipe: AiRecipePreview;
   ingredient_delta_notes: string[];
+};
+
+export type AiInventoryAlternativeSuggestion = {
+  ingredient_name: string;
+  inventory_item_id: string | null;
+  replacement_ingredient: string | null;
+  confidence: 'low' | 'medium' | 'high';
+  reason: string;
+};
+
+export type AiInventoryAlternativesResult = {
+  suggestions: AiInventoryAlternativeSuggestion[];
 };
 
 export type AiChatResult = {

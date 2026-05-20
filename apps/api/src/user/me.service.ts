@@ -29,6 +29,7 @@ import type {
   UserPreferences,
   UserStats,
   WeeklyBudget,
+  WeeklyNutritionTargets,
 } from '@cart/shared';
 import { Prisma } from '../../generated/prisma/index.js';
 import { PasswordHasherService } from '../auth/password-hasher.service';
@@ -91,6 +92,37 @@ export class MeService {
     return this.normalizeControlledArray(values);
   }
 
+  private normalizeWeeklyNutritionTargets(
+    value: unknown,
+  ): WeeklyNutritionTargets | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return undefined;
+    }
+
+    const input = value as Record<string, unknown>;
+    const targets: WeeklyNutritionTargets = {};
+
+    for (const key of ['calories', 'protein_g', 'carbs_g', 'fat_g'] as const) {
+      const numericValue = input[key];
+      if (typeof numericValue === 'number' && Number.isFinite(numericValue)) {
+        targets[key] = numericValue;
+      }
+    }
+
+    return Object.keys(targets).length > 0 ? targets : undefined;
+  }
+
+  private buildWeeklyNutritionTargetsInput(
+    value: WeeklyNutritionTargets | undefined,
+  ): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {
+    if (!value) {
+      return Prisma.JsonNull;
+    }
+
+    const targets = this.normalizeWeeklyNutritionTargets(value);
+    return targets ? (targets as Prisma.InputJsonValue) : Prisma.JsonNull;
+  }
+
   private mapPreferences(input: {
     user: {
       preferredZipCode: string | null;
@@ -111,6 +143,7 @@ export class MeService {
       typicalMealTimes: unknown;
       goalPriorities: unknown;
       calorieTrackingMode: string | null;
+      weeklyNutritionTargets: unknown;
       weeklyBudget: string | null;
       preferredStores: unknown;
       shoppingMode: string | null;
@@ -190,6 +223,9 @@ export class MeService {
       calorie_tracking_mode: (input.user.calorieTrackingMode ?? undefined) as
         | CalorieTrackingMode
         | undefined,
+      weekly_nutrition_targets: this.normalizeWeeklyNutritionTargets(
+        input.user.weeklyNutritionTargets,
+      ),
       weekly_budget: (input.user.weeklyBudget ?? undefined) as
         | WeeklyBudget
         | undefined,
@@ -464,6 +500,7 @@ export class MeService {
           typicalMealTimes: true,
           goalPriorities: true,
           calorieTrackingMode: true,
+          weeklyNutritionTargets: true,
           weeklyBudget: true,
           preferredStores: true,
           shoppingMode: true,
@@ -583,6 +620,9 @@ export class MeService {
           typicalMealTimes: this.buildJsonArrayInput(input.typical_meal_times),
           goalPriorities: this.buildJsonArrayInput(input.goal_priorities),
           calorieTrackingMode: input.calorie_tracking_mode ?? null,
+          weeklyNutritionTargets: this.buildWeeklyNutritionTargetsInput(
+            input.weekly_nutrition_targets,
+          ),
           weeklyBudget: input.weekly_budget ?? null,
           preferredStores: this.buildJsonArrayInput(input.preferred_stores),
           shoppingMode: input.shopping_mode ?? null,

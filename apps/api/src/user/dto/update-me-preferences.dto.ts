@@ -26,6 +26,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Min,
   ValidateNested,
 } from 'class-validator';
 
@@ -54,6 +55,32 @@ class UpdateShoppingLocationDto {
   @IsOptional()
   @IsString()
   kroger_location_id?: string;
+}
+
+class UpdateWeeklyNutritionTargetsDto {
+  @ApiPropertyOptional({ example: 14000 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  calories?: number;
+
+  @ApiPropertyOptional({ example: 350 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  protein_g?: number;
+
+  @ApiPropertyOptional({ example: 1750 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  carbs_g?: number;
+
+  @ApiPropertyOptional({ example: 490 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fat_g?: number;
 }
 
 export class UpdateMePreferencesDto {
@@ -144,6 +171,12 @@ export class UpdateMePreferencesDto {
   @IsOptional()
   @IsIn(CALORIE_TRACKING_MODE_VALUES)
   calorie_tracking_mode?: string;
+
+  @ApiPropertyOptional({ type: () => UpdateWeeklyNutritionTargetsDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UpdateWeeklyNutritionTargetsDto)
+  weekly_nutrition_targets?: UpdateWeeklyNutritionTargetsDto;
 
   @ApiPropertyOptional({ enum: WEEKLY_BUDGET_VALUES })
   @IsOptional()

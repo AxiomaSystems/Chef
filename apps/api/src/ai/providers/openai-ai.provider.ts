@@ -3,6 +3,8 @@ import type { AiProvider } from '../ai.provider';
 import {
   chatSchema,
   ingredientSwapSchema,
+  inventoryAlternativesSchema,
+  inventoryStructureSchema,
   mealGenerationSchema,
   recipeImportSchema,
 } from '../ai.schemas';
@@ -10,10 +12,14 @@ import type {
   AiChatMessage,
   AiChatResult,
   AiIngredientSwapResult,
+  AiInventoryAlternativesResult,
+  AiInventoryStructureResult,
   AiMealGenerationResult,
   AiRecipeImportResult,
 } from '../ai.types';
 import type { GenerateMealsDto } from '../dto/generate-meals.dto';
+import type { InventoryAlternativesDto } from '../dto/inventory-alternatives.dto';
+import type { StructureInventoryDto } from '../dto/structure-inventory.dto';
 import type { SwapIngredientDto } from '../dto/swap-ingredient.dto';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
@@ -63,6 +69,23 @@ export class OpenAiAiProvider implements AiProvider {
     });
   }
 
+  async suggestInventoryAlternatives(
+    input: InventoryAlternativesDto,
+  ): Promise<AiInventoryAlternativesResult> {
+    return this.createStructuredResponse<AiInventoryAlternativesResult>({
+      schemaName: 'chef_inventory_alternatives',
+      schema: inventoryAlternativesSchema,
+      task: [
+        'For each recipe ingredient, decide whether one item from the provided kitchen inventory is a reasonable cooking substitute.',
+        'Only choose replacements from the provided inventory list. Do not invent items.',
+        'Return null inventory_item_id and null replacement_ingredient when there is no good substitute.',
+        'Prefer close culinary fit over broad category matching. Chicken to turkey can be reasonable; chicken to beans may be lower confidence unless the dish can tolerate it.',
+        'Do not mark exact matches; this endpoint is only for alternatives when the deterministic inventory check did not find the ingredient.',
+      ].join(' '),
+      payload: input,
+    });
+  }
+
   async importRecipe(input: {
     request: { url: string; supplemental_text?: string };
     platform: 'youtube' | 'instagram' | 'tiktok' | 'generic';
@@ -90,6 +113,35 @@ export class OpenAiAiProvider implements AiProvider {
       schemaName: 'chef_food_chat',
       schema: chatSchema,
       task: 'Answer the user as a concise cooking, meal prep, ingredient, recipe, and Chef workflow assistant. Use context when provided.',
+      payload: input,
+    });
+  }
+
+  async structureInventory(
+    input: StructureInventoryDto,
+  ): Promise<AiInventoryStructureResult> {
+    return this.createStructuredResponse<AiInventoryStructureResult>({
+      schemaName: 'chef_inventory_structure',
+      schema: inventoryStructureSchema,
+      task: [
+        'Convert a spoken kitchen inventory transcript into structured inventory review rows.',
+        'Only put kitchen, pantry, grocery, cooking, or food-related items in items.',
+        'If the transcript mentions non-kitchen items such as perfume, soap, medicine, tools, clothing, or other household goods, put those rows in potential_errors instead of items.',
+        'Potential errors still need best-effort display_name, item_name, brand, quantity, unit, notes, and conflicts so the UI can let the user manually approve them.',
+        'Return only fields the inventory system can save. display_name is the exact inventory list name. item_name is the canonical ingredient/product family. brand maps to the inventory label field. quantity maps to estimated_amount. unit maps to unit.',
+        'Keep item_name simple and canonical, such as "salt", "wheat flour", or "olive oil"; do not include quantities, package words, or phrases like "pinch of".',
+        'Prefer existing inventory conventions: when a spoken item resembles an inventory item, reuse that item canonical_name/name, label as brand, category style, unit style, and set matched_existing_id.',
+        'Separate commercial brand, grocery item, and variant/flavor using saveable fields only. item_name is the base inventory item or product family, brand is the product maker/store, and display_name contains the user-facing brand/flavor/package wording.',
+        'For branded packaged products, do not keep the full spoken phrase as item_name. Examples: "Salted Caramel Monster" -> display_name "Monster Salted Caramel Energy Drink", item_name "energy drink", brand "Monster"; "Great Value salt" -> display_name "Great Value Salt", item_name "salt", brand "Great Value"; "Santino cooking oil" -> display_name "Santino Cooking Oil", item_name "cooking oil", brand "Santino".',
+        'Known beverage/snack brands such as Monster, Red Bull, Coca-Cola, Pepsi, Sprite, Gatorade, Doritos, Lays, Cheetos, Pringles, Oreo, Kellogg, and Cheerios should usually be brand, not item_name.',
+        'Avoid vague item_name values like "dessert item", "food item", or "pantry item" when a clearer family exists. Use concrete item_name values such as energy drink, cereal, chips, cookies, sauce, cooking oil, wheat flour, or basmati rice.',
+        'If the user says a compact quantity like "2kg", "2 kg", "five kilograms", or "500g", split it exactly into quantity and unit. For "2kg", output quantity 2 and unit "kg". Do not convert units unless the spoken unit is not allowed.',
+        'Preserve the unit the user said when it fits the allowed_units list. If no unit is clear, infer a practical allowed unit from allowed_units.',
+        'Treat brand/store names as brand, not item_name. Map brand to the inventory label field.',
+        'Use current inventory context to set matched_existing_id when the spoken item likely refers to an existing item.',
+        'When quantity, unit, brand, or duplicate mentions conflict, add conflicts that explain what changed.',
+        'Honor user_instructions when present, but never override the kitchen/food relevance rule.',
+      ].join(' '),
       payload: input,
     });
   }

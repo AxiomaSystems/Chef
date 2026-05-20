@@ -24,7 +24,7 @@ export function TopBar({ title, showBack, actions }: TopBarProps) {
         : pathname.startsWith("/create")
           ? "Create"
           : pathname.startsWith("/shopping")
-            ? "Shopping"
+            ? "Cart"
             : pathname.startsWith("/chef-ai")
               ? "Butter Me AI"
               : pathname.startsWith("/account")

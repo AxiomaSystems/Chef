@@ -74,7 +74,7 @@ export function NewRecipeClient({
   }
 
   return (
-    <AppShell topBarTitle="Create Recipe">
+    <AppShell topBarTitle="Create Recipe" hideCreateActions>
       <main className="mx-auto w-full max-w-6xl px-4 py-5 pb-36 sm:px-6 sm:py-7 lg:py-10">
         <div className="mb-6 grid gap-3 sm:mb-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
           <div>

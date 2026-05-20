@@ -6,10 +6,7 @@ import { useRouter } from "next/navigation";
 import type { BaseRecipe, Cart, ShoppingCart, User } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { RecipeImage } from "@/components/ui/recipe-image";
-import {
-  submitDraftFlowAction,
-  createShoppingCartAction,
-} from "@/app/home-actions";
+import { submitDraftFlowAction } from "@/app/home-actions";
 
 function primaryBadge(recipe: BaseRecipe) {
   return (
@@ -85,16 +82,7 @@ export function DashboardClient({
         return;
       }
 
-      const scResult = await createShoppingCartAction(
-        cartResult.resourceId,
-        "kroger",
-      );
-      if (scResult.error) {
-        setBuildError(scResult.error);
-        return;
-      }
-
-      router.push("/shopping");
+      router.push(`/carts/${cartResult.resourceId}`);
     });
   }
 

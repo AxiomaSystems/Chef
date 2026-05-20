@@ -6,11 +6,7 @@ import { useRouter } from "next/navigation";
 import type { BaseRecipe, Capture, Cuisine, Tag } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { IMPORTED_RECIPE_DRAFT_STORAGE_KEY } from "@/lib/imported-recipe-draft";
-import {
-  submitDraftFlowAction,
-  createShoppingCartAction,
-  forkRecipeAction,
-} from "@/app/home-actions";
+import { submitDraftFlowAction, forkRecipeAction } from "@/app/home-actions";
 import { RecipeImage } from "@/components/ui/recipe-image";
 
 const RecipeCaptureModal = dynamic(
@@ -190,15 +186,7 @@ export function RecipesClient({
         setBuildError(cartResult.error ?? "Failed.");
         return;
       }
-      const scResult = await createShoppingCartAction(
-        cartResult.resourceId,
-        "kroger",
-      );
-      if (scResult.error) {
-        setBuildError(scResult.error);
-        return;
-      }
-      router.push("/shopping");
+      router.push(`/carts/${cartResult.resourceId}`);
     });
   }
 
@@ -215,7 +203,7 @@ export function RecipesClient({
   /* ── render ─────────────────────────────────────── */
 
   return (
-    <AppShell topBarTitle="Recipes">
+    <AppShell topBarTitle="Recipes" hideCreateActions={showImport}>
       <div className="px-6 pt-6 pb-40 max-w-6xl mx-auto space-y-7">
         {/* ── Page header ─────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

@@ -26,6 +26,16 @@ export type SecurityActionState = {
   success?: string;
 };
 
+function parseOptionalNumber(formData: FormData, name: string) {
+  const value = String(formData.get(name) ?? "").trim();
+  if (!value) {
+    return undefined;
+  }
+
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
+}
+
 async function callAuthedJson(path: string, init?: RequestInit) {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
@@ -106,6 +116,12 @@ export async function updatePreferencesAction(
     .getAll("custom_dietary_labels")
     .map((value) => String(value).trim())
     .filter(Boolean);
+  const weeklyNutritionTargets = {
+    calories: parseOptionalNumber(formData, "weekly_target_calories"),
+    protein_g: parseOptionalNumber(formData, "weekly_target_protein_g"),
+    carbs_g: parseOptionalNumber(formData, "weekly_target_carbs_g"),
+    fat_g: parseOptionalNumber(formData, "weekly_target_fat_g"),
+  };
 
   const response = await callAuthedJson("/me/preferences", {
     method: "PUT",
@@ -120,6 +136,7 @@ export async function updatePreferencesAction(
         label: shoppingLocationLabel,
         kroger_location_id: shoppingLocationKrogerLocationId,
       },
+      weekly_nutrition_targets: weeklyNutritionTargets,
     }),
   }).catch(() => null);
 

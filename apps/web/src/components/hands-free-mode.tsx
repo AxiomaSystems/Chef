@@ -8,6 +8,8 @@ import {
   HandsFreeTranscriptPanel,
 } from "./hands-free-mode-panels";
 import type {
+  CookingAdaptation,
+  HandsFreeSessionContext,
   CookingTimer,
   HandsFreeModeStatus,
   TranscriptEntry,
@@ -28,19 +30,32 @@ function cleanAgentText(text: string) {
 type Props = {
   recipe: BaseRecipe;
   cookingContext?: CookingContext;
+  sessionContext?: HandsFreeSessionContext;
   onClose: () => void;
 };
 
-export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
-  const [activeStep, setActiveStep] = useState(0);
+export function HandsFreeMode({
+  recipe,
+  cookingContext,
+  sessionContext,
+  onClose,
+}: Props) {
+  const initialStepIndex = Math.max(
+    0,
+    Math.min(recipe.steps.length - 1, (sessionContext?.startingStep ?? 1) - 1),
+  );
+  const [activeStep, setActiveStep] = useState(initialStepIndex);
   const [timers, setTimers] = useState<CookingTimer[]>([]);
   const [lastHeard, setLastHeard] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<string | null>(null);
+  const [adaptations, setAdaptations] = useState<CookingAdaptation[]>([]);
   const timerIdRef = useRef(0);
   const timersRef = useRef<CookingTimer[]>([]);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
 
-  const activeStepRef = useRef(0);
+  const activeStepRef = useRef(initialStepIndex);
+  const adaptationIdRef = useRef(0);
+  const handledToolCallIdsRef = useRef(new Set<string>());
   const transcriptIdRef = useRef(0);
 
   const currentPhase =
@@ -73,15 +88,42 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
         : text.replace(/\s+/g, " ").trim();
     if (!trimmed) return;
     transcriptIdRef.current += 1;
+    const id = transcriptIdRef.current;
     setTranscript((prev) => [
       ...prev.slice(-5),
-      { id: transcriptIdRef.current, speaker, text: trimmed },
+      { id, speaker, text: trimmed },
     ]);
   }
 
   function recordAction(text: string) {
     setLastAction(text);
     addTranscript("system", text);
+  }
+
+  function getActiveTimerSummaries() {
+    return timersRef.current
+      .filter((timer) => !timer.completed)
+      .map((timer) => ({
+        label: timer.label,
+        remaining_seconds: timer.remainingSeconds,
+        paused: timer.paused,
+      }));
+  }
+
+  function buildKitchenStateResult(extra: Record<string, unknown> = {}) {
+    const idx = activeStepRef.current;
+    const step = recipe.steps[idx];
+
+    return JSON.stringify({
+      ok: true,
+      current_step_number: step ? idx + 1 : null,
+      total_steps: recipe.steps.length,
+      current_reference_step: step?.what_to_do ?? null,
+      active_timers: getActiveTimerSummaries(),
+      instruction:
+        "Trust this tool result as the current visible marker. The visible step is a reference marker, not the whole kitchen truth. If the user describes a live change, adapt from that context.",
+      ...extra,
+    });
   }
 
   function announce(text: string, speak = true) {
@@ -231,10 +273,75 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
       stopQueuedSpeech: () => void;
     },
   ) {
+    if (handledToolCallIdsRef.current.has(id)) {
+      context.sendToolResult(id, {
+        result: buildKitchenStateResult({
+          duplicate: true,
+          message:
+            "This tool call was already handled. Do not repeat the action.",
+        }),
+      });
+      return;
+    }
+    handledToolCallIdsRef.current.add(id);
+
     if (name === "end_conversation" || name === "finish_cooking") {
       recordAction("Ended cooking copilot session.");
-      context.sendToolResult(id, { result: "Cooking copilot ended." });
+      context.sendToolResult(id, {
+        result: buildKitchenStateResult({
+          ended: true,
+          message: "Cooking copilot ended.",
+        }),
+      });
       onClose();
+      return;
+    }
+
+    if (name === "record_cooking_note" || name === "adapt_current_step") {
+      const note = String(
+        params.note ?? params.adjustment ?? params.summary ?? "",
+      ).trim();
+      const rawTitle = String(params.title ?? params.reason ?? "").trim();
+      const requestedStep = Number(
+        params.step_number ?? params.step ?? params.index ?? NaN,
+      );
+      const stepNumber =
+        Number.isFinite(requestedStep) && requestedStep > 0
+          ? Math.max(1, Math.min(recipe.steps.length, requestedStep))
+          : activeStepRef.current + 1;
+
+      if (!note) {
+        context.sendToolResult(id, {
+          result: buildKitchenStateResult({
+            ok: false,
+            error: "Missing cooking note.",
+          }),
+          isError: true,
+        });
+        return;
+      }
+
+      adaptationIdRef.current += 1;
+      const title = rawTitle || `Adjustment for step ${stepNumber}`;
+      const adaptation: CookingAdaptation = {
+        id: adaptationIdRef.current,
+        stepNumber,
+        title,
+        note,
+      };
+      setAdaptations((current) => [adaptation, ...current].slice(0, 5));
+      recordAction(title);
+      context.sendToolResult(id, {
+        result: buildKitchenStateResult({
+          recorded_note: {
+            step_number: stepNumber,
+            title,
+            note,
+          },
+          message:
+            "Recorded a live cooking adjustment. Use it for this session, but do not claim the saved recipe changed.",
+        }),
+      });
       return;
     }
 
@@ -251,7 +358,11 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
           recordAction("Started a named cooking timer.");
           startCookingTimer(label, seconds, false);
           context.sendToolResult(id, {
-            result: `Started ${label} timer for ${formatTime(seconds)}.`,
+            result: buildKitchenStateResult({
+              timer_action: "started",
+              timer: { label, duration_seconds: seconds },
+              message: `Started ${label} timer for ${formatTime(seconds)}.`,
+            }),
           });
           return;
         }
@@ -269,7 +380,12 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
                 )
                 .join(". ")
             : "No active timers.";
-        context.sendToolResult(id, { result });
+        context.sendToolResult(id, {
+          result: buildKitchenStateResult({
+            timer_action: "status",
+            message: result,
+          }),
+        });
         recordAction("Read active timer status.");
         announceTimerStatus(false);
         return;
@@ -277,7 +393,12 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
       if (action === "stop" || action === "cancel") {
         recordAction("Stopped timer.");
         updateCookingTimers("stop", String(params.label ?? ""), false);
-        context.sendToolResult(id, { result: "Timer stopped." });
+        context.sendToolResult(id, {
+          result: buildKitchenStateResult({
+            timer_action: "stopped",
+            message: "Timer stopped.",
+          }),
+        });
         return;
       }
       if (action === "pause" || action === "resume" || action === "toggle") {
@@ -319,12 +440,15 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
           updateCookingTimers(nextAction, undefined, false);
         }
         context.sendToolResult(id, {
-          result:
-            action === "pause"
-              ? "Timer paused."
-              : action === "resume"
-                ? "Timer resumed."
-                : "Timer toggled.",
+          result: buildKitchenStateResult({
+            timer_action: action,
+            message:
+              action === "pause"
+                ? "Timer paused."
+                : action === "resume"
+                  ? "Timer resumed."
+                  : "Timer toggled.",
+          }),
         });
         return;
       }
@@ -371,21 +495,21 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
     idx = Math.max(0, Math.min(recipe.steps.length - 1, idx));
 
     const step = recipe.steps[idx];
-    const result = step
-      ? `Step ${idx + 1} of ${recipe.steps.length}: ${step.what_to_do}`
-      : dir === "next"
-        ? "That's the last step - you're done!"
-        : "Already at the first step.";
+    if (!step) return;
 
-    context.sendToolResult(id, { result });
-
-    if (step) {
-      recordAction(`Jumped to step ${idx + 1}.`);
-      goToStep(idx, false);
-    }
+    goToStep(idx, false);
+    recordAction(`Visible marker is step ${idx + 1}.`);
+    context.sendToolResult(id, {
+      result: buildKitchenStateResult({
+        navigation_action: dir || "repeat",
+        message: `Navigation succeeded. The visible step marker is now step ${
+          idx + 1
+        } of ${recipe.steps.length}.`,
+      }),
+    });
   }
 
-  const { agentMessage, connectionError, mode, speakLocal } =
+  const { agentMessage, connectionError, mode, speakLocal, wakeDebug } =
     useHandsFreeVoiceSession({
       cookingContext,
       onAgentResponse: (text) => addTranscript("chef", text),
@@ -395,6 +519,7 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
         addTranscript("you", text);
       },
       recipe,
+      sessionContext,
     });
 
   const modeConfig: Record<
@@ -405,6 +530,11 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
       label: "Connecting...",
       icon: "mic",
       ring: "bg-white/10 text-white/30",
+    },
+    waiting_for_wake: {
+      label: 'Say "Chef"',
+      icon: "radio_button_checked",
+      ring: "bg-teal-300/15 text-teal-200",
     },
     listening: {
       label: "Listening...",
@@ -488,17 +618,24 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
                 </p>
                 <h1 className="mt-3 text-3xl font-black leading-tight tracking-tight text-white sm:text-5xl">
                   {agentMessage ??
-                    (mode === "listening"
-                      ? "I'm listening. Ask what to do next."
-                      : mode === "speaking"
-                        ? "Chef is talking you through it."
-                        : mode === "connecting"
-                          ? "Setting up your kitchen copilot..."
-                          : "Voice is offline, but controls still work.")}
+                    (mode === "waiting_for_wake"
+                      ? 'Say "Chef" when you need me.'
+                      : mode === "listening"
+                        ? "I'm listening. Ask what to do next."
+                        : mode === "speaking"
+                          ? "Chef is talking you through it."
+                          : mode === "connecting"
+                            ? "Setting up your kitchen copilot..."
+                            : "Voice is offline, but controls still work.")}
                 </h1>
                 {connectionError ? (
                   <p className="mx-auto mt-4 max-w-xl rounded-2xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-sm leading-6 text-red-100/85">
                     {connectionError}
+                  </p>
+                ) : null}
+                {wakeDebug ? (
+                  <p className="mx-auto mt-4 max-w-xl rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm leading-6 text-white/55">
+                    {wakeDebug}
                   </p>
                 ) : null}
                 <div className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-2">
@@ -528,9 +665,12 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
           </section>
 
           <HandsFreeAsidePanels
+            activeStep={activeStep}
+            adaptations={adaptations}
             completedTimers={completedTimers}
             contextLines={contextLines}
             currentPhase={currentPhase}
+            recipe={recipe}
             setTimers={setTimers}
             visibleTimers={visibleTimers}
           />

@@ -21,6 +21,7 @@ import type {
   SpiceLevel,
   TypicalMealTime,
   WeeklyBudget,
+  WeeklyNutritionTargets,
 } from "@cart/shared";
 import { OnboardingShell } from "@/components/onboarding/onboarding-shell";
 import { StepHousehold } from "@/components/onboarding/steps/step-household";
@@ -107,6 +108,7 @@ type FormState = {
   typical_meal_times: TypicalMealTime[];
   goal_priorities: GoalPriority[];
   calorie_tracking_mode: CalorieTrackingMode | null;
+  weekly_nutrition_targets: WeeklyNutritionTargets;
   weekly_budget: WeeklyBudget | null;
   preferred_stores: PreferredStore[];
   shopping_mode: ShoppingMode | null;
@@ -138,6 +140,7 @@ function buildInitialState(prefs: UserPreferences | null): FormState {
     typical_meal_times: (prefs?.typical_meal_times ?? []) as TypicalMealTime[],
     goal_priorities: (prefs?.goal_priorities ?? []) as GoalPriority[],
     calorie_tracking_mode: prefs?.calorie_tracking_mode ?? null,
+    weekly_nutrition_targets: prefs?.weekly_nutrition_targets ?? {},
     weekly_budget: prefs?.weekly_budget ?? null,
     preferred_stores: (prefs?.preferred_stores ?? []) as PreferredStore[],
     shopping_mode: prefs?.shopping_mode ?? null,
@@ -196,14 +199,19 @@ function buildMemoryItems(
   }
 
   const restrictionLabels = form.dietary_restrictions.map((slug) =>
-    slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+    slug
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" "),
   );
   if (restrictionLabels.length > 0) {
     items.push(`Restrictions: ${joinLabels(restrictionLabels)}`);
   }
 
   if (favoriteLabels.length > 0 || form.spice_level) {
-    const spice = form.spice_level ? SPICE_LEVEL_LABELS[form.spice_level] : null;
+    const spice = form.spice_level
+      ? SPICE_LEVEL_LABELS[form.spice_level]
+      : null;
     items.push(
       `Prefers ${joinLabels([...favoriteLabels, ...(spice ? [spice] : [])])}`,
     );
@@ -225,6 +233,10 @@ function buildMemoryItems(
 
   if (goalLabels.length > 0) {
     items.push(`Optimizes for ${joinLabels(goalLabels)}`);
+  }
+
+  if (Object.values(form.weekly_nutrition_targets).some(Boolean)) {
+    items.push("Uses custom weekly nutrition targets");
   }
 
   if (form.preferred_stores.length > 0 || form.shopping_location_zip) {
@@ -369,7 +381,9 @@ export function OnboardingClient({
           typicalMealTimes={form.typical_meal_times}
           onCookingSkillLevelChange={(v) => patch("cooking_skill_level", v)}
           onAvailableAppliancesChange={(v) => patch("available_appliances", v)}
-          onPreferredCookingTimeChange={(v) => patch("preferred_cooking_time", v)}
+          onPreferredCookingTimeChange={(v) =>
+            patch("preferred_cooking_time", v)
+          }
           onTypicalMealTimesChange={(v) => patch("typical_meal_times", v)}
         />
       )}
@@ -377,8 +391,12 @@ export function OnboardingClient({
         <StepGoalsNutrition
           goalPriorities={form.goal_priorities}
           calorieTrackingMode={form.calorie_tracking_mode}
+          weeklyNutritionTargets={form.weekly_nutrition_targets}
           onGoalPrioritiesChange={(v) => patch("goal_priorities", v)}
           onCalorieTrackingModeChange={(v) => patch("calorie_tracking_mode", v)}
+          onWeeklyNutritionTargetsChange={(v) =>
+            patch("weekly_nutrition_targets", v)
+          }
         />
       )}
       {step === 7 && (

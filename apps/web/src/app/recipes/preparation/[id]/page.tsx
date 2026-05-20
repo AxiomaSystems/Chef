@@ -30,6 +30,7 @@ export default async function RecipePreparationPage({
     <AppShell topBarTitle="Preparation" showBack>
       <RecipePreparationClient
         recipe={recipeResult.data}
+        inventory={inventoryResult.data}
         cookingContext={buildCookingContext(
           profileMemoryResult.data,
           inventoryResult.data,

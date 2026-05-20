@@ -382,6 +382,12 @@ export class ProfileMemoryService {
       userData.calorieTrackingMode = preferences.calorie_tracking_mode;
     }
 
+    if (preferences.weekly_nutrition_targets !== undefined) {
+      userData.weeklyNutritionTargets = this.buildWeeklyNutritionTargetsInput(
+        preferences.weekly_nutrition_targets,
+      );
+    }
+
     if (preferences.weekly_budget !== undefined) {
       userData.weeklyBudget = preferences.weekly_budget;
     }
@@ -435,6 +441,21 @@ export class ProfileMemoryService {
     return Array.from(
       new Set(values.map((value) => value.trim()).filter(Boolean)),
     );
+  }
+
+  private buildWeeklyNutritionTargetsInput(value: {
+    calories?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+  }): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {
+    const targets = Object.fromEntries(
+      Object.entries(value).filter(([, target]) => target !== undefined),
+    );
+
+    return Object.keys(targets).length > 0
+      ? (targets as Prisma.InputJsonValue)
+      : Prisma.JsonNull;
   }
 
   private async replacePreferredCuisines(

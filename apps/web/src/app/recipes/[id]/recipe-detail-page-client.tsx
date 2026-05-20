@@ -1,10 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { BaseRecipe } from "@cart/shared";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import type {
+  BaseRecipe,
+  DishIngredient,
+  KitchenInventoryItem,
+} from "@cart/shared";
+import { normalizeIngredientKey } from "@cart/shared";
+import {
+  getInventoryAlternativesAction,
+  type InventoryAlternativeSuggestion,
+} from "@/app/ai-actions";
+import { submitDraftFlowAction } from "@/app/home-actions";
 import { HandsFreeMode } from "@/components/hands-free-mode";
+import type { HandsFreeSessionContext } from "@/components/hands-free-mode-types";
+import { HandsFreeSetupModal } from "@/components/hands-free-setup-modal";
 import { RecipeImage } from "@/components/ui/recipe-image";
 import type { CookingContext } from "@/lib/cooking-context";
+import {
+  getIngredientReadiness,
+  getIngredientReadinessSummary,
+  type IngredientReadiness,
+} from "@/lib/inventory-readiness";
 
 type RecipeTab = "ingredients" | "steps";
 
@@ -22,17 +40,95 @@ function splitStepCopy(copy: string) {
 
 export function RecipeDetailPageClient({
   recipe,
+  inventory,
   cookingContext,
 }: {
   recipe: BaseRecipe;
+  inventory: KitchenInventoryItem[];
   cookingContext?: CookingContext;
 }) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<RecipeTab>("ingredients");
   const [handsFreeOpen, setHandsFreeOpen] = useState(false);
+  const [handsFreeSetupOpen, setHandsFreeSetupOpen] = useState(false);
+  const [handsFreeSessionContext, setHandsFreeSessionContext] = useState<
+    HandsFreeSessionContext | undefined
+  >();
+  const [aiAlternatives, setAiAlternatives] = useState<
+    InventoryAlternativeSuggestion[]
+  >([]);
+  const [aiAlternativesPending, setAiAlternativesPending] = useState(false);
+  const [inventoryChecked, setInventoryChecked] = useState(false);
+  const [inventoryCheckError, setInventoryCheckError] = useState<string | null>(
+    null,
+  );
+  const [cartError, setCartError] = useState<string | null>(null);
+  const [isAddingToCart, startAddToCart] = useTransition();
   const nutrition = recipe.nutrition_data ?? {};
   const badges = recipe.tags
     .filter((tag) => tag.kind === "dietary_badge")
     .slice(0, 2);
+  const alternativeByIngredient = useMemo(
+    () =>
+      new Map(
+        aiAlternatives.map((suggestion) => [
+          normalizeIngredientKey(suggestion.ingredient_name),
+          suggestion,
+        ]),
+      ),
+    [aiAlternatives],
+  );
+  const inventorySummary = useMemo(
+    () =>
+      getIngredientReadinessSummary(
+        recipe.ingredients,
+        inventory,
+        (ingredient) =>
+          alternativeByIngredient.get(
+            normalizeIngredientKey(ingredient.canonical_ingredient),
+          ),
+      ),
+    [alternativeByIngredient, inventory, recipe.ingredients],
+  );
+
+  async function handleCheckInventory() {
+    setInventoryCheckError(null);
+    setInventoryChecked(true);
+    const candidates = recipe.ingredients.filter(
+      (ingredient) =>
+        getIngredientReadiness(ingredient, inventory).status !== "available",
+    );
+
+    if (candidates.length === 0 || inventory.length === 0) {
+      setAiAlternatives([]);
+      setAiAlternativesPending(false);
+      return;
+    }
+
+    setAiAlternativesPending(true);
+    const result = await getInventoryAlternativesAction({
+      recipeName: recipe.name,
+      ingredients: candidates.map((ingredient) => ({
+        canonical_ingredient: ingredient.canonical_ingredient,
+        display_ingredient: ingredient.display_ingredient ?? null,
+        amount: ingredient.amount,
+        unit: ingredient.unit,
+      })),
+      inventory: inventory.map((item) => ({
+        id: item.id,
+        display_name: item.display_name,
+        category: item.ingredient?.category ?? null,
+      })),
+    });
+
+    if (result.error) {
+      setInventoryCheckError(result.error);
+    }
+    if (result.suggestions) {
+      setAiAlternatives(result.suggestions);
+    }
+    setAiAlternativesPending(false);
+  }
 
   const nutritionCards = useMemo(
     () => [
@@ -57,6 +153,27 @@ export function RecipeDetailPageClient({
       nutrition.protein_g,
     ],
   );
+
+  function handleAddToCart() {
+    setCartError(null);
+    startAddToCart(async () => {
+      const formData = new FormData();
+      formData.set("intent", "generate");
+      formData.set(
+        "selections_json",
+        JSON.stringify([{ recipe_id: recipe.id, quantity: 1 }]),
+      );
+      formData.set("retailer", "kroger");
+
+      const cartResult = await submitDraftFlowAction({}, formData);
+      if (cartResult.error || !cartResult.resourceId) {
+        setCartError(cartResult.error ?? "Unable to create this cart.");
+        return;
+      }
+
+      router.push(`/carts/${cartResult.resourceId}`);
+    });
+  }
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-36 pt-4 sm:px-6 lg:pb-10 lg:pt-8">
@@ -140,26 +257,83 @@ export function RecipeDetailPageClient({
         <section className="min-h-[21rem] px-4 py-4 sm:px-7 sm:py-6">
           {activeTab === "ingredients" ? (
             <div className="space-y-3">
-              {recipe.ingredients.map((ingredient, index) => (
-                <div
-                  key={`${ingredient.canonical_ingredient}-${index}`}
-                  className="flex items-center gap-3 rounded-[1.15rem] border border-outline-variant/25 bg-white px-4 py-3"
+              <div className="rounded-[1.25rem] border border-[#c0dedf] bg-white p-3 shadow-[0_10px_28px_rgba(60,154,158,0.06)]">
+                <button
+                  type="button"
+                  onClick={handleCheckInventory}
+                  disabled={aiAlternativesPending}
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#2f7f83] px-4 py-2.5 text-label-lg font-black text-white transition-colors hover:bg-[#25696d] disabled:opacity-60"
                 >
-                  <span className="material-symbols-outlined text-primary-fixed-dim">
-                    grocery
+                  <span
+                    className={`material-symbols-outlined text-[18px] ${
+                      aiAlternativesPending ? "animate-spin" : ""
+                    }`}
+                  >
+                    {aiAlternativesPending
+                      ? "progress_activity"
+                      : "inventory_2"}
                   </span>
-                  <span className="min-w-0 flex-1 text-body-sm font-semibold text-on-surface">
-                    {ingredient.display_ingredient ??
-                      ingredient.canonical_ingredient}
-                    {ingredient.preparation
-                      ? `, ${ingredient.preparation}`
-                      : ""}
-                  </span>
-                  <span className="shrink-0 text-body-sm text-outline">
-                    {ingredient.amount} {ingredient.unit}
-                  </span>
+                  {aiAlternativesPending
+                    ? "Checking inventory..."
+                    : inventoryChecked
+                      ? "Check again"
+                      : "Check against inventory"}
+                </button>
+                {inventoryCheckError ? (
+                  <p className="mt-2 text-center text-body-sm text-error">
+                    {inventoryCheckError}
+                  </p>
+                ) : null}
+              </div>
+
+              {inventoryChecked ? (
+                <div className="grid grid-cols-3 gap-2">
+                  <InventorySummaryPill
+                    icon="check_circle"
+                    label="In kitchen"
+                    value={inventorySummary.available}
+                    className="bg-[#ecf8f4] text-[#256f5c]"
+                  />
+                  <InventorySummaryPill
+                    icon="swap_horiz"
+                    label="Alt"
+                    value={inventorySummary.alternative}
+                    className="bg-[#fff7dc] text-[#8a5d00]"
+                  />
+                  <InventorySummaryPill
+                    icon="add_shopping_cart"
+                    label="Buy"
+                    value={inventorySummary.missing}
+                    className="bg-[#fff0ed] text-[#a33720]"
+                  />
                 </div>
-              ))}
+              ) : null}
+
+              {recipe.ingredients.map((ingredient, index) =>
+                inventoryChecked ? (
+                  <IngredientReadinessRow
+                    key={`${ingredient.canonical_ingredient}-${index}`}
+                    ingredient={ingredient}
+                    checkingAlternative={
+                      aiAlternativesPending &&
+                      getIngredientReadiness(ingredient, inventory).status !==
+                        "available"
+                    }
+                    readiness={getIngredientReadiness(
+                      ingredient,
+                      inventory,
+                      alternativeByIngredient.get(
+                        normalizeIngredientKey(ingredient.canonical_ingredient),
+                      ),
+                    )}
+                  />
+                ) : (
+                  <IngredientPlainRow
+                    key={`${ingredient.canonical_ingredient}-${index}`}
+                    ingredient={ingredient}
+                  />
+                ),
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -190,10 +364,28 @@ export function RecipeDetailPageClient({
           )}
         </section>
 
-        <section className="sticky bottom-0 border-t border-outline-variant/25 bg-[#fffdfa]/95 px-4 py-4 backdrop-blur-sm sm:px-7">
+        <section className="sticky bottom-0 space-y-3 border-t border-outline-variant/25 bg-[#fffdfa]/95 px-4 py-4 backdrop-blur-sm sm:px-7">
+          {cartError ? (
+            <p className="text-center text-body-sm text-error">{cartError}</p>
+          ) : null}
           <button
             type="button"
-            onClick={() => setHandsFreeOpen(true)}
+            onClick={handleAddToCart}
+            disabled={isAddingToCart}
+            className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-[#2f7f83] px-5 py-3 text-label-lg font-black text-white shadow-[0_12px_28px_rgba(47,127,131,0.22)] transition-colors hover:bg-[#25696d] disabled:opacity-60"
+          >
+            <span
+              className={`material-symbols-outlined text-[20px] ${
+                isAddingToCart ? "animate-spin" : ""
+              }`}
+            >
+              {isAddingToCart ? "progress_activity" : "add_shopping_cart"}
+            </span>
+            {isAddingToCart ? "Adding to cart..." : "Add to cart"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setHandsFreeSetupOpen(true)}
             className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-primary-fixed-dim px-5 py-3 text-label-lg font-black text-on-primary-fixed shadow-[0_12px_28px_rgba(244,121,13,0.25)]"
           >
             <span className="material-symbols-outlined text-[20px]">mic</span>
@@ -205,13 +397,136 @@ export function RecipeDetailPageClient({
         </section>
       </article>
 
+      {handsFreeSetupOpen ? (
+        <HandsFreeSetupModal
+          recipe={recipe}
+          onCancel={() => setHandsFreeSetupOpen(false)}
+          onStart={(context) => {
+            setHandsFreeSessionContext(context);
+            setHandsFreeSetupOpen(false);
+            setHandsFreeOpen(true);
+          }}
+        />
+      ) : null}
+
       {handsFreeOpen ? (
         <HandsFreeMode
           recipe={recipe}
           cookingContext={cookingContext}
+          sessionContext={handsFreeSessionContext}
           onClose={() => setHandsFreeOpen(false)}
         />
       ) : null}
     </main>
+  );
+}
+
+function IngredientPlainRow({ ingredient }: { ingredient: DishIngredient }) {
+  return (
+    <div className="flex items-center gap-3 rounded-[1.15rem] border border-outline-variant/25 bg-white px-4 py-3">
+      <span className="material-symbols-outlined text-primary-fixed-dim">
+        grocery
+      </span>
+      <span className="min-w-0 flex-1 text-body-sm font-semibold text-on-surface">
+        {ingredient.display_ingredient ?? ingredient.canonical_ingredient}
+        {ingredient.preparation ? `, ${ingredient.preparation}` : ""}
+      </span>
+      <span className="shrink-0 text-body-sm text-outline">
+        {ingredient.amount} {ingredient.unit}
+      </span>
+    </div>
+  );
+}
+
+function InventorySummaryPill({
+  icon,
+  label,
+  value,
+  className,
+}: {
+  icon: string;
+  label: string;
+  value: number;
+  className: string;
+}) {
+  return (
+    <div
+      className={`flex min-w-0 items-center justify-center gap-1.5 rounded-2xl px-2.5 py-2 text-label-sm font-bold ${className}`}
+    >
+      <span className="material-symbols-outlined text-[16px]">{icon}</span>
+      <span className="truncate">{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
+function IngredientReadinessRow({
+  ingredient,
+  checkingAlternative,
+  readiness,
+}: {
+  ingredient: DishIngredient;
+  checkingAlternative: boolean;
+  readiness: IngredientReadiness;
+}) {
+  const displayName =
+    ingredient.display_ingredient ?? ingredient.canonical_ingredient;
+  const status = checkingAlternative
+    ? {
+        icon: "progress_activity",
+        label: "Checking swaps",
+        border: "border-[#c0dedf]",
+        iconClass: "animate-spin text-[#5f8689]",
+        note: "Asking AI to compare your inventory",
+      }
+    : readiness.status === "available"
+      ? {
+          icon: "check_circle",
+          label: "In kitchen",
+          border: "border-[#b9e3d2]",
+          iconClass: "text-[#2d806a]",
+          note: readiness.item.display_name,
+        }
+      : readiness.status === "alternative"
+        ? {
+            icon: "swap_horiz",
+            label: "Alternative",
+            border: "border-[#f4d47c]",
+            iconClass: "text-[#9a6900]",
+            note: readiness.reason
+              ? `${readiness.alternative.display_name} - ${readiness.reason}`
+              : readiness.alternative.display_name,
+          }
+        : {
+            icon: "add_shopping_cart",
+            label: "Need to buy",
+            border: "border-[#f0b4a8]",
+            iconClass: "text-[#b24028]",
+            note: "Will be added to cart",
+          };
+
+  return (
+    <div
+      className={`flex items-start gap-3 rounded-[1.15rem] border bg-white px-4 py-3 ${status.border}`}
+    >
+      <span
+        className={`material-symbols-outlined mt-0.5 shrink-0 ${status.iconClass}`}
+      >
+        {status.icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-body-sm font-semibold text-on-surface">
+          {displayName}
+          {ingredient.preparation ? `, ${ingredient.preparation}` : ""}
+        </span>
+        <span className="mt-0.5 block text-[11px] font-semibold text-outline">
+          {status.label}
+          {status.note ? ` - ${status.note}` : ""}
+        </span>
+      </span>
+      <span className="shrink-0 text-body-sm text-outline">
+        {ingredient.amount} {ingredient.unit}
+      </span>
+    </div>
   );
 }

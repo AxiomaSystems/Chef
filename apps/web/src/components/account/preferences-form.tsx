@@ -3,7 +3,10 @@
 import type { Cuisine, Tag, UserPreferences } from "@cart/shared";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { updatePreferencesAction, type PreferencesActionState } from "@/app/account/actions";
+import {
+  updatePreferencesAction,
+  type PreferencesActionState,
+} from "@/app/account/actions";
 
 const INITIAL_STATE: PreferencesActionState = {};
 
@@ -19,7 +22,11 @@ function SaveButton() {
       disabled={pending}
       className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:opacity-50 sm:w-auto"
     >
-      {pending && <span className="material-symbols-outlined text-[16px] animate-spin">refresh</span>}
+      {pending && (
+        <span className="material-symbols-outlined text-[16px] animate-spin">
+          refresh
+        </span>
+      )}
       {pending ? "Saving…" : "Save preferences"}
     </button>
   );
@@ -100,26 +107,42 @@ function CustomChipInput({
   );
 }
 
-export function PreferencesForm({ cuisines, tags, preferences }: {
+export function PreferencesForm({
+  cuisines,
+  tags,
+  preferences,
+}: {
   cuisines: Cuisine[];
   tags: Tag[];
   preferences: UserPreferences;
 }) {
-  const [state, formAction] = useActionState(updatePreferencesAction, INITIAL_STATE);
+  const [state, formAction] = useActionState(
+    updatePreferencesAction,
+    INITIAL_STATE,
+  );
   const [customCuisines, setCustomCuisines] = useState<string[]>([]);
   const [customDietaryLabels, setCustomDietaryLabels] = useState<string[]>([]);
 
   return (
     <form action={formAction} className="space-y-5">
-      <input type="hidden" name="shopping_location_kroger_location_id" defaultValue={preferences.shopping_location?.kroger_location_id ?? ""} />
+      <input
+        type="hidden"
+        name="shopping_location_kroger_location_id"
+        defaultValue={preferences.shopping_location?.kroger_location_id ?? ""}
+      />
 
       {/* ── Cuisines ───────────────────────────────────── */}
       <section className="overflow-hidden rounded-2xl border border-outline-variant/30 bg-white shadow-sm">
         <div className="border-b border-outline-variant/30 px-4 py-5 sm:px-6">
-          <p className="text-label-sm text-primary uppercase tracking-widest">Cuisines</p>
-          <h2 className="text-headline-sm font-bold text-on-surface mt-1">Culinary profile</h2>
+          <p className="text-label-sm text-primary uppercase tracking-widest">
+            Cuisines
+          </p>
+          <h2 className="text-headline-sm font-bold text-on-surface mt-1">
+            Culinary profile
+          </h2>
           <p className="text-body-sm text-outline mt-1">
-            Select the cuisines that shape your recipe feed. Leave empty to stay neutral.
+            Select the cuisines that shape your recipe feed. Leave empty to stay
+            neutral.
           </p>
         </div>
         <div className="space-y-4 px-4 py-5 sm:px-6 sm:py-6">
@@ -133,7 +156,9 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
                   type="checkbox"
                   name="preferred_cuisine_ids"
                   value={cuisine.id}
-                  defaultChecked={preferences.preferred_cuisine_ids.includes(cuisine.id)}
+                  defaultChecked={preferences.preferred_cuisine_ids.includes(
+                    cuisine.id,
+                  )}
                   className="sr-only"
                 />
                 <span className="truncate">{cuisine.label}</span>
@@ -152,15 +177,22 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
       {/* ── Shopping location ──────────────────────────── */}
       <section className="overflow-hidden rounded-2xl border border-outline-variant/30 bg-white shadow-sm">
         <div className="border-b border-outline-variant/30 px-4 py-5 sm:px-6">
-          <p className="text-label-sm text-primary uppercase tracking-widest">Location</p>
-          <h2 className="text-headline-sm font-bold text-on-surface mt-1">Shopping location</h2>
+          <p className="text-label-sm text-primary uppercase tracking-widest">
+            Location
+          </p>
+          <h2 className="text-headline-sm font-bold text-on-surface mt-1">
+            Shopping location
+          </h2>
           <p className="text-body-sm text-outline mt-1">
-            Save your ZIP code so retailers can find nearby stores automatically.
+            Save your ZIP code so retailers can find nearby stores
+            automatically.
           </p>
         </div>
         <div className="grid grid-cols-1 gap-4 px-4 py-5 sm:grid-cols-2 sm:px-6 sm:py-6">
           <div className="space-y-1.5">
-            <label className="text-label-sm text-outline uppercase tracking-wide">ZIP code</label>
+            <label className="text-label-sm text-outline uppercase tracking-wide">
+              ZIP code
+            </label>
             <input
               type="text"
               name="shopping_location_zip_code"
@@ -170,7 +202,9 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-label-sm text-outline uppercase tracking-wide">City / label</label>
+            <label className="text-label-sm text-outline uppercase tracking-wide">
+              City / label
+            </label>
             <input
               type="text"
               name="shopping_location_label"
@@ -185,8 +219,71 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
       {/* ── Dietary tags ───────────────────────────────── */}
       <section className="overflow-hidden rounded-2xl border border-outline-variant/30 bg-white shadow-sm">
         <div className="border-b border-outline-variant/30 px-4 py-5 sm:px-6">
-          <p className="text-label-sm text-primary uppercase tracking-widest">Taste signals</p>
-          <h2 className="text-headline-sm font-bold text-on-surface mt-1">Dietary preferences</h2>
+          <p className="text-label-sm text-primary uppercase tracking-widest">
+            Nutrition
+          </p>
+          <h2 className="text-headline-sm font-bold text-on-surface mt-1">
+            Weekly nutrition targets
+          </h2>
+          <p className="text-body-sm text-outline mt-1">
+            Set the goals your weekly meal plan should track against.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 px-4 py-5 sm:grid-cols-4 sm:px-6 sm:py-6">
+          {[
+            {
+              name: "weekly_target_calories",
+              label: "Calories",
+              unit: "kcal",
+              value: preferences.weekly_nutrition_targets?.calories,
+            },
+            {
+              name: "weekly_target_protein_g",
+              label: "Protein",
+              unit: "g",
+              value: preferences.weekly_nutrition_targets?.protein_g,
+            },
+            {
+              name: "weekly_target_carbs_g",
+              label: "Carbs",
+              unit: "g",
+              value: preferences.weekly_nutrition_targets?.carbs_g,
+            },
+            {
+              name: "weekly_target_fat_g",
+              label: "Fats",
+              unit: "g",
+              value: preferences.weekly_nutrition_targets?.fat_g,
+            },
+          ].map(({ name, label, unit, value }) => (
+            <div key={name} className="space-y-1.5">
+              <label className="text-label-sm text-outline uppercase tracking-wide">
+                {label}
+              </label>
+              <div className="flex items-center rounded-xl border border-outline-variant/50 bg-surface-container-low px-3 py-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+                <input
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  name={name}
+                  defaultValue={value === undefined ? "" : String(value)}
+                  className="min-w-0 flex-1 bg-transparent text-body-sm text-on-surface outline-none placeholder:text-outline"
+                />
+                <span className="text-label-sm text-outline">{unit}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-outline-variant/30 bg-white shadow-sm">
+        <div className="border-b border-outline-variant/30 px-4 py-5 sm:px-6">
+          <p className="text-label-sm text-primary uppercase tracking-widest">
+            Taste signals
+          </p>
+          <h2 className="text-headline-sm font-bold text-on-surface mt-1">
+            Dietary preferences
+          </h2>
           <p className="text-body-sm text-outline mt-1">
             Pick the tags that best describe your dietary style.
           </p>
@@ -202,7 +299,9 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
                   type="checkbox"
                   name="preferred_tag_ids"
                   value={tag.id}
-                  defaultChecked={preferences.preferred_tag_ids.includes(tag.id)}
+                  defaultChecked={preferences.preferred_tag_ids.includes(
+                    tag.id,
+                  )}
                   className="sr-only"
                 />
                 <span className="truncate">{tag.name}</span>
@@ -219,10 +318,14 @@ export function PreferencesForm({ cuisines, tags, preferences }: {
       </section>
 
       {state.error && (
-        <div className="p-3 rounded-xl bg-error-container text-on-error-container text-body-sm">{state.error}</div>
+        <div className="p-3 rounded-xl bg-error-container text-on-error-container text-body-sm">
+          {state.error}
+        </div>
       )}
       {state.success && (
-        <div className="p-3 rounded-xl bg-secondary-container text-on-secondary-container text-body-sm">{state.success}</div>
+        <div className="p-3 rounded-xl bg-secondary-container text-on-secondary-container text-body-sm">
+          {state.success}
+        </div>
       )}
 
       <SaveButton />

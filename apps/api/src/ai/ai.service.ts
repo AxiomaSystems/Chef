@@ -3,13 +3,17 @@ import type { AiProvider } from './ai.provider';
 import type {
   AiChatResult,
   AiIngredientSwapResult,
+  AiInventoryAlternativesResult,
+  AiInventoryStructureResult,
   AiMealGenerationResult,
   AiRecipeImportPlatform,
   AiRecipeImportResult,
 } from './ai.types';
 import type { AiChatDto } from './dto/chat.dto';
 import type { GenerateMealsDto } from './dto/generate-meals.dto';
+import type { InventoryAlternativesDto } from './dto/inventory-alternatives.dto';
 import type { ImportRecipeDto } from './dto/import-recipe.dto';
+import type { StructureInventoryDto } from './dto/structure-inventory.dto';
 import type { SwapIngredientDto } from './dto/swap-ingredient.dto';
 import { MockAiProvider } from './providers/mock-ai.provider';
 import { OpenAiAiProvider } from './providers/openai-ai.provider';
@@ -45,6 +49,12 @@ export class AiService {
       budget_mode: input.budget_mode ?? 'balanced',
       notes: input.notes ?? '',
     });
+  }
+
+  suggestInventoryAlternatives(
+    input: InventoryAlternativesDto,
+  ): Promise<AiInventoryAlternativesResult> {
+    return this.provider.suggestInventoryAlternatives(input);
   }
 
   async importRecipe(input: ImportRecipeDto): Promise<AiRecipeImportResult> {
@@ -114,6 +124,18 @@ export class AiService {
       message: input.message,
       history: input.history ?? [],
       context: input.context,
+    });
+  }
+
+  structureInventory(
+    input: StructureInventoryDto,
+  ): Promise<AiInventoryStructureResult> {
+    return this.provider.structureInventory({
+      ...input,
+      transcript: input.transcript.trim(),
+      allowed_units: input.allowed_units ?? [],
+      inventory: input.inventory ?? [],
+      source: input.source ?? 'voice_inventory',
     });
   }
 

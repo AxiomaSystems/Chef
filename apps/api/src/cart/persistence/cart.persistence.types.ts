@@ -68,13 +68,17 @@ export type CreateShoppingCartPersistenceInput = {
   userId: string;
   cartId: string;
   cartDraftId?: string;
-  shoppingCart: Omit<ShoppingCart, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+  shoppingCart: Omit<
+    ShoppingCart,
+    'id' | 'user_id' | 'created_at' | 'updated_at'
+  >;
 };
 
 export type UpdateShoppingCartPersistenceInput = {
-  matched_items: ShoppingCart['matched_items'];
-  estimated_subtotal: ShoppingCart['estimated_subtotal'];
+  matched_items?: ShoppingCart['matched_items'];
+  estimated_subtotal?: ShoppingCart['estimated_subtotal'];
   estimated_total?: ShoppingCart['estimated_total'];
   external_url?: ShoppingCart['external_url'];
   external_reference_id?: ShoppingCart['external_reference_id'];
+  checked_out_at?: ShoppingCart['checked_out_at'] | null;
 };
