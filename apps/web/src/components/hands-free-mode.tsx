@@ -9,6 +9,7 @@ import {
 } from "./hands-free-mode-panels";
 import type {
   CookingAdaptation,
+  HandsFreeSessionContext,
   CookingTimer,
   HandsFreeModeStatus,
   TranscriptEntry,
@@ -29,11 +30,21 @@ function cleanAgentText(text: string) {
 type Props = {
   recipe: BaseRecipe;
   cookingContext?: CookingContext;
+  sessionContext?: HandsFreeSessionContext;
   onClose: () => void;
 };
 
-export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
-  const [activeStep, setActiveStep] = useState(0);
+export function HandsFreeMode({
+  recipe,
+  cookingContext,
+  sessionContext,
+  onClose,
+}: Props) {
+  const initialStepIndex = Math.max(
+    0,
+    Math.min(recipe.steps.length - 1, (sessionContext?.startingStep ?? 1) - 1),
+  );
+  const [activeStep, setActiveStep] = useState(initialStepIndex);
   const [timers, setTimers] = useState<CookingTimer[]>([]);
   const [lastHeard, setLastHeard] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<string | null>(null);
@@ -42,7 +53,7 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
   const timersRef = useRef<CookingTimer[]>([]);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
 
-  const activeStepRef = useRef(0);
+  const activeStepRef = useRef(initialStepIndex);
   const adaptationIdRef = useRef(0);
   const handledToolCallIdsRef = useRef(new Set<string>());
   const transcriptIdRef = useRef(0);
@@ -507,6 +518,7 @@ export function HandsFreeMode({ recipe, cookingContext, onClose }: Props) {
         addTranscript("you", text);
       },
       recipe,
+      sessionContext,
     });
 
   const modeConfig: Record<

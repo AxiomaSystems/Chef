@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import type { BaseRecipe } from "@cart/shared";
 import type { CookingContext } from "@/lib/cooking-context";
 import { stringifyCookingContext } from "@/lib/cooking-context";
-import type { HandsFreeModeStatus } from "./hands-free-mode-types";
+import type {
+  HandsFreeModeStatus,
+  HandsFreeSessionContext,
+} from "./hands-free-mode-types";
 
 const TARGET_SAMPLE_RATE = 16000; // ElevenLabs expects 16 kHz PCM16 input
 const MIC_CHUNK_SIZE = 2048;
@@ -70,6 +73,7 @@ type UseHandsFreeVoiceSessionOptions = {
   onClientToolCall: ClientToolHandler;
   onUserTranscript?: (text: string) => void;
   recipe: BaseRecipe;
+  sessionContext?: HandsFreeSessionContext;
 };
 
 function getAudioPayload(msg: ElevenLabsMessage) {
@@ -107,6 +111,26 @@ function stringifyRecipeIngredients(ingredients: BaseRecipe["ingredients"]) {
 
       return `- ${parts.join(" ")}`;
     })
+    .join("\n");
+}
+
+function stringifySessionContext(
+  context: HandsFreeSessionContext | null | undefined,
+) {
+  if (!context) return "No extra session context was provided.";
+
+  return [
+    `Guidance style: ${context.guidanceStyle.replace(/_/g, " ")}`,
+    `Starting visible step: ${context.startingStep}`,
+    context.notes ? `Session notes: ${context.notes}` : null,
+    context.ingredientChanges
+      ? `Ingredient changes: ${context.ingredientChanges}`
+      : null,
+    context.equipmentNotes
+      ? `Equipment notes: ${context.equipmentNotes}`
+      : null,
+  ]
+    .filter(Boolean)
     .join("\n");
 }
 
@@ -154,6 +178,7 @@ export function useHandsFreeVoiceSession({
   onClientToolCall,
   onUserTranscript,
   recipe,
+  sessionContext,
 }: UseHandsFreeVoiceSessionOptions) {
   const [mode, setMode] = useState<HandsFreeModeStatus>("connecting");
   const [agentMessage, setAgentMessage] = useState<string | null>(null);
@@ -493,6 +518,7 @@ export function useHandsFreeVoiceSession({
               steps: stepsText,
               cooking_plan_rules: cookingPlan,
               user_cooking_context: stringifyCookingContext(cookingContext),
+              session_cooking_context: stringifySessionContext(sessionContext),
               hands_free_client_rules:
                 "Act like an adaptive cooking copilot, not a recipe step reader. Keep responses under 2 short sentences. Use cooking_plan_rules and user_cooking_context for safe personalization. Never override hard dietary/allergy rules. The client only forwards audio after the local wake phrase, so treat incoming user speech as intentionally addressed to Chef. Do not ask 'are you still there' or send idle check-ins. When the user asks for next/back/repeat/go to step N or timer actions, call the matching client tool.",
             },
@@ -657,6 +683,7 @@ export function useHandsFreeVoiceSession({
     recipe.name,
     recipe.servings,
     recipe.steps,
+    sessionContext,
   ]);
 
   return {

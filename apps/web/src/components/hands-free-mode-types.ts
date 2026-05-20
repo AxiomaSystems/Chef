@@ -20,6 +20,20 @@ export type CookingAdaptation = {
   note: string;
 };
 
+export type HandsFreeGuidanceStyle =
+  | "on_demand"
+  | "close"
+  | "brief"
+  | "beginner";
+
+export type HandsFreeSessionContext = {
+  notes: string;
+  ingredientChanges: string;
+  equipmentNotes: string;
+  guidanceStyle: HandsFreeGuidanceStyle;
+  startingStep: number;
+};
+
 export type HandsFreeModeStatus =
   | "connecting"
   | "waiting_for_wake"
