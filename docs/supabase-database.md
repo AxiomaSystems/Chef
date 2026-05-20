@@ -89,3 +89,5 @@ For that reason, public tables have RLS enabled without permissive anon/auth pol
 - If the app later uses Supabase Auth or direct browser reads, policies must be designed explicitly for that surface before exposing any table.
 
 Do not add broad policies such as `USING (true)` just to quiet dashboard warnings.
+
+When adding new Prisma tables in the `public` schema, include RLS in the same migration or run a follow-up migration that enables RLS across all public tables. A one-time catch-up migration only covers tables that existed when it ran.
