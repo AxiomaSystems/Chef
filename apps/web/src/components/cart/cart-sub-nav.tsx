@@ -12,26 +12,32 @@ export function CartSubNav() {
   const pathname = usePathname();
 
   return (
-    <div className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto bg-surface-container-low px-4 py-1 sm:mx-0 sm:w-fit sm:rounded-full sm:p-1">
-      {NAV.map(({ href, label, icon }) => {
-        const active = pathname === href || pathname.startsWith(`${href}/`);
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-label-sm font-semibold transition-all sm:px-4 ${
-              active
-                ? "bg-white text-on-surface shadow-sm"
-                : "text-outline hover:text-on-surface"
-            }`}
-          >
-            <span className="material-symbols-outlined text-[16px]">
-              {icon}
-            </span>
-            {label}
-          </Link>
-        );
-      })}
+    <div className="-mx-4 bg-[#fff2e3] px-4 py-3 sm:mx-0 sm:rounded-[1.4rem]">
+      <div className="no-scrollbar flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-white p-1.5 shadow-[0_4px_14px_rgba(19,35,38,0.12)]">
+        {NAV.map(({ href, label, icon }) => {
+          const active = pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-label-sm font-black transition-all ${
+                active
+                  ? "bg-[#f4790d] text-white shadow-sm"
+                  : "text-[#2f6f73] hover:bg-[#fff8ef] hover:text-[#132326]"
+              }`}
+            >
+              <span
+                className={`material-symbols-outlined text-[17px] ${
+                  active ? "icon-filled" : ""
+                }`}
+              >
+                {icon}
+              </span>
+              {label}
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -99,6 +99,57 @@ async function callAuthedJson(path: string, init?: RequestInit) {
   });
 }
 
+function mergeCartSelections(
+  existingSelections: CartSelection[],
+  incomingSelections: CartSelection[],
+) {
+  const merged = new Map<string, CartSelection>();
+
+  for (const selection of [...existingSelections, ...incomingSelections]) {
+    const key = [
+      selection.recipe_type,
+      selection.recipe_id,
+      selection.servings_override ?? "",
+    ].join(":");
+    const current = merged.get(key);
+
+    merged.set(key, {
+      ...selection,
+      quantity: (current?.quantity ?? 0) + selection.quantity,
+    });
+  }
+
+  return Array.from(merged.values());
+}
+
+function buildCartName(recipeNames: string[], fallbackCount: number) {
+  const uniqueNames = Array.from(
+    new Set(recipeNames.map((name) => name.trim()).filter(Boolean)),
+  );
+
+  if (uniqueNames.length === 1) return uniqueNames[0];
+  if (uniqueNames.length === 2) return `${uniqueNames[0]} + ${uniqueNames[1]}`;
+  if (uniqueNames.length > 2) {
+    return `${uniqueNames[0]}, ${uniqueNames[1]} + ${uniqueNames.length - 2} more`;
+  }
+
+  return `${fallbackCount} recipe cart`;
+}
+
+async function findActiveCart() {
+  const response = await callAuthedJson("/carts").catch(() => null);
+  if (!response?.ok) return null;
+  const carts = (await response.json()) as Cart[];
+
+  return (
+    [...carts].sort((left, right) =>
+      (right.updated_at ?? right.created_at ?? "").localeCompare(
+        left.updated_at ?? left.created_at ?? "",
+      ),
+    )[0] ?? null
+  );
+}
+
 export async function submitDraftFlowAction(
   _previousState: DraftFlowActionState,
   formData: FormData,
@@ -152,14 +203,7 @@ export async function submitDraftFlowAction(
     }
   }
 
-  const fallbackName =
-    recipeNames.length === 1
-      ? recipeNames[0]
-      : recipeNames.length === 2
-        ? `${recipeNames[0]} + ${recipeNames[1]}`
-        : recipeNames.length > 2
-          ? `${recipeNames[0]}, ${recipeNames[1]} + ${recipeNames.length - 2} more`
-          : `${selections.length} recipe cart`;
+  const fallbackName = buildCartName(recipeNames, selections.length);
   const name = customName || fallbackName;
   const retailer = (String(formData.get("retailer") ?? "walmart").trim() ||
     "walmart") as Retailer;
@@ -170,6 +214,8 @@ export async function submitDraftFlowAction(
   let method: "POST" | "PATCH" = "POST";
   let success = intent === "save" ? "Draft saved." : "Cart generated.";
   let nextResourceType: "draft" | "cart" = intent === "save" ? "draft" : "cart";
+  let requestName = name;
+  let requestSelections = selections;
 
   if (resourceType === "draft" && resourceId) {
     if (intent === "save") {
@@ -178,9 +224,27 @@ export async function submitDraftFlowAction(
       success = "Draft updated.";
       nextResourceType = "draft";
     } else {
-      path = "/carts";
-      method = "POST";
-      success = "Cart generated.";
+      const activeCart = await findActiveCart();
+      if (activeCart?.id) {
+        const existingNames = activeCart.dishes.map((dish) => dish.name);
+        path = `/carts/${activeCart.id}`;
+        method = "PATCH";
+        requestSelections = mergeCartSelections(
+          activeCart.selections,
+          selections,
+        );
+        requestName =
+          customName ||
+          buildCartName(
+            [...existingNames, ...recipeNames],
+            requestSelections.length,
+          );
+        success = "Cart updated.";
+      } else {
+        path = "/carts";
+        method = "POST";
+        success = "Cart generated.";
+      }
       nextResourceType = "cart";
     }
   } else if (resourceType === "cart" && resourceId) {
@@ -188,6 +252,24 @@ export async function submitDraftFlowAction(
     method = "PATCH";
     success = "Cart updated.";
     nextResourceType = "cart";
+  } else if (intent === "generate") {
+    const activeCart = await findActiveCart();
+    if (activeCart?.id) {
+      const existingNames = activeCart.dishes.map((dish) => dish.name);
+      path = `/carts/${activeCart.id}`;
+      method = "PATCH";
+      requestSelections = mergeCartSelections(
+        activeCart.selections,
+        selections,
+      );
+      requestName =
+        customName ||
+        buildCartName(
+          [...existingNames, ...recipeNames],
+          requestSelections.length,
+        );
+      success = "Cart updated.";
+    }
   }
 
   const response = await callAuthedJson(path, {
@@ -196,9 +278,9 @@ export async function submitDraftFlowAction(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      name,
+      name: requestName,
       retailer,
-      selections,
+      selections: requestSelections,
     }),
   }).catch(() => null);
 
@@ -354,6 +436,26 @@ export async function createShoppingCartAction(
   }
 
   const shoppingCart = (await response.json()) as ShoppingCart;
+
+  const existingResponse = await callAuthedJson("/shopping-carts").catch(
+    () => null,
+  );
+  if (existingResponse?.ok) {
+    const existingShoppingCarts =
+      (await existingResponse.json()) as ShoppingCart[];
+    await Promise.all(
+      existingShoppingCarts
+        .filter(
+          (cart) =>
+            cart.id && cart.id !== shoppingCart.id && !cart.checked_out_at,
+        )
+        .map((cart) =>
+          callAuthedJson(`/shopping-carts/${cart.id}`, {
+            method: "DELETE",
+          }).catch(() => null),
+        ),
+    );
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/recipes");
