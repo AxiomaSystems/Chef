@@ -364,7 +364,14 @@ function buildRecipe(input: {
       { step: 3, what_to_do: 'Fold in vegetables and serve over rice.' },
     ],
     tags: ['mock', input.mealStyle, input.budgetMode],
-    nutrition_estimate: null,
+    nutrition_estimate: {
+      calories: 620,
+      protein_g: 36,
+      carbs_g: 58,
+      fat_g: 24,
+      fiber_g: 7,
+      sodium_mg: 720,
+    },
     estimated_cost_tier:
       input.budgetMode === 'minimize_cost' ? 'low' : 'medium',
     cost_notes: ['Mock output is not priced against a retailer catalog.'],
@@ -377,7 +384,14 @@ function normalizeRecipe(recipe: SwapIngredientDto['recipe']): AiRecipePreview {
   return {
     ...recipe,
     tags: recipe.tags ?? [],
-    nutrition_estimate: recipe.nutrition_estimate ?? null,
+    nutrition_estimate: recipe.nutrition_estimate ?? {
+      calories: 520,
+      protein_g: 32,
+      carbs_g: 44,
+      fat_g: 20,
+      fiber_g: 6,
+      sodium_mg: 640,
+    },
     estimated_cost_tier: recipe.estimated_cost_tier ?? 'medium',
     cost_notes: recipe.cost_notes ?? [],
     quality_tradeoffs: recipe.quality_tradeoffs ?? [],

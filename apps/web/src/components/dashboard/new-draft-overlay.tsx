@@ -189,6 +189,7 @@ export function NewDraftOverlay(props: {
   const selectionPayload = JSON.stringify(
     selectedRecipes.map(({ recipe, quantity }) => ({
       recipe_id: recipe.id,
+      recipe_name: recipe.name,
       quantity,
     })),
   );

@@ -36,6 +36,16 @@ import { UpdateCartDraftDto } from './dto/update-cart-draft.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
 import { UpdateShoppingCartDto } from './dto/update-shopping-cart.dto';
 
+function includesIngredientKey(left: string, right: string) {
+  const normalizedLeft = normalizeIngredientKey(left);
+  const normalizedRight = normalizeIngredientKey(right);
+
+  return (
+    normalizedLeft.includes(normalizedRight) ||
+    normalizedRight.includes(normalizedLeft)
+  );
+}
+
 @Injectable()
 export class CartService {
   constructor(
@@ -485,6 +495,9 @@ export class CartService {
     const estimatedSubtotal = matchedItems
       ? this.matchingService.estimateSubtotal(matchedItems)
       : undefined;
+    const shouldAddToInventory = Boolean(
+      input.checked_out_at && !existing.checked_out_at,
+    );
 
     const updated = await this.cartPersistenceService.updateShoppingCart(
       actor.id,
@@ -498,6 +511,13 @@ export class CartService {
 
     if (updated.count === 0) {
       throw new NotFoundException(`Shopping cart ${id} not found`);
+    }
+
+    if (shouldAddToInventory) {
+      await this.ingredientsService.addPurchasedCartItemsToInventory(
+        actor.id,
+        matchedItems ?? existing.matched_items,
+      );
     }
 
     return this.findShoppingCart(id, actorUserId);
@@ -566,40 +586,67 @@ export class CartService {
     }
 
     const inventoryItems = await this.ingredientsService.listInventory(userId);
-    const inventoryByIngredientId = new Map(
-      inventoryItems.flatMap((item) =>
-        item.ingredient_id ? [[item.ingredient_id, item] as const] : [],
-      ),
-    );
-    const inventoryBySlug = new Map(
-      inventoryItems.flatMap((item) =>
-        item.ingredient
-          ? [
-              [
-                this.ingredientsService.normalizeSlug(
-                  item.ingredient.canonical_name,
-                ),
-                item,
-              ] as const,
-            ]
-          : [],
-      ),
-    );
-
     return overview.map((ingredient) => {
-      const inventoryItem =
-        (ingredient.ingredient_id
-          ? inventoryByIngredientId.get(ingredient.ingredient_id)
-          : undefined) ??
-        inventoryBySlug.get(
-          this.ingredientsService.normalizeSlug(
+      const matchCandidates = [
+        ...(ingredient.ingredient_id
+          ? inventoryItems.filter(
+              (item) => item.ingredient_id === ingredient.ingredient_id,
+            )
+          : []),
+        ...inventoryItems.filter((item) =>
+          [
+            item.ingredient?.canonical_name,
+            item.display_name,
+            item.normalized_name,
+            item.label,
+            item.ingredient?.slug,
+            ...(item.ingredient?.aliases ?? []),
+          ]
+            .filter(Boolean)
+            .some(
+              (name) =>
+                this.ingredientsService.normalizeSlug(String(name)) ===
+                this.ingredientsService.normalizeSlug(
+                  ingredient.canonical_ingredient,
+                ),
+            ),
+        ),
+        ...inventoryItems.filter((item) =>
+          includesIngredientKey(
+            item.display_name,
             ingredient.canonical_ingredient,
           ),
-        );
-      const inventoryAmount = inventoryItem?.estimated_amount;
-      const inventoryUnit = inventoryItem?.unit?.trim() || undefined;
+        ),
+      ];
+      const seenInventoryIds = new Set<string>();
+      const matchedInventory = matchCandidates.filter((item) => {
+        if (seenInventoryIds.has(item.id)) return false;
+        seenInventoryIds.add(item.id);
+        return true;
+      });
+      const sameUnitInventory = matchedInventory.filter(
+        (item) =>
+          item.estimated_amount !== undefined &&
+          item.unit?.trim().toLowerCase() ===
+            ingredient.unit.trim().toLowerCase(),
+      );
+      const hasUnknownAmount = matchedInventory.some(
+        (item) => item.estimated_amount === undefined,
+      );
+      const inventoryAmount = hasUnknownAmount
+        ? undefined
+        : sameUnitInventory.length > 0
+          ? sameUnitInventory.reduce(
+              (total, item) => total + (item.estimated_amount ?? 0),
+              0,
+            )
+          : matchedInventory[0]?.estimated_amount;
+      const inventoryUnit =
+        sameUnitInventory.length > 0
+          ? ingredient.unit
+          : matchedInventory[0]?.unit?.trim() || undefined;
       const remaining =
-        inventoryItem && inventoryAmount === undefined
+        matchedInventory.length > 0 && inventoryAmount === undefined
           ? { remainingToBuy: 0, deductionPossible: false }
           : this.calculateRemainingToBuy(
               ingredient.total_amount,
@@ -610,7 +657,7 @@ export class CartService {
 
       return {
         ...ingredient,
-        in_kitchen: Boolean(inventoryItem),
+        in_kitchen: matchedInventory.length > 0,
         inventory_amount: inventoryAmount,
         inventory_unit: inventoryUnit,
         remaining_to_buy: remaining.remainingToBuy,
@@ -692,7 +739,7 @@ export class CartService {
           'ingredient_id' | 'canonical_ingredient' | 'unit'
         >,
   ): string {
-    return `${item.canonical_ingredient.trim().toLowerCase()}::${item.unit
+    return `${normalizeIngredientKey(item.canonical_ingredient)}::${item.unit
       .trim()
       .toLowerCase()}`;
   }

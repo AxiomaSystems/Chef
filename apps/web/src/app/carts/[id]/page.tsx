@@ -31,10 +31,10 @@ export default async function CartDetailPage(props: {
             Cart
           </p>
           <h1 className="mt-2 text-[2.2rem] font-black leading-[0.96] text-[#132326]">
-            {cart.data.name ?? "Shopping list"}
+            {cart.data.name ?? "Cart"}
           </h1>
           <p className="mt-3 text-body-sm leading-6 text-[#5f8689]">
-            Ingredients stay grouped by recipe here. Create the shopping cart
+            Ingredients stay grouped by recipe here. Create the shopping list
             when you are ready to aggregate totals and match retailer products.
           </p>
           <div className="mt-4 flex flex-wrap gap-2 text-label-sm text-[#5f8689]">

@@ -102,8 +102,8 @@ export function ShoppingClient({
     : carts;
   const activeCartName = activeCart
     ? (cartNames[activeCart.cart_id] ??
-      `${retailerLabel(activeCart.retailer)} cart`)
-    : "Shopping cart";
+      `${retailerLabel(activeCart.retailer)} shopping list`)
+    : "Shopping list";
 
   function replaceCart(updatedCart: ShoppingCart) {
     setCarts((current) =>
@@ -135,7 +135,7 @@ export function ShoppingClient({
       setSavingItemKey(null);
 
       if (result.error || !result.shoppingCart) {
-        setError(result.error ?? "Unable to update this shopping cart.");
+        setError(result.error ?? "Unable to update this shopping list.");
         replaceCart(cart);
         return;
       }
@@ -193,7 +193,7 @@ export function ShoppingClient({
       );
 
       if (result.error || !result.shoppingCart) {
-        setError(result.error ?? "Unable to reopen this shopping cart.");
+        setError(result.error ?? "Unable to reopen this shopping list.");
         return;
       }
 
@@ -202,19 +202,19 @@ export function ShoppingClient({
         ...current.filter((cart) => cart.id !== result.shoppingCart!.id),
       ]);
       setOpenCart(null);
-      setMessage("Cart reopened as your active shopping cart.");
+      setMessage("Shopping list reopened.");
     });
   }
 
   return (
-    <AppShell topBarTitle="Shopping">
+    <AppShell topBarTitle="Shopping List">
       <div className="mx-auto max-w-4xl space-y-7 px-4 pb-28 pt-6 sm:px-6 sm:pb-10">
         <div>
           <h1 className="text-headline-lg font-bold text-on-surface">
-            Shopping Cart
+            Shopping List
           </h1>
           <p className="mt-1 text-body-md text-outline">
-            Your active grocery list.
+            Your generated grocery list.
           </p>
         </div>
 
@@ -237,24 +237,22 @@ export function ShoppingClient({
                   {activeCartName}
                 </p>
                 <p className="text-body-sm text-outline">
-                  {activeCart.matched_items.length} items ·{" "}
+                  {activeCart.matched_items.length} items &middot;{" "}
                   {retailerLabel(activeCart.retailer)}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-surface-container-low px-3 py-1 text-label-md text-on-surface-variant">
-                  {fmt$(activeCart.estimated_subtotal)}
-                </span>
-                {activeCart.id && (
-                  <Link
-                    href={`/shopping/checkout/${activeCart.id}`}
-                    className="inline-flex min-h-10 items-center justify-center rounded-full bg-[#f4be6b] px-4 py-2 text-label-md font-semibold text-[#351800] shadow-sm transition-colors hover:bg-[#f4be6b]"
-                  >
-                    Checkout
-                  </Link>
-                )}
-              </div>
+              <span className="rounded-full bg-surface-container-low px-3 py-1 text-label-md text-on-surface-variant">
+                {fmt$(activeCart.estimated_subtotal)}
+              </span>
             </div>
+            {activeCart.id && (
+              <Link
+                href={`/shopping/checkout/${activeCart.id}`}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#f4be6b] px-4 py-2 text-label-md font-semibold text-[#351800] shadow-sm transition-colors hover:bg-[#f4be6b] sm:w-auto sm:min-w-40"
+              >
+                Checkout
+              </Link>
+            )}
 
             <div className="space-y-3">
               {activeCart.matched_items.map((item, index) => {
@@ -361,11 +359,10 @@ export function ShoppingClient({
               shopping_cart
             </span>
             <p className="mt-3 text-label-lg font-semibold text-on-surface">
-              No active shopping cart
+              No active shopping list
             </p>
             <p className="mt-1 text-body-sm text-outline">
-              Generate a shopping cart from your meal plan or reopen one from
-              history.
+              Create a shopping list from a cart or reopen one from history.
             </p>
           </section>
         )}
@@ -377,7 +374,7 @@ export function ShoppingClient({
                 History
               </h2>
               <p className="text-body-sm text-outline">
-                Previous carts before and after checkout.
+                Previous shopping lists before and after checkout.
               </p>
             </div>
           </div>
@@ -388,7 +385,7 @@ export function ShoppingClient({
                 const checkedOut = Boolean(cart.checked_out_at);
                 const name =
                   cartNames[cart.cart_id] ??
-                  `${retailerLabel(cart.retailer)} cart`;
+                  `${retailerLabel(cart.retailer)} shopping list`;
                 const isDeleting = deletingId === cart.id;
 
                 return (
@@ -479,7 +476,8 @@ export function ShoppingClient({
             </div>
           ) : (
             <div className="rounded-2xl bg-surface-container-low p-5 text-body-sm text-outline">
-              Cart history will appear here after you generate shopping carts.
+              Shopping list history will appear here after you create shopping
+              lists.
             </div>
           )}
         </section>

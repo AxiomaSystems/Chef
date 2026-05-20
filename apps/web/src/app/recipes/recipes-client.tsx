@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import type { BaseRecipe, Capture, Cuisine, Tag } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { IMPORTED_RECIPE_DRAFT_STORAGE_KEY } from "@/lib/imported-recipe-draft";
-import { submitDraftFlowAction, forkRecipeAction } from "@/app/home-actions";
+import {
+  deleteRecipeAction,
+  forkRecipeAction,
+  submitDraftFlowAction,
+} from "@/app/home-actions";
 import { RecipeImage } from "@/components/ui/recipe-image";
 
 const RecipeCaptureModal = dynamic(
@@ -70,6 +74,7 @@ export function RecipesClient({
     new Map(),
   );
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [buildError, setBuildError] = useState<string | undefined>();
   const [isBuilding, startBuilding] = useTransition();
   const [, startFork] = useTransition();
@@ -109,6 +114,8 @@ export function RecipesClient({
   const isUserOwned = (r: BaseRecipe) =>
     !!r.owner_user_id && !r.is_system_recipe;
   const isUserSaved = (r: BaseRecipe) => !!r.forked_from_recipe_id;
+  const canManageRecipe = (r: BaseRecipe) =>
+    !!r.owner_user_id && !r.is_system_recipe;
 
   const tabFiltered =
     tab === "saved"
@@ -157,6 +164,31 @@ export function RecipesClient({
     });
   }
 
+  function handleDeleteRecipe(recipe: BaseRecipe) {
+    if (deletingId) return;
+
+    const confirmed = window.confirm(`Delete ${recipe.name}?`);
+    if (!confirmed) return;
+
+    setDeletingId(recipe.id);
+    startFork(async () => {
+      const result = await deleteRecipeAction(recipe.id);
+      setDeletingId(null);
+
+      if (result.error) {
+        setBuildError(result.error);
+        return;
+      }
+
+      setRecipes((prev) => prev.filter((item) => item.id !== recipe.id));
+      setSelections((prev) => {
+        const next = new Map(prev);
+        next.delete(recipe.id);
+        return next;
+      });
+    });
+  }
+
   function removeSelection(id: string) {
     setSelections((prev) => {
       const n = new Map(prev);
@@ -176,6 +208,7 @@ export function RecipesClient({
         JSON.stringify(
           Array.from(selections.values()).map((r) => ({
             recipe_id: r.id,
+            recipe_name: r.name,
             quantity: 1,
           })),
         ),
@@ -414,7 +447,9 @@ export function RecipesClient({
               const isSaved =
                 savedSourceIds.has(recipe.id) || isUserSaved(recipe);
               const isSaving = savingId === recipe.id;
+              const isDeleting = deletingId === recipe.id;
               const canSave = recipe.is_system_recipe && !isSaved;
+              const canManage = canManageRecipe(recipe);
               const recipeToOpen = savedRecipe ?? recipe;
 
               return (
@@ -432,6 +467,42 @@ export function RecipesClient({
                       className="w-full h-full"
                       imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
+
+                    {canManage ? (
+                      <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setEditingRecipe(recipe);
+                          }}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/92 text-[#5f8689] shadow-sm transition-colors hover:text-primary"
+                          aria-label={`Edit ${recipe.name}`}
+                        >
+                          <span className="material-symbols-outlined text-[16px]">
+                            edit
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDeleteRecipe(recipe);
+                          }}
+                          disabled={isDeleting}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/92 text-error shadow-sm transition-opacity hover:bg-error-container disabled:opacity-50"
+                          aria-label={`Delete ${recipe.name}`}
+                        >
+                          <span
+                            className={`material-symbols-outlined text-[16px] ${
+                              isDeleting ? "animate-spin" : ""
+                            }`}
+                          >
+                            {isDeleting ? "progress_activity" : "delete"}
+                          </span>
+                        </button>
+                      </div>
+                    ) : null}
 
                     {/* Bookmark (save) button */}
                     <button
@@ -487,11 +558,13 @@ export function RecipesClient({
                     )}
 
                     {/* Mine / Saved label */}
-                    {isUserOwned(recipe) && !isUserSaved(recipe) && (
-                      <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-primary text-on-primary text-[10px] font-bold uppercase tracking-wide">
-                        Mine
-                      </span>
-                    )}
+                    {isUserOwned(recipe) &&
+                      !isUserSaved(recipe) &&
+                      !canManage && (
+                        <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-primary text-on-primary text-[10px] font-bold uppercase tracking-wide">
+                          Mine
+                        </span>
+                      )}
                   </div>
 
                   {/* Info */}

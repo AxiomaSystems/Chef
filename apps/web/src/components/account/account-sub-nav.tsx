@@ -4,10 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { href: "/account/settings/overview",    label: "Overview",    icon: "person" },
+  { href: "/account/settings/overview", label: "Overview", icon: "person" },
   { href: "/account/settings/preferences", label: "Preferences", icon: "tune" },
-  { href: "/account/settings/payment",     label: "Payment",     icon: "credit_card" },
-  { href: "/account/settings/security",    label: "Security",    icon: "lock" },
+  {
+    href: "/account/settings/payment",
+    label: "Payment",
+    icon: "credit_card",
+  },
+  { href: "/account/settings/security", label: "Security", icon: "lock" },
+  {
+    href: "/account/settings/ai-usage",
+    label: "AI usage",
+    icon: "auto_awesome",
+  },
 ];
 
 export function AccountSubNav() {
@@ -27,7 +36,9 @@ export function AccountSubNav() {
                 : "text-outline hover:text-on-surface"
             }`}
           >
-            <span className="material-symbols-outlined text-[16px]">{icon}</span>
+            <span className="material-symbols-outlined text-[16px]">
+              {icon}
+            </span>
             {label}
           </Link>
         );
