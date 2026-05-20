@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import type {
   AggregatedIngredient,
   Cart,
-  Dish,
   DishIngredient,
   IngredientReview,
 } from "@cart/shared";
