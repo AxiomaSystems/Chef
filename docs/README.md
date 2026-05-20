@@ -17,6 +17,7 @@ Archived demo plans, temporary handoffs, and historical week-specific notes live
 ## Active Technical Areas
 
 - `pre-cart-ingredient-review.md` - pre-shopping ingredient review behavior.
+- `cart-lifecycle.md` - active Cart and ShoppingCart lifecycle contract.
 - `profile-memory-v2.md` - structured Chef memory and onboarding profile direction.
 - `prisma-postgres-audit.md` - current Postgres/modeling audit.
 - `supabase-database.md` - shared Supabase database notes.
