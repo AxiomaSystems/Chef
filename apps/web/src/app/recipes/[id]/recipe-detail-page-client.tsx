@@ -73,6 +73,8 @@ export function RecipeDetailPageClient({
   const [handsFreeSessionContext, setHandsFreeSessionContext] = useState<
     HandsFreeSessionContext | undefined
   >();
+  const [editingRecipe, setEditingRecipe] = useState<BaseRecipe | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [aiAlternatives, setAiAlternatives] = useState<
     InventoryAlternativeSuggestion[]
   >([]);
