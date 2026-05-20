@@ -1,4 +1,5 @@
 import type { Cart } from "@cart/shared";
+import { CartSubNav } from "@/components/cart/cart-sub-nav";
 import { AppShell } from "@/components/layout/app-shell";
 import { fetchAuthedCollection } from "@/lib/api";
 import { CartsListClient } from "./carts-list-client";
@@ -26,6 +27,8 @@ export default async function CartsPage() {
             already have, then create a shopping list.
           </p>
         </header>
+
+        <CartSubNav />
 
         <CartsListClient carts={carts} />
       </main>

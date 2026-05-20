@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { MatchedIngredientProduct, ShoppingCart } from "@cart/shared";
+import { CartSubNav } from "@/components/cart/cart-sub-nav";
 import { AppShell } from "@/components/layout/app-shell";
 import { ShoppingCartDetailOverlay } from "@/components/planning/shopping-cart-detail-overlay";
 import {
@@ -207,16 +208,18 @@ export function ShoppingClient({
   }
 
   return (
-    <AppShell topBarTitle="Shopping List">
+    <AppShell topBarTitle="Shopping Cart">
       <div className="mx-auto max-w-4xl space-y-7 px-4 pb-28 pt-6 sm:px-6 sm:pb-10">
         <div>
           <h1 className="text-headline-lg font-bold text-on-surface">
-            Shopping List
+            Shopping Cart
           </h1>
           <p className="mt-1 text-body-md text-outline">
             Your generated grocery list.
           </p>
         </div>
+
+        <CartSubNav />
 
         {error && (
           <div className="rounded-xl bg-error-container p-3 text-body-sm text-on-error-container">
