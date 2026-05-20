@@ -278,20 +278,12 @@ export function VoiceInventoryModal({ currentItems, onClose, onSaved }: Props) {
   const [rows, setRows] = useState<ReviewRow[]>([]);
   const [potentialRows, setPotentialRows] = useState<ReviewRow[]>([]);
   const [showPotentialErrors, setShowPotentialErrors] = useState(false);
-  const [aiInstructions, setAiInstructions] = useState("");
   const [reviewed, setReviewed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const transcript = `${finalTranscript} ${interimTranscript}`.trim();
   const acceptedCount = rows.filter((row) => row.action !== "ignore").length;
-  const sessionStatus = recording
-    ? "Listening..."
-    : transcript
-      ? "Ready to review or record more"
-      : hasRecording
-        ? "Audio captured"
-        : "Ready to record";
   const existingById = useMemo(
     () => new Map(currentItems.map((item) => [item.id, item])),
     [currentItems],
@@ -642,7 +634,6 @@ export function VoiceInventoryModal({ currentItems, onClose, onSaved }: Props) {
         estimated_amount: item.estimated_amount ?? null,
         unit: item.unit ?? null,
       })),
-      instructions: aiInstructions,
     });
     setLoading(false);
 
@@ -778,16 +769,7 @@ export function VoiceInventoryModal({ currentItems, onClose, onSaved }: Props) {
 
         <div className="space-y-5 px-5 py-5">
           <section className="rounded-2xl border border-outline-variant/30 bg-surface-container-low p-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-on-surface">
-                  {sessionStatus}
-                </p>
-                <p className="mt-1 text-xs text-outline">
-                  Say item, brand, and quantity. Review structures the final
-                  transcript.
-                </p>
-              </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
@@ -858,35 +840,6 @@ export function VoiceInventoryModal({ currentItems, onClose, onSaved }: Props) {
                 {String(elapsed % 60).padStart(2, "0")}
               </div>
             </div>
-            <p className="mt-2 text-xs text-outline">
-              {recording && !transcript
-                ? voiceLevel > 0.04
-                  ? "Mic is picking up sound. Waiting for words..."
-                  : "No microphone signal yet."
-                : transcript
-                  ? "Words captured. You can record more or review now."
-                  : hasRecording
-                    ? "Audio captured. Review will transcribe it."
-                    : "Review stays available so a failed attempt does not reset the session."}
-            </p>
-            {speechNotice ? (
-              <p className="mt-2 rounded-xl bg-white/70 px-3 py-2 text-xs text-outline">
-                {speechNotice}
-              </p>
-            ) : null}
-
-            <label className="mt-4 block">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-outline">
-                AI notes
-              </span>
-              <textarea
-                value={aiInstructions}
-                onChange={(event) => setAiInstructions(event.target.value)}
-                placeholder="Optional: e.g. treat Santino as a brand, cooking oil as the item, prefer kg when I say kilo."
-                rows={2}
-                className="mt-1 w-full resize-none rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm outline-none focus:border-primary"
-              />
-            </label>
           </section>
 
           {error ? (
