@@ -431,6 +431,7 @@ export class CartService {
       cartId,
       shoppingCart: buildShoppingCartResponse({
         cartId,
+        name: cart.name ?? undefined,
         overview: reviewedComputation,
         matchedItems,
         estimatedSubtotal,
@@ -497,9 +498,14 @@ export class CartService {
     const estimatedSubtotal = matchedItems
       ? this.matchingService.estimateSubtotal(matchedItems)
       : undefined;
+    const checkedOutAt = input.checked_out_at ?? undefined;
     const shouldAddToInventory = Boolean(
-      input.checked_out_at && !existing.checked_out_at,
+      checkedOutAt && !existing.checked_out_at,
     );
+    const inventoryAppliedAt =
+      shouldAddToInventory && !existing.inventory_applied_at
+        ? checkedOutAt
+        : undefined;
 
     const updated = await this.cartPersistenceService.updateShoppingCart(
       actor.id,
@@ -508,6 +514,13 @@ export class CartService {
         matched_items: matchedItems,
         estimated_subtotal: estimatedSubtotal,
         checked_out_at: input.checked_out_at,
+        status:
+          input.checked_out_at === undefined
+            ? undefined
+            : input.checked_out_at
+              ? 'checked_out'
+              : 'active',
+        inventory_applied_at: inventoryAppliedAt,
       },
     );
 

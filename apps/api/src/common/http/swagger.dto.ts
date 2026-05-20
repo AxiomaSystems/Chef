@@ -1185,6 +1185,9 @@ export class CartResponseDto {
   @ApiProperty({ example: 'walmart' })
   retailer!: string;
 
+  @ApiProperty({ example: 'active', enum: ['active', 'archived'] })
+  status!: string;
+
   @ApiProperty({
     example: [
       {
@@ -1219,8 +1222,17 @@ export class ShoppingCartHistorySummaryResponseDto {
   @ApiProperty({ example: 'cart-1' })
   cart_id!: string;
 
+  @ApiPropertyOptional({ example: 'Weekly dinner plan' })
+  name?: string;
+
   @ApiProperty({ example: 'walmart' })
   retailer!: string;
+
+  @ApiProperty({
+    example: 'checked_out',
+    enum: ['active', 'checked_out', 'archived'],
+  })
+  status!: string;
 
   @ApiProperty({ example: 19.9 })
   estimated_subtotal!: number;
@@ -1235,6 +1247,9 @@ export class ShoppingCartHistorySummaryResponseDto {
 
   @ApiPropertyOptional({ example: '2026-03-20T03:12:00.000Z' })
   checked_out_at?: string;
+
+  @ApiPropertyOptional({ example: '2026-03-20T03:12:00.000Z' })
+  inventory_applied_at?: string;
 
   @ApiProperty({ example: 5 })
   overview_count!: number;
@@ -1259,6 +1274,9 @@ export class ShoppingCartResponseDto {
   @ApiProperty({ example: 'cart-1' })
   cart_id!: string;
 
+  @ApiPropertyOptional({ example: 'Weekly dinner plan' })
+  name?: string;
+
   @ApiProperty({ type: () => [AggregatedIngredientResponseDto] })
   overview!: AggregatedIngredientResponseDto[];
 
@@ -1274,6 +1292,12 @@ export class ShoppingCartResponseDto {
   @ApiProperty({ example: 'walmart' })
   retailer!: string;
 
+  @ApiProperty({
+    example: 'active',
+    enum: ['active', 'checked_out', 'archived'],
+  })
+  status!: string;
+
   @ApiPropertyOptional({
     example: 'https://www.instacart.com/store/products/products_link/example',
   })
@@ -1284,6 +1308,9 @@ export class ShoppingCartResponseDto {
 
   @ApiPropertyOptional({ example: '2026-03-20T03:12:00.000Z' })
   checked_out_at?: string;
+
+  @ApiPropertyOptional({ example: '2026-03-20T03:12:00.000Z' })
+  inventory_applied_at?: string;
 
   @ApiProperty({ example: '2026-03-19T03:12:00.000Z' })
   created_at!: string;

@@ -54,17 +54,16 @@ export const buildDishesFromSelections = (
 
 export const buildShoppingCartResponse = (input: {
   cartId: string;
+  name?: ShoppingCart['name'];
   overview: ShoppingCart['overview'];
   matchedItems: ShoppingCart['matched_items'];
   estimatedSubtotal: number;
   retailer: ShoppingCart['retailer'];
   externalUrl?: ShoppingCart['external_url'];
   externalReferenceId?: ShoppingCart['external_reference_id'];
-}): Omit<
-  ShoppingCart,
-  'id' | 'user_id' | 'created_at' | 'updated_at'
-> => ({
+}): Omit<ShoppingCart, 'id' | 'user_id' | 'created_at' | 'updated_at'> => ({
   cart_id: input.cartId,
+  name: input.name,
   overview: input.overview,
   matched_items: input.matchedItems,
   estimated_subtotal: input.estimatedSubtotal,

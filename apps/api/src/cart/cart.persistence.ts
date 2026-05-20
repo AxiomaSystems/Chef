@@ -35,7 +35,11 @@ export class CartPersistenceService {
     return mapPersistedCartDraft(draft);
   }
 
-  updateDraft(userId: string, id: string, input: UpdateCartDraftPersistenceInput) {
+  updateDraft(
+    userId: string,
+    id: string,
+    input: UpdateCartDraftPersistenceInput,
+  ) {
     return this.cartPersistenceRepository.updateDraft(userId, id, input);
   }
 
@@ -67,9 +71,8 @@ export class CartPersistenceService {
   async createShoppingCart(
     input: CreateShoppingCartPersistenceInput,
   ): Promise<PersistedShoppingCart> {
-    const shoppingCart = await this.cartPersistenceRepository.createShoppingCart(
-      input,
-    );
+    const shoppingCart =
+      await this.cartPersistenceRepository.createShoppingCart(input);
     return mapPersistedShoppingCart(shoppingCart);
   }
 
@@ -86,7 +89,8 @@ export class CartPersistenceService {
   }
 
   async findDraftsByUser(userId: string): Promise<PersistedCartDraft[]> {
-    const drafts = await this.cartPersistenceRepository.findDraftsByUser(userId);
+    const drafts =
+      await this.cartPersistenceRepository.findDraftsByUser(userId);
     return drafts.map(mapPersistedCartDraft);
   }
 
@@ -94,7 +98,10 @@ export class CartPersistenceService {
     userId: string,
     id: string,
   ): Promise<PersistedCartDraft | null> {
-    const draft = await this.cartPersistenceRepository.findDraftById(userId, id);
+    const draft = await this.cartPersistenceRepository.findDraftById(
+      userId,
+      id,
+    );
     return draft ? mapPersistedCartDraft(draft) : null;
   }
 
@@ -103,7 +110,10 @@ export class CartPersistenceService {
     return carts.map(mapPersistedCart);
   }
 
-  async findCartById(userId: string, id: string): Promise<PersistedCart | null> {
+  async findCartById(
+    userId: string,
+    id: string,
+  ): Promise<PersistedCart | null> {
     const cart = await this.cartPersistenceRepository.findCartById(userId, id);
     return cart ? mapPersistedCart(cart) : null;
   }
@@ -123,18 +133,18 @@ export class CartPersistenceService {
   async findShoppingCartsByUser(
     userId: string,
   ): Promise<PersistedShoppingCart[]> {
-    const carts = await this.cartPersistenceRepository.findShoppingCartsByUser(
-      userId,
-    );
+    const carts =
+      await this.cartPersistenceRepository.findShoppingCartsByUser(userId);
     return carts.map(mapPersistedShoppingCart);
   }
 
   async findShoppingCartHistoryByUser(
     userId: string,
   ): Promise<PersistedShoppingCartHistorySummary[]> {
-    const carts = await this.cartPersistenceRepository.findShoppingCartsByUser(
-      userId,
-    );
+    const carts =
+      await this.cartPersistenceRepository.findShoppingCartHistoryByUser(
+        userId,
+      );
     return carts.map(mapShoppingCartHistorySummary);
   }
 
