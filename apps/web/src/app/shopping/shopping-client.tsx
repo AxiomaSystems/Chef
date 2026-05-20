@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { MatchedIngredientProduct, ShoppingCart } from "@cart/shared";
+import { CartSubNav } from "@/components/cart/cart-sub-nav";
 import { AppShell } from "@/components/layout/app-shell";
 import { ShoppingCartDetailOverlay } from "@/components/planning/shopping-cart-detail-overlay";
 import {
@@ -207,16 +208,18 @@ export function ShoppingClient({
   }
 
   return (
-    <AppShell topBarTitle="Shopping List">
+    <AppShell topBarTitle="Shopping Cart">
       <div className="mx-auto max-w-4xl space-y-7 px-4 pb-28 pt-6 sm:px-6 sm:pb-10">
         <div>
           <h1 className="text-headline-lg font-bold text-on-surface">
-            Shopping List
+            Shopping Cart
           </h1>
           <p className="mt-1 text-body-md text-outline">
             Your generated grocery list.
           </p>
         </div>
+
+        <CartSubNav />
 
         {error && (
           <div className="rounded-xl bg-error-container p-3 text-body-sm text-on-error-container">
@@ -245,14 +248,6 @@ export function ShoppingClient({
                 {fmt$(activeCart.estimated_subtotal)}
               </span>
             </div>
-            {activeCart.id && (
-              <Link
-                href={`/shopping/checkout/${activeCart.id}`}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#f4be6b] px-4 py-2 text-label-md font-semibold text-[#351800] shadow-sm transition-colors hover:bg-[#f4be6b] sm:w-auto sm:min-w-40"
-              >
-                Checkout
-              </Link>
-            )}
 
             <div className="space-y-3">
               {activeCart.matched_items.map((item, index) => {
@@ -366,6 +361,17 @@ export function ShoppingClient({
             </p>
           </section>
         )}
+
+        {activeCart?.id ? (
+          <section className="sticky bottom-[4.5rem] z-30 bg-background/95 py-3 backdrop-blur-sm lg:bottom-0">
+            <Link
+              href={`/shopping/checkout/${activeCart.id}`}
+              className="inline-flex min-h-13 w-full items-center justify-center rounded-full bg-[#f4be6b] px-4 py-3 text-label-lg font-black text-[#351800] shadow-[0_12px_28px_rgba(244,190,107,0.28)] transition-colors hover:bg-[#f4be6b]"
+            >
+              Checkout
+            </Link>
+          </section>
+        ) : null}
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">

@@ -68,19 +68,6 @@ export function HandsFreeMode({
           : activeStep < (recipe.steps.length * 2) / 3
             ? "Active cooking"
             : "Bring it home";
-  const contextLines = [
-    cookingContext?.dietaryRules.length
-      ? `${cookingContext.dietaryRules.length} food rules`
-      : null,
-    cookingContext?.goals.length ? `${cookingContext.goals[0]} goal` : null,
-    cookingContext?.inventory.length
-      ? `${cookingContext.inventory.length} pantry items`
-      : null,
-    cookingContext?.kitchen.length
-      ? `${cookingContext.kitchen.length} kitchen defaults`
-      : null,
-  ].filter((line): line is string => Boolean(line));
-
   function addTranscript(speaker: TranscriptEntry["speaker"], text: string) {
     const trimmed =
       speaker === "chef"
@@ -537,175 +524,169 @@ export function HandsFreeMode({
     connecting: {
       label: "Connecting...",
       icon: "mic",
-      ring: "bg-white/10 text-white/30",
+      ring: "bg-[#fff8ef] text-outline",
     },
     waiting_for_wake: {
       label: 'Say "Chef"',
       icon: "radio_button_checked",
-      ring: "bg-teal-300/15 text-teal-200",
+      ring: "bg-[#ecf8f4] text-[#2f7f83]",
     },
     waiting_for_tap: {
       label: "Tap to talk",
       icon: "touch_app",
-      ring: "bg-teal-300/15 text-teal-200",
+      ring: "bg-[#ecf8f4] text-[#2f7f83]",
     },
     listening: {
       label: "Listening...",
       icon: "mic",
-      ring: "animate-pulse bg-amber-400/20 text-amber-400",
+      ring: "animate-pulse bg-[#fff2e3] text-primary",
     },
     speaking: {
       label: "Speaking...",
       icon: "volume_up",
-      ring: "bg-amber-400/30 text-amber-300",
+      ring: "bg-[#fff2e3] text-primary",
     },
     disconnected: {
       label: "Disconnected",
       icon: "mic_off",
-      ring: "bg-red-500/20 text-red-400",
+      ring: "bg-error-container/50 text-error",
     },
   };
   const { label, icon, ring } = modeConfig[mode];
   const visibleTimers = timers.filter((timer) => !timer.completed).slice(0, 4);
   const completedTimers = timers.filter((timer) => timer.completed).slice(0, 2);
   return (
-    <div className="fixed inset-0 z-80 overflow-y-auto bg-[#081514] text-white">
-      <div className="pointer-events-none fixed inset-0 opacity-80">
-        <div className="absolute left-1/2 top-[-18rem] h-[42rem] w-[42rem] -translate-x-1/2 rounded-full bg-[#ffb84d]/20 blur-3xl" />
-        <div className="absolute bottom-[-18rem] right-[-12rem] h-[34rem] w-[34rem] rounded-full bg-[#3dd6c6]/10 blur-3xl" />
-      </div>
+    <div className="fixed inset-0 z-80 overflow-y-auto bg-[#fff8ef] text-on-surface">
+      <video
+        className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-70"
+        src="/videos/axioma-blobs.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        aria-hidden="true"
+      />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(180deg,rgba(255,248,239,0.28)_0%,rgba(255,253,250,0.56)_44%,rgba(255,248,239,0.68)_100%)]" />
 
       <div className="relative flex min-h-dvh flex-col">
-        <header className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-6">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.26em] text-amber-300">
-              Cook with Chef
-            </p>
-            <h2 className="truncate text-lg font-black text-white sm:text-2xl">
-              {recipe.name}
-            </h2>
+        <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-[#eadfd2]/80 bg-[#fffdfa]/78 px-4 py-4 backdrop-blur-xl sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff2e3] text-primary shadow-sm">
+              <span className="material-symbols-outlined text-[22px]">
+                cooking
+              </span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+                Hands-free
+              </p>
+              <h2 className="truncate text-xl font-black leading-tight text-on-surface sm:text-2xl">
+                {recipe.name}
+              </h2>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Exit cooking copilot"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
-            >
-              <span className="material-symbols-outlined text-[22px]">
-                close
-              </span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Exit cooking copilot"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-[#c0dedf] bg-white text-[#5f8689] shadow-sm hover:bg-[#fff8ef] hover:text-on-surface"
+          >
+            <span className="material-symbols-outlined text-[22px]">close</span>
+          </button>
         </header>
 
-        <main className="grid flex-1 gap-5 px-4 py-5 pb-28 sm:px-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] lg:pb-6">
-          <section className="flex min-h-[55dvh] flex-col justify-between rounded-[2rem] border border-white/10 bg-white/[0.055] p-5 shadow-[0_30px_100px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:p-7">
-            <div>
-              <div className="mb-6 flex items-center justify-center">
-                <div className="relative grid h-32 w-32 place-items-center sm:h-40 sm:w-40">
+        <main className="grid flex-1 gap-5 px-4 py-5 pb-28 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:pb-6 xl:grid-cols-[minmax(0,1fr)_25rem]">
+          <section className="space-y-4">
+            <section className="rounded-[1.75rem] border border-[#c0dedf] bg-white/80 p-5 shadow-[0_18px_50px_rgba(60,154,158,0.12)] backdrop-blur-xl">
+              <div className="flex items-center gap-4">
+                <div className="relative grid h-20 w-20 shrink-0 place-items-center">
                   <span
                     className={`absolute inset-0 rounded-full ${
                       mode === "listening"
-                        ? "animate-ping bg-amber-300/20"
+                        ? "animate-ping bg-primary/18"
                         : mode === "speaking"
-                          ? "bg-teal-300/20"
-                          : "bg-white/10"
+                          ? "bg-[#c0dedf]/60"
+                          : "bg-[#fff2e3]"
                     }`}
                   />
-                  <span className="absolute inset-4 rounded-full border border-white/15 bg-gradient-to-br from-white/18 to-white/5 shadow-inner" />
                   <span
-                    className={`relative grid h-20 w-20 place-items-center rounded-full sm:h-24 sm:w-24 ${ring}`}
+                    className={`relative grid h-14 w-14 place-items-center rounded-full border border-[#c0dedf] ${ring}`}
                   >
-                    <span className="material-symbols-outlined text-[34px]">
+                    <span className="material-symbols-outlined text-[26px]">
                       {icon}
                     </span>
                   </span>
                 </div>
-              </div>
 
-              <div className="mx-auto max-w-3xl text-center">
-                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/45">
-                  {label}
-                </p>
-                <h1 className="mt-3 text-3xl font-black leading-tight tracking-tight text-white sm:text-5xl">
-                  {agentMessage ??
-                    (mode === "waiting_for_wake"
-                      ? 'Say "Chef" when you need me.'
-                      : mode === "waiting_for_tap"
-                        ? "Tap the mic when you need me."
-                        : mode === "listening"
-                          ? "I'm listening. Ask what to do next."
-                          : mode === "speaking"
-                            ? "Chef is talking you through it."
-                            : mode === "connecting"
-                              ? "Setting up your kitchen copilot..."
-                              : "Voice is offline, but controls still work.")}
-                </h1>
-                {connectionError ? (
-                  <p className="mx-auto mt-4 max-w-xl rounded-2xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-sm leading-6 text-red-100/85">
-                    {connectionError}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+                    {label}
                   </p>
-                ) : null}
-                {wakeDebug ? (
-                  <p className="mx-auto mt-4 max-w-xl rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm leading-6 text-white/55">
-                    {wakeDebug}
+                  <p className="mt-1 line-clamp-3 text-lg font-black leading-6 text-on-surface">
+                    {agentMessage ??
+                      (mode === "waiting_for_wake"
+                        ? 'Say "Chef" when you need me.'
+                        : mode === "waiting_for_tap"
+                          ? "Tap the mic when you need me."
+                          : mode === "listening"
+                            ? "I'm listening."
+                            : mode === "speaking"
+                              ? "Chef is responding."
+                              : mode === "connecting"
+                                ? "Setting up Chef..."
+                                : "Voice is offline.")}
                   </p>
-                ) : null}
-                {canTapToTalk &&
-                (mode === "waiting_for_tap" || mode === "listening") ? (
-                  <div className="mt-5 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={
-                        mode === "listening" ? stopTapToTalk : startTapToTalk
-                      }
-                      className="inline-flex items-center gap-2 rounded-full bg-amber-300 px-5 py-3 text-sm font-black text-[#23180c] shadow-[0_14px_34px_rgba(251,191,36,0.22)]"
-                    >
-                      <span className="material-symbols-outlined text-[20px]">
-                        {mode === "listening" ? "mic_off" : "mic"}
-                      </span>
-                      {mode === "listening" ? "Stop listening" : "Tap to talk"}
-                    </button>
-                  </div>
-                ) : null}
-                <div className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-2">
-                  {contextLines.length > 0 ? (
-                    contextLines.map((line) => (
-                      <span
-                        key={line}
-                        className="rounded-full border border-teal-200/10 bg-teal-200/10 px-3 py-2 text-xs font-semibold text-teal-50/80"
-                      >
-                        Chef knows {line}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-2 text-xs font-semibold text-white/45">
-                      Chef is cooking from this recipe only
-                    </span>
-                  )}
                 </div>
               </div>
-            </div>
 
+              {connectionError ? (
+                <p className="mt-4 rounded-2xl border border-error/20 bg-error-container/35 px-4 py-3 text-sm leading-6 text-error">
+                  {connectionError}
+                </p>
+              ) : null}
+
+              {wakeDebug && mode !== "disconnected" ? (
+                <p className="mt-3 rounded-2xl bg-[#fff8ef] px-4 py-3 text-xs leading-5 text-outline">
+                  {wakeDebug}
+                </p>
+              ) : null}
+
+              {canTapToTalk &&
+              (mode === "waiting_for_tap" || mode === "listening") ? (
+                <button
+                  type="button"
+                  onClick={
+                    mode === "listening" ? stopTapToTalk : startTapToTalk
+                  }
+                  className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-black text-on-primary shadow-[0_12px_28px_rgba(244,121,13,0.22)]"
+                >
+                  <span className="material-symbols-outlined text-[20px]">
+                    {mode === "listening" ? "mic_off" : "mic"}
+                  </span>
+                  {mode === "listening" ? "Stop listening" : "Tap to talk"}
+                </button>
+              ) : null}
+            </section>
+
+            <HandsFreeAsidePanels
+              activeStep={activeStep}
+              adaptations={adaptations}
+              completedTimers={completedTimers}
+              currentPhase={currentPhase}
+              recipe={recipe}
+              setTimers={setTimers}
+              visibleTimers={visibleTimers}
+            />
+          </section>
+
+          <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
             <HandsFreeTranscriptPanel
               lastAction={lastAction}
               lastHeard={lastHeard}
               transcript={transcript}
             />
-          </section>
-
-          <HandsFreeAsidePanels
-            activeStep={activeStep}
-            adaptations={adaptations}
-            completedTimers={completedTimers}
-            contextLines={contextLines}
-            currentPhase={currentPhase}
-            recipe={recipe}
-            setTimers={setTimers}
-            visibleTimers={visibleTimers}
-          />
+          </aside>
         </main>
       </div>
     </div>

@@ -161,6 +161,21 @@ When creating new endpoints or redesigning existing endpoint routes, agents shou
 
 Agents should prefer resource-oriented route design, document conscious exceptions, and avoid introducing new inconsistent endpoint shapes during stabilization work.
 
+## OpenAI And AI Usage Rules
+
+Any feature that can call OpenAI must ship with the usage controls and user-visible accounting in the same change.
+
+Required wiring:
+
+- backend route is protected by the shared AI rate limiter, currently `AiRateLimitGuard`
+- backend route declares an explicit AI usage category with `@AiUsageCategory(...)`
+- the category is either one of the existing user-facing categories or a newly added category wired through shared types, Swagger DTOs, rate-limit service labels, and tests
+- the Account/Profile AI usage section shows the usage category so users can see which feature is consuming requests
+- `GET /api/v1/ai/limits` remains unmetered
+- tests cover that the new route is rate-limited and that usage increments in the expected category
+
+Do not add an OpenAI-backed feature as a hidden or uncategorized model call. If the call is not user-visible in AI usage, it should not merge without an explicit product decision.
+
 ## UI Rules
 
 Generated UI should be treated as draft-quality until reviewed by the frontend owner.
