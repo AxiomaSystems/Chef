@@ -19,6 +19,7 @@ import {
   getIngredientReadinessSummary,
   type IngredientReadiness,
 } from "@/lib/inventory-readiness";
+import { routeMemoryKey, usePageMemory } from "@/lib/page-memory";
 
 const PreparationChefAssistant = dynamic(
   () =>
@@ -61,6 +62,14 @@ function estimatePrepMinutes(recipe: BaseRecipe) {
   return Math.max(recipe.steps.length * 8, 15);
 }
 
+type PreparationMemory = {
+  activeStep: number;
+  checkedIngredients: string[];
+  handsFreeOpen: boolean;
+  handsFreeSessionContext?: HandsFreeSessionContext;
+  started: boolean;
+};
+
 export function RecipePreparationClient({
   recipe,
   inventory,
@@ -70,15 +79,24 @@ export function RecipePreparationClient({
   inventory: KitchenInventoryItem[];
   cookingContext?: CookingContext;
 }) {
-  const [started, setStarted] = useState(false);
+  const [pageMemory, setPageMemory] = usePageMemory<PreparationMemory>(
+    routeMemoryKey(`/recipes/preparation/${recipe.id}`),
+    {
+      activeStep: 0,
+      checkedIngredients: [],
+      handsFreeOpen: false,
+      handsFreeSessionContext: undefined,
+      started: false,
+    },
+    {
+      routeHref: "/recipes",
+      onReset: () => {
+        setHandsFreeSetupOpen(false);
+      },
+    },
+  );
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [activeStep, setActiveStep] = useState(0);
-  const [handsFreeOpen, setHandsFreeOpen] = useState(false);
   const [handsFreeSetupOpen, setHandsFreeSetupOpen] = useState(false);
-  const [handsFreeSessionContext, setHandsFreeSessionContext] = useState<
-    HandsFreeSessionContext | undefined
-  >();
-  const [checkedIngredients, setCheckedIngredients] = useState<string[]>([]);
   const [prepNotes, setPrepNotes] = useState<string[]>([]);
   const [aiAlternatives, setAiAlternatives] = useState<
     InventoryAlternativeSuggestion[]
@@ -90,6 +108,14 @@ export function RecipePreparationClient({
   );
   const [prepError, setPrepError] = useState<string | null>(null);
   const [isPrepPending, startPrepTransition] = useTransition();
+  const activeStep = Math.min(
+    pageMemory.activeStep,
+    Math.max(recipe.steps.length - 1, 0),
+  );
+  const checkedIngredients = pageMemory.checkedIngredients;
+  const handsFreeOpen = pageMemory.handsFreeOpen;
+  const handsFreeSessionContext = pageMemory.handsFreeSessionContext;
+  const started = pageMemory.started;
 
   useEffect(() => {
     if (!started) {
@@ -227,22 +253,44 @@ export function RecipePreparationClient({
   }
 
   function toggleIngredient(key: string) {
-    setCheckedIngredients((current) =>
-      current.includes(key)
-        ? current.filter((item) => item !== key)
-        : [...current, key],
-    );
+    setPageMemory((current) => ({
+      ...current,
+      checkedIngredients: current.checkedIngredients.includes(key)
+        ? current.checkedIngredients.filter((item) => item !== key)
+        : [...current.checkedIngredients, key],
+    }));
   }
 
   function startPreparation() {
-    setStarted(true);
     setElapsedSeconds(0);
-    setActiveStep(0);
+    setPageMemory((current) => ({
+      ...current,
+      activeStep: 0,
+      started: true,
+    }));
   }
 
   function goToStep(nextStep: number) {
-    setActiveStep(Math.max(0, Math.min(recipe.steps.length - 1, nextStep)));
+    setPageMemory((current) => ({
+      ...current,
+      activeStep: Math.max(0, Math.min(recipe.steps.length - 1, nextStep)),
+    }));
     setElapsedSeconds(0);
+  }
+
+  function openHandsFree(context: HandsFreeSessionContext) {
+    setPageMemory((current) => ({
+      ...current,
+      handsFreeOpen: true,
+      handsFreeSessionContext: context,
+    }));
+  }
+
+  function closeHandsFree() {
+    setPageMemory((current) => ({
+      ...current,
+      handsFreeOpen: false,
+    }));
   }
 
   return (
@@ -677,9 +725,12 @@ export function RecipePreparationClient({
                 <button
                   type="button"
                   onClick={() => {
-                    setStarted(false);
                     setElapsedSeconds(0);
-                    setActiveStep(0);
+                    setPageMemory((current) => ({
+                      ...current,
+                      activeStep: 0,
+                      started: false,
+                    }));
                   }}
                   className="rounded-full bg-surface-container px-5 py-2.5 text-label-lg text-on-surface transition-colors hover:bg-surface-container-high"
                 >
@@ -710,9 +761,8 @@ export function RecipePreparationClient({
                 recipe={recipe}
                 onCancel={() => setHandsFreeSetupOpen(false)}
                 onStart={(context) => {
-                  setHandsFreeSessionContext(context);
                   setHandsFreeSetupOpen(false);
-                  setHandsFreeOpen(true);
+                  openHandsFree(context);
                 }}
               />
             ) : null}
@@ -722,7 +772,7 @@ export function RecipePreparationClient({
                 recipe={recipe}
                 cookingContext={cookingContext}
                 sessionContext={handsFreeSessionContext}
-                onClose={() => setHandsFreeOpen(false)}
+                onClose={closeHandsFree}
               />
             ) : null}
           </div>

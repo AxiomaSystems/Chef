@@ -12,7 +12,9 @@ describe('IngredientsService inventory', () => {
     };
     kitchenInventoryItem: {
       create: jest.Mock;
+      findFirst: jest.Mock;
       findMany: jest.Mock;
+      update: jest.Mock;
       updateMany: jest.Mock;
       findUniqueOrThrow: jest.Mock;
       deleteMany: jest.Mock;
@@ -28,7 +30,9 @@ describe('IngredientsService inventory', () => {
       },
       kitchenInventoryItem: {
         create: jest.fn(),
+        findFirst: jest.fn(),
         findMany: jest.fn(),
+        update: jest.fn(),
         updateMany: jest.fn(),
         findUniqueOrThrow: jest.fn(),
         deleteMany: jest.fn(),
@@ -219,6 +223,119 @@ describe('IngredientsService inventory', () => {
           displayName: 'Renamed Jar',
           normalizedName: 'renamed jar',
           label: 'Renamed Jar',
+        }),
+      }),
+    );
+  });
+
+  it('stores checkout product title as label and canonical ingredient as displayName', async () => {
+    prisma.ingredient.upsert.mockResolvedValue({
+      ...ingredient,
+      canonicalName: 'flour',
+      slug: 'flour',
+      defaultUnit: 'lb',
+    });
+    prisma.kitchenInventoryItem.findFirst.mockResolvedValue(null);
+    prisma.kitchenInventoryItem.create.mockResolvedValue({
+      id: 'inventory-flour',
+      userId: 'user-1',
+      ingredientId: 'ingredient-flour',
+      ingredient: {
+        ...ingredient,
+        id: 'ingredient-flour',
+        canonicalName: 'flour',
+        slug: 'flour',
+        defaultUnit: 'lb',
+      },
+      displayName: 'flour',
+      normalizedName: 'flour',
+      label: 'Great Value All-Purpose Flour 5 lb',
+      estimatedAmount: 5,
+      unit: 'lb',
+      source: 'cart',
+      confidence: 'medium',
+      reviewStatus: 'active',
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    await service.addPurchasedCartItemsToInventory('user-1', [
+      {
+        canonical_ingredient: 'flour',
+        needed_amount: 5,
+        needed_unit: 'lb',
+        walmart_search_query: 'flour',
+        selected_product: {
+          product_id: 'flour-1',
+          title: 'Great Value All-Purpose Flour 5 lb',
+          brand: 'Great Value',
+          price: 3.24,
+          currency: 'USD',
+        },
+      },
+    ]);
+
+    expect(prisma.kitchenInventoryItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          displayName: 'flour',
+          normalizedName: 'flour',
+          label: 'Great Value All-Purpose Flour 5 lb',
+          estimatedAmount: 5,
+          unit: 'lb',
+          source: 'cart',
+        }),
+      }),
+    );
+  });
+
+  it('normalizes older cart-created checkout rows while preserving manual display names', async () => {
+    prisma.ingredient.upsert.mockResolvedValue({
+      ...ingredient,
+      canonicalName: 'flour',
+      slug: 'flour',
+      defaultUnit: 'lb',
+    });
+    prisma.kitchenInventoryItem.findFirst.mockResolvedValue({
+      id: 'inventory-flour',
+      userId: 'user-1',
+      ingredientId: 'ingredient-flour',
+      displayName: 'Great Value All-Purpose Flour 5 lb',
+      normalizedName: 'great value all-purpose flour 5 lb',
+      label: null,
+      estimatedAmount: 3,
+      unit: 'lb',
+      source: 'cart',
+      confidence: 'medium',
+      reviewStatus: 'active',
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    await service.addPurchasedCartItemsToInventory('user-1', [
+      {
+        canonical_ingredient: 'flour',
+        needed_amount: 2,
+        needed_unit: 'lb',
+        walmart_search_query: 'flour',
+        selected_product: {
+          product_id: 'flour-1',
+          title: 'Great Value All-Purpose Flour 5 lb',
+          brand: 'Great Value',
+          price: 3.24,
+          currency: 'USD',
+        },
+      },
+    ]);
+
+    expect(prisma.kitchenInventoryItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'inventory-flour' },
+        data: expect.objectContaining({
+          displayName: 'flour',
+          normalizedName: 'flour',
+          label: 'Great Value All-Purpose Flour 5 lb',
+          estimatedAmount: 5,
         }),
       }),
     );
