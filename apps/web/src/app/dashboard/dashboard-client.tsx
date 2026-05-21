@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import type {
   BaseRecipe,
   Cart,
+  HomeRecipeRecommendations,
   ShoppingCart,
   User,
-  UserPreferences,
 } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { RecipeImage } from "@/components/ui/recipe-image";
@@ -25,112 +25,15 @@ function minutesFor(recipe: BaseRecipe) {
   return Math.max(20, recipe.steps.length * 7);
 }
 
-function humanize(value: string) {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function recipePreferenceScore(
-  recipe: BaseRecipe,
-  preferences: UserPreferences | null,
-) {
-  if (!preferences) return 0;
-
-  let score = 0;
-  const recipeText = [
-    recipe.name,
-    recipe.description,
-    recipe.cuisine.label,
-    ...recipe.tags.map((tag) => tag.name),
-    ...recipe.ingredients.map((ingredient) => ingredient.canonical_ingredient),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  const tagIds = new Set(recipe.tag_ids);
-
-  if (preferences.preferred_cuisine_ids.includes(recipe.cuisine_id)) score += 5;
-
-  for (const tagId of preferences.preferred_tag_ids) {
-    if (tagIds.has(tagId)) score += 3;
-  }
-
-  for (const protein of preferences.favorite_proteins ?? []) {
-    if (recipeText.includes(protein.replaceAll("_", " "))) score += 2;
-  }
-
-  for (const flavor of preferences.favorite_flavors ?? []) {
-    const normalized = flavor.replaceAll("_", " ");
-    if (
-      recipeText.includes(normalized) ||
-      recipeText.includes(normalized.split(" ")[0] ?? "")
-    ) {
-      score += 1;
-    }
-  }
-
-  for (const disliked of preferences.disliked_ingredients ?? []) {
-    if (recipeText.includes(disliked.replaceAll("_", " "))) score -= 6;
-  }
-
-  if (
-    preferences.preferred_cooking_time === "under_15_min" &&
-    minutesFor(recipe) <= 20
-  ) {
-    score += 2;
-  }
-  if (
-    preferences.preferred_cooking_time === "15_to_30_min" &&
-    minutesFor(recipe) <= 30
-  ) {
-    score += 2;
-  }
-  if (
-    preferences.goal_priorities?.includes("build_muscle") &&
-    (recipe.nutrition_data?.protein_g ?? 0) >= 25
-  ) {
-    score += 2;
-  }
-
-  return score;
-}
-
-function preferenceReason(
-  recipe: BaseRecipe,
-  preferences: UserPreferences | null,
-) {
-  if (!preferences) return recipe.cuisine.label;
-  if (preferences.preferred_cuisine_ids.includes(recipe.cuisine_id)) {
-    return `${recipe.cuisine.label} preference`;
-  }
-
-  const preferredTag = recipe.tags.find((tag) =>
-    preferences.preferred_tag_ids.includes(tag.id),
-  );
-  if (preferredTag) return preferredTag.name;
-
-  const recipeText = recipe.ingredients
-    .map((ingredient) => ingredient.canonical_ingredient)
-    .join(" ")
-    .toLowerCase();
-  const protein = (preferences.favorite_proteins ?? []).find((item) =>
-    recipeText.includes(item.replaceAll("_", " ")),
-  );
-
-  return protein ? `Likes ${humanize(protein)}` : recipe.cuisine.label;
-}
-
 export function DashboardClient({
   user,
-  preferences,
+  recommendations,
   recipes,
   carts,
   shoppingCarts,
 }: {
   user: User | null;
-  preferences: UserPreferences | null;
+  recommendations: HomeRecipeRecommendations | null;
   recipes: BaseRecipe[];
   carts: Cart[];
   shoppingCarts: ShoppingCart[];
@@ -143,29 +46,14 @@ export function DashboardClient({
   const [isBuilding, startBuilding] = useTransition();
 
   const firstName = user?.name?.split(" ")[0] ?? "there";
-  const featuredRecipe = recipes[0] ?? null;
-  const preferenceRecipes = recipes
-    .map((recipe) => ({
-      recipe,
-      score: recipePreferenceScore(recipe, preferences),
-    }))
-    .filter(
-      ({ recipe, score }) => score > 0 && recipe.id !== featuredRecipe?.id,
-    )
-    .sort((left, right) => right.score - left.score)
-    .slice(0, 4)
-    .map(({ recipe }) => recipe);
-  const forYouRecipes = recipes
-    .filter(
-      (recipe) =>
-        recipe.id !== featuredRecipe?.id &&
-        !preferenceRecipes.some((matched) => matched.id === recipe.id),
-    )
-    .slice(0, 6);
-  const trendingRecipes =
-    recipes.slice(7, 13).length > 0
-      ? recipes.slice(7, 13)
-      : recipes.slice(0, 6);
+  const featuredRecipe = recommendations?.hero ?? recipes[0] ?? null;
+  const preferenceRecipes = recommendations?.picked_for_you ?? [];
+  const trendingRecipes = recommendations?.trending?.length
+    ? recommendations.trending
+    : recipes.slice(0, 6);
+  const forYouRecipes = recommendations?.more_to_cook?.length
+    ? recommendations.more_to_cook
+    : recipes.filter((recipe) => recipe.id !== featuredRecipe?.id).slice(0, 6);
   const quickFilters = ["Quick & Easy", "High Protein", "Veggie"];
 
   function handleAddToCart(recipe: BaseRecipe) {
@@ -337,7 +225,7 @@ export function DashboardClient({
               </Link>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {preferenceRecipes.map((recipe) => (
+              {preferenceRecipes.map(({ recipe, reason }) => (
                 <Link
                   key={recipe.id}
                   href={`/recipes/${recipe.id}`}
@@ -352,7 +240,7 @@ export function DashboardClient({
                   />
                   <div className="p-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
-                      {preferenceReason(recipe, preferences)}
+                      {reason}
                     </p>
                     <h3 className="mt-1 line-clamp-2 text-label-lg leading-tight text-on-surface">
                       {recipe.name}

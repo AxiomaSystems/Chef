@@ -27,8 +27,7 @@ import {
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 
-export const ApiRecipeController = () =>
-  applyDecorators(ApiTags('recipes'));
+export const ApiRecipeController = () => applyDecorators(ApiTags('recipes'));
 
 export const ApiRecipeForkController = () =>
   applyDecorators(ApiTags('recipe-forks'));
@@ -83,7 +82,11 @@ export const ApiCreateRecipe = () =>
 
 export const ApiListRecipes = () =>
   applyDecorators(
-    ApiOperation({ summary: 'List visible recipes for the current user' }),
+    ApiOperation({
+      summary: 'List visible recipes for the current user',
+      description:
+        'Without query parameters this returns the legacy recipe array. With limit/cursor it returns a paginated page object.',
+    }),
     ApiOkResponse({
       description: 'Visible recipes',
       type: BaseRecipeResponseDto,
@@ -98,6 +101,39 @@ export const ApiListRecipes = () =>
           },
         },
       },
+    }),
+  );
+
+export const ApiGetHomeRecipeRecommendations = () =>
+  applyDecorators(
+    ApiOperation({ summary: 'Get personalized home recipe recommendations' }),
+    ApiOkResponse({
+      description: 'Home recipe recommendation sections',
+      content: {
+        'application/json': {
+          examples: {
+            homeRecommendations: {
+              summary: 'Personalized home recipe sections',
+              value: {
+                hero: recipeExample,
+                picked_for_you: [
+                  {
+                    recipe: recipeExample,
+                    reason: 'West African preference',
+                    score: 11,
+                  },
+                ],
+                trending: recipeListExample,
+                more_to_cook: recipeListExample,
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiUnauthorizedResponse({
+      description: 'Authentication required',
+      type: ErrorResponseDto,
     }),
   );
 
@@ -136,7 +172,9 @@ export const ApiGetRecipe = () =>
 
 export const ApiGetRecipeOrigin = () =>
   applyDecorators(
-    ApiOperation({ summary: 'Get the source recipe for a saved forked recipe' }),
+    ApiOperation({
+      summary: 'Get the source recipe for a saved forked recipe',
+    }),
     ApiOkResponse({
       description: 'Origin recipe details',
       type: BaseRecipeResponseDto,
@@ -275,7 +313,9 @@ export const ApiUpdateRecipe = () =>
 
 export const ApiCreateRecipeFork = () =>
   applyDecorators(
-    ApiOperation({ summary: 'Create or return a saved editable fork of a system recipe' }),
+    ApiOperation({
+      summary: 'Create or return a saved editable fork of a system recipe',
+    }),
     ApiCreatedResponse({
       description: 'Created recipe fork',
       type: BaseRecipeResponseDto,

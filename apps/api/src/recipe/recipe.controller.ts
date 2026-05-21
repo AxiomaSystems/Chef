@@ -7,9 +7,11 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import type { BaseRecipe } from '@cart/shared';
+import type { HomeRecipeRecommendations, RecipeListPage } from '@cart/shared';
 import { CurrentUser } from '../auth/current-user.decorator';
 import {
   OptionalRequestActorGuard,
@@ -21,11 +23,13 @@ import {
   ApiDeleteRecipe,
   ApiGetRecipe,
   ApiGetRecipeOrigin,
+  ApiGetHomeRecipeRecommendations,
   ApiListRecipes,
   ApiRecipeController,
   ApiUpdateRecipe,
 } from './recipe.swagger';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
+import { ListRecipesQueryDto } from './dto/list-recipes-query.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import { RecipeService } from './recipe.service';
 
@@ -47,8 +51,27 @@ export class RecipeController {
   @Get()
   @UseGuards(OptionalRequestActorGuard)
   @ApiListRecipes()
-  findAll(@CurrentUser() user?: AuthenticatedUser): Promise<BaseRecipe[]> {
+  findAll(
+    @Query() query: ListRecipesQueryDto,
+    @CurrentUser() user?: AuthenticatedUser,
+  ): Promise<BaseRecipe[] | RecipeListPage> {
+    if (query.limit !== undefined || query.cursor) {
+      return this.recipeService.findPage(
+        { limit: query.limit ?? 24, cursor: query.cursor },
+        user?.sub,
+      );
+    }
+
     return this.recipeService.findAll(user?.sub);
+  }
+
+  @Get('recommendations/home')
+  @UseGuards(RequestActorGuard)
+  @ApiGetHomeRecipeRecommendations()
+  findHomeRecommendations(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<HomeRecipeRecommendations> {
+    return this.recipeService.findHomeRecommendations(user.sub);
   }
 
   @Get(':id/origin')

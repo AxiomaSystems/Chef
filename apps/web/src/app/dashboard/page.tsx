@@ -3,21 +3,23 @@ import type {
   User,
   Cart,
   BaseRecipe,
+  HomeRecipeRecommendations,
   ShoppingCart,
-  UserPreferences,
 } from "@cart/shared";
 import { DashboardClient } from "./dashboard-client";
 
 export default async function DashboardPage() {
   const [
     userResult,
-    preferencesResult,
+    recommendationsResult,
     recipesResult,
     cartsResult,
     shoppingCartsResult,
   ] = await Promise.all([
     fetchAuthedResource<User>("/me"),
-    fetchAuthedResource<UserPreferences>("/me/preferences"),
+    fetchAuthedResource<HomeRecipeRecommendations>(
+      "/recipes/recommendations/home",
+    ),
     fetchAuthedCollection<BaseRecipe>("/recipes"),
     fetchAuthedCollection<Cart>("/carts"),
     fetchAuthedCollection<ShoppingCart>("/shopping-carts"),
@@ -26,7 +28,7 @@ export default async function DashboardPage() {
   return (
     <DashboardClient
       user={userResult.data}
-      preferences={preferencesResult.data}
+      recommendations={recommendationsResult.data}
       recipes={recipesResult.data}
       carts={cartsResult.data}
       shoppingCarts={shoppingCartsResult.data}

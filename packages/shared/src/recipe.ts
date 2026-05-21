@@ -58,6 +58,24 @@ export type BaseRecipe = {
   updated_at: string;
 };
 
+export type RecipeListPage = {
+  items: BaseRecipe[];
+  next_cursor?: string;
+};
+
+export type HomeRecipeRecommendation = {
+  recipe: BaseRecipe;
+  reason: string;
+  score: number;
+};
+
+export type HomeRecipeRecommendations = {
+  hero: BaseRecipe | null;
+  picked_for_you: HomeRecipeRecommendation[];
+  trending: BaseRecipe[];
+  more_to_cook: BaseRecipe[];
+};
+
 export type RecipeTransformationType =
   | "halal"
   | "vegan"
