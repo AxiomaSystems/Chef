@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Conversation } from "@elevenlabs/react";
+import type { Conversation as ElevenLabsConversation } from "@elevenlabs/react";
 import type { BaseRecipe } from "@cart/shared";
 import type { CookingContext } from "@/lib/cooking-context";
 import { stringifyCookingContext } from "@/lib/cooking-context";
@@ -9,8 +11,6 @@ import type {
   HandsFreeSessionContext,
 } from "./hands-free-mode-types";
 
-const TARGET_SAMPLE_RATE = 16000; // ElevenLabs expects 16 kHz PCM16 input
-const MIC_CHUNK_SIZE = 2048;
 const WAKE_COMMAND_TIMEOUT_MS = 20000;
 const WAKE_WORD = "Chef";
 const WAKE_WORD_VARIANTS = ["chef", "chief", "shef", "jeff"];
@@ -19,7 +19,10 @@ const WAKE_WORD_PATTERN = new RegExp(
   "i",
 );
 
-type SignedUrlResponse = { signed_url?: string; error?: string };
+type ConversationTokenResponse = {
+  conversation_token?: string;
+  error?: string;
+};
 type BrowserSpeechRecognition = {
   continuous: boolean;
   interimResults: boolean;
@@ -38,20 +41,6 @@ type BrowserSpeechRecognition = {
   stop: () => void;
 };
 type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
-type ElevenLabsToolCall = {
-  tool_name?: string;
-  parameters?: Record<string, unknown>;
-  tool_call_id?: string;
-};
-type ElevenLabsMessage = {
-  type?: string;
-  audio_event?: { audio_base64?: string; audio_base_64?: string };
-  agent_response_event?: { agent_response?: string };
-  user_transcript_event?: { user_transcript?: string; transcript?: string };
-  user_transcription_event?: { user_transcript?: string; transcript?: string };
-  ping_event?: { event_id?: string; ping_ms?: number };
-  client_tool_call?: ElevenLabsToolCall;
-};
 type ToolResult = {
   result: string;
   isError?: boolean;
@@ -75,18 +64,6 @@ type UseHandsFreeVoiceSessionOptions = {
   recipe: BaseRecipe;
   sessionContext?: HandsFreeSessionContext;
 };
-
-function getAudioPayload(msg: ElevenLabsMessage) {
-  return (
-    msg.audio_event?.audio_base64 ?? msg.audio_event?.audio_base_64 ?? null
-  );
-}
-
-function sendWsMessage(ws: WebSocket | null, payload: unknown) {
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(payload));
-  }
-}
 
 function cleanAgentText(text: string) {
   return text
@@ -135,34 +112,6 @@ function stringifySessionContext(
     .join("\n");
 }
 
-// Downsample Float32 from browser native rate to 16 kHz, then encode as base64 PCM16.
-function encodeAudioChunk(float32: Float32Array, fromRate: number): string {
-  const ratio = fromRate / TARGET_SAMPLE_RATE;
-  const outLen = Math.floor(float32.length / ratio);
-  const pcm16 = new Int16Array(outLen);
-  for (let i = 0; i < outLen; i++) {
-    const s = Math.max(-1, Math.min(1, float32[Math.floor(i * ratio)]));
-    pcm16[i] = s < 0 ? s * 32768 : s * 32767;
-  }
-  const bytes = new Uint8Array(pcm16.buffer);
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
-}
-
-// Decode base64 PCM16 to a Float32 playable buffer. Handles base64url from ElevenLabs.
-function decodePcm16Base64(b64: string): Float32Array {
-  const standard = b64.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = standard + "=".repeat((4 - (standard.length % 4)) % 4);
-  const bin = atob(padded);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  const pcm16 = new Int16Array(bytes.buffer);
-  const f32 = new Float32Array(pcm16.length);
-  for (let i = 0; i < pcm16.length; i++) f32[i] = pcm16[i] / 32768;
-  return f32;
-}
-
 function getSpeechRecognitionConstructor(): BrowserSpeechRecognitionConstructor | null {
   if (typeof window === "undefined") return null;
   const w = window as typeof window & {
@@ -186,20 +135,17 @@ export function useHandsFreeVoiceSession({
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [wakeDebug, setWakeDebug] = useState<string | null>(null);
   const acceptsVoiceRef = useRef(false);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const agentSpeakingRef = useRef(false);
   const commandTimeoutRef = useRef<number | null>(null);
+  const conversationRef = useRef<ElevenLabsConversation | null>(null);
   const localSpeechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const onAgentResponseRef = useRef(onAgentResponse);
   const onClientToolCallRef = useRef(onClientToolCall);
   const onUserTranscriptRef = useRef(onUserTranscript);
-  const scheduledUntilRef = useRef(0); // for gapless audio scheduling
+  const sessionRunIdRef = useRef(0);
   const startWakeRecognitionRef = useRef<() => void>(() => {});
-  const startAudioForwardingRef = useRef<() => void>(() => {});
-  const stopAudioForwardingRef = useRef<() => void>(() => {});
+  const toolCallIdRef = useRef(0);
   const wakeWordAvailableRef = useRef(true);
-  const wsRef = useRef<WebSocket | null>(null);
   const voiceActivationMode =
     sessionContext?.voiceActivationMode ?? "wake_word";
 
@@ -214,15 +160,6 @@ export function useHandsFreeVoiceSession({
   useEffect(() => {
     onUserTranscriptRef.current = onUserTranscript;
   }, [onUserTranscript]);
-
-  function sendToolResult(id: string, { result, isError = false }: ToolResult) {
-    sendWsMessage(wsRef.current, {
-      type: "client_tool_result",
-      tool_call_id: id,
-      result,
-      is_error: isError,
-    });
-  }
 
   function clearCommandTimeout() {
     if (commandTimeoutRef.current === null) return;
@@ -253,19 +190,27 @@ export function useHandsFreeVoiceSession({
       : "waiting_for_wake";
   }
 
+  function setConversationMicMuted(isMuted: boolean) {
+    // In WebRTC mode, muting through the ElevenLabs SDK currently unpublishes
+    // the LiveKit audio track, which can trigger negotiation timeouts in Chrome.
+    // Keep the track published; local activation modes remain a UI/conversation
+    // gate until we add a non-renegotiating audio gate.
+    if (!isMuted) conversationRef.current?.setMicMuted(false);
+  }
+
   function armVoiceIdle(message?: string) {
     clearCommandTimeout();
     agentSpeakingRef.current = false;
     const effectiveMode = effectiveVoiceActivationMode();
     if (effectiveMode === "always_listening") {
       acceptsVoiceRef.current = true;
-      startAudioForwardingRef.current();
+      setConversationMicMuted(false);
       setMode((current) =>
         current === "disconnected" ? current : "listening",
       );
     } else {
       acceptsVoiceRef.current = false;
-      stopAudioForwardingRef.current();
+      setConversationMicMuted(true);
       if (effectiveMode === "wake_word") {
         startWakeRecognitionRef.current();
       }
@@ -281,11 +226,11 @@ export function useHandsFreeVoiceSession({
     clearCommandTimeout();
     acceptsVoiceRef.current = true;
     agentSpeakingRef.current = false;
+    setConversationMicMuted(false);
     setMode((current) => (current === "disconnected" ? current : "listening"));
     setAgentMessage(message);
     setWakeDebug(null);
     window.setTimeout(() => setAgentMessage(null), 2500);
-    void startAudioForwardingRef.current();
     if (effectiveVoiceActivationMode() === "always_listening") return;
     commandTimeoutRef.current = window.setTimeout(() => {
       armVoiceIdle(formatIdlePrompt());
@@ -311,18 +256,6 @@ export function useHandsFreeVoiceSession({
     agentSpeakingRef.current = false;
     window.speechSynthesis?.cancel();
     localSpeechUtteranceRef.current = null;
-    const ctx = audioCtxRef.current;
-    agentSpeakingRef.current = true;
-    for (const source of audioSourcesRef.current) {
-      try {
-        source.stop();
-      } catch {
-        // The source may have already ended.
-      }
-      source.disconnect();
-    }
-    audioSourcesRef.current.clear();
-    scheduledUntilRef.current = ctx?.currentTime ?? 0;
     setMode((current) =>
       current === "disconnected"
         ? current
@@ -340,6 +273,7 @@ export function useHandsFreeVoiceSession({
     utterance.rate = 0.95;
     utterance.pitch = 1;
     localSpeechUtteranceRef.current = utterance;
+    setConversationMicMuted(true);
     setMode("speaking");
     utterance.onend = () => {
       if (localSpeechUtteranceRef.current === utterance) {
@@ -354,57 +288,73 @@ export function useHandsFreeVoiceSession({
 
   useEffect(() => {
     let mounted = true;
-    let stream: MediaStream | null = null;
-    let processor: ScriptProcessorNode | null = null;
+    const runId = sessionRunIdRef.current + 1;
+    sessionRunIdRef.current = runId;
+    let activeConversation: ElevenLabsConversation | null = null;
+    let connectTimer: number | null = null;
+    let reconnectTimer: number | null = null;
+    let reconnectAttempts = 0;
+    let isClosing = false;
+    let isConnecting = false;
     let recognition: BrowserSpeechRecognition | null = null;
     let recognitionShouldRun = false;
-    let sourceNode: MediaStreamAudioSourceNode | null = null;
-    let silentGain: GainNode | null = null;
 
-    function playChunk(b64: string) {
-      const ctx = audioCtxRef.current;
-      if (!ctx || !mounted) return;
+    function isCurrentRun() {
+      return mounted && sessionRunIdRef.current === runId;
+    }
 
-      if (ctx.state === "suspended") void ctx.resume();
+    function scheduleReconnect(message = "Reconnecting voice...") {
+      if (!isCurrentRun() || isClosing || reconnectTimer !== null) return;
 
-      const f32 = decodePcm16Base64(b64);
-      const buf = ctx.createBuffer(1, f32.length, TARGET_SAMPLE_RATE);
-      buf.getChannelData(0).set(f32);
+      reconnectAttempts += 1;
+      const delayMs = Math.min(1000 * reconnectAttempts, 5000);
+      setMode("connecting");
+      setConnectionError(message);
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = null;
+        void connect();
+      }, delayMs);
+    }
 
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      audioSourcesRef.current.add(src);
-      clearCommandTimeout();
-      acceptsVoiceRef.current = false;
-      stopAudioForwardingRef.current();
-      agentSpeakingRef.current = true;
+    async function invokeClientTool(
+      name: string,
+      params: Record<string, unknown> | undefined,
+    ) {
+      toolCallIdRef.current += 1;
+      const id = `${name}-${toolCallIdRef.current}`;
 
-      const startAt = Math.max(ctx.currentTime, scheduledUntilRef.current);
-      src.start(startAt);
-      scheduledUntilRef.current = startAt + buf.duration;
+      return await new Promise<string>((resolve, reject) => {
+        const context: ClientToolContext = {
+          sendToolResult: (_id, { result, isError = false }) => {
+            if (isError) reject(new Error(result));
+            else resolve(result);
+          },
+          stopQueuedSpeech,
+        };
 
-      if (mounted) setMode("speaking");
-      src.onended = () => {
-        audioSourcesRef.current.delete(src);
-        src.disconnect();
-        if (mounted && ctx.currentTime >= scheduledUntilRef.current - 0.05) {
-          armVoiceIdle(formatIdlePrompt());
+        try {
+          onClientToolCallRef.current(name, params ?? {}, id, context);
+        } catch (error) {
+          reject(error);
         }
-      };
+      });
     }
 
     async function connect() {
+      if (isConnecting || isClosing) return;
+      isConnecting = true;
       try {
-        setConnectionError(null);
+        if (reconnectAttempts === 0) {
+          setConnectionError(null);
+        }
 
         const tokenRes = await fetch("/api/elevenlabs/token", {
           method: "POST",
         });
         const tokenData = (await tokenRes
           .json()
-          .catch(() => null)) as SignedUrlResponse | null;
-        if (!tokenRes.ok || !tokenData?.signed_url) {
+          .catch(() => null)) as ConversationTokenResponse | null;
+        if (!tokenRes.ok || !tokenData?.conversation_token) {
           throw new Error(
             tokenData?.error ?? "Unable to start ElevenLabs conversation.",
           );
@@ -416,11 +366,6 @@ export function useHandsFreeVoiceSession({
           );
         }
 
-        const ctx = new AudioContext({ latencyHint: "interactive" });
-        audioCtxRef.current = ctx;
-        if (ctx.state === "suspended") void ctx.resume();
-        const nativeRate = ctx.sampleRate;
-
         const SpeechRecognition = getSpeechRecognitionConstructor();
         const wakeGateSupported = Boolean(SpeechRecognition);
         wakeWordAvailableRef.current =
@@ -428,67 +373,17 @@ export function useHandsFreeVoiceSession({
 
         if (SpeechRecognition) {
           const warmupStream = await navigator.mediaDevices
-            .getUserMedia({ audio: true, video: false })
+            .getUserMedia({
+              audio: {
+                autoGainControl: true,
+                echoCancellation: true,
+                noiseSuppression: true,
+              },
+              video: false,
+            })
             .catch(() => null);
           warmupStream?.getTracks().forEach((track) => track.stop());
         }
-
-        const ws = new WebSocket(tokenData.signed_url);
-        wsRef.current = ws;
-
-        function stopAudioForwarding() {
-          processor?.disconnect();
-          sourceNode?.disconnect();
-          silentGain?.disconnect();
-          processor = null;
-          sourceNode = null;
-          silentGain = null;
-          stream?.getTracks().forEach((t) => t.stop());
-          stream = null;
-        }
-
-        async function startAudioForwarding() {
-          if (stream || ws.readyState !== WebSocket.OPEN) return;
-
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              audio: true,
-              video: false,
-            });
-          } catch (error) {
-            if (!mounted) return;
-            setMode("disconnected");
-            setConnectionError(
-              error instanceof Error
-                ? error.message
-                : "Microphone access failed.",
-            );
-            return;
-          }
-
-          sourceNode = ctx.createMediaStreamSource(stream);
-          processor = ctx.createScriptProcessor(MIC_CHUNK_SIZE, 1, 1);
-          silentGain = ctx.createGain();
-          silentGain.gain.value = 0;
-
-          processor.onaudioprocess = (e) => {
-            if (ws.readyState !== WebSocket.OPEN) return;
-            if (!acceptsVoiceRef.current) return;
-            if (agentSpeakingRef.current) return;
-            const chunk = encodeAudioChunk(
-              e.inputBuffer.getChannelData(0),
-              nativeRate,
-            );
-            sendWsMessage(ws, { user_audio_chunk: chunk });
-          };
-
-          sourceNode.connect(processor);
-          processor.connect(silentGain);
-          silentGain.connect(ctx.destination);
-        }
-
-        startAudioForwardingRef.current = startAudioForwarding;
-        stopAudioForwardingRef.current = stopAudioForwarding;
 
         if (SpeechRecognition) {
           recognition = new SpeechRecognition();
@@ -496,7 +391,7 @@ export function useHandsFreeVoiceSession({
           recognition.interimResults = true;
           recognition.lang = "en-US";
           recognition.onresult = (event) => {
-            if (!mounted || acceptsVoiceRef.current) return;
+            if (!isCurrentRun() || acceptsVoiceRef.current) return;
             for (let i = 0; i < event.results.length; i++) {
               const heard = event.results[i]?.[0]?.transcript ?? "";
               const normalizedHeard = heard.trim();
@@ -516,7 +411,7 @@ export function useHandsFreeVoiceSession({
             }
           };
           recognition.onerror = (event) => {
-            if (!mounted) return;
+            if (!isCurrentRun()) return;
             recognitionShouldRun = false;
             wakeWordAvailableRef.current = false;
             armVoiceIdle("Wake phrase detection is unavailable. Tap to talk.");
@@ -527,7 +422,7 @@ export function useHandsFreeVoiceSession({
             );
           };
           recognition.onend = () => {
-            if (!mounted || !recognitionShouldRun) return;
+            if (!isCurrentRun() || !recognitionShouldRun) return;
             window.setTimeout(() => {
               try {
                 recognition?.start();
@@ -537,7 +432,7 @@ export function useHandsFreeVoiceSession({
             }, 250);
           };
           startWakeRecognitionRef.current = () => {
-            if (!mounted || acceptsVoiceRef.current) return;
+            if (!isCurrentRun() || acceptsVoiceRef.current) return;
             recognitionShouldRun = true;
             try {
               recognition?.start();
@@ -549,33 +444,51 @@ export function useHandsFreeVoiceSession({
           startWakeRecognitionRef.current = () => {};
         }
 
-        ws.onopen = () => {
-          if (!mounted) return;
-
-          const stepsText = recipe.steps
-            .map((s) => `Step ${s.step}: ${s.what_to_do}`)
-            .join("\n");
-          const ingredientsText = stringifyRecipeIngredients(
-            recipe.ingredients,
-          );
-          const cookingPlan =
-            "The recipe steps are a reference plan, not a rigid script. If the user says something went wrong, something burned, an ingredient is missing, timing changed, or they want to improvise, adapt the plan conversationally using recipe context, profile memory, and inventory. Do not force the next static step when the kitchen situation changed.";
-          sendWsMessage(ws, {
-            type: "conversation_initiation_client_data",
-            dynamic_variables: {
-              recipe_name: recipe.name,
-              servings: String(recipe.servings),
-              ingredients: ingredientsText,
-              steps: stepsText,
-              cooking_plan_rules: cookingPlan,
-              user_cooking_context: stringifyCookingContext(cookingContext),
-              session_cooking_context: stringifySessionContext(sessionContext),
-              hands_free_client_rules:
-                "Act like an adaptive cooking copilot, not a recipe step reader. Keep responses under 2 short sentences. Use cooking_plan_rules and user_cooking_context for safe personalization. Never override hard dietary/allergy rules. The client only forwards audio after the local wake phrase, so treat incoming user speech as intentionally addressed to Chef. Do not ask 'are you still there' or send idle check-ins. When the user asks for next/back/repeat/go to step N or timer actions, call the matching client tool.",
-            },
-          });
-
-          if (mounted) {
+        const stepsText = recipe.steps
+          .map((s) => `Step ${s.step}: ${s.what_to_do}`)
+          .join("\n");
+        const ingredientsText = stringifyRecipeIngredients(recipe.ingredients);
+        const cookingPlan =
+          "The recipe steps are a reference plan, not a rigid script. If the user says something went wrong, something burned, an ingredient is missing, timing changed, or they want to improvise, adapt the plan conversationally using recipe context, profile memory, and inventory. Do not force the next static step when the kitchen situation changed.";
+        const conversation = await Conversation.startSession({
+          connectionType: "webrtc",
+          conversationToken: tokenData.conversation_token,
+          textOnly: false,
+          dynamicVariables: {
+            recipe_name: recipe.name,
+            servings: String(recipe.servings),
+            ingredients: ingredientsText,
+            steps: stepsText,
+            cooking_plan_rules: cookingPlan,
+            user_cooking_context: stringifyCookingContext(cookingContext),
+            session_cooking_context: stringifySessionContext(sessionContext),
+            hands_free_client_rules:
+              "Act like an adaptive cooking copilot, not a recipe step reader. Keep responses under 2 short sentences. Use cooking_plan_rules and user_cooking_context for safe personalization. Never override hard dietary/allergy rules. The client only forwards audio after the local wake phrase or tap-to-talk gate, so treat incoming user speech as intentionally addressed to Chef. Do not ask 'are you still there' or send idle check-ins. When the user asks for next/back/repeat/go to step N or timer actions, call the matching client tool.",
+          },
+          clientTools: {
+            adapt_current_step: (params: Record<string, unknown>) =>
+              invokeClientTool("adapt_current_step", params),
+            control_timer: (params: Record<string, unknown>) =>
+              invokeClientTool("control_timer", params),
+            finish_cooking: (params: Record<string, unknown>) =>
+              invokeClientTool("finish_cooking", params),
+            navigate_step: (params: Record<string, unknown>) =>
+              invokeClientTool("navigate_step", params),
+            record_cooking_note: (params: Record<string, unknown>) =>
+              invokeClientTool("record_cooking_note", params),
+            timer_control: (params: Record<string, unknown>) =>
+              invokeClientTool("timer_control", params),
+          },
+          onConversationCreated: (conversation) => {
+            activeConversation = conversation;
+            if (isCurrentRun()) {
+              conversationRef.current = conversation;
+            }
+          },
+          onConnect: () => {
+            if (!isCurrentRun()) return;
+            reconnectAttempts = 0;
+            setConnectionError(null);
             if (voiceActivationMode === "wake_word" && wakeGateSupported) {
               armVoiceIdle(`Hands-free is ready. ${formatIdlePrompt()}`);
               setWakeDebug("Wake detector is listening locally.");
@@ -590,129 +503,107 @@ export function useHandsFreeVoiceSession({
               setWakeDebug(null);
             }
             window.setTimeout(() => setAgentMessage(null), 4000);
-          }
-        };
-
-        ws.onmessage = (ev) => {
-          if (!mounted) return;
-          let msg: ElevenLabsMessage;
-          try {
-            msg = JSON.parse(ev.data as string) as ElevenLabsMessage;
-          } catch {
-            return;
-          }
-
-          try {
-            switch (msg.type) {
-              case "audio":
-                {
-                  const audioBase64 = getAudioPayload(msg);
-                  if (audioBase64) playChunk(audioBase64);
-                }
-                break;
-              case "agent_response":
-                if (msg.agent_response_event?.agent_response) {
-                  clearCommandTimeout();
-                  const responseText = cleanAgentText(
-                    msg.agent_response_event.agent_response,
-                  );
-                  if (!responseText) break;
-                  onAgentResponseRef.current(responseText);
-                  setAgentMessage(responseText);
-                  window.setTimeout(() => setAgentMessage(null), 5000);
-                }
-                break;
-              case "user_transcript":
-              case "user_transcription":
-                {
-                  const transcript =
-                    msg.user_transcript_event?.user_transcript ??
-                    msg.user_transcript_event?.transcript ??
-                    msg.user_transcription_event?.user_transcript ??
-                    msg.user_transcription_event?.transcript;
-                  if (transcript) {
-                    onUserTranscriptRef.current?.(transcript);
-                    setAgentMessage(`Heard: ${transcript}`);
-                  }
-                }
-                break;
-              case "interruption":
-                stopQueuedSpeech();
-                break;
-              case "ping": {
-                const pingEvent = msg.ping_event;
-                if (!pingEvent?.event_id) break;
-
-                const delayMs = pingEvent.ping_ms ?? 0;
-
-                window.setTimeout(() => {
-                  if (ws.readyState === WebSocket.OPEN) {
-                    sendWsMessage(ws, {
-                      type: "pong",
-                      event_id: pingEvent.event_id,
-                    });
-                  }
-                }, delayMs);
-
-                break;
-              }
-              case "client_tool_call":
-                if (
-                  msg.client_tool_call?.tool_name &&
-                  msg.client_tool_call.parameters &&
-                  msg.client_tool_call.tool_call_id
-                ) {
-                  onClientToolCallRef.current(
-                    msg.client_tool_call.tool_name,
-                    msg.client_tool_call.parameters,
-                    msg.client_tool_call.tool_call_id,
-                    { sendToolResult, stopQueuedSpeech },
-                  );
-                }
-                break;
+          },
+          onDisconnect: (details) => {
+            if (!isCurrentRun()) return;
+            if (isClosing) {
+              setMode("disconnected");
+              return;
             }
-          } catch (error) {
-            setConnectionError(
-              error instanceof Error
-                ? error.message
-                : "Failed to handle ElevenLabs message.",
+            scheduleReconnect(
+              details.reason === "error" && details.message
+                ? details.message
+                : "Voice paused after being idle. Reconnecting...",
             );
-          }
-        };
+          },
+          onError: (message) => {
+            if (!isCurrentRun()) return;
+            setMode("disconnected");
+            setConnectionError(message);
+          },
+          onMessage: ({ message, source }) => {
+            if (!isCurrentRun()) return;
+            if (source === "user") {
+              onUserTranscriptRef.current?.(message);
+              setAgentMessage(`Heard: ${message}`);
+              return;
+            }
 
-        ws.onclose = (event) => {
-          if (!mounted) return;
-          setMode("disconnected");
-          if (!event.wasClean) {
-            setConnectionError(
-              event.reason ||
-                `ElevenLabs connection closed unexpectedly (${event.code}).`,
-            );
-          }
-        };
+            clearCommandTimeout();
+            const responseText = cleanAgentText(message);
+            if (!responseText) return;
+            onAgentResponseRef.current(responseText);
+            setAgentMessage(responseText);
+            window.setTimeout(() => setAgentMessage(null), 5000);
+          },
+          onModeChange: ({ mode: nextMode }) => {
+            if (!isCurrentRun()) return;
+            if (nextMode === "speaking") {
+              clearCommandTimeout();
+              acceptsVoiceRef.current = false;
+              agentSpeakingRef.current = true;
+              setConversationMicMuted(true);
+              setMode("speaking");
+              return;
+            }
 
-        ws.onerror = () => {
-          if (!mounted) return;
-          setMode("disconnected");
-          setConnectionError(
-            "ElevenLabs connection failed. Check the agent and API key settings.",
-          );
-        };
+            agentSpeakingRef.current = false;
+            if (effectiveVoiceActivationMode() === "always_listening") {
+              acceptsVoiceRef.current = true;
+              setConversationMicMuted(false);
+              setMode("listening");
+              return;
+            }
+            armVoiceIdle(formatIdlePrompt());
+          },
+          onStatusChange: ({ status }) => {
+            if (!isCurrentRun()) return;
+            if (status === "connecting") setMode("connecting");
+            if (status === "disconnected" && !reconnectTimer && isClosing) {
+              setMode("disconnected");
+            }
+          },
+        });
+
+        activeConversation = conversation;
+        if (!isCurrentRun()) {
+          if (conversation.isOpen()) {
+            await conversation.endSession().catch(() => {});
+          }
+          return;
+        }
+
+        conversationRef.current = conversation;
+        conversation.setMicMuted(false);
       } catch (error) {
-        if (!mounted) return;
+        if (!isCurrentRun()) return;
         setMode("disconnected");
         setConnectionError(
           error instanceof Error
             ? error.message
             : "Hands-free mode failed to start.",
         );
+      } finally {
+        isConnecting = false;
       }
     }
 
-    void connect();
+    connectTimer = window.setTimeout(() => {
+      void connect();
+    }, 0);
 
     return () => {
       mounted = false;
+      isClosing = true;
+      if (sessionRunIdRef.current === runId) {
+        sessionRunIdRef.current += 1;
+      }
+      if (connectTimer !== null) {
+        window.clearTimeout(connectTimer);
+      }
+      if (reconnectTimer !== null) {
+        window.clearTimeout(reconnectTimer);
+      }
       recognitionShouldRun = false;
       clearCommandTimeout();
       try {
@@ -720,15 +611,15 @@ export function useHandsFreeVoiceSession({
       } catch {
         // Recognition may already be stopped.
       }
-      wsRef.current?.close();
-      wsRef.current = null;
-      stopQueuedSpeech();
-      processor?.disconnect();
-      sourceNode?.disconnect();
-      silentGain?.disconnect();
-      stream?.getTracks().forEach((t) => t.stop());
-      void audioCtxRef.current?.close();
-      audioCtxRef.current = null;
+      window.speechSynthesis?.cancel();
+      localSpeechUtteranceRef.current = null;
+      const conversation = activeConversation;
+      if (conversationRef.current === conversation) {
+        conversationRef.current = null;
+      }
+      if (conversation?.isOpen()) {
+        void conversation.endSession().catch(() => {});
+      }
     };
   }, [
     cookingContext,

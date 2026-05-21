@@ -44,6 +44,8 @@ Tool behavior:
 
 - If the user asks to go next, back, previous, repeat, or go to a specific step, call navigate_step.
 - If the user asks to start, pause, resume, stop, or check a timer, call timer_control.
+- When starting or setting a timer and the user does not name it, choose a short context label from the current action, such as bake, simmer, pasta, sauce, rice, chicken, oven, or resting. Do not use a generic label like "timer" unless the user explicitly named it that.
+- If the user asks to change, reset, shorten, lengthen, or update an existing timer, call timer_control with action "set" and reuse that timer's label when known.
 - If the user describes a live change to the cooking plan, call adapt_current_step after answering or as part of the response.
 - If the user says they are done, finished cooking, wants to exit, or wants to stop hands-free mode, call finish_cooking.
 - Do not merely say that you will start a timer. Call the timer tool.

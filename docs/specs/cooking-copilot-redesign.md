@@ -25,13 +25,18 @@ This slice keeps the existing voice architecture and changes the product experie
 - The UI shows a small **Chef knows** panel so users can see when personalization context is loaded.
 - The transcript now separates what Chef heard from the action it executed, making voice command failures easier to debug.
 - Agent responses are no longer parsed as local voice commands.
-- Browser `SpeechRecognition` is no longer run in parallel with ElevenLabs. ElevenLabs is the only voice input path during normal hands-free mode to avoid duplicate transcripts and phantom commands.
+- Browser `SpeechRecognition` is used only as the local wake gate for "Chef" mode. Once the gate opens, ElevenLabs is the conversational voice path.
 - The transcript and side panels are split out from the main hands-free controller to keep the audio/session logic easier to reason about.
-- ElevenLabs transport, microphone capture, PCM playback, local TTS, and connection state now live in `useHandsFreeVoiceSession`.
+- ElevenLabs transport, microphone capture, local wake gating, local TTS, and connection state now live in `useHandsFreeVoiceSession`.
+- Hands-free conversational audio now uses the ElevenLabs client WebRTC session instead of the previous manual signed WebSocket + PCM16 forwarding path.
+- The web app uses the current `@elevenlabs/react` package, which re-exports the supported ElevenLabs client APIs used by hands-free mode.
+- The WebRTC session keeps the LiveKit microphone track published for connection stability; local activation modes are currently UI/conversation gates rather than SDK track mute toggles.
+- If ElevenLabs closes an idle WebRTC conversation, the client requests a fresh token and reconnects automatically while staying in hands-free mode.
+- The local wake detector asks the browser for echo cancellation, noise suppression, and automatic gain control when warming microphone permissions.
 - ElevenLabs client tools are the source of truth for voice-driven navigation and timer control.
 - Client tool calls update UI state silently and return tool results to ElevenLabs, so the agent speaks the confirmation instead of fighting local browser TTS.
-- Microphone audio is not streamed while Chef is speaking, which reduces self-triggering and phantom follow-up commands.
 - Agent response text strips ElevenLabs expressive tags such as `[laugh]` and `[happy]` before rendering transcript bubbles.
+- Timer tools upsert active timers with the same label and derive a short label from the current cooking step when the agent/user omits one.
 - Named timers remain visible, but the old per-step elapsed timer was removed because it made steps feel like the primary source of truth.
 - Navigation tools support next/back/repeat and direct requests such as "go to step 3"; steps remain a reference for the agent, not the whole cooking state.
 - The client can handle an `end_conversation` or `finish_cooking` client tool by closing Cooking Copilot.
@@ -54,12 +59,13 @@ Entry points:
 Voice layers:
 
 - Browser `speechSynthesis` reads steps locally for low-latency step narration.
-- ElevenLabs signed conversation WebSocket handles conversational audio.
+- ElevenLabs client WebRTC handles conversational audio.
+- Browser `SpeechRecognition` handles only the local "Chef" wake gate when that mode is selected and supported by the browser.
 - ElevenLabs client tool calls can trigger navigation and timer control.
 
 Existing API route used by this mode:
 
-- `POST /api/elevenlabs/token`
+- `POST /api/elevenlabs/token` returns a private ElevenLabs conversation token for WebRTC.
 
 Routes that exist but are not currently used by the main hands-free component:
 

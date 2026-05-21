@@ -23,7 +23,7 @@ export async function POST() {
   }
 
   const res = await fetch(
-    `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${agentId}`,
+    `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${agentId}`,
     { headers: { "xi-api-key": apiKey } },
   ).catch(() => null);
 
@@ -38,13 +38,13 @@ export async function POST() {
     );
   }
 
-  const data = (await res.json()) as { signed_url?: string };
-  if (!data.signed_url) {
+  const data = (await res.json()) as { token?: string };
+  if (!data.token) {
     return NextResponse.json(
-      { error: "ElevenLabs did not return a signed conversation URL." },
+      { error: "ElevenLabs did not return a conversation token." },
       { status: 502 },
     );
   }
 
-  return NextResponse.json({ signed_url: data.signed_url });
+  return NextResponse.json({ conversation_token: data.token });
 }
