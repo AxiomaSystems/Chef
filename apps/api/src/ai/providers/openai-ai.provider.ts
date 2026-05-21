@@ -168,29 +168,46 @@ export class OpenAiAiProvider implements AiProvider {
       throw new ServiceUnavailableException('OPENAI_API_KEY is not configured');
     }
 
-    const response = await fetch(OPENAI_RESPONSES_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: this.model,
-        input: buildResponseInput(
-          input.task,
-          input.payload,
-          input.imageDataUrl,
-        ),
-        text: {
-          format: {
-            type: 'json_schema',
-            name: input.schemaName,
-            schema: input.schema,
-            strict: true,
-          },
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      readPositiveIntEnv('OPENAI_REQUEST_TIMEOUT_MS', 120_000),
+    );
+
+    let response: Response;
+    try {
+      response = await fetch(OPENAI_RESPONSES_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
         },
-      }),
-    });
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: this.model,
+          input: buildResponseInput(
+            input.task,
+            input.payload,
+            input.imageDataUrl,
+          ),
+          text: {
+            format: {
+              type: 'json_schema',
+              name: input.schemaName,
+              schema: input.schema,
+              strict: true,
+            },
+          },
+        }),
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new ServiceUnavailableException('OpenAI request timed out');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const body = (await response.json().catch(() => null)) as Record<
       string,
@@ -216,6 +233,11 @@ export class OpenAiAiProvider implements AiProvider {
 
     return JSON.parse(outputText) as T;
   }
+}
+
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const value = Number.parseInt(process.env[name] ?? '', 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function extractOutputText(body: Record<string, unknown> | null): string {

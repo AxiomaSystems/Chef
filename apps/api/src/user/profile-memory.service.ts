@@ -29,6 +29,7 @@ import {
   fromPrismaGoalTimeframe,
   isMemoryCurrentlyActive,
   normalizeMemoryLabel,
+  normalizeUserInputString,
   toPrismaGoalTimeframe,
 } from './profile-memory.utils';
 
@@ -154,7 +155,7 @@ export class ProfileMemoryService {
 
         const data = {
           kind: rule.kind,
-          label: rule.label.trim(),
+          label: normalizeUserInputString(rule.label) ?? '',
           normalizedLabel,
           dedupeKey,
           ingredientId: rule.ingredient_id ?? null,
@@ -166,7 +167,7 @@ export class ProfileMemoryService {
           expiresAt: rule.expires_at ? new Date(rule.expires_at) : null,
           source,
           confidence,
-          notes: rule.notes?.trim() || null,
+          notes: normalizeUserInputString(rule.notes),
         };
 
         this.assertTemporalRange(data.startsAt, data.expiresAt);
@@ -326,12 +327,17 @@ export class ProfileMemoryService {
 
     if (preferences.shopping_location) {
       const shoppingLocation = preferences.shopping_location;
-      userData.preferredZipCode = shoppingLocation.zip_code?.trim() || null;
-      userData.preferredLocationLabel = shoppingLocation.label?.trim() || null;
+      userData.preferredZipCode = normalizeUserInputString(
+        shoppingLocation.zip_code,
+      );
+      userData.preferredLocationLabel = normalizeUserInputString(
+        shoppingLocation.label,
+      );
       userData.preferredLatitude = shoppingLocation.latitude ?? null;
       userData.preferredLongitude = shoppingLocation.longitude ?? null;
-      userData.preferredKrogerLocationId =
-        shoppingLocation.kroger_location_id?.trim() || null;
+      userData.preferredKrogerLocationId = normalizeUserInputString(
+        shoppingLocation.kroger_location_id,
+      );
     }
 
     if (preferences.household_size !== undefined) {
