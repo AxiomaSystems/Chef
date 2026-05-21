@@ -172,7 +172,33 @@ export function HandsFreeMode({
     label: string,
     totalSeconds: number,
     speak = true,
-  ) {
+  ): { label: string; updated: boolean } {
+    const normalizedLabel = label.trim().toLowerCase();
+    const existingTimer = timersRef.current.find(
+      (timer) =>
+        !timer.completed &&
+        timer.label.trim().toLowerCase() === normalizedLabel,
+    );
+
+    if (existingTimer) {
+      setTimers((current) =>
+        current.map((timer) =>
+          timer.id === existingTimer.id
+            ? {
+                ...timer,
+                label,
+                remainingSeconds: totalSeconds,
+                totalSeconds,
+                paused: false,
+                completed: false,
+              }
+            : timer,
+        ),
+      );
+      announce(`Updated ${label} timer to ${formatTime(totalSeconds)}.`, speak);
+      return { label, updated: true };
+    }
+
     timerIdRef.current += 1;
     const timer: CookingTimer = {
       id: timerIdRef.current,
@@ -184,6 +210,36 @@ export function HandsFreeMode({
     };
     setTimers((current) => [timer, ...current.filter((t) => !t.completed)]);
     announce(`Started ${label} timer for ${formatTime(totalSeconds)}.`, speak);
+    return { label, updated: false };
+  }
+
+  function getContextualTimerLabel(rawLabel?: unknown) {
+    const label = String(rawLabel ?? "").trim();
+    const genericLabels = new Set(["", "timer", "cooking timer"]);
+    if (label && !genericLabels.has(label.toLowerCase())) return label;
+
+    const activeTimers = timersRef.current.filter((timer) => !timer.completed);
+    if (activeTimers.length === 1) return activeTimers[0].label;
+
+    const currentStep = recipe.steps[activeStepRef.current]?.what_to_do ?? "";
+    const lowerStep = currentStep.toLowerCase();
+    const candidates: Array<[RegExp, string]> = [
+      [/\b(bake|oven|roast)\b/, "bake"],
+      [/\bsimmer\b/, "simmer"],
+      [/\bboil\b/, "boil"],
+      [/\bpasta\b/, "pasta"],
+      [/\brice\b/, "rice"],
+      [/\bsauce\b/, "sauce"],
+      [/\bchicken\b/, "chicken"],
+      [/\b(cookie|cookies)\b/, "cookies"],
+      [/\bcool\b/, "cooling"],
+      [/\brest\b/, "resting"],
+    ];
+
+    return (
+      candidates.find(([pattern]) => pattern.test(lowerStep))?.[1] ??
+      `step ${activeStepRef.current + 1}`
+    );
   }
 
   function updateCookingTimers(
@@ -333,7 +389,9 @@ export function HandsFreeMode({
     }
 
     if (name === "timer_control" || name === "control_timer") {
-      const action = String(params.action ?? params.command ?? "");
+      const action = String(
+        params.action ?? params.command ?? "",
+      ).toLowerCase();
       if (action === "start" || action === "set") {
         const seconds = Number(
           params.duration_seconds ??
@@ -341,14 +399,20 @@ export function HandsFreeMode({
             Number(params.minutes ?? 0) * 60,
         );
         if (Number.isFinite(seconds) && seconds > 0) {
-          const label = String(params.label ?? "timer");
-          recordAction("Started a named cooking timer.");
-          startCookingTimer(label, seconds, false);
+          const label = getContextualTimerLabel(params.label);
+          const timerResult = startCookingTimer(label, seconds, false);
+          recordAction(
+            timerResult.updated
+              ? "Updated a cooking timer."
+              : "Started a named cooking timer.",
+          );
           context.sendToolResult(id, {
             result: buildKitchenStateResult({
-              timer_action: "started",
+              timer_action: timerResult.updated ? "updated" : "started",
               timer: { label, duration_seconds: seconds },
-              message: `Started ${label} timer for ${formatTime(seconds)}.`,
+              message: timerResult.updated
+                ? `Updated ${label} timer to ${formatTime(seconds)}.`
+                : `Started ${label} timer for ${formatTime(seconds)}.`,
             }),
           });
           return;
