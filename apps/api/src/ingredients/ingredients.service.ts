@@ -196,7 +196,8 @@ export class IngredientsService {
       const ingredient = await this.ensureIngredient(canonicalName);
       const unit = item.needed_unit?.trim() || ingredient.defaultUnit || 'unit';
       const amount = Math.max(0, item.needed_amount || 0);
-      const displayName =
+      const displayName = canonicalName;
+      const productLabel =
         item.selected_product?.title?.trim() ||
         item.manual_label?.trim() ||
         canonicalName;
@@ -220,7 +221,15 @@ export class IngredientsService {
         await this.prisma.kitchenInventoryItem.update({
           where: { id: existing.id },
           data: {
-            displayName: existing.displayName || displayName,
+            displayName:
+              existing.source === 'cart'
+                ? displayName
+                : existing.displayName || displayName,
+            normalizedName:
+              existing.source === 'cart'
+                ? this.normalizeName(displayName)
+                : undefined,
+            label: existing.label || productLabel,
             estimatedAmount: nextAmount,
             source: 'cart',
             confidence: 'medium',
@@ -236,7 +245,7 @@ export class IngredientsService {
           ingredientId: ingredient.id,
           displayName,
           normalizedName: this.normalizeName(displayName),
-          label: canonicalName,
+          label: productLabel,
           estimatedAmount: amount || inferInventoryAmount(unit),
           unit,
           source: 'cart',
