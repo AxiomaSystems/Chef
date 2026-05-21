@@ -481,7 +481,10 @@ export class CartService {
       throw new NotFoundException(`Shopping cart ${id} not found`);
     }
 
-    if (existing.checked_out_at && input.matched_items !== undefined) {
+    const isCheckedOut =
+      existing.status === 'checked_out' || Boolean(existing.checked_out_at);
+
+    if (isCheckedOut && input.matched_items !== undefined) {
       throw new BadRequestException(
         'Checked-out shopping carts are read-only. Reopen the cart before editing items.',
       );

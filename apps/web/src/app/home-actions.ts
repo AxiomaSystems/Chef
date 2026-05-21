@@ -61,6 +61,11 @@ export type UpdateCartDetailsActionState = {
   cart?: Cart;
 };
 
+export type GetShoppingCartActionState = {
+  error?: string;
+  shoppingCart?: ShoppingCart;
+};
+
 async function readErrorMessage(response: Response | null, fallback: string) {
   if (!response) {
     return fallback;
@@ -444,26 +449,6 @@ export async function createShoppingCartAction(
 
   const shoppingCart = (await response.json()) as ShoppingCart;
 
-  const existingResponse = await callAuthedJson("/shopping-carts").catch(
-    () => null,
-  );
-  if (existingResponse?.ok) {
-    const existingShoppingCarts =
-      (await existingResponse.json()) as ShoppingCart[];
-    await Promise.all(
-      existingShoppingCarts
-        .filter(
-          (cart) =>
-            cart.id && cart.id !== shoppingCart.id && !cart.checked_out_at,
-        )
-        .map((cart) =>
-          callAuthedJson(`/shopping-carts/${cart.id}`, {
-            method: "DELETE",
-          }).catch(() => null),
-        ),
-    );
-  }
-
   revalidatePath("/dashboard");
   revalidatePath("/recipes");
   revalidatePath("/shopping");
@@ -820,6 +805,30 @@ export async function deleteShoppingCartAction(
   revalidatePath("/dashboard");
   revalidatePath("/shopping");
   return {};
+}
+
+export async function getShoppingCartAction(
+  shoppingCartId: string,
+): Promise<GetShoppingCartActionState> {
+  const id = String(shoppingCartId).trim();
+  if (!id) return { error: "Shopping cart not found." };
+
+  const response = await callAuthedJson(`/shopping-carts/${id}`).catch(
+    () => null,
+  );
+
+  if (!response?.ok) {
+    return {
+      error: await readErrorMessage(
+        response,
+        "Unable to open this shopping cart right now.",
+      ),
+    };
+  }
+
+  return {
+    shoppingCart: (await response.json()) as ShoppingCart,
+  };
 }
 
 export async function updateShoppingCartAction(
