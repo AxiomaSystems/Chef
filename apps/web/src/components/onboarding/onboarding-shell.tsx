@@ -155,7 +155,7 @@ export function OnboardingShell({
               </p>
             </div>
             <p className="text-[11px] text-[#5f8689]">
-              Profile setup · about 2 min
+              Profile setup · about 5 min
             </p>
           </div>
 

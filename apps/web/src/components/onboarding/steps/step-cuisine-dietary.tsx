@@ -71,6 +71,7 @@ export function StepCuisineDietary({
 }: Props) {
   const [cuisineInput, setCuisineInput] = useState("");
   const [restrictionInput, setRestrictionInput] = useState("");
+  const [showAllCuisines, setShowAllCuisines] = useState(false);
 
   function toggleCuisine(id: string) {
     onCuisinesChange(
@@ -130,6 +131,13 @@ export function StepCuisineDietary({
   const customRestrictions = dietaryRestrictions.filter(
     (slug) => !presetRestrictionSlugs.has(slug),
   );
+  const visibleCuisineIds = new Set(selectedCuisineIds);
+  const visibleCuisines = showAllCuisines
+    ? cuisines
+    : cuisines.filter(
+        (cuisine, index) => index < 12 || visibleCuisineIds.has(cuisine.id),
+      );
+  const hiddenCuisineCount = cuisines.length - visibleCuisines.length;
 
   return (
     <div className="grid gap-8">
@@ -140,7 +148,7 @@ export function StepCuisineDietary({
         </p>
 
         <div className="flex flex-wrap gap-2">
-          {cuisines.map((cuisine) => {
+          {visibleCuisines.map((cuisine) => {
             const isSelected = selectedCuisineIds.includes(cuisine.id);
             return (
               <button
@@ -160,6 +168,21 @@ export function StepCuisineDietary({
             );
           })}
         </div>
+
+        {cuisines.length > visibleCuisines.length || showAllCuisines ? (
+          <button
+            type="button"
+            onClick={() => setShowAllCuisines((current) => !current)}
+            className="inline-flex w-fit items-center gap-1 rounded-full px-2 py-1 text-label-sm font-bold text-[#f4790d] transition-colors hover:bg-[#fff2e3]"
+          >
+            {showAllCuisines
+              ? "See less"
+              : `See more${hiddenCuisineCount > 0 ? ` (${hiddenCuisineCount})` : ""}`}
+            <span className="material-symbols-outlined text-[18px]">
+              {showAllCuisines ? "expand_less" : "expand_more"}
+            </span>
+          </button>
+        ) : null}
 
         {/* Custom cuisines */}
         {customCuisineLabels.length > 0 && (
