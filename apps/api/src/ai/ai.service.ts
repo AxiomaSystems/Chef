@@ -1,3 +1,5 @@
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 import { Injectable } from '@nestjs/common';
 import type { AiProvider } from './ai.provider';
 import type {
@@ -196,7 +198,7 @@ async function extractRecipeSource(url: string, supplementalText: string) {
   let extractedText = supplementalText.trim();
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchPublicHttpUrl(url, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
@@ -207,7 +209,7 @@ async function extractRecipeSource(url: string, supplementalText: string) {
     });
 
     if (response.ok) {
-      const html = await response.text();
+      const html = await readLimitedResponseText(response);
       const metadata = extractMetadata(html);
       sourceTitle = metadata.title || sourceTitle;
       sourceDescription = metadata.description;
@@ -360,6 +362,144 @@ async function extractRecipeSource(url: string, supplementalText: string) {
     extractedText: extractedText.slice(0, 12000),
     extractionNotes,
   };
+}
+
+async function fetchPublicHttpUrl(
+  inputUrl: string,
+  init: RequestInit = {},
+  redirectsRemaining = 3,
+): Promise<Response> {
+  const url = await assertPublicHttpUrl(inputUrl);
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    readPositiveIntEnv('IMPORT_URL_FETCH_TIMEOUT_MS', 8_000),
+  );
+
+  try {
+    const response = await fetch(url.toString(), {
+      ...init,
+      redirect: 'manual',
+      signal: controller.signal,
+    });
+
+    if (
+      response.status >= 300 &&
+      response.status < 400 &&
+      redirectsRemaining > 0
+    ) {
+      const location = response.headers.get('location');
+      if (location) {
+        return fetchPublicHttpUrl(
+          new URL(location, url).toString(),
+          init,
+          redirectsRemaining - 1,
+        );
+      }
+    }
+
+    return response;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function assertPublicHttpUrl(input: string): Promise<URL> {
+  const url = new URL(input);
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('Only http and https URLs are supported');
+  }
+
+  if (isBlockedHostname(url.hostname)) {
+    throw new Error('Private network URLs are not supported');
+  }
+
+  const addresses =
+    isIP(url.hostname) !== 0
+      ? [{ address: url.hostname }]
+      : await lookup(url.hostname, { all: true });
+
+  if (addresses.some((entry) => isPrivateAddress(entry.address))) {
+    throw new Error('Private network URLs are not supported');
+  }
+
+  return url;
+}
+
+async function readLimitedResponseText(response: Response): Promise<string> {
+  const limitBytes = readPositiveIntEnv(
+    'IMPORT_URL_FETCH_MAX_BYTES',
+    1_000_000,
+  );
+  const contentLength = Number.parseInt(
+    response.headers.get('content-length') ?? '',
+    10,
+  );
+
+  if (Number.isFinite(contentLength) && contentLength > limitBytes) {
+    throw new Error('Source page is too large');
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return response.text();
+  }
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+
+    totalBytes += value.byteLength;
+    if (totalBytes > limitBytes) {
+      await reader.cancel();
+      throw new Error('Source page is too large');
+    }
+
+    chunks.push(value);
+  }
+
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
+function isBlockedHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().replace(/\.$/, '');
+  return (
+    normalized === 'localhost' ||
+    normalized.endsWith('.localhost') ||
+    normalized === 'metadata.google.internal'
+  );
+}
+
+function isPrivateAddress(address: string): boolean {
+  if (address === '::1' || address === '::') return true;
+  if (address.startsWith('fe80:') || address.toLowerCase().startsWith('fc')) {
+    return true;
+  }
+
+  const parts = address.split('.').map((part) => Number.parseInt(part, 10));
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part))) {
+    return false;
+  }
+
+  const [a, b] = parts;
+  return (
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    a === 0
+  );
+}
+
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const value = Number.parseInt(process.env[name] ?? '', 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 async function fetchInstagramEmbedSource(url: string) {

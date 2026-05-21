@@ -1,5 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsDateString, IsOptional } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsDateString,
+  IsOptional,
+} from 'class-validator';
 
 export class UpdateShoppingCartDto {
   @ApiProperty({
@@ -37,6 +42,7 @@ export class UpdateShoppingCartDto {
   })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(200)
   matched_items?: Array<Record<string, unknown>>;
 
   @ApiProperty({

@@ -2,12 +2,17 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import type { MatchedIngredientProduct, ShoppingCart } from "@cart/shared";
+import type {
+  MatchedIngredientProduct,
+  ShoppingCart,
+  ShoppingCartHistorySummary,
+} from "@cart/shared";
 import { CartSubNav } from "@/components/cart/cart-sub-nav";
 import { AppShell } from "@/components/layout/app-shell";
 import { ShoppingCartDetailOverlay } from "@/components/planning/shopping-cart-detail-overlay";
 import {
   deleteShoppingCartAction,
+  getShoppingCartAction,
   updateShoppingCartAction,
   updateShoppingCartCheckoutStateAction,
 } from "@/app/home-actions";
@@ -61,6 +66,16 @@ function subtotal(items: MatchedIngredientProduct[]) {
   );
 }
 
+function isActiveShoppingCart(cart: ShoppingCart | ShoppingCartHistorySummary) {
+  return cart.status === "active" || (!cart.status && !cart.checked_out_at);
+}
+
+function isCheckedOutShoppingCart(
+  cart: ShoppingCart | ShoppingCartHistorySummary,
+) {
+  return cart.status === "checked_out" || Boolean(cart.checked_out_at);
+}
+
 function updateItemQuantity(
   item: MatchedIngredientProduct,
   quantity: number,
@@ -80,13 +95,17 @@ function updateItemQuantity(
 
 export function ShoppingClient({
   shoppingCarts: initialCarts,
+  shoppingCartHistory: initialHistory,
   cartNames,
 }: {
   shoppingCarts: ShoppingCart[];
+  shoppingCartHistory: ShoppingCartHistorySummary[];
   cartNames: Record<string, string>;
 }) {
   const [carts, setCarts] = useState(initialCarts);
+  const [historyCarts, setHistoryCarts] = useState(initialHistory);
   const [openCart, setOpenCart] = useState<ShoppingCart | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
   const [savingItemKey, setSavingItemKey] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -94,13 +113,13 @@ export function ShoppingClient({
   const [, startMutation] = useTransition();
 
   const activeCart = useMemo(
-    () => carts.find((cart) => !cart.checked_out_at) ?? null,
+    () => carts.find((cart) => isActiveShoppingCart(cart)) ?? null,
     [carts],
   );
 
-  const historyCarts = activeCart
-    ? carts.filter((cart) => cart.id !== activeCart.id)
-    : carts;
+  const visibleHistoryCarts = activeCart
+    ? historyCarts.filter((cart) => cart.id !== activeCart.id)
+    : historyCarts;
   const activeCartName = activeCart
     ? (cartNames[activeCart.cart_id] ??
       `${retailerLabel(activeCart.retailer)} shopping list`)
@@ -120,7 +139,7 @@ export function ShoppingClient({
     nextItems: MatchedIngredientProduct[],
     itemKey: string,
   ) {
-    if (!cart.id || cart.checked_out_at) return;
+    if (!cart.id || isCheckedOutShoppingCart(cart)) return;
 
     const optimisticCart = {
       ...cart,
@@ -164,7 +183,7 @@ export function ShoppingClient({
     saveItems(cart, nextItems, `${cart.id}-${index}`);
   }
 
-  function deleteHistoryCart(cart: ShoppingCart) {
+  function deleteHistoryCart(cart: ShoppingCartHistorySummary) {
     if (!cart.id) return;
 
     setDeletingId(cart.id);
@@ -179,10 +198,31 @@ export function ShoppingClient({
       }
 
       setCarts((current) => current.filter((item) => item.id !== cart.id));
+      setHistoryCarts((current) =>
+        current.filter((item) => item.id !== cart.id),
+      );
     });
   }
 
-  function reopenCart(cart: ShoppingCart) {
+  function openHistoryCart(cart: ShoppingCartHistorySummary) {
+    if (!cart.id) return;
+
+    setOpeningId(cart.id);
+    setError(null);
+    startMutation(async () => {
+      const result = await getShoppingCartAction(cart.id);
+      setOpeningId(null);
+
+      if (result.error || !result.shoppingCart) {
+        setError(result.error ?? "Unable to open this shopping list.");
+        return;
+      }
+
+      setOpenCart(result.shoppingCart);
+    });
+  }
+
+  function reopenCart(cart: ShoppingCartHistorySummary) {
     if (!cart.id) return;
 
     setError(null);
@@ -202,6 +242,9 @@ export function ShoppingClient({
         result.shoppingCart!,
         ...current.filter((cart) => cart.id !== result.shoppingCart!.id),
       ]);
+      setHistoryCarts((current) =>
+        current.filter((cart) => cart.id !== result.shoppingCart!.id),
+      );
       setOpenCart(null);
       setMessage("Shopping list reopened.");
     });
@@ -385,14 +428,16 @@ export function ShoppingClient({
             </div>
           </div>
 
-          {historyCarts.length > 0 ? (
+          {visibleHistoryCarts.length > 0 ? (
             <div className="space-y-3">
-              {historyCarts.map((cart) => {
-                const checkedOut = Boolean(cart.checked_out_at);
+              {visibleHistoryCarts.map((cart) => {
+                const checkedOut = isCheckedOutShoppingCart(cart);
+                const archived = cart.status === "archived";
                 const name =
                   cartNames[cart.cart_id] ??
                   `${retailerLabel(cart.retailer)} shopping list`;
                 const isDeleting = deletingId === cart.id;
+                const isOpening = openingId === cart.id;
 
                 return (
                   <div
@@ -418,15 +463,21 @@ export function ShoppingClient({
                             className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
                               checkedOut
                                 ? "bg-outline-variant/25 text-outline"
-                                : "bg-secondary-container text-on-secondary-container"
+                                : archived
+                                  ? "bg-surface-container text-outline"
+                                  : "bg-secondary-container text-on-secondary-container"
                             }`}
                           >
-                            {checkedOut ? "Checked out" : "Open"}
+                            {checkedOut
+                              ? "Checked out"
+                              : archived
+                                ? "Archived"
+                                : "Open"}
                           </span>
                         </div>
                         <div className="mt-2 flex flex-wrap gap-2 text-label-sm text-outline">
                           <span className="rounded-full bg-surface-container-low px-2.5 py-1">
-                            {cart.matched_items.length} items
+                            {cart.matched_item_count} items
                           </span>
                           <span className="rounded-full bg-surface-container-low px-2.5 py-1">
                             {fmt$(cart.estimated_subtotal)}
@@ -443,10 +494,11 @@ export function ShoppingClient({
                     <div className="mt-4 grid grid-cols-[1fr_1fr_auto] items-center gap-2 sm:flex sm:justify-end">
                       <button
                         type="button"
-                        onClick={() => setOpenCart(cart)}
+                        onClick={() => openHistoryCart(cart)}
+                        disabled={isOpening}
                         className="min-h-9 rounded-full border border-outline-variant px-4 py-2 text-label-md text-on-surface-variant transition-colors hover:bg-surface-container-low"
                       >
-                        Open
+                        {isOpening ? "Opening..." : "Open"}
                       </button>
                       {checkedOut ? (
                         <button
@@ -456,7 +508,7 @@ export function ShoppingClient({
                         >
                           Reopen
                         </button>
-                      ) : cart.id ? (
+                      ) : isActiveShoppingCart(cart) && cart.id ? (
                         <Link
                           href={`/shopping/checkout/${cart.id}`}
                           className="inline-flex min-h-9 items-center justify-center rounded-full bg-[#f4be6b] px-4 py-2 text-label-md font-semibold text-[#351800] shadow-sm transition-colors hover:bg-[#f4be6b]"
@@ -492,7 +544,7 @@ export function ShoppingClient({
       {openCart && (
         <ShoppingCartDetailOverlay
           shoppingCart={openCart}
-          readOnly={Boolean(openCart.checked_out_at)}
+          readOnly={isCheckedOutShoppingCart(openCart)}
           onClose={() => setOpenCart(null)}
         />
       )}

@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type SetStateAction,
+} from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { BaseRecipe, Capture, Cuisine, Tag } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { IMPORTED_RECIPE_DRAFT_STORAGE_KEY } from "@/lib/imported-recipe-draft";
+import { routeMemoryKey, usePageMemory } from "@/lib/page-memory";
 import {
   deleteRecipeAction,
   forkRecipeAction,
@@ -48,6 +56,24 @@ const FAV_STYLES = [
 
 type Tab = "mine" | "public" | "saved";
 
+type RecipesPageMemory = {
+  tab: Tab;
+  search: string;
+  activeCuisine: string | null;
+  activeTag: string | null;
+  selectedRecipeIds: string[];
+  scrollY: number;
+};
+
+const RECIPES_MEMORY_DEFAULT: RecipesPageMemory = {
+  tab: "public",
+  search: "",
+  activeCuisine: null,
+  activeTag: null,
+  selectedRecipeIds: [],
+  scrollY: 0,
+};
+
 /* ── component ──────────────────────────────────────────────────── */
 
 export function RecipesClient({
@@ -64,20 +90,49 @@ export function RecipesClient({
   const router = useRouter();
 
   const [recipes, setRecipes] = useState(initialRecipes);
-  const [tab, setTab] = useState<Tab>("public");
-  const [search, setSearch] = useState("");
-  const [activeCuisine, setActiveCuisine] = useState<string | null>(null);
-  const [activeTag, setActiveTag] = useState<string | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<BaseRecipe | null>(null);
   const [showImport, setShowImport] = useState(openImportOnLoad);
-  const [selections, setSelections] = useState<Map<string, BaseRecipe>>(
-    new Map(),
-  );
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [buildError, setBuildError] = useState<string | undefined>();
   const [isBuilding, startBuilding] = useTransition();
   const [, startFork] = useTransition();
+  const resetRecipesOverlays = useCallback(() => {
+    setEditingRecipe(null);
+    setShowImport(false);
+    setBuildError(undefined);
+  }, []);
+  const [pageMemory, setPageMemory] = usePageMemory<RecipesPageMemory>(
+    routeMemoryKey("/recipes"),
+    RECIPES_MEMORY_DEFAULT,
+    {
+      onReset: resetRecipesOverlays,
+      restoreScrollKey: "scrollY",
+      routeHref: "/recipes",
+    },
+  );
+
+  function setRecipesMemoryValue<K extends keyof RecipesPageMemory>(
+    key: K,
+    value: SetStateAction<RecipesPageMemory[K]>,
+  ) {
+    setPageMemory((current) => ({
+      ...current,
+      [key]:
+        typeof value === "function"
+          ? (
+              value as (
+                currentValue: RecipesPageMemory[K],
+              ) => RecipesPageMemory[K]
+            )(current[key])
+          : value,
+    }));
+  }
+
+  const tab = pageMemory.tab;
+  const search = pageMemory.search;
+  const activeCuisine = pageMemory.activeCuisine;
+  const activeTag = pageMemory.activeTag;
 
   useEffect(() => {
     if (openImportOnLoad) {
@@ -102,6 +157,18 @@ export function RecipesClient({
   const dietaryTags = tags
     .filter((t) => t.kind === "dietary_badge")
     .slice(0, 6);
+  const recipesById = useMemo(
+    () => new Map(recipes.map((recipe) => [recipe.id, recipe])),
+    [recipes],
+  );
+  const selections = useMemo(() => {
+    const selected = new Map<string, BaseRecipe>();
+    for (const id of pageMemory.selectedRecipeIds) {
+      const recipe = recipesById.get(id);
+      if (recipe) selected.set(id, recipe);
+    }
+    return selected;
+  }, [pageMemory.selectedRecipeIds, recipesById]);
 
   // IDs of system recipes that the user has already forked/saved
   const savedRecipesBySourceId = new Map(
@@ -157,11 +224,9 @@ export function RecipesClient({
   }
 
   function handleAddToCart(recipe: BaseRecipe) {
-    setSelections((prev) => {
-      const next = new Map(prev);
-      next.set(recipe.id, recipe);
-      return next;
-    });
+    setRecipesMemoryValue("selectedRecipeIds", (current) =>
+      current.includes(recipe.id) ? current : [...current, recipe.id],
+    );
   }
 
   function handleDeleteRecipe(recipe: BaseRecipe) {
@@ -181,20 +246,16 @@ export function RecipesClient({
       }
 
       setRecipes((prev) => prev.filter((item) => item.id !== recipe.id));
-      setSelections((prev) => {
-        const next = new Map(prev);
-        next.delete(recipe.id);
-        return next;
-      });
+      setRecipesMemoryValue("selectedRecipeIds", (current) =>
+        current.filter((id) => id !== recipe.id),
+      );
     });
   }
 
   function removeSelection(id: string) {
-    setSelections((prev) => {
-      const n = new Map(prev);
-      n.delete(id);
-      return n;
-    });
+    setRecipesMemoryValue("selectedRecipeIds", (current) =>
+      current.filter((recipeId) => recipeId !== id),
+    );
   }
 
   function handleBuildCart() {
@@ -251,7 +312,7 @@ export function RecipesClient({
               type="text"
               placeholder="Search recipes..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => setRecipesMemoryValue("search", e.target.value)}
               className="w-full pl-9 pr-4 py-2 rounded-full bg-surface-container-low border border-outline-variant/40 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
@@ -293,7 +354,12 @@ export function RecipesClient({
                   return (
                     <button
                       key={tag.id}
-                      onClick={() => setActiveTag(isActive ? null : tag.name)}
+                      onClick={() =>
+                        setRecipesMemoryValue(
+                          "activeTag",
+                          isActive ? null : tag.name,
+                        )
+                      }
                       className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-label-sm font-semibold transition-all ${
                         isActive
                           ? "bg-primary text-on-primary"
@@ -318,7 +384,7 @@ export function RecipesClient({
             {tabOptions.map(({ id, label, icon }) => (
               <button
                 key={id}
-                onClick={() => setTab(id)}
+                onClick={() => setRecipesMemoryValue("tab", id)}
                 className={`flex min-w-0 items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 text-[12px] font-black leading-tight transition-all sm:min-w-[128px] sm:px-4 sm:text-label-sm ${
                   tab === id
                     ? "bg-primary text-on-primary shadow-sm"
@@ -348,7 +414,9 @@ export function RecipesClient({
           <div className="flex items-center gap-2 flex-wrap">
             <select
               value={activeCuisine ?? ""}
-              onChange={(e) => setActiveCuisine(e.target.value || null)}
+              onChange={(e) =>
+                setRecipesMemoryValue("activeCuisine", e.target.value || null)
+              }
               className="h-8 pl-3 pr-7 rounded-full border border-outline-variant text-label-sm text-on-surface-variant bg-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
               style={{
                 backgroundImage:
@@ -367,7 +435,7 @@ export function RecipesClient({
 
             {activeCuisine && (
               <button
-                onClick={() => setActiveCuisine(null)}
+                onClick={() => setRecipesMemoryValue("activeCuisine", null)}
                 className="flex items-center gap-1 px-3 h-8 rounded-full bg-primary text-on-primary text-label-sm"
               >
                 {activeCuisine}{" "}
@@ -378,7 +446,7 @@ export function RecipesClient({
             )}
             {activeTag && (
               <button
-                onClick={() => setActiveTag(null)}
+                onClick={() => setRecipesMemoryValue("activeTag", null)}
                 className="flex items-center gap-1 px-3 h-8 rounded-full bg-primary text-on-primary text-label-sm"
               >
                 {activeTag}{" "}

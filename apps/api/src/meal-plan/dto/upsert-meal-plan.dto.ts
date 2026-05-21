@@ -6,6 +6,7 @@ import {
   IsArray,
   IsOptional,
   IsString,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 
@@ -13,16 +14,19 @@ class MealPlanDayDto {
   @ApiPropertyOptional({ example: 'recipe-1' })
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   breakfast?: string;
 
   @ApiPropertyOptional({ example: 'recipe-2' })
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   lunch?: string;
 
   @ApiPropertyOptional({ example: 'recipe-3' })
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   dinner?: string;
 }
 

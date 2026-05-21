@@ -1,6 +1,9 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
+  Max,
+  Min,
   IsNumber,
   IsOptional,
   IsString,
@@ -23,6 +26,8 @@ export class InventoryAlternativeIngredientDto {
 
   @ApiProperty({ example: 1.5 })
   @IsNumber()
+  @Min(0)
+  @Max(10000)
   amount!: number;
 
   @ApiProperty({ example: 'lb' })
@@ -57,12 +62,14 @@ export class InventoryAlternativesDto {
 
   @ApiProperty({ type: () => [InventoryAlternativeIngredientDto] })
   @IsArray()
+  @ArrayMaxSize(120)
   @ValidateNested({ each: true })
   @Type(() => InventoryAlternativeIngredientDto)
   ingredients!: InventoryAlternativeIngredientDto[];
 
   @ApiProperty({ type: () => [InventoryAlternativeItemDto] })
   @IsArray()
+  @ArrayMaxSize(300)
   @ValidateNested({ each: true })
   @Type(() => InventoryAlternativeItemDto)
   inventory!: InventoryAlternativeItemDto[];

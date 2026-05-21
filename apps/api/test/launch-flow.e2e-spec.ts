@@ -60,15 +60,15 @@ describe('Launch cart flow (e2e)', () => {
 
   async function ensureCuisine() {
     return prisma.cuisine.upsert({
-      where: { slug: 'launch-flow-test' },
+      where: { slug: 'american' },
       update: {
-        label: 'Launch Flow Test',
-        kind: 'other',
+        label: 'American',
+        kind: 'national',
       },
       create: {
-        slug: 'launch-flow-test',
-        label: 'Launch Flow Test',
-        kind: 'other',
+        slug: 'american',
+        label: 'American',
+        kind: 'national',
       },
     });
   }

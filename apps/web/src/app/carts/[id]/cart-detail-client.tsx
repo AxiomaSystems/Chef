@@ -147,6 +147,9 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
     () => new Set(),
   );
   const [cartError, setCartError] = useState<string | null>(null);
+  const [inventoryCompleteMessage, setInventoryCompleteMessage] = useState<
+    string | null
+  >(null);
   const [editingRecipe, setEditingRecipe] = useState<{
     dishIndex: number;
     dishName: string;
@@ -183,6 +186,7 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
   function handleCreateShoppingCart() {
     if (!currentCart.id) return;
     setCartError(null);
+    setInventoryCompleteMessage(null);
     startCreateShoppingCart(async () => {
       const reviewItems: IngredientReview["items"] = currentCart.overview.map(
         (ingredient) => {
@@ -228,6 +232,14 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
         return;
       }
 
+      if ((result.shoppingCart?.matched_items.length ?? 0) === 0) {
+        setInventoryCompleteMessage(
+          "Everything for this cart is already covered by your inventory.",
+        );
+        setInventoryChecked(true);
+        return;
+      }
+
       router.push("/shopping");
     });
   }
@@ -235,6 +247,7 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
   function handleCheckInventory() {
     if (!currentCart.id) return;
     setCartError(null);
+    setInventoryCompleteMessage(null);
     startCheckInventory(async () => {
       const result = await updateCartDetailsAction(currentCart.id!, {});
       if (result.error || !result.cart) {
@@ -265,6 +278,7 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
       setCurrentCart(result.cart);
       setCrossedOffRows(new Set());
       setInventoryChecked(false);
+      setInventoryCompleteMessage(null);
       setEditingRecipe(null);
     });
   }
@@ -329,6 +343,7 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
       setCurrentCart(result.cart);
       setCrossedOffRows(new Set());
       setInventoryChecked(false);
+      setInventoryCompleteMessage(null);
     });
   }
 
@@ -502,6 +517,47 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
           onSave={(dish) => updateRecipeDish(editingRecipe.dishIndex, dish)}
         />
       ) : null}
+
+      {inventoryCompleteMessage ? (
+        <InventoryCompleteDialog
+          message={inventoryCompleteMessage}
+          onClose={() => setInventoryCompleteMessage(null)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function InventoryCompleteDialog({
+  message,
+  onClose,
+}: {
+  message: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end bg-black/35 sm:items-center sm:justify-center sm:p-5">
+      <div className="w-screen rounded-t-[1.75rem] bg-white p-6 text-center shadow-2xl sm:max-w-md sm:rounded-[1.75rem]">
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#ecf8f4] text-[#256f5c]">
+          <span className="material-symbols-outlined text-[34px]">
+            check_circle
+          </span>
+        </div>
+        <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#256f5c]">
+          Inventory covered
+        </p>
+        <h2 className="mt-2 text-headline-sm text-[#132326]">Nothing to buy</h2>
+        <p className="mx-auto mt-2 max-w-xs text-body-md text-[#5f8689]">
+          {message}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-6 min-h-12 w-full rounded-full bg-[#256f5c] px-5 text-label-lg font-black text-white transition-colors hover:bg-[#1e5b4c]"
+        >
+          Got it
+        </button>
+      </div>
     </div>
   );
 }

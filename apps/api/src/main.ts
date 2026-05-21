@@ -15,8 +15,13 @@ process.on('uncaughtException', (error) => {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
-  app.use(json({ limit: '20mb' }));
-  app.use(urlencoded({ limit: '20mb', extended: true }));
+  app.use(json({ limit: process.env.API_JSON_BODY_LIMIT ?? '10mb' }));
+  app.use(
+    urlencoded({
+      limit: process.env.API_URLENCODED_BODY_LIMIT ?? '1mb',
+      extended: true,
+    }),
+  );
   configureApp(app);
 
   app.enableShutdownHooks();

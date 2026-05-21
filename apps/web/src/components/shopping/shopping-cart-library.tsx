@@ -22,6 +22,13 @@ function formatDate(iso?: string) {
   }).format(new Date(value));
 }
 
+function isCheckedOutShoppingCart(shoppingCart: ShoppingCart) {
+  return (
+    shoppingCart.status === "checked_out" ||
+    Boolean(shoppingCart.checked_out_at)
+  );
+}
+
 export function ShoppingCartLibrary(props: { shoppingCarts: ShoppingCart[] }) {
   const [query, setQuery] = useState("");
   const [activeShoppingCartId, setActiveShoppingCartId] = useState<
@@ -190,6 +197,11 @@ export function ShoppingCartLibrary(props: { shoppingCarts: ShoppingCart[] }) {
             : "shopping-cart-none"
         }
         shoppingCart={activeShoppingCart}
+        readOnly={
+          activeShoppingCart
+            ? isCheckedOutShoppingCart(activeShoppingCart)
+            : false
+        }
         onClose={() => setActiveShoppingCartId(null)}
       />
     </>

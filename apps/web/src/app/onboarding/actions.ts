@@ -93,9 +93,20 @@ const LEGACY_GOAL_TO_MEMORY_GOAL: Record<GoalPriority, UserGoalKind> = {
   eat_more_plant_based: "eat_healthier",
 };
 
+function cleanFreeText(value: string, maxLength: number): string | null {
+  const cleaned = value.trim().replace(/\s+/g, " ");
+  return cleaned ? cleaned.slice(0, maxLength) : null;
+}
+
 function buildProfileMemoryRequest(
   input: SavePreferencesInput,
 ): UpdateUserProfileMemoryRequest {
+  const customCuisineLabels = input.custom_cuisine_labels
+    .map((label) => cleanFreeText(label, 80))
+    .filter((label): label is string => Boolean(label));
+  const dietaryRestrictions = input.dietary_restrictions
+    .map((slug) => cleanFreeText(slug, 80))
+    .filter((slug): slug is string => Boolean(slug));
   const uniqueGoals = Array.from(
     new Set(
       input.goal_priorities.map((goal) => LEGACY_GOAL_TO_MEMORY_GOAL[goal]),
@@ -107,10 +118,11 @@ function buildProfileMemoryRequest(
       preferred_cuisine_ids: input.preferred_cuisine_ids,
       preferred_tag_ids: input.preferred_tag_ids,
       shopping_location: {
-        zip_code: input.shopping_location_zip || undefined,
-        label: input.shopping_location_label || undefined,
+        zip_code: cleanFreeText(input.shopping_location_zip, 10) ?? undefined,
+        label: cleanFreeText(input.shopping_location_label, 120) ?? undefined,
         kroger_location_id:
-          input.shopping_location_kroger_location_id || undefined,
+          cleanFreeText(input.shopping_location_kroger_location_id, 80) ??
+          undefined,
       },
       household_size: input.household_size ?? undefined,
       kids_profile: input.kids_profile ?? undefined,
@@ -149,7 +161,7 @@ function buildProfileMemoryRequest(
         source: "onboarding" as const,
         confidence: "high" as const,
       })),
-      ...input.dietary_restrictions.map((slug) => ({
+      ...dietaryRestrictions.map((slug) => ({
         kind: "dietary_constraint" as const,
         label: slug
           .split("-")
@@ -161,7 +173,7 @@ function buildProfileMemoryRequest(
         source: "onboarding" as const,
         confidence: "high" as const,
       })),
-      ...input.custom_cuisine_labels.map((label) => ({
+      ...customCuisineLabels.map((label) => ({
         kind: "ingredient_preference" as const,
         label: `Loves ${label} cuisine`,
         action: "prefer" as const,

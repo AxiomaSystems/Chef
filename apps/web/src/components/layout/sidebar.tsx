@@ -2,12 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AppNavLink } from "./app-nav-link";
 
 const navItems = [
   { href: "/dashboard", icon: "home", label: "Home" },
-  { href: "/meal-plan", icon: "calendar_month", label: "Plan" },
-  { href: "/recipes", icon: "add_circle", label: "Create" },
-  { href: "/carts", icon: "shopping_cart", label: "Cart" },
+  { href: "/recipes", icon: "receipt_long", label: "Recipes" },
+  {
+    href: "/carts",
+    icon: "shopping_cart",
+    label: "Cart",
+    activePaths: ["/carts", "/shopping"],
+  },
   { href: "/inventory", icon: "inventory_2", label: "Inventory" },
 ];
 
@@ -40,12 +45,16 @@ export function Sidebar({
 
       {/* Nav */}
       <nav className="flex-1 px-3 space-y-0.5">
-        {navItems.map(({ href, icon, label }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
+        {navItems.map(({ href, icon, label, activePaths }) => {
+          const paths = activePaths ?? [href];
+          const active = paths.some(
+            (path) => pathname === path || pathname.startsWith(path + "/"),
+          );
           return (
-            <Link
+            <AppNavLink
               key={href}
               href={href}
+              activePaths={paths}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-label-lg transition-all duration-150 ${
                 active
                   ? "bg-primary-surface text-primary font-semibold border-r-4 border-primary-fixed-dim"
@@ -58,7 +67,7 @@ export function Sidebar({
                 {icon}
               </span>
               {label}
-            </Link>
+            </AppNavLink>
           );
         })}
       </nav>

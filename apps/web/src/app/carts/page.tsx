@@ -11,7 +11,8 @@ export default async function CartsPage() {
       left.updated_at ?? left.created_at ?? "",
     ),
   );
-  const activeCart = carts[0] ?? null;
+  const activeCart =
+    carts.find((cart) => cart.status === "active" || !cart.status) ?? null;
 
   return (
     <AppShell topBarTitle="Cart">

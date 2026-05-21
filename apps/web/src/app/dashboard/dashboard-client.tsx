@@ -3,7 +3,13 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { BaseRecipe, Cart, ShoppingCart, User } from "@cart/shared";
+import type {
+  BaseRecipe,
+  Cart,
+  ShoppingCart,
+  User,
+  UserPreferences,
+} from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { RecipeImage } from "@/components/ui/recipe-image";
 import { submitDraftFlowAction } from "@/app/home-actions";
@@ -19,13 +25,112 @@ function minutesFor(recipe: BaseRecipe) {
   return Math.max(20, recipe.steps.length * 7);
 }
 
+function humanize(value: string) {
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function recipePreferenceScore(
+  recipe: BaseRecipe,
+  preferences: UserPreferences | null,
+) {
+  if (!preferences) return 0;
+
+  let score = 0;
+  const recipeText = [
+    recipe.name,
+    recipe.description,
+    recipe.cuisine.label,
+    ...recipe.tags.map((tag) => tag.name),
+    ...recipe.ingredients.map((ingredient) => ingredient.canonical_ingredient),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const tagIds = new Set(recipe.tag_ids);
+
+  if (preferences.preferred_cuisine_ids.includes(recipe.cuisine_id)) score += 5;
+
+  for (const tagId of preferences.preferred_tag_ids) {
+    if (tagIds.has(tagId)) score += 3;
+  }
+
+  for (const protein of preferences.favorite_proteins ?? []) {
+    if (recipeText.includes(protein.replaceAll("_", " "))) score += 2;
+  }
+
+  for (const flavor of preferences.favorite_flavors ?? []) {
+    const normalized = flavor.replaceAll("_", " ");
+    if (
+      recipeText.includes(normalized) ||
+      recipeText.includes(normalized.split(" ")[0] ?? "")
+    ) {
+      score += 1;
+    }
+  }
+
+  for (const disliked of preferences.disliked_ingredients ?? []) {
+    if (recipeText.includes(disliked.replaceAll("_", " "))) score -= 6;
+  }
+
+  if (
+    preferences.preferred_cooking_time === "under_15_min" &&
+    minutesFor(recipe) <= 20
+  ) {
+    score += 2;
+  }
+  if (
+    preferences.preferred_cooking_time === "15_to_30_min" &&
+    minutesFor(recipe) <= 30
+  ) {
+    score += 2;
+  }
+  if (
+    preferences.goal_priorities?.includes("build_muscle") &&
+    (recipe.nutrition_data?.protein_g ?? 0) >= 25
+  ) {
+    score += 2;
+  }
+
+  return score;
+}
+
+function preferenceReason(
+  recipe: BaseRecipe,
+  preferences: UserPreferences | null,
+) {
+  if (!preferences) return recipe.cuisine.label;
+  if (preferences.preferred_cuisine_ids.includes(recipe.cuisine_id)) {
+    return `${recipe.cuisine.label} preference`;
+  }
+
+  const preferredTag = recipe.tags.find((tag) =>
+    preferences.preferred_tag_ids.includes(tag.id),
+  );
+  if (preferredTag) return preferredTag.name;
+
+  const recipeText = recipe.ingredients
+    .map((ingredient) => ingredient.canonical_ingredient)
+    .join(" ")
+    .toLowerCase();
+  const protein = (preferences.favorite_proteins ?? []).find((item) =>
+    recipeText.includes(item.replaceAll("_", " ")),
+  );
+
+  return protein ? `Likes ${humanize(protein)}` : recipe.cuisine.label;
+}
+
 export function DashboardClient({
   user,
+  preferences,
   recipes,
   carts,
   shoppingCarts,
 }: {
   user: User | null;
+  preferences: UserPreferences | null;
   recipes: BaseRecipe[];
   carts: Cart[];
   shoppingCarts: ShoppingCart[];
@@ -39,7 +144,24 @@ export function DashboardClient({
 
   const firstName = user?.name?.split(" ")[0] ?? "there";
   const featuredRecipe = recipes[0] ?? null;
-  const forYouRecipes = recipes.slice(1, 7);
+  const preferenceRecipes = recipes
+    .map((recipe) => ({
+      recipe,
+      score: recipePreferenceScore(recipe, preferences),
+    }))
+    .filter(
+      ({ recipe, score }) => score > 0 && recipe.id !== featuredRecipe?.id,
+    )
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 4)
+    .map(({ recipe }) => recipe);
+  const forYouRecipes = recipes
+    .filter(
+      (recipe) =>
+        recipe.id !== featuredRecipe?.id &&
+        !preferenceRecipes.some((matched) => matched.id === recipe.id),
+    )
+    .slice(0, 6);
   const trendingRecipes =
     recipes.slice(7, 13).length > 0
       ? recipes.slice(7, 13)
@@ -151,7 +273,7 @@ export function DashboardClient({
               href={`/recipes/${featuredRecipe.id}`}
               className="group relative block min-h-[18rem] overflow-hidden rounded-[2rem] bg-primary-fixed-dim shadow-[0_16px_34px_rgba(244,121,13,0.22)] sm:min-h-[24rem]"
             >
-              <div className="absolute inset-y-0 right-0 w-[72%] overflow-hidden rounded-l-[7rem] bg-white/20">
+              <div className="absolute inset-x-0 top-0 h-[58%] overflow-hidden bg-white/20 sm:inset-y-0 sm:left-auto sm:right-0 sm:h-auto sm:w-[72%] sm:rounded-l-[7rem]">
                 <RecipeImage
                   src={featuredRecipe.cover_image_url}
                   alt={featuredRecipe.name}
@@ -160,7 +282,7 @@ export function DashboardClient({
                   imgClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               </div>
-              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(244,121,13,0.96)_0%,rgba(244,121,13,0.74)_42%,rgba(244,121,13,0.1)_100%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(244,121,13,0.98)_0%,rgba(244,121,13,0.8)_38%,rgba(244,121,13,0.12)_100%)] sm:bg-[linear-gradient(90deg,rgba(244,121,13,0.96)_0%,rgba(244,121,13,0.74)_42%,rgba(244,121,13,0.1)_100%)]" />
               <button
                 type="button"
                 onClick={(event) => {
@@ -174,7 +296,7 @@ export function DashboardClient({
                   favorite
                 </span>
               </button>
-              <div className="absolute bottom-0 left-0 max-w-[68%] p-5 text-white sm:p-7">
+              <div className="absolute bottom-0 left-0 max-w-full p-5 text-white sm:max-w-[68%] sm:p-7">
                 <p className="mb-3 inline-flex rounded-full bg-white/18 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em]">
                   {primaryBadge(featuredRecipe)}
                 </p>
@@ -193,6 +315,56 @@ export function DashboardClient({
                 </div>
               </div>
             </Link>
+          </section>
+        ) : null}
+
+        {preferenceRecipes.length > 0 ? (
+          <section className="space-y-3">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
+                  Based on your preferences
+                </p>
+                <h2 className="mt-1 text-headline-sm text-on-surface">
+                  Picked for you
+                </h2>
+              </div>
+              <Link
+                href="/account/settings/preferences"
+                className="shrink-0 text-label-md font-bold text-outline"
+              >
+                Edit
+              </Link>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {preferenceRecipes.map((recipe) => (
+                <Link
+                  key={recipe.id}
+                  href={`/recipes/${recipe.id}`}
+                  className="overflow-hidden rounded-[1.35rem] border border-outline-variant/35 bg-white shadow-sm"
+                >
+                  <RecipeImage
+                    src={recipe.cover_image_url}
+                    alt={recipe.name}
+                    seed={recipe.id}
+                    className="aspect-[4/3] w-full bg-surface-container"
+                    imgClassName="h-full w-full object-cover"
+                  />
+                  <div className="p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
+                      {preferenceReason(recipe, preferences)}
+                    </p>
+                    <h3 className="mt-1 line-clamp-2 text-label-lg leading-tight text-on-surface">
+                      {recipe.name}
+                    </h3>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-outline">
+                      <span>{minutesFor(recipe)} min</span>
+                      <span>{recipe.servings} servings</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </section>
         ) : null}
 

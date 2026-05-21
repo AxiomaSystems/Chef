@@ -1804,7 +1804,7 @@ const expandedRecipeInputs = [
   },
   {
     name: 'American diner turkey melt',
-    cuisine: 'Other',
+    cuisine: 'American',
     imageUrl: foodImages.meat,
     description:
       'A short-order style turkey melt with onions, cheddar, and a crisp griddled crust.',
