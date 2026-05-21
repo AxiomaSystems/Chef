@@ -43,6 +43,8 @@ const ADD_INPUT =
   "flex-1 rounded-full border border-[#c0dedf] bg-white px-4 py-2 text-body-sm text-[#315f62] placeholder:text-[#5f8689] focus:outline-none focus:ring-2 focus:ring-[#f4790d]/20";
 const ADD_BTN =
   "inline-flex items-center gap-1 rounded-full border border-[#f4790d] px-4 py-2 text-label-sm font-semibold text-[#f4790d] transition-colors hover:bg-[#f4790d] hover:text-white disabled:opacity-40";
+const CUSTOM_CUISINE_MAX_LENGTH = 80;
+const CUSTOM_RESTRICTION_MAX_LENGTH = 80;
 
 type Props = {
   cuisines: Cuisine[];
@@ -211,6 +213,7 @@ export function StepCuisineDietary({
             value={cuisineInput}
             onChange={(e) => setCuisineInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addCustomCuisine()}
+            maxLength={CUSTOM_CUISINE_MAX_LENGTH}
             placeholder="Any more cuisines you love? Add it..."
             className={ADD_INPUT}
           />
@@ -310,6 +313,7 @@ export function StepCuisineDietary({
             value={restrictionInput}
             onChange={(e) => setRestrictionInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addCustomRestriction()}
+            maxLength={CUSTOM_RESTRICTION_MAX_LENGTH}
             placeholder='e.g. "Nut Allergy"'
             className={ADD_INPUT}
           />

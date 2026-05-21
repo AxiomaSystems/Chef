@@ -29,7 +29,8 @@ export function StepLocation({
             value={zip}
             onChange={(e) => onZipChange(e.target.value)}
             placeholder="60611"
-            maxLength={5}
+            inputMode="numeric"
+            maxLength={10}
             className="min-h-12 rounded-2xl border border-[#c0dedf] bg-white/80 px-4 text-sm text-[#132326] shadow-sm outline-none transition placeholder:text-[#5f8689]/72 focus:border-[#f4790d] focus:bg-white focus:shadow-[0_0_0_4px_rgba(60,154,158,0.12)]"
           />
         </div>
@@ -47,6 +48,7 @@ export function StepLocation({
             value={label}
             onChange={(e) => onLabelChange(e.target.value)}
             placeholder="Chicago, IL"
+            maxLength={120}
             className="min-h-12 rounded-2xl border border-[#c0dedf] bg-white/80 px-4 text-sm text-[#132326] shadow-sm outline-none transition placeholder:text-[#5f8689]/72 focus:border-[#f4790d] focus:bg-white focus:shadow-[0_0_0_4px_rgba(60,154,158,0.12)]"
           />
         </div>

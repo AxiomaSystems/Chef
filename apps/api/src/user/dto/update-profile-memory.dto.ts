@@ -9,7 +9,9 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -42,10 +44,13 @@ import {
 export class ProfileMemoryShoppingLocationPatchDto {
   @IsOptional()
   @IsString()
+  @MaxLength(10)
+  @Matches(/^$|^\d{5}(-\d{4})?$/)
   zip_code?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   label?: string;
 
   @IsOptional()
@@ -58,6 +63,7 @@ export class ProfileMemoryShoppingLocationPatchDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   kroger_location_id?: string;
 }
 
@@ -88,12 +94,14 @@ export class ProfileMemoryPreferencesPatchDto {
   @IsArray()
   @ArrayUnique()
   @IsString({ each: true })
+  @MaxLength(80, { each: true })
   preferred_cuisine_ids?: string[];
 
   @IsOptional()
   @IsArray()
   @ArrayUnique()
   @IsString({ each: true })
+  @MaxLength(80, { each: true })
   preferred_tag_ids?: string[];
 
   @IsOptional()
@@ -193,14 +201,17 @@ export class UpsertUserFoodRuleDto {
   kind!: (typeof USER_FOOD_RULE_KIND_VALUES)[number];
 
   @IsString()
+  @MaxLength(120)
   label!: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   ingredient_id?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   tag_id?: string;
 
   @IsIn(USER_FOOD_RULE_ACTION_VALUES)
@@ -231,6 +242,7 @@ export class UpsertUserFoodRuleDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   notes?: string;
 }
 
@@ -305,5 +317,6 @@ export class UpdateProfileMemoryDto {
   @IsArray()
   @ArrayUnique()
   @IsString({ each: true })
+  @MaxLength(80, { each: true })
   pantry_staple_ingredient_ids?: string[];
 }

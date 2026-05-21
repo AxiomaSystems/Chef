@@ -41,6 +41,7 @@ import { SetPasswordDto } from './dto/set-password.dto';
 import { UpdateCheckoutProfileDto } from './dto/update-checkout-profile.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateMePreferencesDto } from './dto/update-me-preferences.dto';
+import { normalizeUserInputString } from './profile-memory.utils';
 
 @Injectable()
 export class MeService {
@@ -587,12 +588,15 @@ export class MeService {
     }
 
     const shoppingLocation = input.shopping_location;
-    const normalizedZipCode = shoppingLocation?.zip_code?.trim() || null;
-    const normalizedLabel = shoppingLocation?.label?.trim() || null;
+    const normalizedZipCode = normalizeUserInputString(
+      shoppingLocation?.zip_code,
+    );
+    const normalizedLabel = normalizeUserInputString(shoppingLocation?.label);
     const normalizedLatitude = shoppingLocation?.latitude ?? null;
     const normalizedLongitude = shoppingLocation?.longitude ?? null;
-    const normalizedKrogerLocationId =
-      shoppingLocation?.kroger_location_id?.trim() || null;
+    const normalizedKrogerLocationId = normalizeUserInputString(
+      shoppingLocation?.kroger_location_id,
+    );
 
     await this.prisma.$transaction([
       this.prisma.user.update({

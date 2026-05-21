@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
+  ArrayMaxSize,
   IsIn,
   IsInt,
   IsNumber,
@@ -12,7 +13,9 @@ import {
 } from 'class-validator';
 
 export class GenerateMealsDto {
-  @ApiProperty({ example: 'Cheap high-protein burrito bowls for weekday lunches' })
+  @ApiProperty({
+    example: 'Cheap high-protein burrito bowls for weekday lunches',
+  })
   @IsString()
   @MaxLength(2000)
   meal_prompt!: string;
@@ -34,25 +37,33 @@ export class GenerateMealsDto {
   @ApiPropertyOptional({ example: ['high protein', 'halal'] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(40)
   @IsString({ each: true })
+  @MaxLength(120, { each: true })
   dietary_preferences?: string[];
 
   @ApiPropertyOptional({ example: ['peanuts'] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(40)
   @IsString({ each: true })
+  @MaxLength(120, { each: true })
   allergies?: string[];
 
   @ApiPropertyOptional({ example: ['mushrooms'] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(80)
   @IsString({ each: true })
+  @MaxLength(120, { each: true })
   disliked_ingredients?: string[];
 
   @ApiPropertyOptional({ example: ['rice', 'olive oil', 'garlic'] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(200)
   @IsString({ each: true })
+  @MaxLength(120, { each: true })
   inventory?: string[];
 
   @ApiPropertyOptional({
@@ -64,11 +75,25 @@ export class GenerateMealsDto {
   budget_mode?: 'minimize_cost' | 'balanced' | 'premium';
 
   @ApiPropertyOptional({
-    enum: ['standard', 'inventory_first', 'high_protein', 'low_calorie', 'meal_prep', 'quick'],
+    enum: [
+      'standard',
+      'inventory_first',
+      'high_protein',
+      'low_calorie',
+      'meal_prep',
+      'quick',
+    ],
     example: 'meal_prep',
   })
   @IsOptional()
-  @IsIn(['standard', 'inventory_first', 'high_protein', 'low_calorie', 'meal_prep', 'quick'])
+  @IsIn([
+    'standard',
+    'inventory_first',
+    'high_protein',
+    'low_calorie',
+    'meal_prep',
+    'quick',
+  ])
   meal_style?:
     | 'standard'
     | 'inventory_first'
@@ -93,13 +118,16 @@ export class GenerateMealsDto {
   @ApiPropertyOptional({ example: ['filling', 'reheats well', 'not bland'] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
   @IsString({ each: true })
+  @MaxLength(120, { each: true })
   quality_goals?: string[];
 
-  @ApiPropertyOptional({ example: 'Use ingredients available in a normal US grocery store.' })
+  @ApiPropertyOptional({
+    example: 'Use ingredients available in a normal US grocery store.',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(4000)
   notes?: string;
 }
-

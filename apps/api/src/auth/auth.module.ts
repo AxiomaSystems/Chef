@@ -1,6 +1,10 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
+import {
+  AuthRateLimitGuard,
+  AuthRateLimitService,
+} from './auth-rate-limit.guard';
 import { AuthService } from './auth.service';
 import { AuthTokenService } from './auth-token.service';
 import { GoogleTokenVerifierService } from './google-token-verifier.service';
@@ -17,6 +21,8 @@ import {
   controllers: [AuthController],
   providers: [
     AuthService,
+    AuthRateLimitService,
+    AuthRateLimitGuard,
     AuthTokenService,
     PasswordHasherService,
     GoogleTokenVerifierService,
@@ -27,6 +33,8 @@ import {
   ],
   exports: [
     AuthTokenService,
+    AuthRateLimitService,
+    AuthRateLimitGuard,
     PasswordHasherService,
     JwtAuthGuard,
     ActorResolverService,
