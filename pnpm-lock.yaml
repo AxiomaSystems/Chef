@@ -2350,6 +2350,12 @@ packages:
         integrity: sha512-EsshAucklmpuUAfkABPxJNhzj9v2sG7JuzFDL4ML1oJQSV14sqrpTYnsaOudMAw9yOaW53NU3QQTlUQoRs4czw==,
       }
 
+  "@livekit/protocol@1.42.2":
+    resolution:
+      {
+        integrity: sha512-0jeCwoMJKcwsZICg5S6RZM4xhJoF78qMvQELjACJQn6/VB+jmiySQKOSELTXvPBVafHfEbMlqxUw2UR1jTXs2g==,
+      }
+
   "@livekit/protocol@1.45.3":
     resolution:
       {
@@ -13804,6 +13810,10 @@ snapshots:
       "@jridgewell/sourcemap-codec": 1.5.5
 
   "@livekit/mutex@1.1.1": {}
+
+  "@livekit/protocol@1.42.2":
+    dependencies:
+      "@bufbuild/protobuf": 1.10.1
 
   "@livekit/protocol@1.45.3":
     dependencies:
