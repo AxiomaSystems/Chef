@@ -16,6 +16,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalRequestActorGuard } from '../auth/request-actor.guard';
 import { AddKitchenInventoryItemDto } from './dto/add-kitchen-inventory-item.dto';
+import { ListIngredientsQueryDto } from './dto/list-ingredients-query.dto';
 import { UpdateKitchenInventoryItemDto } from './dto/update-kitchen-inventory-item.dto';
 import { IngredientsService } from './ingredients.service';
 
@@ -25,8 +26,10 @@ export class IngredientsController {
 
   @Get('ingredients')
   @UseGuards(OptionalRequestActorGuard)
-  listIngredients(@Query('q') query?: string): Promise<Ingredient[]> {
-    return this.ingredientsService.listIngredients(query);
+  listIngredients(
+    @Query() query: ListIngredientsQueryDto,
+  ): Promise<Ingredient[]> {
+    return this.ingredientsService.listIngredients(query.q);
   }
 
   @Get('me/kitchen-inventory')

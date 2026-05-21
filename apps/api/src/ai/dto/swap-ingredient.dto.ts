@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
+  ArrayMaxSize,
   IsIn,
   IsOptional,
   IsString,
@@ -29,13 +30,17 @@ export class SwapIngredientDto {
   @ApiPropertyOptional({ example: ['vegetarian'] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(40)
   @IsString({ each: true })
+  @MaxLength(120, { each: true })
   dietary_preferences?: string[];
 
   @ApiPropertyOptional({ example: ['rice', 'olive oil'] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(200)
   @IsString({ each: true })
+  @MaxLength(120, { each: true })
   inventory?: string[];
 
   @ApiPropertyOptional({ enum: ['minimize_cost', 'balanced', 'premium'] })
@@ -49,4 +54,3 @@ export class SwapIngredientDto {
   @MaxLength(4000)
   notes?: string;
 }
-

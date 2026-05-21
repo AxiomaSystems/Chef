@@ -91,7 +91,12 @@ export class VisionController {
   @Post('detect/media')
   @UseInterceptors(
     FileInterceptor('media', {
-      limits: { fileSize: 100 * 1024 * 1024 },
+      limits: {
+        fileSize: readPositiveIntEnv(
+          'VISION_MEDIA_UPLOAD_MAX_BYTES',
+          25 * 1024 * 1024,
+        ),
+      },
     }),
   )
   analyzeMedia(
@@ -100,4 +105,9 @@ export class VisionController {
   ): Promise<VisionScanResponse> {
     return this.visionService.analyzeMedia(file, input);
   }
+}
+
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const value = Number.parseInt(process.env[name] ?? '', 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }

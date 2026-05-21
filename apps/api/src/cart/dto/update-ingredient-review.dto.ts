@@ -1,11 +1,14 @@
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
   IsArray,
   IsIn,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -15,14 +18,17 @@ export class UpdateIngredientReviewItemDto {
   @ApiPropertyOptional({ example: 'ingredient-rice' })
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   ingredient_id?: string;
 
   @ApiProperty({ example: 'rice' })
   @IsString()
+  @MaxLength(120)
   canonical_ingredient!: string;
 
   @ApiProperty({ example: 'cup' })
   @IsString()
+  @MaxLength(32)
   unit!: string;
 
   @ApiProperty({ enum: ['buy', 'already_have', 'skip', 'adjust'] })
@@ -34,11 +40,13 @@ export class UpdateIngredientReviewItemDto {
   @Type(() => Number)
   @IsNumber()
   @Min(0)
+  @Max(10000)
   adjusted_amount?: number;
 
   @ApiPropertyOptional({ example: 'cup' })
   @IsOptional()
   @IsString()
+  @MaxLength(32)
   adjusted_unit?: string;
 }
 
@@ -60,6 +68,7 @@ export class UpdateIngredientReviewDto {
     ],
   })
   @IsArray()
+  @ArrayMaxSize(200)
   @ValidateNested({ each: true })
   @Type(() => UpdateIngredientReviewItemDto)
   items!: UpdateIngredientReviewItemDto[];

@@ -13,6 +13,7 @@ export class CreateCaptureDto {
   @IsUrl({
     require_tld: true,
     require_protocol: true,
+    protocols: ['http', 'https'],
   })
   url?: string;
 

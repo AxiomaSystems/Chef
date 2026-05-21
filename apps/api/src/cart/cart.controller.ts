@@ -46,6 +46,7 @@ import { UpdateIngredientReviewDto } from './dto/update-ingredient-review.dto';
 import { UpdateCartDraftDto } from './dto/update-cart-draft.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
 import { UpdateShoppingCartDto } from './dto/update-shopping-cart.dto';
+import { SearchRetailerProductsQueryDto } from './dto/search-retailer-products-query.dto';
 
 @Controller('api/v1')
 export class CartController {
@@ -58,7 +59,11 @@ export class CartController {
     @Body() input: CreateRestockCartDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.cartService.createRestockCart(input.items, input.retailer, user.sub);
+    return this.cartService.createRestockCart(
+      input.items,
+      input.retailer,
+      user.sub,
+    );
   }
 
   @Post('cart-drafts')
@@ -108,10 +113,7 @@ export class CartController {
   @UseGuards(RequestActorGuard)
   @ApiCartController('cart-drafts')
   @ApiGetCartDraft()
-  findDraft(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
+  findDraft(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.cartService.findDraft(id, user.sub);
   }
 
@@ -162,10 +164,7 @@ export class CartController {
   @UseGuards(RequestActorGuard)
   @ApiCartController('carts')
   @ApiGetCart()
-  findCart(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
+  findCart(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.cartService.findCart(id, user.sub);
   }
 
@@ -261,9 +260,13 @@ export class CartController {
   @ApiSearchRetailerProducts()
   async searchRetailerProducts(
     @Param('retailer') retailer: Retailer,
-    @Query('query') query: string,
+    @Query() query: SearchRetailerProductsQueryDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.cartService.searchRetailerProducts(retailer, query, user.sub);
+    return this.cartService.searchRetailerProducts(
+      retailer,
+      query.query,
+      user.sub,
+    );
   }
 }
