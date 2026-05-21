@@ -26,6 +26,8 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -34,11 +36,14 @@ class UpdateShoppingLocationDto {
   @ApiPropertyOptional({ example: '60611' })
   @IsOptional()
   @IsString()
+  @MaxLength(10)
+  @Matches(/^$|^\d{5}(-\d{4})?$/)
   zip_code?: string;
 
   @ApiPropertyOptional({ example: 'Chicago, IL' })
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   label?: string;
 
   @ApiPropertyOptional({ example: 41.8925 })
@@ -54,6 +59,7 @@ class UpdateShoppingLocationDto {
   @ApiPropertyOptional({ example: '01600479' })
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   kroger_location_id?: string;
 }
 
@@ -87,11 +93,13 @@ export class UpdateMePreferencesDto {
   @ApiProperty({ example: ['cuisine-peruvian', 'cuisine-mediterranean'] })
   @IsArray()
   @IsString({ each: true })
+  @MaxLength(80, { each: true })
   preferred_cuisine_ids!: string[];
 
   @ApiProperty({ example: ['tag-system-weeknight', 'tag-system-comfort-food'] })
   @IsArray()
   @IsString({ each: true })
+  @MaxLength(80, { each: true })
   preferred_tag_ids!: string[];
 
   @ApiPropertyOptional({ type: () => UpdateShoppingLocationDto })

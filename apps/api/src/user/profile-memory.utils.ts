@@ -25,6 +25,10 @@ export function normalizeMemoryLabel(label: string): string {
     .replace(/[\s_-]+/g, ' ');
 }
 
+export function normalizeUserInputString(value?: string): string | null {
+  return value?.trim().replace(/\s+/g, ' ') || null;
+}
+
 export function buildFoodRuleDedupeKey(input: {
   kind: UserFoodRuleKind;
   action: UserFoodRuleAction;
