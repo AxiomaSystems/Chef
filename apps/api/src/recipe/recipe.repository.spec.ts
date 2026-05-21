@@ -117,6 +117,87 @@ describe('RecipeRepository visibility', () => {
     );
   });
 
+  it('paginates public recipes through server-side owner filters', async () => {
+    userContextService.resolveOptionalActorUser.mockResolvedValue({
+      id: 'user-a',
+    });
+
+    await repository.findManyPage({ limit: 24, owner: 'public' }, 'user-a');
+
+    const query = prisma.baseRecipe.findMany.mock.calls[0][0];
+    expect(query.take).toBe(25);
+    expect(query.where.AND).toEqual(
+      expect.arrayContaining([
+        { OR: [{ isSystemRecipe: true }, { ownerUserId: 'user-a' }] },
+        { isSystemRecipe: true, ownerUserId: null },
+      ]),
+    );
+  });
+
+  it('paginates saved recipes through server-side owner filters', async () => {
+    userContextService.resolveOptionalActorUser.mockResolvedValue({
+      id: 'user-a',
+    });
+
+    await repository.findManyPage({ limit: 24, owner: 'saved' }, 'user-a');
+
+    const query = prisma.baseRecipe.findMany.mock.calls[0][0];
+    expect(query.where.AND).toEqual(
+      expect.arrayContaining([
+        { OR: [{ isSystemRecipe: true }, { ownerUserId: 'user-a' }] },
+        {
+          ownerUserId: 'user-a',
+          isSystemRecipe: false,
+          forkedFromRecipeId: { not: null },
+        },
+      ]),
+    );
+  });
+
+  it('paginates recipes through server-side search and taxonomy filters', async () => {
+    userContextService.resolveOptionalActorUser.mockResolvedValue({
+      id: 'user-a',
+    });
+
+    await repository.findManyPage(
+      {
+        limit: 24,
+        q: 'okra',
+        cuisine_id: 'cuisine-west-african',
+        tag_id: 'tag-quick',
+      },
+      'user-a',
+    );
+
+    const query = prisma.baseRecipe.findMany.mock.calls[0][0];
+    expect(query.where.AND).toEqual(
+      expect.arrayContaining([
+        { cuisineId: 'cuisine-west-african' },
+        { recipeTags: { some: { tagId: 'tag-quick' } } },
+        expect.objectContaining({
+          OR: expect.arrayContaining([
+            { name: { contains: 'okra', mode: 'insensitive' } },
+            { description: { contains: 'okra', mode: 'insensitive' } },
+            {
+              ingredients: {
+                some: {
+                  OR: expect.arrayContaining([
+                    {
+                      canonicalIngredient: {
+                        contains: 'okra',
+                        mode: 'insensitive',
+                      },
+                    },
+                  ]),
+                },
+              },
+            },
+          ]),
+        }),
+      ]),
+    );
+  });
+
   it('finds a recipe by id with the same visibility rules for unauthenticated access', async () => {
     userContextService.resolveOptionalActorUser.mockResolvedValue(null);
 

@@ -193,16 +193,25 @@ export class RecipeRepository {
   }
 
   async findManyPage(
-    input: { limit: number; cursor?: string },
+    input: {
+      limit: number;
+      cursor?: string;
+      q?: string;
+      cuisine_id?: string;
+      tag_id?: string;
+      owner?: 'public' | 'mine' | 'saved';
+    },
     actorUserId?: string,
   ): Promise<RecipeListPage> {
     const actor = await this.resolveOptionalActorUser(actorUserId);
     const cursor = decodeRecipeCursor(input.cursor);
     const limit = Math.min(Math.max(input.limit, 1), 100);
+    const filters = buildRecipeListFilters(input, actor?.id);
     const recipes = await this.prisma.baseRecipe.findMany({
       where: {
         AND: [
           buildVisibleRecipeWhere(actor?.id),
+          ...filters,
           cursor
             ? {
                 OR: [
@@ -583,4 +592,91 @@ function jsonStringArray(value: unknown): string[] {
   return value
     .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
     .filter(Boolean);
+}
+
+function buildRecipeListFilters(
+  input: {
+    q?: string;
+    cuisine_id?: string;
+    tag_id?: string;
+    owner?: 'public' | 'mine' | 'saved';
+  },
+  actorId?: string,
+): Prisma.BaseRecipeWhereInput[] {
+  const filters: Prisma.BaseRecipeWhereInput[] = [];
+  const query = input.q?.trim();
+
+  if (input.owner === 'public') {
+    filters.push({
+      isSystemRecipe: true,
+      ownerUserId: null,
+    });
+  } else if (input.owner === 'mine' && actorId) {
+    filters.push({
+      ownerUserId: actorId,
+      isSystemRecipe: false,
+      forkedFromRecipeId: null,
+    });
+  } else if (input.owner === 'saved' && actorId) {
+    filters.push({
+      ownerUserId: actorId,
+      isSystemRecipe: false,
+      forkedFromRecipeId: { not: null },
+    });
+  }
+
+  if (input.cuisine_id) {
+    filters.push({ cuisineId: input.cuisine_id });
+  }
+
+  if (input.tag_id) {
+    filters.push({
+      recipeTags: {
+        some: {
+          tagId: input.tag_id,
+        },
+      },
+    });
+  }
+
+  if (query) {
+    filters.push({
+      OR: [
+        { name: { contains: query, mode: 'insensitive' } },
+        { description: { contains: query, mode: 'insensitive' } },
+        { cuisine: { label: { contains: query, mode: 'insensitive' } } },
+        {
+          recipeTags: {
+            some: {
+              tag: {
+                name: { contains: query, mode: 'insensitive' },
+              },
+            },
+          },
+        },
+        {
+          ingredients: {
+            some: {
+              OR: [
+                {
+                  canonicalIngredient: {
+                    contains: query,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  displayIngredient: {
+                    contains: query,
+                    mode: 'insensitive',
+                  },
+                },
+              ],
+            },
+          },
+        },
+      ],
+    });
+  }
+
+  return filters;
 }

@@ -7,6 +7,7 @@ import type {
   IngredientReview,
   MatchedIngredientProduct,
   ProductCandidate,
+  RecipeListPage,
   Retailer,
   RetailerProductSearchResponse,
   ShoppingCart,
@@ -64,6 +65,19 @@ export type UpdateCartDetailsActionState = {
 export type GetShoppingCartActionState = {
   error?: string;
   shoppingCart?: ShoppingCart;
+};
+
+export type LoadRecipesPageActionState = {
+  error?: string;
+  page?: RecipeListPage;
+};
+
+export type LoadRecipesPageInput = {
+  cursor?: string;
+  q?: string;
+  cuisine_id?: string;
+  tag_id?: string;
+  owner?: "public" | "mine" | "saved";
 };
 
 async function readErrorMessage(response: Response | null, fallback: string) {
@@ -720,6 +734,32 @@ export async function createRecipeAction(
   const recipe = (await response.json()) as BaseRecipe;
   revalidatePath("/recipes");
   return { recipe };
+}
+
+export async function loadRecipesPageAction(
+  input: LoadRecipesPageInput = {},
+): Promise<LoadRecipesPageActionState> {
+  const params = new URLSearchParams({ limit: "24" });
+  if (input.cursor) params.set("cursor", input.cursor);
+  if (input.q?.trim()) params.set("q", input.q.trim());
+  if (input.cuisine_id) params.set("cuisine_id", input.cuisine_id);
+  if (input.tag_id) params.set("tag_id", input.tag_id);
+  if (input.owner) params.set("owner", input.owner);
+
+  const response = await callAuthedJson(`/recipes?${params.toString()}`).catch(
+    () => null,
+  );
+
+  if (!response?.ok) {
+    return {
+      error: await readErrorMessage(
+        response,
+        "Unable to load more recipes right now.",
+      ),
+    };
+  }
+
+  return { page: (await response.json()) as RecipeListPage };
 }
 
 export type UpdateRecipeActionState = { error?: string; recipe?: BaseRecipe };

@@ -1,5 +1,5 @@
-import { fetchAuthedCollection, fetchCollection } from "@/lib/api";
-import type { BaseRecipe, Cuisine, Tag } from "@cart/shared";
+import { fetchAuthedResource, fetchCollection } from "@/lib/api";
+import type { Cuisine, RecipeListPage, Tag } from "@cart/shared";
 import { RecipesClient } from "./recipes-client";
 
 export default async function RecipesPage({
@@ -10,15 +10,16 @@ export default async function RecipesPage({
   const resolvedSearchParams = await searchParams;
   const [cuisinesResult, tagsResult, recipesResult] = await Promise.all([
     fetchCollection<Cuisine>("/cuisines"),
-    fetchAuthedCollection<Tag>("/tags"),
-    fetchAuthedCollection<BaseRecipe>("/recipes"),
+    fetchAuthedResource<Tag[]>("/tags"),
+    fetchAuthedResource<RecipeListPage>("/recipes?limit=24&owner=public"),
   ]);
 
   return (
     <RecipesClient
       cuisines={cuisinesResult.data}
-      tags={tagsResult.data}
-      recipes={recipesResult.data}
+      tags={tagsResult.data ?? []}
+      recipes={recipesResult.data?.items ?? []}
+      nextCursor={recipesResult.data?.next_cursor}
       openImportOnLoad={
         resolvedSearchParams?.import === "1" ||
         resolvedSearchParams?.capture === "1"

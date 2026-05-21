@@ -55,9 +55,24 @@ export class RecipeController {
     @Query() query: ListRecipesQueryDto,
     @CurrentUser() user?: AuthenticatedUser,
   ): Promise<BaseRecipe[] | RecipeListPage> {
-    if (query.limit !== undefined || query.cursor) {
+    const hasPageQuery =
+      query.limit !== undefined ||
+      query.cursor ||
+      query.q ||
+      query.cuisine_id ||
+      query.tag_id ||
+      query.owner;
+
+    if (hasPageQuery) {
       return this.recipeService.findPage(
-        { limit: query.limit ?? 24, cursor: query.cursor },
+        {
+          limit: query.limit ?? 24,
+          cursor: query.cursor,
+          q: query.q,
+          cuisine_id: query.cuisine_id,
+          tag_id: query.tag_id,
+          owner: query.owner,
+        },
         user?.sub,
       );
     }

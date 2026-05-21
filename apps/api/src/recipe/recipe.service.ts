@@ -22,7 +22,14 @@ export class RecipeService {
   }
 
   findPage(
-    input: { limit: number; cursor?: string },
+    input: {
+      limit: number;
+      cursor?: string;
+      q?: string;
+      cuisine_id?: string;
+      tag_id?: string;
+      owner?: 'public' | 'mine' | 'saved';
+    },
     actorUserId?: string,
   ): Promise<RecipeListPage> {
     return this.recipeRepository.findManyPage(input, actorUserId);
