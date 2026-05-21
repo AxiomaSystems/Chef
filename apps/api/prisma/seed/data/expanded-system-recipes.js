@@ -62,7 +62,7 @@ const foodImages = {
     'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=1200&q=80',
   vegetables:
     'https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?auto=format&fit=crop&w=1200&q=80',
-  stew: 'https://images.unsplash.com/photo-1605478371310-a9f1e96b4ff4?auto=format&fit=crop&w=1200&q=80',
+  stew: 'https://images.unsplash.com/photo-1601315488950-3b5047998b38?auto=format&fit=crop&w=1200&q=80',
 };
 
 function recipe(
@@ -86,7 +86,8 @@ function recipe(
     name,
     cuisine,
     description,
-    coverImageUrl: imageUrl ?? fallbackImageUrl(index),
+    coverImageUrl:
+      imageUrl === null ? null : (imageUrl ?? fallbackImageUrl(index)),
     nutritionData: {
       calories,
       protein_g: protein,
@@ -1888,7 +1889,7 @@ const expandedRecipeInputs = [
   {
     name: 'West African okra tomato stew',
     cuisine: 'West African',
-    imageUrl: foodImages.stew,
+    imageUrl: null,
     description: 'A thick okra and tomato stew with shrimp, chile, and rice.',
     tags: ['west-african', 'seafood', 'spicy', 'one-pot'],
     ingredients: [
