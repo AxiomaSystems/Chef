@@ -185,15 +185,17 @@ export class CartService {
     const nextSelections = input.selections ?? cloneCartSelections(existing);
     const nextName = input.name ?? existing.name;
     const nextRetailer = input.retailer ?? existing.retailer;
-    const nextDishes = input.selections
-      ? buildDishesFromSelections(
-          await this.recipeService.findManyByIds(
-            nextSelections.map((selection) => selection.recipe_id),
-            actorUserId,
-          ),
-          { selections: nextSelections },
-        )
-      : existing.dishes;
+    const nextDishes = input.dishes
+      ? input.dishes
+      : input.selections
+        ? buildDishesFromSelections(
+            await this.recipeService.findManyByIds(
+              nextSelections.map((selection) => selection.recipe_id),
+              actorUserId,
+            ),
+            { selections: nextSelections },
+          )
+        : existing.dishes;
 
     const updated = await this.cartPersistenceService.updateCart(actor.id, id, {
       name: nextName,
@@ -429,6 +431,7 @@ export class CartService {
       cartId,
       shoppingCart: buildShoppingCartResponse({
         cartId,
+        name: cart.name ?? undefined,
         overview: reviewedComputation,
         matchedItems,
         estimatedSubtotal,
@@ -495,9 +498,14 @@ export class CartService {
     const estimatedSubtotal = matchedItems
       ? this.matchingService.estimateSubtotal(matchedItems)
       : undefined;
+    const checkedOutAt = input.checked_out_at ?? undefined;
     const shouldAddToInventory = Boolean(
-      input.checked_out_at && !existing.checked_out_at,
+      checkedOutAt && !existing.checked_out_at,
     );
+    const inventoryAppliedAt =
+      shouldAddToInventory && !existing.inventory_applied_at
+        ? checkedOutAt
+        : undefined;
 
     const updated = await this.cartPersistenceService.updateShoppingCart(
       actor.id,
@@ -506,6 +514,13 @@ export class CartService {
         matched_items: matchedItems,
         estimated_subtotal: estimatedSubtotal,
         checked_out_at: input.checked_out_at,
+        status:
+          input.checked_out_at === undefined
+            ? undefined
+            : input.checked_out_at
+              ? 'checked_out'
+              : 'active',
+        inventory_applied_at: inventoryAppliedAt,
       },
     );
 
@@ -586,6 +601,8 @@ export class CartService {
     }
 
     const inventoryItems = await this.ingredientsService.listInventory(userId);
+    const usedInventoryAmounts = new Map<string, number>();
+
     return overview.map((ingredient) => {
       const matchCandidates = [
         ...(ingredient.ingredient_id
@@ -624,44 +641,87 @@ export class CartService {
         seenInventoryIds.add(item.id);
         return true;
       });
-      const sameUnitInventory = matchedInventory.filter(
-        (item) =>
-          item.estimated_amount !== undefined &&
-          item.unit?.trim().toLowerCase() ===
-            ingredient.unit.trim().toLowerCase(),
-      );
       const hasUnknownAmount = matchedInventory.some(
         (item) => item.estimated_amount === undefined,
       );
-      const inventoryAmount = hasUnknownAmount
-        ? undefined
-        : sameUnitInventory.length > 0
-          ? sameUnitInventory.reduce(
-              (total, item) => total + (item.estimated_amount ?? 0),
-              0,
-            )
-          : matchedInventory[0]?.estimated_amount;
-      const inventoryUnit =
-        sameUnitInventory.length > 0
-          ? ingredient.unit
-          : matchedInventory[0]?.unit?.trim() || undefined;
-      const remaining =
-        matchedInventory.length > 0 && inventoryAmount === undefined
-          ? { remainingToBuy: 0, deductionPossible: false }
-          : this.calculateRemainingToBuy(
-              ingredient.total_amount,
-              ingredient.unit,
-              inventoryAmount,
-              inventoryUnit,
-            );
+
+      if (matchedInventory.length > 0 && hasUnknownAmount) {
+        return {
+          ...ingredient,
+          in_kitchen: true,
+          inventory_amount: undefined,
+          inventory_unit: matchedInventory[0]?.unit?.trim() || undefined,
+          remaining_to_buy: 0,
+          deduction_possible: false,
+        };
+      }
+
+      const usableInventory = matchedInventory
+        .map((item) => {
+          const estimatedAmount = item.estimated_amount;
+          if (estimatedAmount === undefined) return null;
+          const availableAmount = Math.max(
+            0,
+            estimatedAmount - (usedInventoryAmounts.get(item.id) ?? 0),
+          );
+          const availableInNeededUnit = this.convertAmount(
+            availableAmount,
+            item.unit,
+            ingredient.unit,
+          );
+
+          if (availableInNeededUnit === undefined) return null;
+
+          return {
+            item,
+            availableInNeededUnit,
+            sameUnit:
+              this.normalizeUnit(item.unit) ===
+              this.normalizeUnit(ingredient.unit),
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => Boolean(item))
+        .sort((left, right) => Number(right.sameUnit) - Number(left.sameUnit));
+
+      let remainingToBuy = ingredient.total_amount;
+      let consumedInventoryAmount = 0;
+
+      for (const available of usableInventory) {
+        if (remainingToBuy <= 0) break;
+        if (available.availableInNeededUnit <= 0) continue;
+
+        const consumedInNeededUnit = Math.min(
+          remainingToBuy,
+          available.availableInNeededUnit,
+        );
+        const consumedInInventoryUnit = this.convertAmount(
+          consumedInNeededUnit,
+          ingredient.unit,
+          available.item.unit,
+        );
+
+        if (consumedInInventoryUnit === undefined) continue;
+
+        usedInventoryAmounts.set(
+          available.item.id,
+          (usedInventoryAmounts.get(available.item.id) ?? 0) +
+            consumedInInventoryUnit,
+        );
+        consumedInventoryAmount += consumedInNeededUnit;
+        remainingToBuy -= consumedInNeededUnit;
+      }
 
       return {
         ...ingredient,
         in_kitchen: matchedInventory.length > 0,
-        inventory_amount: inventoryAmount,
-        inventory_unit: inventoryUnit,
-        remaining_to_buy: remaining.remainingToBuy,
-        deduction_possible: remaining.deductionPossible,
+        inventory_amount:
+          consumedInventoryAmount > 0 ? consumedInventoryAmount : undefined,
+        inventory_unit:
+          consumedInventoryAmount > 0
+            ? ingredient.unit
+            : matchedInventory[0]?.unit?.trim() || undefined,
+        remaining_to_buy: Math.max(0, remainingToBuy),
+        deduction_possible: usableInventory.length > 0,
       };
     });
   }

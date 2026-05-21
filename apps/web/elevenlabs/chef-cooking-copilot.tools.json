@@ -55,7 +55,7 @@
         },
         "label": {
           "type": "string",
-          "description": "Optional timer label, such as pasta, sauce, chicken, rice, oven, or simmer."
+          "description": "Optional timer label. Prefer a context-specific label from the current cooking action, such as bake, simmer, pasta, sauce, chicken, rice, oven, or resting. Avoid generic labels like timer unless the user explicitly says that."
         },
         "duration_seconds": {
           "type": "number",

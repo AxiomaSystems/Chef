@@ -91,3 +91,11 @@ For that reason, public tables have RLS enabled without permissive anon/auth pol
 Do not add broad policies such as `USING (true)` just to quiet dashboard warnings.
 
 When adding new Prisma tables in the `public` schema, include RLS in the same migration or run a follow-up migration that enables RLS across all public tables. A one-time catch-up migration only covers tables that existed when it ran.
+
+## Migration Discipline
+
+Supabase is a shared database, but the repo owns database history.
+
+Do not apply schema changes directly from the Supabase dashboard or from a local branch that will not be committed. Every schema change must land as a Prisma migration in `apps/api/prisma/migrations` with matching updates to `schema.prisma`, generated client, shared contracts, API code, tests, and docs.
+
+The cart lifecycle reconciliation in `docs/cart-lifecycle.md` is the reference incident: Supabase had a shopping-cart lifecycle migration applied outside the repo, and the fix was to roll forward with a repo-owned migration instead of editing production state by hand.

@@ -30,11 +30,14 @@ export type CreateCartRequest = {
   selections: CartSelection[];
 };
 
+export type CartStatus = "active" | "archived";
+
 export type Cart = {
   id?: string;
   user_id?: string;
   name?: string;
   retailer: Retailer;
+  status?: CartStatus;
   selections: CartSelection[];
   dishes: Dish[];
   overview: AggregatedIngredient[];
@@ -45,6 +48,8 @@ export type Cart = {
 export type CreateShoppingCartRequest = {
   retailer: Retailer;
 };
+
+export type ShoppingCartStatus = "active" | "checked_out" | "archived";
 
 export type IngredientReviewAction = "buy" | "already_have" | "skip" | "adjust";
 
@@ -83,14 +88,17 @@ export type ShoppingCart = {
   id?: string;
   user_id?: string;
   cart_id: string;
+  name?: string;
   overview: AggregatedIngredient[];
   matched_items: MatchedIngredientProduct[];
   estimated_subtotal: number;
   estimated_total?: number;
   retailer: Retailer;
+  status?: ShoppingCartStatus;
   external_url?: string;
   external_reference_id?: string;
   checked_out_at?: string;
+  inventory_applied_at?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -99,11 +107,14 @@ export type ShoppingCartHistorySummary = {
   id: string;
   user_id: string;
   cart_id: string;
+  name?: string;
   retailer: Retailer;
+  status?: ShoppingCartStatus;
   estimated_subtotal: number;
   external_url?: string;
   external_reference_id?: string;
   checked_out_at?: string;
+  inventory_applied_at?: string;
   overview_count: number;
   matched_item_count: number;
   created_at: string;

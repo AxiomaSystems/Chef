@@ -367,6 +367,7 @@ type Cart = {
   user_id: string;
   name?: string;
   retailer: Retailer;
+  status: "active" | "archived";
   selections: SelectedRecipe[];
   dishes: Dish[];
   overview: AggregatedIngredient[];
@@ -390,6 +391,7 @@ Current runtime note:
 - `Cart` persists retailer because planning and purchase context should not disappear between draft and shopping-cart generation
 - `Cart.overview` is derived from `dishes` on read, not stored as a second persisted source of truth
 - `Cart` is the meal-plan snapshot, not the purchase basket
+- one `Cart` can be active per user; creating a new `Cart` archives the previous active planning cart
 
 Current UI note:
 
@@ -614,14 +616,19 @@ Current shape:
 type ShoppingCart = {
   id: string;
   cart_id: string;
+  name?: string;
   retailer: Retailer;
+  status: "active" | "checked_out" | "archived";
   external_url?: string;
   external_reference_id?: string;
   overview: AggregatedIngredient[];
   matched_items: MatchedIngredientProduct[];
   estimated_subtotal: number;
   estimated_total?: number;
+  checked_out_at?: string;
+  inventory_applied_at?: string;
   created_at: string;
+  updated_at: string;
 };
 ```
 
@@ -630,6 +637,9 @@ Interpretation:
 - `ShoppingCart` is the retailer-facing purchase basket derived from a `Cart`
 - it answers "what do I need to buy?"
 - retailer matching, quantities, and subtotal belong here
+- only one `ShoppingCart` can be active per user
+- generating a new `ShoppingCart` archives any previous active shopping cart for that user
+- checkout marks a shopping cart `checked_out`, records `checked_out_at`, and applies purchased items to inventory once
 
 Current runtime note:
 
@@ -637,6 +647,7 @@ Current runtime note:
 - matching now runs behind a provider boundary
 - `ShoppingCart` can still be created and edited with the mock provider in local/dev
 - the same contract now works with live Kroger search/matching and is still intended to work with Walmart later
+- `GET /api/v1/shopping-carts` returns active shopping carts; `GET /api/v1/shopping-carts/history` returns the full history
 
 Current UI note:
 

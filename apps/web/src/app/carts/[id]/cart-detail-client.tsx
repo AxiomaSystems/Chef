@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import type {
   AggregatedIngredient,
   Cart,
+  Dish,
   DishIngredient,
   IngredientReview,
 } from "@cart/shared";
 import { normalizeIngredientKey } from "@cart/shared";
 import {
   createShoppingCartAction,
+  deletePlanningResourceAction,
+  updateCartDetailsAction,
   updateIngredientReviewAction,
 } from "@/app/home-actions";
 
@@ -113,16 +116,15 @@ function buildDishNeeds(
 }
 
 function buildManualCoveredByAggregate(
-  cart: Cart,
-  crossedOffRows: Set<string>,
+  dishNeeds: ReturnType<typeof buildDishNeeds>,
 ) {
   const covered = new Map<string, number>();
 
-  cart.dishes.forEach((dish, dishIndex) => {
-    dish.ingredients.forEach((ingredient, ingredientIndex) => {
-      if (!crossedOffRows.has(rowKey(dishIndex, ingredientIndex))) return;
-      const key = ingredientKey(ingredient);
-      covered.set(key, (covered.get(key) ?? 0) + ingredient.amount);
+  dishNeeds.forEach(({ ingredients }) => {
+    ingredients.forEach((item) => {
+      if (!item.crossedOff || item.crossedOffAmount <= 0) return;
+      const key = ingredientKey(item.ingredient);
+      covered.set(key, (covered.get(key) ?? 0) + item.crossedOffAmount);
     });
   });
 
@@ -133,33 +135,45 @@ function formatAmount(amount: number) {
   return Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
 }
 
+function fallbackCartName(cart: Cart) {
+  return cart.name?.trim() || "Cart";
+}
+
 export function CartDetailClient({ cart }: { cart: Cart }) {
   const router = useRouter();
+  const [currentCart, setCurrentCart] = useState(cart);
   const [inventoryChecked, setInventoryChecked] = useState(false);
   const [crossedOffRows, setCrossedOffRows] = useState<Set<string>>(
     () => new Set(),
   );
   const [cartError, setCartError] = useState<string | null>(null);
+  const [editingRecipe, setEditingRecipe] = useState<{
+    dishIndex: number;
+    dishName: string;
+    dish: Dish;
+  } | null>(null);
   const [isCreatingShoppingCart, startCreateShoppingCart] = useTransition();
+  const [isCheckingInventory, startCheckInventory] = useTransition();
+  const [pendingRecipeId, setPendingRecipeId] = useState<string | null>(null);
   const dishNeeds = useMemo(
-    () => buildDishNeeds(cart, inventoryChecked, crossedOffRows),
-    [cart, crossedOffRows, inventoryChecked],
+    () => buildDishNeeds(currentCart, inventoryChecked, crossedOffRows),
+    [currentCart, crossedOffRows, inventoryChecked],
   );
   const manualCoveredByAggregate = useMemo(
-    () => buildManualCoveredByAggregate(cart, crossedOffRows),
-    [cart, crossedOffRows],
+    () => buildManualCoveredByAggregate(dishNeeds),
+    [dishNeeds],
   );
-  const totalToBuy = cart.overview.reduce((total, ingredient) => {
+  const totalToBuy = currentCart.overview.reduce((total, ingredient) => {
     const key = aggregateKey(ingredient);
     const manualCovered = manualCoveredByAggregate.get(key) ?? 0;
     const remaining = ingredient.remaining_to_buy ?? ingredient.total_amount;
     return total + Math.max(0, remaining - manualCovered);
   }, 0);
-  const coveredCount = cart.overview.filter(
+  const coveredCount = currentCart.overview.filter(
     (ingredient) =>
       (ingredient.remaining_to_buy ?? ingredient.total_amount) <= 0,
   ).length;
-  const partialCount = cart.overview.filter(
+  const partialCount = currentCart.overview.filter(
     (ingredient) =>
       (ingredient.remaining_to_buy ?? ingredient.total_amount) > 0 &&
       (ingredient.remaining_to_buy ?? ingredient.total_amount) <
@@ -167,10 +181,10 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
   ).length;
 
   function handleCreateShoppingCart() {
-    if (!cart.id) return;
+    if (!currentCart.id) return;
     setCartError(null);
     startCreateShoppingCart(async () => {
-      const reviewItems: IngredientReview["items"] = cart.overview.map(
+      const reviewItems: IngredientReview["items"] = currentCart.overview.map(
         (ingredient) => {
           const manualCovered =
             manualCoveredByAggregate.get(aggregateKey(ingredient)) ?? 0;
@@ -197,7 +211,7 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
         },
       );
       const reviewResult = await updateIngredientReviewAction(
-        cart.id!,
+        currentCart.id!,
         reviewItems,
       );
       if (reviewResult.error) {
@@ -205,7 +219,10 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
         return;
       }
 
-      const result = await createShoppingCartAction(cart.id!, cart.retailer);
+      const result = await createShoppingCartAction(
+        currentCart.id!,
+        currentCart.retailer,
+      );
       if (result.error) {
         setCartError(result.error);
         return;
@@ -213,6 +230,110 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
 
       router.push("/shopping");
     });
+  }
+
+  function handleCheckInventory() {
+    if (!currentCart.id) return;
+    setCartError(null);
+    startCheckInventory(async () => {
+      const result = await updateCartDetailsAction(currentCart.id!, {});
+      if (result.error || !result.cart) {
+        setCartError(result.error ?? "Unable to check inventory right now.");
+        return;
+      }
+      setCurrentCart(result.cart);
+      setInventoryChecked(true);
+    });
+  }
+
+  function updateRecipeDish(dishIndex: number, nextDish: Dish) {
+    if (!currentCart.id) return;
+
+    setCartError(null);
+    setPendingRecipeId(nextDish.id ?? `${dishIndex}`);
+
+    void updateCartDetailsAction(currentCart.id, {
+      dishes: currentCart.dishes.map((dish, index) =>
+        index === dishIndex ? nextDish : dish,
+      ),
+    }).then((result) => {
+      setPendingRecipeId(null);
+      if (result.error || !result.cart) {
+        setCartError(result.error ?? "Unable to update this recipe.");
+        return;
+      }
+      setCurrentCart(result.cart);
+      setCrossedOffRows(new Set());
+      setInventoryChecked(false);
+      setEditingRecipe(null);
+    });
+  }
+
+  function deleteRecipeFromCart(
+    dishName: string,
+    dishIndex: number,
+    recipeId?: string,
+  ) {
+    if (!currentCart.id) return;
+    const confirmed = window.confirm(`Remove ${dishName} from this cart?`);
+    if (!confirmed) return;
+
+    const nextDishes = currentCart.dishes.filter(
+      (_dish, index) => index !== dishIndex,
+    );
+    const target = recipeId
+      ? currentCart.selections.find(
+          (selection) => selection.recipe_id === recipeId,
+        )
+      : null;
+
+    const nextSelections = target
+      ? target.quantity > 1
+        ? currentCart.selections.map((selection) =>
+            selection.recipe_id === recipeId
+              ? { ...selection, quantity: selection.quantity - 1 }
+              : selection,
+          )
+        : currentCart.selections.filter(
+            (selection) => selection.recipe_id !== recipeId,
+          )
+      : currentCart.selections;
+
+    setCartError(null);
+    setPendingRecipeId(recipeId ?? `${dishIndex}`);
+
+    if (nextDishes.length === 0) {
+      void deletePlanningResourceAction("cart", currentCart.id).then(
+        (result) => {
+          setPendingRecipeId(null);
+          if (result.error) {
+            setCartError(result.error);
+            return;
+          }
+          router.push("/carts");
+          router.refresh();
+        },
+      );
+      return;
+    }
+
+    void updateCartDetailsAction(currentCart.id, {
+      selections: nextSelections,
+      dishes: nextDishes,
+    }).then((result) => {
+      setPendingRecipeId(null);
+      if (result.error || !result.cart) {
+        setCartError(result.error ?? "Unable to remove this recipe.");
+        return;
+      }
+      setCurrentCart(result.cart);
+      setCrossedOffRows(new Set());
+      setInventoryChecked(false);
+    });
+  }
+
+  function editRecipeInCart(dish: Dish, dishIndex: number) {
+    setEditingRecipe({ dishIndex, dishName: dish.name, dish });
   }
 
   function toggleIngredient(key: string) {
@@ -230,22 +351,33 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
   return (
     <div className="grid gap-5">
       <section className="rounded-[1.75rem] border border-[#c0dedf] bg-white p-4 shadow-sm sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-headline-sm text-[#132326]">Cart</h2>
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div className="min-w-0">
+            <h2 className="truncate text-headline-sm text-[#132326]">
+              {fallbackCartName(currentCart)}
+            </h2>
             <p className="mt-1 text-body-sm text-[#5f8689]">
               Review what each recipe needs before creating the shopping list.
             </p>
           </div>
           <button
             type="button"
-            onClick={() => setInventoryChecked(true)}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#2f7f83] px-5 py-2.5 text-label-lg font-black text-white transition-colors hover:bg-[#25696d]"
+            onClick={handleCheckInventory}
+            disabled={isCheckingInventory || !currentCart.id}
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#2f7f83] px-4 py-2.5 text-label-md font-black text-white transition-colors hover:bg-[#25696d] disabled:opacity-60 lg:w-auto"
           >
-            <span className="material-symbols-outlined text-[18px]">
-              inventory_2
+            <span
+              className={`material-symbols-outlined text-[18px] ${
+                isCheckingInventory ? "animate-spin" : ""
+              }`}
+            >
+              {isCheckingInventory ? "progress_activity" : "inventory_2"}
             </span>
-            {inventoryChecked ? "Inventory checked" : "Check against inventory"}
+            {isCheckingInventory
+              ? "Checking..."
+              : inventoryChecked
+                ? "Check again"
+                : "Check inventory"}
           </button>
         </div>
 
@@ -269,17 +401,52 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
             className="rounded-[1.65rem] border border-[#c0dedf] bg-white p-5 shadow-sm"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#f4790d]">
                   {dish.cuisine ?? "Recipe"}
                 </p>
-                <h3 className="mt-1 text-[1.5rem] font-black leading-tight text-[#132326]">
+                <h3 className="mt-1 break-words text-[1.5rem] font-black leading-tight text-[#132326]">
                   {dish.name}
                 </h3>
               </div>
-              <span className="rounded-full bg-[#fff2e3] px-3 py-1 text-label-sm font-semibold text-[#f4790d]">
-                {ingredients.length} item{ingredients.length === 1 ? "" : "s"}
-              </span>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="rounded-full bg-[#fff2e3] px-3 py-1 text-label-sm font-semibold text-[#f4790d]">
+                  {ingredients.length} item
+                  {ingredients.length === 1 ? "" : "s"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => editRecipeInCart(dish, index)}
+                  disabled={pendingRecipeId === (dish.id ?? `${index}`)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[#c0dedf] text-[#5f8689] transition-colors hover:bg-[#fff8ef] disabled:opacity-50"
+                  aria-label={`Edit ${dish.name}`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">
+                    edit
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    deleteRecipeFromCart(dish.name, index, dish.id)
+                  }
+                  disabled={pendingRecipeId === (dish.id ?? `${index}`)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-red-200 text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+                  aria-label={`Remove ${dish.name}`}
+                >
+                  <span
+                    className={`material-symbols-outlined text-[20px] ${
+                      pendingRecipeId === (dish.id ?? `${index}`)
+                        ? "animate-spin"
+                        : ""
+                    }`}
+                  >
+                    {pendingRecipeId === (dish.id ?? `${index}`)
+                      ? "progress_activity"
+                      : "delete"}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div className="mt-4 grid gap-2">
@@ -311,7 +478,7 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
         <button
           type="button"
           onClick={handleCreateShoppingCart}
-          disabled={isCreatingShoppingCart || !cart.id}
+          disabled={isCreatingShoppingCart || !currentCart.id}
           className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-label-lg font-black text-on-primary shadow-[0_12px_28px_rgba(244,121,13,0.25)] transition-opacity disabled:opacity-60"
         >
           <span
@@ -326,6 +493,262 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
             : "Create shopping list"}
         </button>
       </section>
+
+      {editingRecipe ? (
+        <EditRecipeInCartDialog
+          dishName={editingRecipe.dishName}
+          dish={editingRecipe.dish}
+          onClose={() => setEditingRecipe(null)}
+          onSave={(dish) => updateRecipeDish(editingRecipe.dishIndex, dish)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function EditRecipeInCartDialog({
+  dishName,
+  dish,
+  onClose,
+  onSave,
+}: {
+  dishName: string;
+  dish: Dish;
+  onClose: () => void;
+  onSave: (dish: Dish) => void;
+}) {
+  const [name, setName] = useState(dish.name);
+  const [servings, setServings] = useState(dish.servings ?? "");
+  const [ingredients, setIngredients] = useState<DishIngredient[]>(
+    dish.ingredients.map((ingredient) => ({ ...ingredient })),
+  );
+
+  function saveRecipe() {
+    const normalizedServings =
+      servings === "" ? undefined : Math.max(1, Number(servings));
+    onSave({
+      ...dish,
+      name: name.trim() || dish.name,
+      servings:
+        Number.isFinite(normalizedServings) && normalizedServings
+          ? normalizedServings
+          : dish.servings,
+      ingredients: ingredients
+        .map((ingredient) => {
+          const displayName =
+            ingredient.display_ingredient?.trim() ||
+            ingredient.canonical_ingredient.trim();
+          return {
+            ...ingredient,
+            canonical_ingredient:
+              ingredient.canonical_ingredient.trim() ||
+              displayName.toLowerCase(),
+            display_ingredient: displayName || undefined,
+            unit: ingredient.unit.trim() || "unit",
+            amount: Math.max(0, Number(ingredient.amount) || 0),
+            preparation: ingredient.preparation?.trim() || undefined,
+          };
+        })
+        .filter(
+          (ingredient) =>
+            ingredient.canonical_ingredient && ingredient.amount > 0,
+        ),
+    });
+  }
+
+  function updateIngredient(index: number, patch: Partial<DishIngredient>) {
+    setIngredients((current) =>
+      current.map((ingredient, currentIndex) =>
+        currentIndex === index ? { ...ingredient, ...patch } : ingredient,
+      ),
+    );
+  }
+
+  function removeIngredient(index: number) {
+    setIngredients((current) =>
+      current.length <= 1
+        ? current
+        : current.filter((_ingredient, currentIndex) => currentIndex !== index),
+    );
+  }
+
+  function addIngredient() {
+    setIngredients((current) => [
+      ...current,
+      {
+        canonical_ingredient: "",
+        amount: 1,
+        unit: "unit",
+      },
+    ]);
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end bg-black/35 sm:items-center sm:justify-center sm:p-5">
+      <div className="flex max-h-[calc(100dvh-1rem)] w-screen flex-col rounded-t-[1.75rem] bg-white p-5 shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-[1.75rem]">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f4790d]">
+              Recipe
+            </p>
+            <h2 className="mt-1 text-headline-sm text-[#132326]">
+              Edit recipe
+            </h2>
+            <p className="mt-1 text-body-sm text-[#5f8689]">{dishName}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#c0dedf] text-[#5f8689]"
+            aria-label="Close edit cart"
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto pt-5">
+          <label className="block text-label-sm font-bold uppercase tracking-wide text-[#5f8689]">
+            Recipe name
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="mt-2 min-h-12 w-full rounded-full border border-[#c0dedf] bg-white px-4 text-body-md font-semibold normal-case tracking-normal text-[#132326] outline-none focus:border-[#f4790d]"
+            />
+          </label>
+
+          <label className="mt-4 block text-label-sm font-bold uppercase tracking-wide text-[#5f8689]">
+            Servings override
+            <input
+              type="number"
+              min={1}
+              placeholder="Use recipe default"
+              value={servings}
+              onChange={(event) =>
+                setServings(
+                  event.target.value === "" ? "" : Number(event.target.value),
+                )
+              }
+              className="mt-2 min-h-12 w-full rounded-full border border-[#c0dedf] bg-white px-4 text-body-md font-semibold normal-case tracking-normal text-[#132326] outline-none focus:border-[#f4790d]"
+            />
+          </label>
+
+          <div className="mt-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-label-sm font-bold uppercase tracking-wide text-[#5f8689]">
+                Ingredients
+              </p>
+              <button
+                type="button"
+                onClick={addIngredient}
+                className="inline-flex min-h-9 items-center gap-1 rounded-full bg-[#fff2e3] px-3 text-label-sm font-black text-[#f4790d]"
+              >
+                <span className="material-symbols-outlined text-[17px]">
+                  add
+                </span>
+                Add
+              </button>
+            </div>
+
+            <div className="mt-3 grid gap-3">
+              {ingredients.map((ingredient, index) => (
+                <div
+                  key={`${ingredient.canonical_ingredient}-${index}`}
+                  className="rounded-[1.25rem] border border-[#c0dedf] bg-[#fffdfa] p-3"
+                >
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_6rem_6rem]">
+                    <input
+                      value={
+                        ingredient.display_ingredient ??
+                        ingredient.canonical_ingredient
+                      }
+                      onChange={(event) =>
+                        updateIngredient(index, {
+                          canonical_ingredient: event.target.value,
+                          display_ingredient: event.target.value,
+                        })
+                      }
+                      placeholder="Ingredient"
+                      className="min-h-10 rounded-full border border-[#c0dedf] bg-white px-3 text-body-sm font-semibold text-[#132326] outline-none focus:border-[#f4790d]"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={ingredient.amount}
+                      onChange={(event) =>
+                        updateIngredient(index, {
+                          amount: Number(event.target.value),
+                        })
+                      }
+                      className="min-h-10 rounded-full border border-[#c0dedf] bg-white px-3 text-body-sm font-semibold text-[#132326] outline-none focus:border-[#f4790d]"
+                    />
+                    <input
+                      value={ingredient.unit}
+                      onChange={(event) =>
+                        updateIngredient(index, { unit: event.target.value })
+                      }
+                      className="min-h-10 rounded-full border border-[#c0dedf] bg-white px-3 text-body-sm font-semibold text-[#132326] outline-none focus:border-[#f4790d]"
+                    />
+                  </div>
+                  <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                    <input
+                      value={ingredient.preparation ?? ""}
+                      onChange={(event) =>
+                        updateIngredient(index, {
+                          preparation: event.target.value,
+                        })
+                      }
+                      placeholder="Preparation, optional"
+                      className="min-h-10 rounded-full border border-[#c0dedf] bg-white px-3 text-body-sm text-[#132326] outline-none focus:border-[#f4790d]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeIngredient(index)}
+                      disabled={ingredients.length <= 1}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-red-200 text-red-600 disabled:opacity-40"
+                      aria-label="Remove ingredient"
+                    >
+                      <span className="material-symbols-outlined text-[19px]">
+                        delete
+                      </span>
+                    </button>
+                  </div>
+                  <label className="mt-2 flex items-center gap-2 text-label-sm font-semibold text-[#5f8689]">
+                    <input
+                      type="checkbox"
+                      checked={ingredient.optional ?? false}
+                      onChange={(event) =>
+                        updateIngredient(index, {
+                          optional: event.target.checked,
+                        })
+                      }
+                      className="h-4 w-4 rounded border-[#c0dedf] accent-[#f4790d]"
+                    />
+                    Optional ingredient
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 pt-5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-h-12 rounded-full border border-[#c0dedf] px-4 text-label-lg font-black text-[#5f8689]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={saveRecipe}
+            className="min-h-12 rounded-full bg-[#f4790d] px-4 text-label-lg font-black text-white disabled:opacity-60"
+          >
+            Save
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
