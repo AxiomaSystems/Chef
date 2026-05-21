@@ -6,8 +6,7 @@ import { AppNavLink } from "./app-nav-link";
 
 const navItems = [
   { href: "/dashboard", icon: "home", label: "Home" },
-  { href: "/meal-plan", icon: "calendar_month", label: "Plan" },
-  { href: "/recipes", icon: "add_circle", label: "Create" },
+  { href: "/recipes", icon: "receipt_long", label: "Recipes" },
   {
     href: "/carts",
     icon: "shopping_cart",
