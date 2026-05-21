@@ -3,12 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type MouseEvent } from "react";
+import { AppNavLink } from "./app-nav-link";
 
 const navItems = [
   { href: "/dashboard", icon: "home", label: "Home" },
   { href: "/recipes", icon: "receipt_long", label: "Recipes" },
   { href: "/inventory", icon: "inventory_2", label: "Inventory" },
-  { href: "/carts", icon: "shopping_cart", label: "Cart" },
+  {
+    href: "/carts",
+    icon: "shopping_cart",
+    label: "Cart",
+    activePaths: ["/carts", "/shopping"],
+  },
 ];
 
 export function BottomNav({
@@ -40,12 +46,16 @@ export function BottomNav({
       ) : null}
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-4 items-center border-t border-outline-variant/30 bg-surface-bright/95 px-2 py-2 shadow-[0_-10px_30px_rgba(60,154,158,0.08)] backdrop-blur-md lg:hidden">
-        {navItems.map(({ href, icon, label }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
+        {navItems.map(({ href, icon, label, activePaths }) => {
+          const paths = activePaths ?? [href];
+          const active = paths.some(
+            (path) => pathname === path || pathname.startsWith(path + "/"),
+          );
           return (
-            <Link
+            <AppNavLink
               key={href}
               href={href}
+              activePaths={paths}
               className={`flex min-w-0 flex-col items-center gap-0.5 px-1 transition-colors ${
                 active ? "text-primary-fixed-dim" : "text-outline"
               }`}
@@ -60,7 +70,7 @@ export function BottomNav({
               <span className="w-full truncate text-center text-[10px] font-medium leading-tight">
                 {label}
               </span>
-            </Link>
+            </AppNavLink>
           );
         })}
       </nav>

@@ -21,6 +21,7 @@ import type { HandsFreeSessionContext } from "@/components/hands-free-mode-types
 import { HandsFreeSetupModal } from "@/components/hands-free-setup-modal";
 import { RecipeImage } from "@/components/ui/recipe-image";
 import type { CookingContext } from "@/lib/cooking-context";
+import { routeMemoryKey, usePageMemory } from "@/lib/page-memory";
 import {
   getIngredientReadiness,
   getIngredientReadinessSummary,
@@ -28,6 +29,12 @@ import {
 } from "@/lib/inventory-readiness";
 
 type RecipeTab = "ingredients" | "steps";
+
+type RecipeDetailMemory = {
+  activeTab: RecipeTab;
+  handsFreeOpen: boolean;
+  handsFreeSessionContext?: HandsFreeSessionContext;
+};
 
 const RecipeCreateModal = dynamic(
   () =>
@@ -67,12 +74,21 @@ export function RecipeDetailPageClient({
 }) {
   const router = useRouter();
   const [currentRecipe, setCurrentRecipe] = useState(recipe);
-  const [activeTab, setActiveTab] = useState<RecipeTab>("ingredients");
-  const [handsFreeOpen, setHandsFreeOpen] = useState(false);
+  const [pageMemory, setPageMemory] = usePageMemory<RecipeDetailMemory>(
+    routeMemoryKey(`/recipes/${recipe.id}`),
+    {
+      activeTab: "ingredients",
+      handsFreeOpen: false,
+      handsFreeSessionContext: undefined,
+    },
+    {
+      routeHref: "/recipes",
+      onReset: () => {
+        setHandsFreeSetupOpen(false);
+      },
+    },
+  );
   const [handsFreeSetupOpen, setHandsFreeSetupOpen] = useState(false);
-  const [handsFreeSessionContext, setHandsFreeSessionContext] = useState<
-    HandsFreeSessionContext | undefined
-  >();
   const [editingRecipe, setEditingRecipe] = useState<BaseRecipe | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [aiAlternatives, setAiAlternatives] = useState<
@@ -86,6 +102,9 @@ export function RecipeDetailPageClient({
   const [cartError, setCartError] = useState<string | null>(null);
   const [isAddingToCart, startAddToCart] = useTransition();
   const [isDeleting, startDelete] = useTransition();
+  const activeTab = pageMemory.activeTab;
+  const handsFreeOpen = pageMemory.handsFreeOpen;
+  const handsFreeSessionContext = pageMemory.handsFreeSessionContext;
   const nutrition = currentRecipe.nutrition_data ?? {};
   const badges = currentRecipe.tags
     .filter((tag) => tag.kind === "dietary_badge")
@@ -286,7 +305,12 @@ export function RecipeDetailPageClient({
               <button
                 key={tab}
                 type="button"
-                onClick={() => setActiveTab(tab)}
+                onClick={() =>
+                  setPageMemory((current) => ({
+                    ...current,
+                    activeTab: tab,
+                  }))
+                }
                 className={`relative py-3 text-label-lg capitalize ${
                   activeTab === tab ? "text-primary" : "text-outline"
                 }`}
@@ -480,9 +504,12 @@ export function RecipeDetailPageClient({
           recipe={recipe}
           onCancel={() => setHandsFreeSetupOpen(false)}
           onStart={(context) => {
-            setHandsFreeSessionContext(context);
             setHandsFreeSetupOpen(false);
-            setHandsFreeOpen(true);
+            setPageMemory((current) => ({
+              ...current,
+              handsFreeOpen: true,
+              handsFreeSessionContext: context,
+            }));
           }}
         />
       ) : null}
@@ -492,7 +519,12 @@ export function RecipeDetailPageClient({
           recipe={currentRecipe}
           cookingContext={cookingContext}
           sessionContext={handsFreeSessionContext}
-          onClose={() => setHandsFreeOpen(false)}
+          onClose={() =>
+            setPageMemory((current) => ({
+              ...current,
+              handsFreeOpen: false,
+            }))
+          }
         />
       ) : null}
       {editingRecipe ? (

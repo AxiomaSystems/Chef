@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useCallback, useMemo, useState, type SetStateAction } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import {
@@ -11,6 +11,7 @@ import {
   type KitchenInventoryItem,
 } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
+import { routeMemoryKey, usePageMemory } from "@/lib/page-memory";
 import { IngredientImage } from "./ingredient-image";
 import {
   removeInventoryItemAction,
@@ -57,6 +58,22 @@ type DisplayItem = {
   unit?: string;
 };
 
+type InventoryPageMemory = {
+  activeCategory: string;
+  inventorySearch: string;
+  categoryFiltersExpanded: boolean;
+  detailItemId: string | null;
+  scrollY: number;
+};
+
+const INVENTORY_MEMORY_DEFAULT: InventoryPageMemory = {
+  activeCategory: "All Items",
+  inventorySearch: "",
+  categoryFiltersExpanded: false,
+  detailItemId: null,
+  scrollY: 0,
+};
+
 function realToDisplay(item: KitchenInventoryItem): DisplayItem {
   const rawCategory = item.ingredient?.category?.trim();
   const name =
@@ -92,9 +109,6 @@ export function InventoryClient({
 }: {
   realItems: KitchenInventoryItem[];
 }) {
-  const [activeCategory, setActiveCategory] = useState("All Items");
-  const [inventorySearch, setInventorySearch] = useState("");
-  const [categoryFiltersExpanded, setCategoryFiltersExpanded] = useState(false);
   const [ingredientPickerOpen, setIngredientPickerOpen] = useState(false);
   const [voiceInventoryOpen, setVoiceInventoryOpen] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
@@ -107,7 +121,39 @@ export function InventoryClient({
   const [savingId, setSavingId] = useState<string | null>(null);
   const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({});
   const [unitDrafts, setUnitDrafts] = useState<Record<string, string>>({});
-  const [detailItemId, setDetailItemId] = useState<string | null>(null);
+  const resetInventoryOverlays = useCallback(() => {
+    setIngredientPickerOpen(false);
+    setVoiceInventoryOpen(false);
+    setBarcodeOpen(false);
+    setAmountDrafts({});
+    setUnitDrafts({});
+  }, []);
+  const [pageMemory, setPageMemory] = usePageMemory<InventoryPageMemory>(
+    routeMemoryKey("/inventory"),
+    INVENTORY_MEMORY_DEFAULT,
+    {
+      onReset: resetInventoryOverlays,
+      restoreScrollKey: "scrollY",
+      routeHref: "/inventory",
+    },
+  );
+
+  function setInventoryMemoryValue<K extends keyof InventoryPageMemory>(
+    key: K,
+    value: SetStateAction<InventoryPageMemory[K]>,
+  ) {
+    setPageMemory((current) => ({
+      ...current,
+      [key]:
+        typeof value === "function"
+          ? (
+              value as (
+                currentValue: InventoryPageMemory[K],
+              ) => InventoryPageMemory[K]
+            )(current[key])
+          : value,
+    }));
+  }
 
   // Set of existing ingredient names (lowercase) for the picker
   const existingNames = useMemo(
@@ -120,6 +166,12 @@ export function InventoryClient({
     "All Items",
     ...Array.from(new Set(items.map((i) => i.category))).sort(),
   ];
+  const activeCategory = categories.includes(pageMemory.activeCategory)
+    ? pageMemory.activeCategory
+    : "All Items";
+  const inventorySearch = pageMemory.inventorySearch;
+  const categoryFiltersExpanded = pageMemory.categoryFiltersExpanded;
+  const detailItemId = pageMemory.detailItemId;
 
   const normalizedInventorySearch = inventorySearch.trim().toLowerCase();
   const filtered = items.filter((item) => {
@@ -312,14 +364,16 @@ export function InventoryClient({
               </span>
               <input
                 value={inventorySearch}
-                onChange={(e) => setInventorySearch(e.target.value)}
+                onChange={(e) =>
+                  setInventoryMemoryValue("inventorySearch", e.target.value)
+                }
                 placeholder="Search inventory..."
                 className="w-full pl-9 pr-9 py-1.5 rounded-full border border-outline-variant text-sm outline-none focus:border-primary transition-colors bg-surface-container"
               />
               {inventorySearch && (
                 <button
                   type="button"
-                  onClick={() => setInventorySearch("")}
+                  onClick={() => setInventoryMemoryValue("inventorySearch", "")}
                   aria-label="Clear inventory search"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-outline"
                 >
@@ -339,7 +393,9 @@ export function InventoryClient({
                   {categories.map((cat) => (
                     <button
                       key={cat}
-                      onClick={() => setActiveCategory(cat)}
+                      onClick={() =>
+                        setInventoryMemoryValue("activeCategory", cat)
+                      }
                       className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                         activeCategory === cat
                           ? "bg-primary-fixed-dim text-on-primary-fixed"
@@ -353,7 +409,10 @@ export function InventoryClient({
                 <button
                   type="button"
                   onClick={() =>
-                    setCategoryFiltersExpanded((expanded) => !expanded)
+                    setInventoryMemoryValue(
+                      "categoryFiltersExpanded",
+                      (expanded) => !expanded,
+                    )
                   }
                   aria-label={
                     categoryFiltersExpanded
@@ -407,7 +466,9 @@ export function InventoryClient({
                       >
                         <button
                           type="button"
-                          onClick={() => setDetailItemId(item.id)}
+                          onClick={() =>
+                            setInventoryMemoryValue("detailItemId", item.id)
+                          }
                           className="flex min-w-0 flex-1 items-center gap-3 text-left"
                           aria-label={`View details for ${item.name}`}
                         >
@@ -525,7 +586,7 @@ export function InventoryClient({
               </div>
               <button
                 type="button"
-                onClick={() => setDetailItemId(null)}
+                onClick={() => setInventoryMemoryValue("detailItemId", null)}
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-container text-outline"
                 aria-label="Close inventory item details"
               >
