@@ -1,9 +1,9 @@
-import { fetchAuthedResource, fetchAuthedCollection } from "@/lib/api";
+import { fetchAuthedCollection, fetchAuthedResource } from "@/lib/api";
 import type {
   User,
   Cart,
-  BaseRecipe,
   HomeRecipeRecommendations,
+  RecipeListPage,
   ShoppingCart,
 } from "@cart/shared";
 import { DashboardClient } from "./dashboard-client";
@@ -20,7 +20,7 @@ export default async function DashboardPage() {
     fetchAuthedResource<HomeRecipeRecommendations>(
       "/recipes/recommendations/home",
     ),
-    fetchAuthedCollection<BaseRecipe>("/recipes"),
+    fetchAuthedResource<RecipeListPage>("/recipes?limit=12&owner=public"),
     fetchAuthedCollection<Cart>("/carts"),
     fetchAuthedCollection<ShoppingCart>("/shopping-carts"),
   ]);
@@ -29,7 +29,7 @@ export default async function DashboardPage() {
     <DashboardClient
       user={userResult.data}
       recommendations={recommendationsResult.data}
-      recipes={recipesResult.data}
+      recipes={recipesResult.data?.items ?? []}
       carts={cartsResult.data}
       shoppingCarts={shoppingCartsResult.data}
     />
