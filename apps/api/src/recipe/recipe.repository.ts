@@ -206,29 +206,62 @@ export class RecipeRepository {
     const actor = await this.resolveOptionalActorUser(actorUserId);
     const cursor = decodeRecipeCursor(input.cursor);
     const limit = Math.min(Math.max(input.limit, 1), 100);
-    const filters = buildRecipeListFilters(input, actor?.id);
-    const recipes = await this.prisma.baseRecipe.findMany({
-      where: {
-        AND: [
-          buildVisibleRecipeWhere(actor?.id),
-          ...filters,
-          cursor
-            ? {
-                OR: [
-                  { createdAt: { lt: cursor.createdAt } },
-                  {
-                    createdAt: cursor.createdAt,
-                    id: { lt: cursor.id },
-                  },
-                ],
-              }
-            : {},
-        ],
-      },
-      include: RECIPE_INCLUDE,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: limit + 1,
+    const taxonomyFilters = buildRecipeListTaxonomyFilters(input);
+    const ownerFilter = buildRecipeListOwnerFilter(input.owner, actor?.id);
+    const filters = [...taxonomyFilters, ...ownerFilter];
+    const listWhere: Prisma.BaseRecipeWhereInput = {
+      AND: [
+        buildVisibleRecipeWhere(actor?.id),
+        ...filters,
+        cursor
+          ? {
+              OR: [
+                { createdAt: { lt: cursor.createdAt } },
+                {
+                  createdAt: cursor.createdAt,
+                  id: { lt: cursor.id },
+                },
+              ],
+            }
+          : {},
+      ],
+    };
+    const countsWhere = (owner: 'public' | 'mine' | 'saved') => ({
+      AND: [
+        buildVisibleRecipeWhere(actor?.id),
+        ...taxonomyFilters,
+        ...buildRecipeListOwnerFilter(owner, actor?.id),
+      ],
     });
+
+    const [recipes, savedSourceRecipes, publicCount, mineCount, savedCount] =
+      await Promise.all([
+        this.prisma.baseRecipe.findMany({
+          where: listWhere,
+          include: RECIPE_INCLUDE,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: limit + 1,
+        }),
+        actor
+          ? this.prisma.baseRecipe.findMany({
+              where: {
+                ownerUserId: actor.id,
+                isSystemRecipe: false,
+                forkedFromRecipeId: { not: null },
+              },
+              select: {
+                forkedFromRecipeId: true,
+              },
+            })
+          : Promise.resolve([]),
+        this.prisma.baseRecipe.count({ where: countsWhere('public') }),
+        actor
+          ? this.prisma.baseRecipe.count({ where: countsWhere('mine') })
+          : Promise.resolve(0),
+        actor
+          ? this.prisma.baseRecipe.count({ where: countsWhere('saved') })
+          : Promise.resolve(0),
+      ]);
     const pageItems = recipes.slice(0, limit);
     const mappedItems = pageItems.map(mapBaseRecipe);
     const nextItem = recipes[limit];
@@ -238,6 +271,20 @@ export class RecipeRepository {
       next_cursor: nextItem
         ? encodeRecipeCursor(nextItem.createdAt, nextItem.id)
         : undefined,
+      metadata: {
+        saved_source_ids: Array.from(
+          new Set(
+            savedSourceRecipes
+              .map((recipe) => recipe.forkedFromRecipeId)
+              .filter((id): id is string => Boolean(id)),
+          ),
+        ),
+        counts: {
+          public: publicCount,
+          mine: mineCount,
+          saved: savedCount,
+        },
+      },
     };
   }
 
@@ -594,36 +641,13 @@ function jsonStringArray(value: unknown): string[] {
     .filter(Boolean);
 }
 
-function buildRecipeListFilters(
-  input: {
-    q?: string;
-    cuisine_id?: string;
-    tag_id?: string;
-    owner?: 'public' | 'mine' | 'saved';
-  },
-  actorId?: string,
-): Prisma.BaseRecipeWhereInput[] {
+function buildRecipeListTaxonomyFilters(input: {
+  q?: string;
+  cuisine_id?: string;
+  tag_id?: string;
+}): Prisma.BaseRecipeWhereInput[] {
   const filters: Prisma.BaseRecipeWhereInput[] = [];
   const query = input.q?.trim();
-
-  if (input.owner === 'public') {
-    filters.push({
-      isSystemRecipe: true,
-      ownerUserId: null,
-    });
-  } else if (input.owner === 'mine' && actorId) {
-    filters.push({
-      ownerUserId: actorId,
-      isSystemRecipe: false,
-      forkedFromRecipeId: null,
-    });
-  } else if (input.owner === 'saved' && actorId) {
-    filters.push({
-      ownerUserId: actorId,
-      isSystemRecipe: false,
-      forkedFromRecipeId: { not: null },
-    });
-  }
 
   if (input.cuisine_id) {
     filters.push({ cuisineId: input.cuisine_id });
@@ -679,4 +703,44 @@ function buildRecipeListFilters(
   }
 
   return filters;
+}
+
+function buildRecipeListOwnerFilter(
+  owner?: 'public' | 'mine' | 'saved',
+  actorId?: string,
+): Prisma.BaseRecipeWhereInput[] {
+  if (owner === 'public') {
+    return [
+      {
+        isSystemRecipe: true,
+        ownerUserId: null,
+      },
+    ];
+  }
+
+  if (owner === 'mine') {
+    return actorId
+      ? [
+          {
+            ownerUserId: actorId,
+            isSystemRecipe: false,
+            forkedFromRecipeId: null,
+          },
+        ]
+      : [{ id: { in: [] } }];
+  }
+
+  if (owner === 'saved') {
+    return actorId
+      ? [
+          {
+            ownerUserId: actorId,
+            isSystemRecipe: false,
+            forkedFromRecipeId: { not: null },
+          },
+        ]
+      : [{ id: { in: [] } }];
+  }
+
+  return [];
 }

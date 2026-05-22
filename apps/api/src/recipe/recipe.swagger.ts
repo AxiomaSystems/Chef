@@ -22,6 +22,7 @@ import {
   notFoundErrorExample,
   recipeExample,
   recipeListExample,
+  recipeListPageExample,
   updateRecipeRequestExample,
 } from '../common/http/swagger.examples';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
@@ -85,7 +86,7 @@ export const ApiListRecipes = () =>
     ApiOperation({
       summary: 'List visible recipes for the current user',
       description:
-        'Without query parameters this returns the legacy recipe array. With limit/cursor it returns a paginated page object.',
+        'Without query parameters this returns the legacy recipe array. With pagination, search, taxonomy, or owner filters it returns a paginated page object with list metadata.',
     }),
     ApiOkResponse({
       description: 'Visible recipes',
@@ -97,6 +98,10 @@ export const ApiListRecipes = () =>
             visibleRecipes: {
               summary: 'Visible global and owned recipes',
               value: recipeListExample,
+            },
+            paginatedRecipes: {
+              summary: 'Paginated recipe library page',
+              value: recipeListPageExample,
             },
           },
         },

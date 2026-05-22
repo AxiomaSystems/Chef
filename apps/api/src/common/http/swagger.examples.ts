@@ -226,6 +226,20 @@ export const recipeExample = {
 
 export const recipeListExample = [recipeExample];
 
+export const recipeListPageExample = {
+  items: [recipeExample],
+  next_cursor:
+    'eyJjcmVhdGVkX2F0IjoiMjAyNi0wMy0xOVQwMzoxMjowMC4wMDBaIiwiaWQiOiJyZWNpcGUtMDAxIn0=',
+  metadata: {
+    saved_source_ids: ['recipe-001'],
+    counts: {
+      public: 24,
+      mine: 3,
+      saved: 8,
+    },
+  },
+};
+
 export const systemTagExample = {
   id: 'tag-system-weeknight',
   owner_user_id: undefined,

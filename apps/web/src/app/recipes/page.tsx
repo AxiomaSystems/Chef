@@ -20,6 +20,7 @@ export default async function RecipesPage({
       tags={tagsResult.data ?? []}
       recipes={recipesResult.data?.items ?? []}
       nextCursor={recipesResult.data?.next_cursor}
+      listMetadata={recipesResult.data?.metadata}
       openImportOnLoad={
         resolvedSearchParams?.import === "1" ||
         resolvedSearchParams?.capture === "1"

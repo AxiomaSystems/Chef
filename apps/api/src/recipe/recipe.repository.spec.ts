@@ -10,6 +10,7 @@ describe('RecipeRepository visibility', () => {
       findMany: jest.Mock;
       findFirst: jest.Mock;
       create: jest.Mock;
+      count: jest.Mock;
     };
   };
   let userContextService: {
@@ -27,6 +28,7 @@ describe('RecipeRepository visibility', () => {
         findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
       },
     };
 
@@ -121,11 +123,35 @@ describe('RecipeRepository visibility', () => {
     userContextService.resolveOptionalActorUser.mockResolvedValue({
       id: 'user-a',
     });
+    prisma.baseRecipe.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { forkedFromRecipeId: 'recipe-system-1' },
+        { forkedFromRecipeId: 'recipe-system-2' },
+        { forkedFromRecipeId: 'recipe-system-1' },
+        { forkedFromRecipeId: null },
+      ]);
+    prisma.baseRecipe.count
+      .mockResolvedValueOnce(12)
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(2);
 
-    await repository.findManyPage({ limit: 24, owner: 'public' }, 'user-a');
+    const result = await repository.findManyPage(
+      { limit: 24, owner: 'public' },
+      'user-a',
+    );
 
     const query = prisma.baseRecipe.findMany.mock.calls[0][0];
     expect(query.take).toBe(25);
+    expect(prisma.baseRecipe.count).toHaveBeenCalledTimes(3);
+    expect(result.metadata).toEqual({
+      saved_source_ids: ['recipe-system-1', 'recipe-system-2'],
+      counts: {
+        public: 12,
+        mine: 3,
+        saved: 2,
+      },
+    });
     expect(query.where.AND).toEqual(
       expect.arrayContaining([
         { OR: [{ isSystemRecipe: true }, { ownerUserId: 'user-a' }] },
@@ -142,6 +168,11 @@ describe('RecipeRepository visibility', () => {
     await repository.findManyPage({ limit: 24, owner: 'saved' }, 'user-a');
 
     const query = prisma.baseRecipe.findMany.mock.calls[0][0];
+    expect(prisma.baseRecipe.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: { forkedFromRecipeId: true },
+      }),
+    );
     expect(query.where.AND).toEqual(
       expect.arrayContaining([
         { OR: [{ isSystemRecipe: true }, { ownerUserId: 'user-a' }] },

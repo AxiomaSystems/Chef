@@ -61,6 +61,14 @@ export type BaseRecipe = {
 export type RecipeListPage = {
   items: BaseRecipe[];
   next_cursor?: string;
+  metadata?: {
+    saved_source_ids: string[];
+    counts: {
+      public: number;
+      mine: number;
+      saved: number;
+    };
+  };
 };
 
 export type HomeRecipeRecommendation = {

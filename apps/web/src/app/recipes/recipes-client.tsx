@@ -10,7 +10,13 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import type { BaseRecipe, Capture, Cuisine, Tag } from "@cart/shared";
+import type {
+  BaseRecipe,
+  Capture,
+  Cuisine,
+  RecipeListPage,
+  Tag,
+} from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { IMPORTED_RECIPE_DRAFT_STORAGE_KEY } from "@/lib/imported-recipe-draft";
 import { routeMemoryKey, usePageMemory } from "@/lib/page-memory";
@@ -82,18 +88,21 @@ export function RecipesClient({
   tags,
   recipes: initialRecipes,
   nextCursor: initialNextCursor,
+  listMetadata: initialListMetadata,
   openImportOnLoad = false,
 }: {
   cuisines: Cuisine[];
   tags: Tag[];
   recipes: BaseRecipe[];
   nextCursor?: string;
+  listMetadata?: RecipeListPage["metadata"];
   openImportOnLoad?: boolean;
 }) {
   const router = useRouter();
 
   const [recipes, setRecipes] = useState(initialRecipes);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
+  const [listMetadata, setListMetadata] = useState(initialListMetadata);
   const [editingRecipe, setEditingRecipe] = useState<BaseRecipe | null>(null);
   const [showImport, setShowImport] = useState(openImportOnLoad);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -207,8 +216,12 @@ export function RecipesClient({
     return savedBySource;
   }, [localSavedRecipesBySourceId, recipes]);
   const savedSourceIds = useMemo(
-    () => new Set(savedRecipesBySourceId.keys()),
-    [savedRecipesBySourceId],
+    () =>
+      new Set([
+        ...savedRecipesBySourceId.keys(),
+        ...(listMetadata?.saved_source_ids ?? []),
+      ]),
+    [listMetadata?.saved_source_ids, savedRecipesBySourceId],
   );
   // User-created recipes (not a system fork, not a system recipe)
   const isUserOwned = (r: BaseRecipe) =>
@@ -222,6 +235,7 @@ export function RecipesClient({
     { id: "mine", label: "Mine", icon: "restaurant_menu" },
     { id: "saved", label: "Saved", icon: "bookmark" },
   ];
+  const tabCounts = listMetadata?.counts;
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -237,6 +251,7 @@ export function RecipesClient({
 
         setRecipes(result.page.items);
         setNextCursor(result.page.next_cursor);
+        setListMetadata(result.page.metadata);
       });
     }, 300);
 
@@ -258,6 +273,25 @@ export function RecipesClient({
             const next = new Map(current);
             next.set(savedRecipe.forked_from_recipe_id!, savedRecipe);
             return next;
+          });
+          setListMetadata((current) => {
+            if (!current) return current;
+            const savedSourceIds = new Set(current.saved_source_ids);
+            const wasAlreadySaved = savedSourceIds.has(
+              savedRecipe.forked_from_recipe_id!,
+            );
+            savedSourceIds.add(savedRecipe.forked_from_recipe_id!);
+
+            return {
+              ...current,
+              saved_source_ids: Array.from(savedSourceIds),
+              counts: {
+                ...current.counts,
+                saved: wasAlreadySaved
+                  ? current.counts.saved
+                  : current.counts.saved + 1,
+              },
+            };
           });
         }
         if (tab === "saved") {
@@ -366,6 +400,7 @@ export function RecipesClient({
         return Array.from(byId.values());
       });
       setNextCursor(result.page.next_cursor);
+      setListMetadata(result.page.metadata);
     });
   }
 
@@ -470,6 +505,17 @@ export function RecipesClient({
                   {icon}
                 </span>
                 <span>{label}</span>
+                {tabCounts && tabCounts[id] > 0 ? (
+                  <span
+                    className={`flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
+                      tab === id
+                        ? "bg-white/22 text-on-primary"
+                        : "bg-primary text-on-primary"
+                    }`}
+                  >
+                    {tabCounts[id]}
+                  </span>
+                ) : null}
               </button>
             ))}
           </div>
