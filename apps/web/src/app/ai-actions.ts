@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type {
   BaseRecipe,
   KitchenInventoryItem,
+  RecipeListPage,
   RecipeNutritionData,
   UserPreferences,
   UserProfileMemory,
@@ -623,39 +624,58 @@ export async function generateMealsAction(
 
 export async function fetchUserRecipesAction(): Promise<UserRecipesActionState> {
   const accessToken = await requireAccessToken();
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+  };
 
-  const response = await fetch(buildApiUrl("/recipes"), {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  }).catch(() => null);
+  const [mineResponse, savedResponse] = await Promise.all([
+    fetch(buildApiUrl("/recipes?limit=24&owner=mine"), {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    }).catch(() => null),
+    fetch(buildApiUrl("/recipes?limit=24&owner=saved"), {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    }).catch(() => null),
+  ]);
 
-  if (!response?.ok) {
+  if (!mineResponse?.ok && !savedResponse?.ok) {
     return {
       error: await readErrorMessage(
-        response,
+        mineResponse ?? savedResponse,
         "Could not load your recipes right now.",
       ),
     };
   }
 
-  const payload = (await response.json()) as
-    | BaseRecipe[]
-    | { data?: BaseRecipe[]; recipes?: BaseRecipe[] };
-  const recipes = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload.data)
-      ? payload.data
-      : Array.isArray(payload.recipes)
-        ? payload.recipes
-        : [];
-  const ownedRecipes = recipes.filter((recipe) => !recipe.is_system_recipe);
+  const [minePage, savedPage] = await Promise.all([
+    mineResponse?.ok
+      ? ((await mineResponse.json()) as RecipeListPage)
+      : Promise.resolve(null),
+    savedResponse?.ok
+      ? ((await savedResponse.json()) as RecipeListPage)
+      : Promise.resolve(null),
+  ]);
+
+  const recipesById = new Map<string, BaseRecipe>();
+  for (const recipe of [
+    ...(minePage?.items ?? []),
+    ...(savedPage?.items ?? []),
+  ]) {
+    recipesById.set(recipe.id, recipe);
+  }
+
+  const recipes = Array.from(recipesById.values()).sort((left, right) => {
+    const leftDate = left.updated_at ?? left.created_at;
+    const rightDate = right.updated_at ?? right.created_at;
+    return rightDate.localeCompare(leftDate);
+  });
 
   return {
-    recipes: ownedRecipes,
+    recipes,
   };
 }
 

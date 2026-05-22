@@ -4,6 +4,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import type { BaseRecipe } from '@cart/shared';
+import type { HomeRecipeRecommendations, RecipeListPage } from '@cart/shared';
 import { Prisma } from '../../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
@@ -17,6 +18,21 @@ import {
 } from './recipe.persistence.mapper';
 import { UserContextService } from '../user/user-context.service';
 import { IngredientsService } from '../ingredients/ingredients.service';
+import {
+  buildHomeRecipeRecommendations,
+  type RecipeRecommendationProfile,
+} from './recipe.recommendations';
+
+const RECIPE_INCLUDE = {
+  cuisine: true,
+  ingredients: true,
+  recipeTags: {
+    include: {
+      tag: true,
+    },
+  },
+  steps: true,
+} satisfies Prisma.BaseRecipeInclude;
 
 @Injectable()
 export class RecipeRepository {
@@ -169,22 +185,174 @@ export class RecipeRepository {
 
     const recipes = await this.prisma.baseRecipe.findMany({
       where: buildVisibleRecipeWhere(actor?.id),
-      include: {
-        cuisine: true,
-        ingredients: true,
-        recipeTags: {
-          include: {
-            tag: true,
-          },
-        },
-        steps: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      include: RECIPE_INCLUDE,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
 
     return recipes.map(mapBaseRecipe);
+  }
+
+  async findManyPage(
+    input: {
+      limit: number;
+      cursor?: string;
+      q?: string;
+      cuisine_id?: string;
+      tag_id?: string;
+      owner?: 'public' | 'mine' | 'saved';
+    },
+    actorUserId?: string,
+  ): Promise<RecipeListPage> {
+    const actor = await this.resolveOptionalActorUser(actorUserId);
+    const cursor = decodeRecipeCursor(input.cursor);
+    const limit = Math.min(Math.max(input.limit, 1), 100);
+    const taxonomyFilters = buildRecipeListTaxonomyFilters(input);
+    const ownerFilter = buildRecipeListOwnerFilter(input.owner, actor?.id);
+    const filters = [...taxonomyFilters, ...ownerFilter];
+    const listWhere: Prisma.BaseRecipeWhereInput = {
+      AND: [
+        buildVisibleRecipeWhere(actor?.id),
+        ...filters,
+        cursor
+          ? {
+              OR: [
+                { createdAt: { lt: cursor.createdAt } },
+                {
+                  createdAt: cursor.createdAt,
+                  id: { lt: cursor.id },
+                },
+              ],
+            }
+          : {},
+      ],
+    };
+    const countsWhere = (owner: 'public' | 'mine' | 'saved') => ({
+      AND: [
+        buildVisibleRecipeWhere(actor?.id),
+        ...taxonomyFilters,
+        ...buildRecipeListOwnerFilter(owner, actor?.id),
+      ],
+    });
+
+    const [recipes, savedSourceRecipes, publicCount, mineCount, savedCount] =
+      await Promise.all([
+        this.prisma.baseRecipe.findMany({
+          where: listWhere,
+          include: RECIPE_INCLUDE,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: limit + 1,
+        }),
+        actor
+          ? this.prisma.baseRecipe.findMany({
+              where: {
+                ownerUserId: actor.id,
+                isSystemRecipe: false,
+                forkedFromRecipeId: { not: null },
+              },
+              select: {
+                forkedFromRecipeId: true,
+              },
+            })
+          : Promise.resolve([]),
+        this.prisma.baseRecipe.count({ where: countsWhere('public') }),
+        actor
+          ? this.prisma.baseRecipe.count({ where: countsWhere('mine') })
+          : Promise.resolve(0),
+        actor
+          ? this.prisma.baseRecipe.count({ where: countsWhere('saved') })
+          : Promise.resolve(0),
+      ]);
+    const pageItems = recipes.slice(0, limit);
+    const mappedItems = pageItems.map(mapBaseRecipe);
+    const nextItem = recipes[limit];
+
+    return {
+      items: mappedItems,
+      next_cursor: nextItem
+        ? encodeRecipeCursor(nextItem.createdAt, nextItem.id)
+        : undefined,
+      metadata: {
+        saved_source_ids: Array.from(
+          new Set(
+            savedSourceRecipes
+              .map((recipe) => recipe.forkedFromRecipeId)
+              .filter((id): id is string => Boolean(id)),
+          ),
+        ),
+        counts: {
+          public: publicCount,
+          mine: mineCount,
+          saved: savedCount,
+        },
+      },
+    };
+  }
+
+  async findHomeRecommendations(
+    actorUserId: string,
+  ): Promise<HomeRecipeRecommendations> {
+    const actor = await this.resolveActorUser(actorUserId);
+    const [recipes, profile] = await Promise.all([
+      this.prisma.baseRecipe.findMany({
+        where: buildVisibleRecipeWhere(actor.id),
+        include: RECIPE_INCLUDE,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 120,
+      }),
+      this.findRecommendationProfile(actor.id),
+    ]);
+
+    return buildHomeRecipeRecommendations(recipes.map(mapBaseRecipe), profile);
+  }
+
+  private async findRecommendationProfile(
+    userId: string,
+  ): Promise<RecipeRecommendationProfile> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        favoriteProteins: true,
+        favoriteFlavors: true,
+        dislikedIngredients: true,
+        preferredCookingTime: true,
+        goalPriorities: true,
+        preferredCuisines: {
+          select: {
+            cuisineId: true,
+          },
+        },
+        preferredTags: {
+          select: {
+            tagId: true,
+          },
+        },
+        foodRules: {
+          where: {
+            active: true,
+            strictness: 'hard',
+            action: { in: ['avoid', 'dislike'] },
+          },
+          select: {
+            label: true,
+            normalizedLabel: true,
+          },
+        },
+      },
+    });
+
+    return {
+      preferredCuisineIds:
+        user?.preferredCuisines.map((entry) => entry.cuisineId) ?? [],
+      preferredTagIds: user?.preferredTags.map((entry) => entry.tagId) ?? [],
+      favoriteProteins: jsonStringArray(user?.favoriteProteins),
+      favoriteFlavors: jsonStringArray(user?.favoriteFlavors),
+      dislikedIngredients: jsonStringArray(user?.dislikedIngredients),
+      preferredCookingTime: user?.preferredCookingTime,
+      goalPriorities: jsonStringArray(user?.goalPriorities),
+      hardAvoidLabels:
+        user?.foodRules.flatMap((rule) => [rule.normalizedLabel, rule.label]) ??
+        [],
+    };
   }
 
   async findById(id: string, actorUserId?: string): Promise<BaseRecipe | null> {
@@ -431,4 +599,148 @@ export class RecipeRepository {
 
     return true;
   }
+}
+
+function encodeRecipeCursor(createdAt: Date, id: string) {
+  return Buffer.from(
+    JSON.stringify({ created_at: createdAt.toISOString(), id }),
+    'utf8',
+  ).toString('base64url');
+}
+
+function decodeRecipeCursor(
+  cursor?: string,
+): { createdAt: Date; id: string } | null {
+  if (!cursor) return null;
+
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(cursor, 'base64url').toString('utf8'),
+    ) as { created_at?: unknown; id?: unknown };
+    if (
+      typeof parsed.created_at !== 'string' ||
+      typeof parsed.id !== 'string'
+    ) {
+      return null;
+    }
+
+    const createdAt = new Date(parsed.created_at);
+    if (Number.isNaN(createdAt.getTime())) return null;
+
+    return { createdAt, id: parsed.id };
+  } catch {
+    return null;
+  }
+}
+
+function jsonStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+    .filter(Boolean);
+}
+
+function buildRecipeListTaxonomyFilters(input: {
+  q?: string;
+  cuisine_id?: string;
+  tag_id?: string;
+}): Prisma.BaseRecipeWhereInput[] {
+  const filters: Prisma.BaseRecipeWhereInput[] = [];
+  const query = input.q?.trim();
+
+  if (input.cuisine_id) {
+    filters.push({ cuisineId: input.cuisine_id });
+  }
+
+  if (input.tag_id) {
+    filters.push({
+      recipeTags: {
+        some: {
+          tagId: input.tag_id,
+        },
+      },
+    });
+  }
+
+  if (query) {
+    filters.push({
+      OR: [
+        { name: { contains: query, mode: 'insensitive' } },
+        { description: { contains: query, mode: 'insensitive' } },
+        { cuisine: { label: { contains: query, mode: 'insensitive' } } },
+        {
+          recipeTags: {
+            some: {
+              tag: {
+                name: { contains: query, mode: 'insensitive' },
+              },
+            },
+          },
+        },
+        {
+          ingredients: {
+            some: {
+              OR: [
+                {
+                  canonicalIngredient: {
+                    contains: query,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  displayIngredient: {
+                    contains: query,
+                    mode: 'insensitive',
+                  },
+                },
+              ],
+            },
+          },
+        },
+      ],
+    });
+  }
+
+  return filters;
+}
+
+function buildRecipeListOwnerFilter(
+  owner?: 'public' | 'mine' | 'saved',
+  actorId?: string,
+): Prisma.BaseRecipeWhereInput[] {
+  if (owner === 'public') {
+    return [
+      {
+        isSystemRecipe: true,
+        ownerUserId: null,
+      },
+    ];
+  }
+
+  if (owner === 'mine') {
+    return actorId
+      ? [
+          {
+            ownerUserId: actorId,
+            isSystemRecipe: false,
+            forkedFromRecipeId: null,
+          },
+        ]
+      : [{ id: { in: [] } }];
+  }
+
+  if (owner === 'saved') {
+    return actorId
+      ? [
+          {
+            ownerUserId: actorId,
+            isSystemRecipe: false,
+            forkedFromRecipeId: { not: null },
+          },
+        ]
+      : [{ id: { in: [] } }];
+  }
+
+  return [];
 }

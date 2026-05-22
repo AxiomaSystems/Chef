@@ -10,13 +10,20 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import type { BaseRecipe, Capture, Cuisine, Tag } from "@cart/shared";
+import type {
+  BaseRecipe,
+  Capture,
+  Cuisine,
+  RecipeListPage,
+  Tag,
+} from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
 import { IMPORTED_RECIPE_DRAFT_STORAGE_KEY } from "@/lib/imported-recipe-draft";
 import { routeMemoryKey, usePageMemory } from "@/lib/page-memory";
 import {
   deleteRecipeAction,
   forkRecipeAction,
+  loadRecipesPageAction,
   submitDraftFlowAction,
 } from "@/app/home-actions";
 import { RecipeImage } from "@/components/ui/recipe-image";
@@ -80,23 +87,34 @@ export function RecipesClient({
   cuisines,
   tags,
   recipes: initialRecipes,
+  nextCursor: initialNextCursor,
+  listMetadata: initialListMetadata,
   openImportOnLoad = false,
 }: {
   cuisines: Cuisine[];
   tags: Tag[];
   recipes: BaseRecipe[];
+  nextCursor?: string;
+  listMetadata?: RecipeListPage["metadata"];
   openImportOnLoad?: boolean;
 }) {
   const router = useRouter();
 
   const [recipes, setRecipes] = useState(initialRecipes);
+  const [nextCursor, setNextCursor] = useState(initialNextCursor);
+  const [listMetadata, setListMetadata] = useState(initialListMetadata);
   const [editingRecipe, setEditingRecipe] = useState<BaseRecipe | null>(null);
   const [showImport, setShowImport] = useState(openImportOnLoad);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [buildError, setBuildError] = useState<string | undefined>();
+  const [loadMoreError, setLoadMoreError] = useState<string | undefined>();
+  const [isSearchingRecipes, startSearchRecipes] = useTransition();
   const [isBuilding, startBuilding] = useTransition();
+  const [isLoadingMore, startLoadMore] = useTransition();
   const [, startFork] = useTransition();
+  const [localSavedRecipesBySourceId, setLocalSavedRecipesBySourceId] =
+    useState<Map<string, BaseRecipe>>(() => new Map());
   const resetRecipesOverlays = useCallback(() => {
     setEditingRecipe(null);
     setShowImport(false);
@@ -133,6 +151,23 @@ export function RecipesClient({
   const search = pageMemory.search;
   const activeCuisine = pageMemory.activeCuisine;
   const activeTag = pageMemory.activeTag;
+  const activeCuisineId = useMemo(
+    () => cuisines.find((cuisine) => cuisine.label === activeCuisine)?.id,
+    [activeCuisine, cuisines],
+  );
+  const activeTagId = useMemo(
+    () => tags.find((tag) => tag.name === activeTag)?.id,
+    [activeTag, tags],
+  );
+  const recipeQuery = useMemo(
+    () => ({
+      q: search.trim() || undefined,
+      cuisine_id: activeCuisineId,
+      tag_id: activeTagId,
+      owner: tab,
+    }),
+    [activeCuisineId, activeTagId, search, tab],
+  );
 
   useEffect(() => {
     if (openImportOnLoad) {
@@ -171,12 +206,23 @@ export function RecipesClient({
   }, [pageMemory.selectedRecipeIds, recipesById]);
 
   // IDs of system recipes that the user has already forked/saved
-  const savedRecipesBySourceId = new Map(
-    recipes
-      .filter((r) => r.forked_from_recipe_id)
-      .map((r) => [r.forked_from_recipe_id!, r]),
+  const savedRecipesBySourceId = useMemo(() => {
+    const savedBySource = new Map(localSavedRecipesBySourceId);
+    for (const recipe of recipes) {
+      if (recipe.forked_from_recipe_id) {
+        savedBySource.set(recipe.forked_from_recipe_id, recipe);
+      }
+    }
+    return savedBySource;
+  }, [localSavedRecipesBySourceId, recipes]);
+  const savedSourceIds = useMemo(
+    () =>
+      new Set([
+        ...savedRecipesBySourceId.keys(),
+        ...(listMetadata?.saved_source_ids ?? []),
+      ]),
+    [listMetadata?.saved_source_ids, savedRecipesBySourceId],
   );
-  const savedSourceIds = new Set(savedRecipesBySourceId.keys());
   // User-created recipes (not a system fork, not a system recipe)
   const isUserOwned = (r: BaseRecipe) =>
     !!r.owner_user_id && !r.is_system_recipe;
@@ -184,30 +230,33 @@ export function RecipesClient({
   const canManageRecipe = (r: BaseRecipe) =>
     !!r.owner_user_id && !r.is_system_recipe;
 
-  const tabFiltered =
-    tab === "saved"
-      ? recipes.filter(isUserSaved)
-      : tab === "public"
-        ? recipes.filter((r) => !isUserOwned(r) && !isUserSaved(r))
-        : recipes.filter((r) => isUserOwned(r) && !isUserSaved(r));
-  const tabCounts: Record<Tab, number> = {
-    mine: recipes.filter((r) => isUserOwned(r) && !isUserSaved(r)).length,
-    public: recipes.filter((r) => !isUserOwned(r) && !isUserSaved(r)).length,
-    saved: recipes.filter(isUserSaved).length,
-  };
   const tabOptions: { id: Tab; label: string; icon: string }[] = [
     { id: "public", label: "Public", icon: "public" },
     { id: "mine", label: "Mine", icon: "restaurant_menu" },
     { id: "saved", label: "Saved", icon: "bookmark" },
   ];
+  const tabCounts = listMetadata?.counts;
 
-  const filtered = tabFiltered.filter((r) => {
-    if (search && !r.name.toLowerCase().includes(search.toLowerCase()))
-      return false;
-    if (activeCuisine && r.cuisine.label !== activeCuisine) return false;
-    if (activeTag && !r.tags.some((t) => t.name === activeTag)) return false;
-    return true;
-  });
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setLoadMoreError(undefined);
+      startSearchRecipes(async () => {
+        const result = await loadRecipesPageAction(recipeQuery);
+        if (result.error || !result.page) {
+          setLoadMoreError(result.error ?? "Unable to load recipes.");
+          setRecipes([]);
+          setNextCursor(undefined);
+          return;
+        }
+
+        setRecipes(result.page.items);
+        setNextCursor(result.page.next_cursor);
+        setListMetadata(result.page.metadata);
+      });
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [recipeQuery]);
 
   /* ── actions ────────────────────────────────────── */
 
@@ -218,7 +267,42 @@ export function RecipesClient({
       const res = await forkRecipeAction(recipe.id);
       setSavingId(null);
       if (res.recipe) {
-        setRecipes((prev) => [...prev, res.recipe!]);
+        const savedRecipe = res.recipe;
+        if (savedRecipe.forked_from_recipe_id) {
+          setLocalSavedRecipesBySourceId((current) => {
+            const next = new Map(current);
+            next.set(savedRecipe.forked_from_recipe_id!, savedRecipe);
+            return next;
+          });
+          setListMetadata((current) => {
+            if (!current) return current;
+            const savedSourceIds = new Set(current.saved_source_ids);
+            const wasAlreadySaved = savedSourceIds.has(
+              savedRecipe.forked_from_recipe_id!,
+            );
+            savedSourceIds.add(savedRecipe.forked_from_recipe_id!);
+
+            return {
+              ...current,
+              saved_source_ids: Array.from(savedSourceIds),
+              counts: {
+                ...current.counts,
+                saved: wasAlreadySaved
+                  ? current.counts.saved
+                  : current.counts.saved + 1,
+              },
+            };
+          });
+        }
+        if (tab === "saved") {
+          setRecipes((prev) => {
+            const byId = new Map(
+              prev.map((existing) => [existing.id, existing]),
+            );
+            byId.set(savedRecipe.id, savedRecipe);
+            return Array.from(byId.values());
+          });
+        }
       }
     });
   }
@@ -292,6 +376,32 @@ export function RecipesClient({
     );
     setShowImport(false);
     router.push("/recipes/new?draft=import");
+  }
+
+  function handleLoadMore() {
+    if (!nextCursor || isLoadingMore) return;
+    setLoadMoreError(undefined);
+
+    startLoadMore(async () => {
+      const result = await loadRecipesPageAction({
+        ...recipeQuery,
+        cursor: nextCursor,
+      });
+      if (result.error || !result.page) {
+        setLoadMoreError(result.error ?? "Unable to load more recipes.");
+        return;
+      }
+
+      setRecipes((prev) => {
+        const byId = new Map(prev.map((recipe) => [recipe.id, recipe]));
+        for (const recipe of result.page!.items) {
+          byId.set(recipe.id, recipe);
+        }
+        return Array.from(byId.values());
+      });
+      setNextCursor(result.page.next_cursor);
+      setListMetadata(result.page.metadata);
+    });
   }
 
   /* ── render ─────────────────────────────────────── */
@@ -395,7 +505,7 @@ export function RecipesClient({
                   {icon}
                 </span>
                 <span>{label}</span>
-                {tabCounts[id] > 0 && (
+                {tabCounts && tabCounts[id] > 0 ? (
                   <span
                     className={`flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
                       tab === id
@@ -405,7 +515,7 @@ export function RecipesClient({
                   >
                     {tabCounts[id]}
                   </span>
-                )}
+                ) : null}
               </button>
             ))}
           </div>
@@ -467,7 +577,16 @@ export function RecipesClient({
         </div>
 
         {/* ── Recipe grid ─────────────────────────────────────── */}
-        {filtered.length === 0 ? (
+        {isSearchingRecipes ? (
+          <div className="flex flex-col items-center gap-3 py-20 text-center">
+            <span className="material-symbols-outlined animate-spin text-[42px] text-primary">
+              progress_activity
+            </span>
+            <p className="text-label-lg font-semibold text-on-surface">
+              Searching recipes...
+            </p>
+          </div>
+        ) : recipes.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-20 text-center">
             <span className="material-symbols-outlined text-[48px] text-outline-variant">
               {tab === "saved"
@@ -505,162 +624,187 @@ export function RecipesClient({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
-            {filtered.map((recipe) => {
-              const dietBadge = recipe.tags.find(
-                (t) => t.kind === "dietary_badge",
-              );
-              const isSelected = selections.has(recipe.id);
-              const savedRecipe = savedRecipesBySourceId.get(recipe.id);
-              const isSaved =
-                savedSourceIds.has(recipe.id) || isUserSaved(recipe);
-              const isSaving = savingId === recipe.id;
-              const isDeleting = deletingId === recipe.id;
-              const canSave = recipe.is_system_recipe && !isSaved;
-              const canManage = canManageRecipe(recipe);
-              const recipeToOpen = savedRecipe ?? recipe;
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
+              {recipes.map((recipe) => {
+                const dietBadge = recipe.tags.find(
+                  (t) => t.kind === "dietary_badge",
+                );
+                const isSelected = selections.has(recipe.id);
+                const savedRecipe = savedRecipesBySourceId.get(recipe.id);
+                const isSaved =
+                  savedSourceIds.has(recipe.id) || isUserSaved(recipe);
+                const isSaving = savingId === recipe.id;
+                const isDeleting = deletingId === recipe.id;
+                const canSave = recipe.is_system_recipe && !isSaved;
+                const canManage = canManageRecipe(recipe);
+                const recipeToOpen = savedRecipe ?? recipe;
 
-              return (
-                <div
-                  key={recipe.id}
-                  className="group cursor-pointer space-y-2"
-                  onClick={() => router.push(`/recipes/${recipeToOpen.id}`)}
-                >
-                  {/* Image */}
-                  <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-container">
-                    <RecipeImage
-                      src={recipe.cover_image_url}
-                      alt={recipe.name}
-                      seed={recipe.id}
-                      className="w-full h-full"
-                      imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+                return (
+                  <div
+                    key={recipe.id}
+                    className="group cursor-pointer space-y-2"
+                    onClick={() => router.push(`/recipes/${recipeToOpen.id}`)}
+                  >
+                    {/* Image */}
+                    <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-container">
+                      <RecipeImage
+                        src={recipe.cover_image_url}
+                        alt={recipe.name}
+                        seed={recipe.id}
+                        className="w-full h-full"
+                        imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
 
-                    {canManage ? (
-                      <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setEditingRecipe(recipe);
-                          }}
-                          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/92 text-[#5f8689] shadow-sm transition-colors hover:text-primary"
-                          aria-label={`Edit ${recipe.name}`}
-                        >
-                          <span className="material-symbols-outlined text-[16px]">
-                            edit
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleDeleteRecipe(recipe);
-                          }}
-                          disabled={isDeleting}
-                          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/92 text-error shadow-sm transition-opacity hover:bg-error-container disabled:opacity-50"
-                          aria-label={`Delete ${recipe.name}`}
-                        >
-                          <span
-                            className={`material-symbols-outlined text-[16px] ${
-                              isDeleting ? "animate-spin" : ""
-                            }`}
+                      {canManage ? (
+                        <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setEditingRecipe(recipe);
+                            }}
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/92 text-[#5f8689] shadow-sm transition-colors hover:text-primary"
+                            aria-label={`Edit ${recipe.name}`}
                           >
-                            {isDeleting ? "progress_activity" : "delete"}
+                            <span className="material-symbols-outlined text-[16px]">
+                              edit
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDeleteRecipe(recipe);
+                            }}
+                            disabled={isDeleting}
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/92 text-error shadow-sm transition-opacity hover:bg-error-container disabled:opacity-50"
+                            aria-label={`Delete ${recipe.name}`}
+                          >
+                            <span
+                              className={`material-symbols-outlined text-[16px] ${
+                                isDeleting ? "animate-spin" : ""
+                              }`}
+                            >
+                              {isDeleting ? "progress_activity" : "delete"}
+                            </span>
+                          </button>
+                        </div>
+                      ) : null}
+
+                      {/* Bookmark (save) button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (canSave) handleSaveRecipe(recipe);
+                        }}
+                        disabled={isSaving || (!canSave && !isSaved)}
+                        className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm ${
+                          isSaved
+                            ? "bg-primary text-on-primary"
+                            : canSave
+                              ? "bg-white/90 text-outline-variant hover:text-primary hover:bg-white"
+                              : "bg-white/90 text-outline-variant"
+                        }`}
+                        aria-label={isSaved ? "Saved" : "Save recipe"}
+                      >
+                        {isSaving ? (
+                          <span className="material-symbols-outlined text-[16px] animate-spin">
+                            refresh
                           </span>
-                        </button>
-                      </div>
-                    ) : null}
+                        ) : (
+                          <span className="material-symbols-outlined text-[16px]">
+                            {isSaved ? "bookmark" : "bookmark"}
+                          </span>
+                        )}
+                      </button>
 
-                    {/* Bookmark (save) button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (canSave) handleSaveRecipe(recipe);
-                      }}
-                      disabled={isSaving || (!canSave && !isSaved)}
-                      className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm ${
-                        isSaved
-                          ? "bg-primary text-on-primary"
-                          : canSave
-                            ? "bg-white/90 text-outline-variant hover:text-primary hover:bg-white"
-                            : "bg-white/90 text-outline-variant"
-                      }`}
-                      aria-label={isSaved ? "Saved" : "Save recipe"}
-                    >
-                      {isSaving ? (
-                        <span className="material-symbols-outlined text-[16px] animate-spin">
-                          refresh
-                        </span>
-                      ) : (
+                      {/* Add-to-cart button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isSelected) removeSelection(recipe.id);
+                          else handleAddToCart(recipe);
+                        }}
+                        className={`absolute bottom-2.5 right-2.5 flex h-9 w-9 items-center justify-center rounded-full shadow-sm transition-all ${
+                          isSelected
+                            ? "bg-primary text-on-primary"
+                            : "bg-white/90 text-outline hover:text-primary"
+                        }`}
+                        aria-label="Add to cart"
+                      >
                         <span className="material-symbols-outlined text-[16px]">
-                          {isSaved ? "bookmark" : "bookmark"}
+                          {isSelected ? "check" : "add_shopping_cart"}
+                        </span>
+                      </button>
+
+                      {/* Dietary badge */}
+                      {dietBadge && (
+                        <span className="absolute bottom-2.5 left-2.5 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase tracking-wide shadow-sm">
+                          {dietBadge.name}
                         </span>
                       )}
-                    </button>
 
-                    {/* Add-to-cart button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isSelected) removeSelection(recipe.id);
-                        else handleAddToCart(recipe);
-                      }}
-                      className={`absolute bottom-2.5 right-2.5 flex h-9 w-9 items-center justify-center rounded-full shadow-sm transition-all ${
-                        isSelected
-                          ? "bg-primary text-on-primary"
-                          : "bg-white/90 text-outline hover:text-primary"
-                      }`}
-                      aria-label="Add to cart"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">
-                        {isSelected ? "check" : "add_shopping_cart"}
-                      </span>
-                    </button>
+                      {/* Mine / Saved label */}
+                      {isUserOwned(recipe) &&
+                        !isUserSaved(recipe) &&
+                        !canManage && (
+                          <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-primary text-on-primary text-[10px] font-bold uppercase tracking-wide">
+                            Mine
+                          </span>
+                        )}
+                    </div>
 
-                    {/* Dietary badge */}
-                    {dietBadge && (
-                      <span className="absolute bottom-2.5 left-2.5 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase tracking-wide shadow-sm">
-                        {dietBadge.name}
-                      </span>
-                    )}
-
-                    {/* Mine / Saved label */}
-                    {isUserOwned(recipe) &&
-                      !isUserSaved(recipe) &&
-                      !canManage && (
-                        <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-primary text-on-primary text-[10px] font-bold uppercase tracking-wide">
-                          Mine
-                        </span>
-                      )}
-                  </div>
-
-                  {/* Info */}
-                  <div>
-                    <h3 className="text-label-lg font-bold text-on-surface group-hover:text-primary transition-colors line-clamp-2 leading-snug">
-                      {recipe.name}
-                    </h3>
-                    <p className="text-body-sm text-outline mt-1 flex items-center gap-2">
-                      <span className="flex items-center gap-0.5">
-                        <span className="material-symbols-outlined text-[13px]">
-                          group
-                        </span>
-                        {recipe.servings} servings
-                      </span>
-                      {recipe.nutrition_data?.calories && (
+                    {/* Info */}
+                    <div>
+                      <h3 className="text-label-lg font-bold text-on-surface group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                        {recipe.name}
+                      </h3>
+                      <p className="text-body-sm text-outline mt-1 flex items-center gap-2">
                         <span className="flex items-center gap-0.5">
                           <span className="material-symbols-outlined text-[13px]">
-                            local_fire_department
+                            group
                           </span>
-                          {recipe.nutrition_data.calories} kcal
+                          {recipe.servings} servings
                         </span>
-                      )}
-                    </p>
+                        {recipe.nutrition_data?.calories && (
+                          <span className="flex items-center gap-0.5">
+                            <span className="material-symbols-outlined text-[13px]">
+                              local_fire_department
+                            </span>
+                            {recipe.nutrition_data.calories} kcal
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+
+            {nextCursor ? (
+              <div className="flex flex-col items-center gap-3 pt-4">
+                {loadMoreError ? (
+                  <p className="text-body-sm text-error">{loadMoreError}</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-outline-variant bg-white px-5 py-2 text-label-md font-bold text-on-surface shadow-sm transition-all hover:border-primary hover:text-primary disabled:opacity-60"
+                >
+                  <span
+                    className={`material-symbols-outlined text-[18px] ${
+                      isLoadingMore ? "animate-spin" : ""
+                    }`}
+                  >
+                    {isLoadingMore ? "progress_activity" : "expand_more"}
+                  </span>
+                  {isLoadingMore ? "Loading..." : "Load more recipes"}
+                </button>
+              </div>
+            ) : null}
+          </>
         )}
       </div>
 

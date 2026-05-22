@@ -278,9 +278,12 @@ model BaseRecipe {
 
   @@unique([ownerUserId, forkedFromRecipeId])
   @@index([ownerUserId, createdAt])
+  @@index([ownerUserId, isSystemRecipe, forkedFromRecipeId, createdAt, id])
   @@index([forkedFromRecipeId])
   @@index([isSystemRecipe, createdAt])
+  @@index([isSystemRecipe, ownerUserId, createdAt, id])
   @@index([cuisineId])
+  @@index([cuisineId, createdAt, id])
 }
 
 model Cuisine {
@@ -414,6 +417,7 @@ model RecipeTag {
 
   @@id([recipeId, tagId])
   @@index([tagId])
+  @@index([tagId, recipeId])
 }
 
 model DishIngredient {
