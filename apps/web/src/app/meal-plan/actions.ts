@@ -1,6 +1,13 @@
 "use server";
 
-import type { MealPlan, MealPlanDay } from "@cart/shared";
+import type {
+  CreateMealEventRequest,
+  CreateMealPlanCartRequest,
+  CreateMealPlanCartResponse,
+  MealEventWithRecipe,
+  MealPlanRange,
+  UpdateMealEventRequest,
+} from "@cart/shared";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -8,13 +15,20 @@ import { ACCESS_TOKEN_COOKIE, buildApiUrl } from "@/lib/auth";
 
 type MealPlanActionState = {
   error?: string;
-  mealPlan?: MealPlan;
+  mealPlan?: MealPlanRange;
 };
 
-async function readErrorMessage(
-  response: Response | null,
-  fallback: string,
-) {
+type MealEventActionState = {
+  error?: string;
+  event?: MealEventWithRecipe;
+};
+
+type MealPlanCartActionState = {
+  error?: string;
+  result?: CreateMealPlanCartResponse;
+};
+
+async function readErrorMessage(response: Response | null, fallback: string) {
   if (!response) {
     return fallback;
   }
@@ -53,12 +67,16 @@ async function callAuthedJson(path: string, init?: RequestInit) {
 }
 
 export async function getMealPlanAction(
-  weekStart: string,
+  from: string,
+  to: string,
 ): Promise<MealPlanActionState> {
-  const params = new URLSearchParams({ week_start: weekStart.trim() });
-  const response = await callAuthedJson(`/meal-plans?${params.toString()}`).catch(
-    () => null,
-  );
+  const params = new URLSearchParams({
+    from: from.trim(),
+    to: to.trim(),
+  });
+  const response = await callAuthedJson(
+    `/meal-plans?${params.toString()}`,
+  ).catch(() => null);
 
   if (!response?.ok) {
     return {
@@ -70,35 +88,101 @@ export async function getMealPlanAction(
   }
 
   return {
-    mealPlan: (await response.json()) as MealPlan,
+    mealPlan: (await response.json()) as MealPlanRange,
   };
 }
 
-export async function saveMealPlanAction(
-  weekStart: string,
-  days: MealPlanDay[],
-): Promise<MealPlanActionState> {
-  const params = new URLSearchParams({ week_start: weekStart.trim() });
-  const response = await callAuthedJson(`/meal-plans?${params.toString()}`, {
-    method: "PUT",
+export async function createMealEventAction(
+  input: CreateMealEventRequest,
+): Promise<MealEventActionState> {
+  const response = await callAuthedJson("/meal-events", {
+    method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ days }),
+    body: JSON.stringify(input),
   }).catch(() => null);
 
   if (!response?.ok) {
     return {
-      error: await readErrorMessage(
-        response,
-        "Unable to save this meal plan right now.",
-      ),
+      error: await readErrorMessage(response, "Unable to add this meal."),
     };
   }
 
   revalidatePath("/meal-plan");
 
   return {
-    mealPlan: (await response.json()) as MealPlan,
+    event: (await response.json()) as MealEventWithRecipe,
+  };
+}
+
+export async function updateMealEventAction(
+  id: string,
+  input: UpdateMealEventRequest,
+): Promise<MealEventActionState> {
+  const response = await callAuthedJson(`/meal-events/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: await readErrorMessage(response, "Unable to update this meal."),
+    };
+  }
+
+  revalidatePath("/meal-plan");
+
+  return {
+    event: (await response.json()) as MealEventWithRecipe,
+  };
+}
+
+export async function deleteMealEventAction(id: string): Promise<{
+  error?: string;
+}> {
+  const response = await callAuthedJson(`/meal-events/${id}`, {
+    method: "DELETE",
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: await readErrorMessage(response, "Unable to remove this meal."),
+    };
+  }
+
+  revalidatePath("/meal-plan");
+
+  return {};
+}
+
+export async function createMealPlanCartAction(
+  input: CreateMealPlanCartRequest,
+): Promise<MealPlanCartActionState> {
+  const response = await callAuthedJson("/meal-plans/cart", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return {
+      error: await readErrorMessage(
+        response,
+        "Unable to generate this cart from the meal plan.",
+      ),
+    };
+  }
+
+  revalidatePath("/meal-plan");
+  revalidatePath("/carts");
+
+  return {
+    result: (await response.json()) as CreateMealPlanCartResponse,
   };
 }

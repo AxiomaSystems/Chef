@@ -2,7 +2,7 @@
 
 import type {
   BaseRecipe,
-  MealPlan,
+  MealPlanRange,
   WeeklyNutritionTargets,
 } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
@@ -14,7 +14,7 @@ export function MealPlanClient({
   weeklyNutritionTargets,
 }: {
   recipes: BaseRecipe[];
-  initialMealPlan: MealPlan;
+  initialMealPlan: MealPlanRange;
   weeklyNutritionTargets?: WeeklyNutritionTargets;
 }) {
   return (

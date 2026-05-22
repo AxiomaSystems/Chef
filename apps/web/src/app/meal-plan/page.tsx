@@ -1,5 +1,9 @@
-import type { BaseRecipe, MealPlan, UserPreferences } from "@cart/shared";
-import { fetchAuthedCollection, fetchAuthedResource } from "@/lib/api";
+import type {
+  MealPlanRange,
+  RecipeListPage,
+  UserPreferences,
+} from "@cart/shared";
+import { fetchAuthedResource } from "@/lib/api";
 import { MealPlanClient } from "./meal-plan-client";
 
 function getMondayKey(date: Date) {
@@ -11,26 +15,52 @@ function getMondayKey(date: Date) {
   return monday.toISOString().slice(0, 10);
 }
 
+function buildEmptyRange(from: string, to: string): MealPlanRange {
+  const fromDate = new Date(`${from}T00:00:00.000Z`);
+  const toDate = new Date(`${to}T00:00:00.000Z`);
+  const dayCount =
+    Math.floor((toDate.getTime() - fromDate.getTime()) / 86400000) + 1;
+
+  return {
+    from,
+    to,
+    days: Array.from({ length: dayCount }, (_, index) => {
+      const date = new Date(fromDate);
+      date.setUTCDate(date.getUTCDate() + index);
+      return { date: date.toISOString().slice(0, 10), events: [] };
+    }),
+    events: [],
+    grocery_summary: { items: [], item_count: 0 },
+    nutrition_summary: {
+      calories: 0,
+      protein_g: 0,
+      carbs_g: 0,
+      fat_g: 0,
+    },
+  };
+}
+
 export default async function MealPlanPage() {
-  const recipesResult = await fetchAuthedCollection<BaseRecipe>("/recipes");
   const weekStart = getMondayKey(new Date());
-  const mealPlanResult = await fetchAuthedResource<MealPlan>(
-    `/meal-plans?week_start=${weekStart}`,
-  );
-  const preferencesResult =
-    await fetchAuthedResource<UserPreferences>("/me/preferences");
+  const weekEnd = new Date(`${weekStart}T00:00:00.000Z`);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+  const weekEndKey = weekEnd.toISOString().slice(0, 10);
+  const [recipesResult, mealPlanResult, preferencesResult] = await Promise.all([
+    fetchAuthedResource<RecipeListPage>("/recipes?limit=100"),
+    fetchAuthedResource<MealPlanRange>(
+      `/meal-plans?from=${weekStart}&to=${weekEndKey}`,
+    ),
+    fetchAuthedResource<UserPreferences>("/me/preferences"),
+  ]);
 
   const initialMealPlan =
     mealPlanResult.ok && mealPlanResult.data
       ? mealPlanResult.data
-      : {
-          week_start: weekStart,
-          days: Array.from({ length: 7 }, () => ({})),
-        };
+      : buildEmptyRange(weekStart, weekEndKey);
 
   return (
     <MealPlanClient
-      recipes={recipesResult.data}
+      recipes={recipesResult.data?.items ?? []}
       initialMealPlan={initialMealPlan}
       weeklyNutritionTargets={
         preferencesResult.ok && preferencesResult.data

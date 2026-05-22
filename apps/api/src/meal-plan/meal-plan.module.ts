@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { CartModule } from '../cart/cart.module';
 import { RecipeModule } from '../recipe/recipe.module';
 import { UserModule } from '../user/user.module';
 import { MealPlanController } from './meal-plan.controller';
 import { MealPlanService } from './meal-plan.service';
 
 @Module({
-  imports: [AuthModule, RecipeModule, UserModule],
+  imports: [AuthModule, RecipeModule, UserModule, CartModule],
   controllers: [MealPlanController],
   providers: [MealPlanService],
 })

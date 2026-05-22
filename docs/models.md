@@ -325,6 +325,70 @@ Interpretation:
 
 ## 2.5. Meal Plan Models
 
+Meal planning is now event-based. The old fixed `breakfast` / `lunch` / `dinner`
+weekly shape remains as compatibility, but the product model should use
+`MealEvent`.
+
+### MealEvent
+
+```ts
+type MealEvent = {
+  id: string;
+  user_id?: string;
+  date: string;
+  sort_order: number;
+  meal_label:
+    | "breakfast"
+    | "lunch"
+    | "dinner"
+    | "snack"
+    | "prep"
+    | "leftover"
+    | "custom";
+  custom_label?: string | null;
+  source_type: "recipe" | "manual" | "leftover" | "eat_out" | "prep";
+  recipe_id?: string | null;
+  title: string;
+  servings: number;
+  status: "planned" | "cooked" | "eaten" | "skipped";
+  locked: boolean;
+  notes?: string | null;
+};
+```
+
+Interpretation:
+
+- one event represents one planned meal, prep task, leftover, or manual eating item on a date
+- a day can have zero, one, or many events
+- recipe events hydrate `recipe` in range responses when the recipe is visible to the user
+- grocery and nutrition summaries are derived from events and recipe servings
+
+### MealPlanRange
+
+```ts
+type MealPlanRange = {
+  from: string;
+  to: string;
+  days: { date: string; events: MealEventWithRecipe[] }[];
+  events: MealEventWithRecipe[];
+  grocery_summary: { items: AggregatedIngredient[]; item_count: number };
+  nutrition_summary: {
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  };
+};
+```
+
+Interpretation:
+
+- `MealPlanRange` is a backend projection for day, week, and month views
+- clients should prefer `GET /api/v1/meal-plans?from&to` over legacy `week_start`
+- `POST /api/v1/meal-plans/cart` creates/replaces the active planning cart from selected recipe events
+
+### Legacy MealPlanDay
+
 ### MealPlanDay
 
 ```ts
@@ -350,10 +414,8 @@ type MealPlan = {
 
 Interpretation:
 
-- one meal plan represents one user's week
-- `week_start` is normalized to a Monday in `YYYY-MM-DD` format
-- each day slot references recipe ids, not free-text meal names
-- this is currently a scheduling layer, not a derived shopping/cart artifact
+- legacy compatibility shape for fixed weekly clients
+- new clients should not add new fixed-slot behavior on top of this model
 
 ## 3. Cart Models
 

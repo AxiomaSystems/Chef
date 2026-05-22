@@ -206,23 +206,26 @@ Current status:
 - the web app now treats `Cart` as the primary planning artifact once a run is generated
 - generating a cart from an existing draft should delete the draft so planning state does not duplicate itself
 
-### 3.5. Weekly Meal Plan Layer
+### 3.5. Meal Plan Layer
 
 Purpose:
 
-- represent a user's weekly breakfast/lunch/dinner schedule independently from cart generation
+- represent dated planned eating/cooking events independently from cart generation
+- coordinate recipes, flexible meal labels, nutrition summaries, grocery impact, and active cart creation
 
 Implemented entities:
 
-- `MealPlan`
-- `MealPlanDay`
+- `MealEvent`
+- `MealPlanRange`
+- legacy `MealPlan` / `MealPlanDay` compatibility shape
 
 Current status:
 
-- weekly meal plans are persisted per user and Monday `week_start`
-- each day can reference breakfast, lunch, and dinner recipe ids
-- the web app now exposes a dedicated `/meal-plan` surface
-- this layer currently organizes recipe intent for the week, but it is not yet deeply connected to `Cart` creation or grocery execution
+- meal events are persisted per user and date
+- events support flexible labels such as breakfast, lunch, dinner, snack, prep, leftover, and custom
+- `GET /api/v1/meal-plans?from=YYYY-MM-DD&to=YYYY-MM-DD` returns a hydrated date-range projection with recipe, grocery, and nutrition summaries
+- `POST /api/v1/meal-plans/cart` creates the user's active `Cart` from selected planned recipe events
+- the legacy `week_start` GET/PUT path remains as compatibility for older fixed weekly clients, but new surfaces should use `MealEvent`
 
 ### 4. Aggregation Layer
 
