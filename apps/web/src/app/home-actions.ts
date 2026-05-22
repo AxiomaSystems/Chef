@@ -759,7 +759,15 @@ export async function loadRecipesPageAction(
     };
   }
 
-  return { page: (await response.json()) as RecipeListPage };
+  const page = (await response
+    .json()
+    .catch(() => null)) as RecipeListPage | null;
+
+  if (!page) {
+    return { error: "Unable to load more recipes right now." };
+  }
+
+  return { page };
 }
 
 export type UpdateRecipeActionState = { error?: string; recipe?: BaseRecipe };
