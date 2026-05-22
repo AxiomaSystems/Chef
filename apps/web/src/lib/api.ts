@@ -6,6 +6,27 @@ type ApiErrorBody = {
   message?: string | string[];
 };
 
+function isNextRedirectError(error: unknown) {
+  return (
+    error instanceof Error &&
+    "digest" in error &&
+    typeof error.digest === "string" &&
+    error.digest.startsWith("NEXT_REDIRECT")
+  );
+}
+
+function networkErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    if (error.message === "terminated") {
+      return "The API connection was interrupted. Please try again.";
+    }
+
+    return error.message;
+  }
+
+  return "Unknown network failure";
+}
+
 export type Loadable<T> = {
   ok: boolean;
   data: T;
@@ -23,9 +44,7 @@ async function readErrorMessage(response: Response) {
   return body?.message ?? `Request failed with ${response.status}`;
 }
 
-export async function fetchCollection<T>(
-  path: string,
-): Promise<Loadable<T[]>> {
+export async function fetchCollection<T>(path: string): Promise<Loadable<T[]>> {
   try {
     const response = await fetch(buildApiUrl(path), {
       cache: "no-store",
@@ -49,8 +68,7 @@ export async function fetchCollection<T>(
     return {
       ok: false,
       data: [],
-      error:
-        error instanceof Error ? error.message : "Unknown network failure",
+      error: networkErrorMessage(error),
     };
   }
 }
@@ -92,12 +110,11 @@ export async function fetchAuthedCollection<T>(
       status: response.status,
     };
   } catch (error) {
-    if (error instanceof Error && "digest" in error) throw error;
+    if (isNextRedirectError(error)) throw error;
     return {
       ok: false,
       data: [],
-      error:
-        error instanceof Error ? error.message : "Unknown network failure",
+      error: networkErrorMessage(error),
     };
   }
 }
@@ -139,12 +156,11 @@ export async function fetchAuthedResource<T>(
       status: response.status,
     };
   } catch (error) {
-    if (error instanceof Error && "digest" in error) throw error;
+    if (isNextRedirectError(error)) throw error;
     return {
       ok: false,
       data: null,
-      error:
-        error instanceof Error ? error.message : "Unknown network failure",
+      error: networkErrorMessage(error),
     };
   }
 }

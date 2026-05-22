@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireApiSession } from "../../_lib/require-api-session";
 
 type ElevenLabsError = {
   detail?: string | { message?: string; status?: string };
@@ -12,6 +13,9 @@ async function getElevenLabsErrorMessage(res: Response) {
 }
 
 export async function POST() {
+  const session = await requireApiSession();
+  if (session instanceof NextResponse) return session;
+
   const agentId = process.env.ELEVENLABS_AGENT_ID;
   const apiKey = process.env.ELEVENLABS_API_KEY;
 

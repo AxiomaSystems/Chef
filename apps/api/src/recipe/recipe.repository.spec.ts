@@ -10,6 +10,7 @@ describe('RecipeRepository visibility', () => {
       findMany: jest.Mock;
       findFirst: jest.Mock;
       create: jest.Mock;
+      count: jest.Mock;
     };
   };
   let userContextService: {
@@ -27,6 +28,7 @@ describe('RecipeRepository visibility', () => {
         findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
       },
     };
 
@@ -114,6 +116,116 @@ describe('RecipeRepository visibility', () => {
           ownerUserId: null,
         },
       }),
+    );
+  });
+
+  it('paginates public recipes through server-side owner filters', async () => {
+    userContextService.resolveOptionalActorUser.mockResolvedValue({
+      id: 'user-a',
+    });
+    prisma.baseRecipe.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { forkedFromRecipeId: 'recipe-system-1' },
+        { forkedFromRecipeId: 'recipe-system-2' },
+        { forkedFromRecipeId: 'recipe-system-1' },
+        { forkedFromRecipeId: null },
+      ]);
+    prisma.baseRecipe.count
+      .mockResolvedValueOnce(12)
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(2);
+
+    const result = await repository.findManyPage(
+      { limit: 24, owner: 'public' },
+      'user-a',
+    );
+
+    const query = prisma.baseRecipe.findMany.mock.calls[0][0];
+    expect(query.take).toBe(25);
+    expect(prisma.baseRecipe.count).toHaveBeenCalledTimes(3);
+    expect(result.metadata).toEqual({
+      saved_source_ids: ['recipe-system-1', 'recipe-system-2'],
+      counts: {
+        public: 12,
+        mine: 3,
+        saved: 2,
+      },
+    });
+    expect(query.where.AND).toEqual(
+      expect.arrayContaining([
+        { OR: [{ isSystemRecipe: true }, { ownerUserId: 'user-a' }] },
+        { isSystemRecipe: true, ownerUserId: null },
+      ]),
+    );
+  });
+
+  it('paginates saved recipes through server-side owner filters', async () => {
+    userContextService.resolveOptionalActorUser.mockResolvedValue({
+      id: 'user-a',
+    });
+
+    await repository.findManyPage({ limit: 24, owner: 'saved' }, 'user-a');
+
+    const query = prisma.baseRecipe.findMany.mock.calls[0][0];
+    expect(prisma.baseRecipe.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: { forkedFromRecipeId: true },
+      }),
+    );
+    expect(query.where.AND).toEqual(
+      expect.arrayContaining([
+        { OR: [{ isSystemRecipe: true }, { ownerUserId: 'user-a' }] },
+        {
+          ownerUserId: 'user-a',
+          isSystemRecipe: false,
+          forkedFromRecipeId: { not: null },
+        },
+      ]),
+    );
+  });
+
+  it('paginates recipes through server-side search and taxonomy filters', async () => {
+    userContextService.resolveOptionalActorUser.mockResolvedValue({
+      id: 'user-a',
+    });
+
+    await repository.findManyPage(
+      {
+        limit: 24,
+        q: 'okra',
+        cuisine_id: 'cuisine-west-african',
+        tag_id: 'tag-quick',
+      },
+      'user-a',
+    );
+
+    const query = prisma.baseRecipe.findMany.mock.calls[0][0];
+    expect(query.where.AND).toEqual(
+      expect.arrayContaining([
+        { cuisineId: 'cuisine-west-african' },
+        { recipeTags: { some: { tagId: 'tag-quick' } } },
+        expect.objectContaining({
+          OR: expect.arrayContaining([
+            { name: { contains: 'okra', mode: 'insensitive' } },
+            { description: { contains: 'okra', mode: 'insensitive' } },
+            {
+              ingredients: {
+                some: {
+                  OR: expect.arrayContaining([
+                    {
+                      canonicalIngredient: {
+                        contains: 'okra',
+                        mode: 'insensitive',
+                      },
+                    },
+                  ]),
+                },
+              },
+            },
+          ]),
+        }),
+      ]),
     );
   });
 

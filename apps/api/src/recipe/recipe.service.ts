@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { BaseRecipe } from '@cart/shared';
+import type { HomeRecipeRecommendations, RecipeListPage } from '@cart/shared';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import {
@@ -20,6 +21,26 @@ export class RecipeService {
     return this.recipeRepository.findMany(actorUserId);
   }
 
+  findPage(
+    input: {
+      limit: number;
+      cursor?: string;
+      q?: string;
+      cuisine_id?: string;
+      tag_id?: string;
+      owner?: 'public' | 'mine' | 'saved';
+    },
+    actorUserId?: string,
+  ): Promise<RecipeListPage> {
+    return this.recipeRepository.findManyPage(input, actorUserId);
+  }
+
+  findHomeRecommendations(
+    actorUserId: string,
+  ): Promise<HomeRecipeRecommendations> {
+    return this.recipeRepository.findHomeRecommendations(actorUserId);
+  }
+
   async findOrigin(id: string, actorUserId?: string): Promise<BaseRecipe> {
     const recipe = await assertVisibleRecipe(
       await this.recipeRepository.findById(id, actorUserId),
@@ -27,7 +48,9 @@ export class RecipeService {
     );
 
     if (!recipe.forked_from_recipe_id) {
-      throw new NotFoundException(`Recipe ${id} does not have an origin recipe`);
+      throw new NotFoundException(
+        `Recipe ${id} does not have an origin recipe`,
+      );
     }
 
     return assertVisibleRecipe(
@@ -79,7 +102,10 @@ export class RecipeService {
     const deleted = await this.recipeRepository.delete(id, actorUserId);
 
     if (!deleted) {
-      const visibleRecipe = await this.recipeRepository.findById(id, actorUserId);
+      const visibleRecipe = await this.recipeRepository.findById(
+        id,
+        actorUserId,
+      );
       assertMutableRecipeResult(null, visibleRecipe, id, 'deleted');
     }
   }
