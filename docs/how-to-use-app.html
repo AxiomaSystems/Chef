@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How to Use Butter Me</title>
+    <style>
+      /*
+        Butter Me one-page flyer.
+        Screenshot files live in docs/assets/how-to-use/.
+        Edit the CSS variables below to change the flyer colors.
+      */
+      :root {
+        --ink: #082126;
+        --muted: #5d7f83;
+        --paper: #fff7ec;
+        --surface: #ffffff;
+        --line: #d8e8e5;
+        --orange: #ff7600;
+        --orange-dark: #a84600;
+        --teal: #2f9193;
+        --teal-dark: #24676b;
+        --mint: #c7e7e6;
+        --gold: #f8bd5d;
+        --shadow: 0 18px 48px rgba(8, 33, 38, 0.14);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 9% 10%, rgba(255, 118, 0, 0.22), transparent 23rem),
+          radial-gradient(circle at 96% 2%, rgba(199, 231, 230, 0.8), transparent 24rem),
+          linear-gradient(180deg, #fffbf5, #fff4e7);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      img {
+        display: block;
+        max-width: 100%;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .flyer {
+        width: min(1240px, calc(100% - 28px));
+        margin: 18px auto;
+        padding: 22px;
+        border: 1px solid rgba(8, 33, 38, 0.08);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 22px;
+        align-items: stretch;
+      }
+
+      .hero-copy {
+        display: grid;
+        align-content: center;
+        min-height: 330px;
+        padding: 12px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        width: max-content;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #fff0dc;
+        color: var(--orange-dark);
+        font-size: 0.76rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 760px;
+        font-size: clamp(2.5rem, 5vw, 4.9rem);
+        line-height: 0.96;
+        letter-spacing: 0;
+      }
+
+      h1 span {
+        color: var(--orange);
+      }
+
+      .subtitle {
+        max-width: 710px;
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: clamp(1rem, 1.45vw, 1.2rem);
+        line-height: 1.45;
+      }
+
+      .route-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 34px;
+        padding: 7px 11px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--teal-dark);
+        font-size: 0.78rem;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      .chip.orange {
+        border-color: transparent;
+        background: var(--orange);
+        color: #fff;
+      }
+
+      .chip.teal {
+        border-color: transparent;
+        background: var(--teal);
+        color: #fff;
+      }
+
+      .chip.gold {
+        border-color: transparent;
+        background: var(--gold);
+        color: var(--ink);
+      }
+
+      .circled {
+        position: relative;
+        isolation: isolate;
+      }
+
+      .circled::after {
+        /*
+          Circle important buttons/actions.
+          Move rings with the per-element --x/--y/--w/--h variables below.
+        */
+        content: "";
+        position: absolute;
+        left: var(--x, -8px);
+        top: var(--y, -7px);
+        width: var(--w, calc(100% + 16px));
+        height: var(--h, calc(100% + 14px));
+        border: 3px solid var(--ring, var(--orange));
+        border-radius: 999px;
+        transform: rotate(var(--tilt, -3deg));
+        pointer-events: none;
+        z-index: 4;
+      }
+
+      .phone-frame {
+        overflow: hidden;
+        border: 1px solid #d8e2df;
+        border-radius: 28px;
+        background: #fff;
+        box-shadow: 0 16px 42px rgba(8, 33, 38, 0.15);
+      }
+
+      .phone-frame.hero-shot {
+        min-height: 330px;
+      }
+
+      .shot {
+        position: relative;
+        overflow: hidden;
+        border-radius: 18px;
+        background: #f6eee4;
+      }
+
+      .phone-frame > img,
+      .shot > img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .hero-shot img {
+        height: 100%;
+        min-height: 330px;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 13px;
+        margin-top: 20px;
+      }
+
+      .step {
+        position: relative;
+        display: grid;
+        grid-template-rows: auto auto 1fr auto;
+        gap: 9px;
+        min-height: 354px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: var(--surface);
+        box-shadow: 0 12px 30px rgba(8, 33, 38, 0.08);
+      }
+
+      .step::after {
+        content: "";
+        position: absolute;
+        top: 48%;
+        right: -18px;
+        width: 27px;
+        height: 16px;
+        background: var(--orange);
+        clip-path: polygon(0 35%, 58% 35%, 58% 0, 100% 50%, 58% 100%, 58% 65%, 0 65%);
+        z-index: 2;
+      }
+
+      .step:last-child::after {
+        display: none;
+      }
+
+      .step-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .num {
+        display: inline-grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--ink);
+        color: #fff;
+        font-weight: 950;
+      }
+
+      .step h2 {
+        font-size: 1.02rem;
+        line-height: 1.1;
+      }
+
+      .step p {
+        color: var(--muted);
+        font-size: 0.78rem;
+        line-height: 1.32;
+      }
+
+      .step .shot {
+        min-height: 188px;
+      }
+
+      .step .shot img {
+        height: 188px;
+      }
+
+      .shot-pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+      }
+
+      .shot-pair .shot,
+      .shot-pair .shot img {
+        min-height: 188px;
+        height: 188px;
+      }
+
+      .screen-label {
+        position: absolute;
+        left: 9px;
+        top: 9px;
+        z-index: 3;
+        padding: 5px 8px;
+        border-radius: 999px;
+        background: rgba(8, 33, 38, 0.78);
+        color: #fff;
+        font-size: 0.68rem;
+        font-weight: 900;
+      }
+
+      .step-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        align-self: end;
+      }
+
+      .extras-wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+        gap: 15px;
+        margin-top: 16px;
+      }
+
+      .panel {
+        padding: 15px;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.86);
+      }
+
+      .panel-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .panel-head h2 {
+        font-size: 1.22rem;
+      }
+
+      .panel-head span {
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 800;
+      }
+
+      .extras {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .extra {
+        padding: 9px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: #fff;
+      }
+
+      .extra .shot,
+      .extra .shot img {
+        height: 118px;
+      }
+
+      .extra h3 {
+        margin-top: 8px;
+        font-size: 0.88rem;
+      }
+
+      .extra p {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.72rem;
+        line-height: 1.28;
+      }
+
+      .tips {
+        display: grid;
+        gap: 8px;
+      }
+
+      .tip {
+        display: flex;
+        gap: 9px;
+        padding: 9px;
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 0.8rem;
+        line-height: 1.3;
+      }
+
+      .tip strong {
+        color: var(--orange);
+      }
+
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 13px;
+        padding-top: 13px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      svg {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+      }
+
+      @media (max-width: 1120px) {
+        .hero,
+        .extras-wrap {
+          grid-template-columns: 1fr;
+        }
+
+        .phone-frame.hero-shot {
+          max-width: 380px;
+        }
+
+        .flow {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .step:nth-child(2n)::after {
+          display: none;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .flyer {
+          width: min(100% - 14px, 1240px);
+          margin: 7px auto;
+          padding: 14px;
+          border-radius: 20px;
+        }
+
+        .hero-copy {
+          min-height: auto;
+          padding: 4px;
+        }
+
+        .flow,
+        .extras {
+          grid-template-columns: 1fr;
+        }
+
+        .step::after,
+        .step:nth-child(2n)::after {
+          display: block;
+          top: auto;
+          right: calc(50% - 14px);
+          bottom: -18px;
+          transform: rotate(90deg);
+        }
+
+        .step:last-child::after {
+          display: none;
+        }
+
+        .footer {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+      }
+
+      @media print {
+        @page {
+          size: letter landscape;
+          margin: 0.25in;
+        }
+
+        body {
+          background: #fff;
+        }
+
+        .flyer {
+          width: 100%;
+          margin: 0;
+          padding: 10px;
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+        }
+
+        .hero {
+          grid-template-columns: minmax(0, 1fr) 190px;
+          gap: 10px;
+        }
+
+        .hero-copy {
+          min-height: 200px;
+          padding: 0;
+        }
+
+        h1 {
+          font-size: 2.9rem;
+        }
+
+        .subtitle {
+          font-size: 0.9rem;
+        }
+
+        .phone-frame.hero-shot,
+        .hero-shot img {
+          min-height: 200px;
+          height: 200px;
+        }
+
+        .flow {
+          grid-template-columns: repeat(6, 1fr);
+          gap: 7px;
+          margin-top: 10px;
+        }
+
+        .step {
+          min-height: 225px;
+          padding: 7px;
+          break-inside: avoid;
+        }
+
+        .step h2 {
+          font-size: 0.78rem;
+        }
+
+        .step p,
+        .tip,
+        .extra p {
+          font-size: 0.62rem;
+        }
+
+        .step .shot,
+        .step .shot img,
+        .shot-pair .shot,
+        .shot-pair .shot img {
+          min-height: 102px;
+          height: 102px;
+        }
+
+        .chip {
+          min-height: 24px;
+          padding: 4px 7px;
+          font-size: 0.6rem;
+        }
+
+        .extras-wrap {
+          grid-template-columns: 1.3fr 0.7fr;
+          gap: 8px;
+          margin-top: 8px;
+        }
+
+        .panel {
+          padding: 8px;
+          break-inside: avoid;
+        }
+
+        .extras {
+          grid-template-columns: repeat(4, 1fr);
+          gap: 6px;
+        }
+
+        .extra {
+          padding: 6px;
+        }
+
+        .extra .shot,
+        .extra .shot img {
+          height: 72px;
+        }
+
+        .footer {
+          margin-top: 7px;
+          padding-top: 7px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="flyer" aria-label="How to Use Butter Me flyer">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M7 2h10v3h2a3 3 0 0 1 3 3v3a7 7 0 0 1-7 7h-1v4h-4v-4H9a7 7 0 0 1-7-7V8a3 3 0 0 1 3-3h2V2Zm2 2v1h6V4H9Zm-4 6v1a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-1H5Z" />
+            </svg>
+            Visual quick-start guide
+          </p>
+          <!-- Edit the headline and subtitle here. -->
+          <h1>How to Use <span>Butter Me</span></h1>
+          <p class="subtitle">
+            Start on Home, fill your inventory by voice, choose or create recipes,
+            build a cart for what you lack, then cook hands-free when everything is ready.
+          </p>
+          <div class="route-strip" aria-label="Main app route">
+            <span class="chip orange circled" style="--ring: var(--orange);">Start Here: Home</span>
+            <span class="chip">Inventory</span>
+            <span class="chip">Recipes</span>
+            <span class="chip">Cart</span>
+            <span class="chip">Shopping</span>
+            <span class="chip teal">Cook hands-free</span>
+          </div>
+        </div>
+
+        <!-- Real screenshot from docs/assets/how-to-use/01-home.png. -->
+        <aside class="phone-frame hero-shot">
+          <img src="assets/how-to-use/01-home.png" alt="Butter Me home screen" />
+        </aside>
+      </section>
+
+      <section class="flow" aria-label="Main Butter Me user journey">
+        <article class="step">
+          <div class="step-head">
+            <span class="num">1</span>
+            <span class="chip orange circled">Home</span>
+          </div>
+          <h2>Start at the Home Page</h2>
+          <p>Use the Home screen as the launch pad. The profile icon is also visible here.</p>
+          <div class="shot">
+            <img src="assets/how-to-use/01-home.png" alt="Home page with search and recipe cards" />
+            <span class="screen-label">Start Here</span>
+            <span class="circled" style="--x: 80%; --y: 76%; --w: 18%; --h: 15%; --ring:#fff;"></span>
+          </div>
+          <div class="step-actions">
+            <span class="chip orange circled">Search or tap a card</span>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="step-head">
+            <span class="num">2</span>
+            <span class="chip teal circled">Voice Add</span>
+          </div>
+          <h2>Add Things to Inventory</h2>
+          <p>Open Your Kitchen, tap Voice Add, record items, review the transcript, then save.</p>
+          <div class="shot-pair">
+            <div class="shot">
+              <img src="assets/how-to-use/05-inventory.png" alt="Inventory page with Voice Add button" />
+              <span class="circled" style="--x: 7%; --y: 25%; --w: 42%; --h: 14%; --ring:#fff;"></span>
+            </div>
+            <div class="shot">
+              <img src="assets/how-to-use/06-voice-inventory.png" alt="Voice inventory modal with Record and Save" />
+              <span class="circled" style="--x: 7%; --y: 17%; --w: 36%; --h: 12%;"></span>
+              <span class="circled" style="--x: 74%; --y: 84%; --w: 22%; --h: 11%; --ring:var(--gold);"></span>
+            </div>
+          </div>
+          <div class="step-actions">
+            <span class="chip orange circled">Record</span>
+            <span class="chip gold circled">Save</span>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="step-head">
+            <span class="num">3</span>
+            <span class="chip orange circled">Recipes</span>
+          </div>
+          <h2>Select or Create a Recipe</h2>
+          <p>Browse Public, Mine, or Saved. Use the plus menu for URL import or a new recipe.</p>
+          <div class="shot-pair">
+            <div class="shot">
+              <img src="assets/how-to-use/02-recipes-menu.png" alt="Recipe plus menu with import and create options" />
+              <span class="circled" style="--x: 15%; --y: 53%; --w: 72%; --h: 12%; --ring:var(--teal);"></span>
+              <span class="circled" style="--x: 15%; --y: 65%; --w: 72%; --h: 12%;"></span>
+            </div>
+            <div class="shot">
+              <img src="assets/how-to-use/04-new-recipe.png" alt="Create new recipe form" />
+              <span class="screen-label">New recipe</span>
+            </div>
+          </div>
+          <div class="step-actions">
+            <span class="chip circled">Add recipe from URL</span>
+            <span class="chip orange circled">Create new recipe</span>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="step-head">
+            <span class="num">4</span>
+            <span class="chip teal circled">Check</span>
+          </div>
+          <h2>Check Inventory and Select</h2>
+          <p>Open a recipe, check missing ingredients, then add one or multiple recipes to the cart.</p>
+          <div class="shot-pair">
+            <div class="shot">
+              <img src="assets/how-to-use/11-recipe-detail.png" alt="Recipe detail with Check against inventory button" />
+              <span class="circled" style="--x: 7%; --y: 84%; --w: 73%; --h: 10%; --ring:var(--teal);"></span>
+            </div>
+            <div class="shot">
+              <img src="assets/how-to-use/12-recipes-selected.png" alt="Two recipes selected with Generate Cart button" />
+              <span class="circled" style="--x: 55%; --y: 75%; --w: 38%; --h: 10%;"></span>
+            </div>
+          </div>
+          <div class="step-actions">
+            <span class="chip teal circled">Check against inventory</span>
+            <span class="chip orange circled">Generate Cart</span>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="step-head">
+            <span class="num">5</span>
+            <span class="chip orange circled">Shopping</span>
+          </div>
+          <h2>Buy What You Lack</h2>
+          <p>Create a shopping list from the cart, checkout, receive items, then come back to cooking.</p>
+          <div class="shot-pair">
+            <div class="shot">
+              <img src="assets/how-to-use/10-cart-detail.png" alt="Cart detail with Create shopping list button" />
+              <span class="circled" style="--x: 8%; --y: 73%; --w: 84%; --h: 12%;"></span>
+            </div>
+            <div class="shot">
+              <img src="assets/how-to-use/13-shopping-cart.png" alt="Shopping cart with checkout button" />
+              <span class="circled" style="--x: 5%; --y: 79%; --w: 88%; --h: 11%; --ring:var(--gold);"></span>
+            </div>
+          </div>
+          <div class="step-actions">
+            <span class="chip orange circled">Create shopping list</span>
+            <span class="chip gold circled">Checkout</span>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="step-head">
+            <span class="num">6</span>
+            <span class="chip orange circled">Cook</span>
+          </div>
+          <h2>Cook Hands-Free</h2>
+          <p>When ingredients are ready, start hands-free mode. Say "Chef" when you need help.</p>
+          <div class="shot-pair">
+            <div class="shot">
+              <img src="assets/how-to-use/07-recipe-actions.png" alt="Recipe actions with Start hands-free mode button" />
+              <span class="circled" style="--x: 5%; --y: 65%; --w: 89%; --h: 12%;"></span>
+            </div>
+            <div class="shot">
+              <img src="assets/how-to-use/08-hands-free.png" alt="Hands-free cooking mode screen" />
+              <span class="screen-label">Say "Chef"</span>
+            </div>
+          </div>
+          <div class="step-actions">
+            <span class="chip orange circled">Start hands-free mode</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="extras-wrap">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Helpful Extras</h2>
+            <span>Useful side screens from the provided flow</span>
+          </div>
+          <div class="extras">
+            <article class="extra">
+              <div class="shot">
+                <img src="assets/how-to-use/03-chef-capture.png" alt="Chef Capture import screen" />
+                <span class="circled" style="--x: 6%; --y: 34%; --w: 34%; --h: 11%; --ring:var(--teal);"></span>
+              </div>
+              <h3>Chef Capture</h3>
+              <p>Paste a recipe link, paste text, or use the camera.</p>
+            </article>
+            <article class="extra">
+              <div class="shot">
+                <img src="assets/how-to-use/09-recipes-list.png" alt="Recipes list with add-to-cart button" />
+                <span class="circled" style="--x: 82%; --y: 60%; --w: 15%; --h: 11%;"></span>
+              </div>
+              <h3>Recipe Library</h3>
+              <p>Use Public, Mine, and Saved to find recipe sources.</p>
+            </article>
+            <article class="extra">
+              <div class="shot">
+                <img src="assets/how-to-use/14-checkout.png" alt="Checkout screen with address and payment" />
+                <span class="circled" style="--x: 8%; --y: 39%; --w: 84%; --h: 13%;"></span>
+              </div>
+              <h3>Checkout Details</h3>
+              <p>Add delivery address and payment before placing the order.</p>
+            </article>
+            <article class="extra">
+              <div class="shot">
+                <img src="assets/how-to-use/01-home.png" alt="Home screen profile icon" />
+                <span class="circled" style="--x: 83%; --y: 2%; --w: 12%; --h: 8%; --ring:var(--teal);"></span>
+              </div>
+              <h3>Profile Area</h3>
+              <p>Open the profile icon for personal info and preferences.</p>
+            </article>
+          </div>
+        </div>
+
+        <aside class="panel">
+          <div class="panel-head">
+            <h2>Quick Tips</h2>
+          </div>
+          <div class="tips">
+            <div class="tip"><strong>1</strong> Inventory first makes missing-ingredient shopping more accurate.</div>
+            <div class="tip"><strong>2</strong> Use the orange circled controls as the next action to tap.</div>
+            <div class="tip"><strong>3</strong> If items are missing, shop first, then return to the recipe.</div>
+            <div class="tip"><strong>4</strong> Start hands-free mode only after ingredients are ready.</div>
+          </div>
+        </aside>
+      </section>
+
+      <footer class="footer">
+        <strong>Butter Me support: support@example.com</strong>
+        <span>Single-file printable guide using screenshots from docs/assets/how-to-use/.</span>
+      </footer>
+    </main>
+  </body>
+</html>
