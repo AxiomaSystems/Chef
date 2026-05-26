@@ -8,6 +8,7 @@ import { AppNavLink } from "./app-nav-link";
 const navItems = [
   { href: "/dashboard", icon: "home", label: "Home" },
   { href: "/recipes", icon: "receipt_long", label: "Recipes" },
+  { href: "/meal-plan", icon: "calendar_month", label: "Plan" },
   { href: "/inventory", icon: "inventory_2", label: "Inventory" },
   {
     href: "/carts",
@@ -45,7 +46,7 @@ export function BottomNav({
         />
       ) : null}
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-4 items-center border-t border-outline-variant/30 bg-surface-bright/95 px-2 py-2 shadow-[0_-10px_30px_rgba(60,154,158,0.08)] backdrop-blur-md lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-5 items-center border-t border-outline-variant/30 bg-surface-bright/95 px-2 py-2 shadow-[0_-10px_30px_rgba(60,154,158,0.08)] backdrop-blur-md lg:hidden">
         {navItems.map(({ href, icon, label, activePaths }) => {
           const paths = activePaths ?? [href];
           const active = paths.some(

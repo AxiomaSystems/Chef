@@ -1,34 +1,58 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type {
   BaseRecipe,
-  MealPlan,
-  MealPlanDay,
+  CreateMealEventRequest,
+  MealEvent,
+  MealPlanMealLabel,
+  MealPlanRange,
+  MealPlanSourceType,
+  MealPlanEventStatus,
   WeeklyNutritionTargets,
 } from "@cart/shared";
-import { submitDraftFlowAction } from "@/app/home-actions";
-import { getMealPlanAction, saveMealPlanAction } from "@/app/meal-plan/actions";
+import {
+  createMealEventAction,
+  deleteMealEventAction,
+  generateMealPlanCartAction,
+  getMealPlanRangeAction,
+  updateMealEventAction,
+} from "@/app/meal-plan/actions";
 import { RecipeImage } from "@/components/ui/recipe-image";
 
-type MealType = "breakfast" | "lunch" | "dinner";
-type WeekPlan = MealPlanDay[];
+type PlanView = "day" | "week" | "month";
 
-const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+type EditorState = {
+  mode: "create" | "edit";
+  event?: MealEvent;
+  date: string;
+};
 
-const MEAL_CONFIG: { type: MealType; label: string; icon: string }[] = [
-  { type: "breakfast", label: "Breakfast", icon: "wb_sunny" },
-  { type: "lunch", label: "Lunch", icon: "restaurant" },
-  { type: "dinner", label: "Dinner", icon: "dinner_dining" },
+const MEAL_LABELS: { value: MealPlanMealLabel; label: string }[] = [
+  { value: "breakfast", label: "Breakfast" },
+  { value: "lunch", label: "Lunch" },
+  { value: "dinner", label: "Dinner" },
+  { value: "snack", label: "Snack" },
+  { value: "prep", label: "Prep" },
+  { value: "leftover", label: "Leftover" },
+  { value: "custom", label: "Custom" },
 ];
 
-const WEEKLY_TARGETS = {
-  calories: 14000,
-  protein_g: 350,
-  carbs_g: 1750,
-  fat_g: 490,
-};
+const SOURCE_TYPES: { value: MealPlanSourceType; label: string }[] = [
+  { value: "recipe", label: "Recipe" },
+  { value: "manual", label: "Manual" },
+  { value: "eat_out", label: "Eat out" },
+  { value: "leftover", label: "Leftover" },
+  { value: "prep", label: "Prep" },
+];
+
+const STATUSES: { value: MealPlanEventStatus; label: string }[] = [
+  { value: "planned", label: "Planned" },
+  { value: "cooked", label: "Cooked" },
+  { value: "eaten", label: "Eaten" },
+  { value: "skipped", label: "Skipped" },
+];
 
 const MONTH_NAMES = [
   "Jan",
@@ -45,21 +69,182 @@ const MONTH_NAMES = [
   "Dec",
 ];
 
-function getMonday(date: Date): Date {
-  const nextDate = new Date(date);
-  const day = nextDate.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  nextDate.setDate(nextDate.getDate() + diff);
-  nextDate.setHours(0, 0, 0, 0);
-  return nextDate;
-}
+const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function buildEmptyPlan(): WeekPlan {
-  return Array.from({ length: 7 }, () => ({}));
-}
+const DEFAULT_TARGETS = {
+  calories: 14000,
+  protein_g: 350,
+  carbs_g: 1750,
+  fat_g: 490,
+};
 
 function toDateKey(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function parseDateKey(dateKey: string) {
+  return new Date(`${dateKey}T00:00:00`);
+}
+
+function getMonday(date: Date) {
+  const monday = new Date(date);
+  const day = monday.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  monday.setDate(monday.getDate() + diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+function getRangeForWeek(start: Date) {
+  const fromDate = getMonday(start);
+  const toDate = new Date(fromDate);
+  toDate.setDate(toDate.getDate() + 6);
+  return {
+    from: toDateKey(fromDate),
+    to: toDateKey(toDate),
+  };
+}
+
+function buildEmptyRange(from: string, to: string): MealPlanRange {
+  const start = parseDateKey(from);
+  return {
+    from,
+    to,
+    days: Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(date.getDate() + index);
+      return {
+        date: toDateKey(date),
+        events: [],
+      };
+    }),
+    events: [],
+    grocery_summary: [],
+    nutrition_summary: {},
+  };
+}
+
+function isMealPlanRange(
+  value: MealPlanRange | undefined,
+): value is MealPlanRange {
+  return !!(
+    value &&
+    typeof value.from === "string" &&
+    typeof value.to === "string" &&
+    Array.isArray(value.days) &&
+    value.days.every(
+      (day) => typeof day.date === "string" && Array.isArray(day.events),
+    )
+  );
+}
+
+function labelText(value: MealPlanMealLabel) {
+  return MEAL_LABELS.find((item) => item.value === value)?.label ?? value;
+}
+
+function sourceText(value: MealPlanSourceType) {
+  return SOURCE_TYPES.find((item) => item.value === value)?.label ?? value;
+}
+
+function statusText(value: MealPlanEventStatus) {
+  return STATUSES.find((item) => item.value === value)?.label ?? value;
+}
+
+function formatDateLabel(dateKey: string) {
+  const date = parseDateKey(dateKey);
+  return `${MONTH_NAMES[date.getMonth()]} ${date.getDate()}`;
+}
+
+function formatRangeLabel(from: string, to: string) {
+  const start = parseDateKey(from);
+  const end = parseDateKey(to);
+  return `${MONTH_NAMES[start.getMonth()]} ${start.getDate()} - ${
+    MONTH_NAMES[end.getMonth()]
+  } ${end.getDate()}, ${end.getFullYear()}`;
+}
+
+function eventSortValue(event: MealEvent) {
+  const order: Record<MealPlanMealLabel, number> = {
+    breakfast: 1,
+    lunch: 2,
+    dinner: 3,
+    snack: 4,
+    prep: 5,
+    leftover: 6,
+    custom: 7,
+  };
+  return order[event.meal_label] ?? 99;
+}
+
+function recipeTitle(recipe?: BaseRecipe) {
+  return recipe?.name ?? "";
+}
+
+function normalizeEvent(input: MealEvent): MealEvent {
+  return {
+    ...input,
+    status: input.status ?? "planned",
+    title: input.title || input.recipe?.name || "Meal",
+  };
+}
+
+function rangeWithEvent(range: MealPlanRange, event: MealEvent) {
+  const normalized = normalizeEvent(event);
+  const events = [
+    ...range.events.filter((item) => item.id !== normalized.id),
+    normalized,
+  ].sort(
+    (a, b) =>
+      a.date.localeCompare(b.date) || eventSortValue(a) - eventSortValue(b),
+  );
+
+  return {
+    ...range,
+    events,
+    days: range.days.map((day) => ({
+      ...day,
+      events: events
+        .filter((item) => item.date === day.date)
+        .sort((a, b) => eventSortValue(a) - eventSortValue(b)),
+    })),
+  };
+}
+
+function rangeWithoutEvent(range: MealPlanRange, eventId: string) {
+  const events = range.events.filter((event) => event.id !== eventId);
+  return {
+    ...range,
+    events,
+    days: range.days.map((day) => ({
+      ...day,
+      events: day.events.filter((event) => event.id !== eventId),
+    })),
+  };
+}
+
+function monthDays(anchor: Date) {
+  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const start = getMonday(first);
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(date.getDate() + index);
+    return date;
+  });
+}
+
+function statusClasses(status: MealPlanEventStatus) {
+  if (status === "eaten") return "bg-[#e7f4ef] text-[#24664f]";
+  if (status === "cooked") return "bg-[#fff0d9] text-[#8b5300]";
+  if (status === "skipped") return "bg-[#f8e8e5] text-[#a14739]";
+  return "bg-[#eef7f7] text-[#2f7277]";
+}
+
+function sourceIcon(sourceType: MealPlanSourceType) {
+  if (sourceType === "recipe") return "restaurant";
+  if (sourceType === "eat_out") return "storefront";
+  if (sourceType === "leftover") return "history";
+  if (sourceType === "prep") return "countertops";
+  return "edit_note";
 }
 
 export function WeeklyMealPlan({
@@ -68,1402 +253,1181 @@ export function WeeklyMealPlan({
   weeklyNutritionTargets,
 }: {
   recipes: BaseRecipe[];
-  initialMealPlan: MealPlan;
+  initialMealPlan: MealPlanRange;
   weeklyNutritionTargets?: WeeklyNutritionTargets;
 }) {
   const router = useRouter();
-  const today = new Date();
-  const initialWeekStart =
-    initialMealPlan.week_start || toDateKey(getMonday(today));
-  const initialPlan =
-    initialMealPlan.days?.length === 7
-      ? initialMealPlan.days
-      : buildEmptyPlan();
-
-  const [weekStart, setWeekStart] = useState<Date>(() => {
-    const parsed = new Date(`${initialWeekStart}T00:00:00`);
-    return Number.isNaN(parsed.getTime()) ? getMonday(today) : parsed;
-  });
-  const [plan, setPlan] = useState<WeekPlan>(initialPlan);
-  const [pickerSlot, setPickerSlot] = useState<{
-    dayIndex: number;
-    meal: MealType;
-  } | null>(null);
-  const [pickerSearch, setPickerSearch] = useState("");
-  const [showFullGroceryList, setShowFullGroceryList] = useState(false);
-  const [planView, setPlanView] = useState<"week" | "day">("day");
-  const [manualViewSelection, setManualViewSelection] = useState(false);
-  const [activeDayIndex, setActiveDayIndex] = useState(() => {
-    const day = today.getDay();
-    return day === 0 ? 6 : day - 1;
-  });
-  const [checkedGroceriesByWeek, setCheckedGroceriesByWeek] = useState<
-    Record<string, string[]>
-  >({});
-  const [excludedCartRecipeIds, setExcludedCartRecipeIds] = useState<string[]>(
-    [],
+  const todayKey = toDateKey(new Date());
+  const fallbackWeek = getRangeForWeek(new Date());
+  const initialRange = isMealPlanRange(initialMealPlan)
+    ? initialMealPlan
+    : buildEmptyRange(fallbackWeek.from, fallbackWeek.to);
+  const [range, setRange] = useState<MealPlanRange>(initialRange);
+  const [activeDate, setActiveDate] = useState(
+    initialRange.days.find((day) => day.date === todayKey)?.date ??
+      initialRange.days[0]?.date ??
+      initialRange.from,
   );
+  const [view, setView] = useState<PlanView>("day");
+  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cartError, setCartError] = useState<string | null>(null);
-  const [isLoadingWeek, setIsLoadingWeek] = useState(false);
+  const [isLoadingRange, startLoadingRange] = useTransition();
   const [isGeneratingCart, startGeneratingCart] = useTransition();
 
-  const currentWeekKeyRef = useRef(initialWeekStart);
-  const loadRequestRef = useRef(0);
-  const saveQueueRef = useRef(Promise.resolve());
-  const recipeReuseCursorRef = useRef(0);
-  const cachedPlansRef = useRef(
-    new Map<string, WeekPlan>([[initialWeekStart, initialPlan]]),
+  const recipeById = useMemo(
+    () => new Map(recipes.map((recipe) => [recipe.id, recipe])),
+    [recipes],
   );
+  const recipeEvents = useMemo(
+    () =>
+      range.events.filter(
+        (event) => event.source_type === "recipe" && event.recipe_id,
+      ),
+    [range.events],
+  );
+  const activeDay =
+    range.days.find((day) => day.date === activeDate) ?? range.days[0];
+  const nutritionTargets = {
+    calories: weeklyNutritionTargets?.calories ?? DEFAULT_TARGETS.calories,
+    protein_g: weeklyNutritionTargets?.protein_g ?? DEFAULT_TARGETS.protein_g,
+    carbs_g: weeklyNutritionTargets?.carbs_g ?? DEFAULT_TARGETS.carbs_g,
+    fat_g: weeklyNutritionTargets?.fat_g ?? DEFAULT_TARGETS.fat_g,
+  };
 
   useEffect(() => {
-    const media = window.matchMedia("(min-width: 768px)");
+    setSelectedEventIds(recipeEvents.map((event) => event.id));
+  }, [recipeEvents]);
 
-    function syncPlanView() {
-      if (!manualViewSelection) {
-        setPlanView(media.matches ? "week" : "day");
-      }
-    }
-
-    syncPlanView();
-    media.addEventListener("change", syncPlanView);
-
-    return () => media.removeEventListener("change", syncPlanView);
-  }, [manualViewSelection]);
-
-  useEffect(() => {
-    const weekKey = toDateKey(weekStart);
-    currentWeekKeyRef.current = weekKey;
-
-    const cachedPlan = cachedPlansRef.current.get(weekKey);
-    if (cachedPlan) {
-      setPlan(cachedPlan);
+  function loadWeekFrom(date: Date) {
+    const nextRange = getRangeForWeek(date);
+    startLoadingRange(async () => {
       setError(null);
-      setIsLoadingWeek(false);
-      return;
-    }
-
-    const requestId = loadRequestRef.current + 1;
-    loadRequestRef.current = requestId;
-    setIsLoadingWeek(true);
-    setError(null);
-
-    void getMealPlanAction(weekKey).then((result) => {
-      if (loadRequestRef.current !== requestId) {
+      const result = await getMealPlanRangeAction(nextRange.from, nextRange.to);
+      if (result.error || !result.mealPlan) {
+        setRange(buildEmptyRange(nextRange.from, nextRange.to));
+        setActiveDate(nextRange.from);
+        setError(result.error ?? "Unable to load this meal plan.");
         return;
       }
 
-      if (result.error) {
-        setError(result.error);
-        setPlan(buildEmptyPlan());
-      } else {
-        const nextPlan =
-          result.mealPlan?.days?.length === 7
-            ? result.mealPlan.days
-            : buildEmptyPlan();
-        cachedPlansRef.current.set(weekKey, nextPlan);
-        setPlan(nextPlan);
-        setError(null);
-      }
-
-      setIsLoadingWeek(false);
+      const nextPlan = isMealPlanRange(result.mealPlan)
+        ? result.mealPlan
+        : buildEmptyRange(nextRange.from, nextRange.to);
+      setRange(nextPlan);
+      setActiveDate(
+        nextPlan.days.find((day) => day.date === todayKey)?.date ??
+          nextPlan.days[0]?.date ??
+          nextPlan.from,
+      );
     });
-  }, [weekStart]);
-
-  useEffect(() => {
-    if (!pickerSlot) {
-      return;
-    }
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setPickerSlot(null);
-      }
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [pickerSlot]);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setShowFullGroceryList(false);
-      }
-    }
-
-    if (showFullGroceryList) {
-      document.addEventListener("keydown", onKeyDown);
-    }
-
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [showFullGroceryList]);
-
-  function queueSave(
-    nextPlan: WeekPlan,
-    rollbackPlan: WeekPlan,
-    weekKey: string,
-  ) {
-    saveQueueRef.current = saveQueueRef.current.then(async () => {
-      const result = await saveMealPlanAction(weekKey, nextPlan);
-
-      if (result.error) {
-        cachedPlansRef.current.set(weekKey, rollbackPlan);
-        if (currentWeekKeyRef.current === weekKey) {
-          setPlan(rollbackPlan);
-          setError(result.error);
-        }
-        return;
-      }
-
-      if (result.mealPlan?.days?.length === 7) {
-        cachedPlansRef.current.set(weekKey, result.mealPlan.days);
-        if (currentWeekKeyRef.current === weekKey) {
-          setPlan(result.mealPlan.days);
-          setError(null);
-        }
-      }
-    });
-  }
-
-  function setMeal(
-    dayIndex: number,
-    meal: MealType,
-    recipeId: string | undefined,
-  ) {
-    const weekKey = toDateKey(weekStart);
-    const rollbackPlan = plan;
-    const updated = plan.map((day, index) =>
-      index === dayIndex ? { ...day, [meal]: recipeId } : day,
-    ) as WeekPlan;
-
-    cachedPlansRef.current.set(weekKey, updated);
-    setPlan(updated);
-    setPickerSlot(null);
-    setPickerSearch("");
-    setError(null);
-    queueSave(updated, rollbackPlan, weekKey);
-  }
-
-  function getRecipe(id?: string) {
-    if (!id) {
-      return undefined;
-    }
-
-    return recipes.find((recipe) => recipe.id === id);
   }
 
   function shiftWeek(delta: number) {
-    setPickerSlot(null);
-    setPickerSearch("");
-    setWeekStart((previous) => {
-      const nextDate = new Date(previous);
-      nextDate.setDate(nextDate.getDate() + delta * 7);
-      return nextDate;
-    });
+    const start = parseDateKey(range.from);
+    start.setDate(start.getDate() + delta * 7);
+    loadWeekFrom(start);
   }
 
-  function goToCurrentWeek() {
-    setPickerSlot(null);
-    setPickerSearch("");
-    setWeekStart(getMonday(new Date()));
+  function openCreate(date = activeDate) {
+    setEditor({ mode: "create", date });
   }
 
-  const weekKey = toDateKey(weekStart);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
-  const weekLabel = `${MONTH_NAMES[weekStart.getMonth()]} ${weekStart.getDate()} - ${MONTH_NAMES[weekEnd.getMonth()]} ${weekEnd.getDate()}, ${weekEnd.getFullYear()}`;
-  const activeDayDate = new Date(weekStart);
-  activeDayDate.setDate(activeDayDate.getDate() + activeDayIndex);
-
-  const allRecipeIds = plan.flatMap(
-    (day) => [day.breakfast, day.lunch, day.dinner].filter(Boolean) as string[],
-  );
-  const emptyMealSlotCount = plan.reduce(
-    (count, day) =>
-      count +
-      (day.breakfast ? 0 : 1) +
-      (day.lunch ? 0 : 1) +
-      (day.dinner ? 0 : 1),
-    0,
-  );
-
-  const nutrition = allRecipeIds.reduce(
-    (accumulator, id) => {
-      const recipe = getRecipe(id);
-      if (!recipe?.nutrition_data) {
-        return accumulator;
-      }
-
-      return {
-        calories: accumulator.calories + (recipe.nutrition_data.calories ?? 0),
-        protein_g:
-          accumulator.protein_g + (recipe.nutrition_data.protein_g ?? 0),
-        carbs_g: accumulator.carbs_g + (recipe.nutrition_data.carbs_g ?? 0),
-        fat_g: accumulator.fat_g + (recipe.nutrition_data.fat_g ?? 0),
-      };
-    },
-    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-  );
-  const nutritionTargets = {
-    calories: weeklyNutritionTargets?.calories ?? WEEKLY_TARGETS.calories,
-    protein_g: weeklyNutritionTargets?.protein_g ?? WEEKLY_TARGETS.protein_g,
-    carbs_g: weeklyNutritionTargets?.carbs_g ?? WEEKLY_TARGETS.carbs_g,
-    fat_g: weeklyNutritionTargets?.fat_g ?? WEEKLY_TARGETS.fat_g,
-  };
-
-  const groceryMap = new Map<string, { amount: number; unit: string }>();
-  for (const id of allRecipeIds) {
-    const recipe = getRecipe(id);
-    for (const ingredient of recipe?.ingredients ?? []) {
-      const key = ingredient.canonical_ingredient;
-      const existing = groceryMap.get(key);
-      if (existing && existing.unit === ingredient.unit) {
-        groceryMap.set(key, {
-          amount: existing.amount + ingredient.amount,
-          unit: ingredient.unit,
-        });
-      } else if (!existing) {
-        groceryMap.set(key, {
-          amount: ingredient.amount,
-          unit: ingredient.unit,
-        });
-      }
-    }
-  }
-  const groceryList = Array.from(groceryMap.entries());
-  const checkedGroceries = new Set(checkedGroceriesByWeek[weekKey] ?? []);
-  const plannedRecipeGroups = Array.from(
-    allRecipeIds.reduce((groups, id) => {
-      const recipe = getRecipe(id);
-      if (!recipe) return groups;
-
-      const existing = groups.get(id);
-      groups.set(id, {
-        recipe,
-        count: (existing?.count ?? 0) + 1,
-      });
-      return groups;
-    }, new Map<string, { recipe: BaseRecipe; count: number }>()),
-  ).map(([id, group]) => ({ id, ...group }));
-  const selectedCartRecipeIds = plannedRecipeGroups
-    .filter((group) => !excludedCartRecipeIds.includes(group.id))
-    .map((group) => group.id);
-  const selectedCartRecipeGroups = plannedRecipeGroups.filter((group) =>
-    selectedCartRecipeIds.includes(group.id),
-  );
-
-  const usedIds = new Set(allRecipeIds);
-  const seasonalPick =
-    recipes.find((recipe) => !usedIds.has(recipe.id)) ?? null;
-  const filteredRecipes = recipes.filter((recipe) =>
-    recipe.name.toLowerCase().includes(pickerSearch.toLowerCase()),
-  );
-
-  function pickNextLeastUsedRecipe() {
-    if (recipes.length === 0) {
-      return null;
-    }
-
-    const usageCounts = recipes.map((recipe) => ({
-      recipe,
-      count: allRecipeIds.filter((id) => id === recipe.id).length,
-    }));
-    const lowestUseCount = Math.min(...usageCounts.map((entry) => entry.count));
-    const leastUsedRecipes = usageCounts
-      .filter((entry) => entry.count === lowestUseCount)
-      .map((entry) => entry.recipe);
-
-    const recipe =
-      leastUsedRecipes[
-        recipeReuseCursorRef.current % leastUsedRecipes.length
-      ] ?? null;
-    recipeReuseCursorRef.current += 1;
-
-    return recipe;
+  function openEdit(event: MealEvent) {
+    setEditor({ mode: "edit", event, date: event.date });
   }
 
-  function addRecipeToFirstOpenSlot(recipeId: string) {
-    for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
-      for (const meal of ["breakfast", "lunch", "dinner"] as MealType[]) {
-        if (!plan[dayIndex]?.[meal]) {
-          setMeal(dayIndex, meal, recipeId);
-          setActiveDayIndex(dayIndex);
-          return;
-        }
-      }
-    }
-  }
+  async function refreshCurrentRange(preferredActiveDate = activeDate) {
+    const result = await getMealPlanRangeAction(range.from, range.to);
 
-  function groceryItemKey(name: string, amount: number, unit: string) {
-    return `${name}::${amount}::${unit}`;
-  }
-
-  function toggleGroceryItem(name: string, amount: number, unit: string) {
-    const itemKey = groceryItemKey(name, amount, unit);
-    setCheckedGroceriesByWeek((current) => {
-      const nextWeekItems = new Set(current[weekKey] ?? []);
-      if (nextWeekItems.has(itemKey)) {
-        nextWeekItems.delete(itemKey);
-      } else {
-        nextWeekItems.add(itemKey);
-      }
-
-      return {
-        ...current,
-        [weekKey]: Array.from(nextWeekItems),
-      };
-    });
-  }
-
-  function toggleCartRecipe(recipeId: string) {
-    setExcludedCartRecipeIds((current) =>
-      current.includes(recipeId)
-        ? current.filter((id) => id !== recipeId)
-        : [...current, recipeId],
-    );
-    setCartError(null);
-  }
-
-  function setAllCartRecipesSelected(selected: boolean) {
-    setExcludedCartRecipeIds(
-      selected ? [] : plannedRecipeGroups.map((group) => group.id),
-    );
-    setCartError(null);
-  }
-
-  function generateCartFromSelectedRecipes() {
-    if (selectedCartRecipeGroups.length === 0 || isGeneratingCart) {
-      setCartError("Choose at least one recipe to generate a cart.");
+    if (result.error || !result.mealPlan) {
+      setError(result.error ?? "Unable to refresh this meal plan.");
       return;
     }
 
-    setCartError(null);
-    startGeneratingCart(async () => {
-      const fd = new FormData();
-      fd.set("intent", "generate");
-      fd.set(
-        "selections_json",
-        JSON.stringify(
-          selectedCartRecipeGroups.map((group) => ({
-            recipe_id: group.id,
-            recipe_name: group.recipe.name,
-            quantity: group.count,
-          })),
-        ),
-      );
-      fd.set("retailer", "kroger");
+    const nextPlan = isMealPlanRange(result.mealPlan)
+      ? result.mealPlan
+      : buildEmptyRange(range.from, range.to);
+    setRange(nextPlan);
+    setActiveDate(
+      nextPlan.days.some((day) => day.date === preferredActiveDate)
+        ? preferredActiveDate
+        : (nextPlan.days[0]?.date ?? nextPlan.from),
+    );
+    setError(null);
+  }
 
-      const cartResult = await submitDraftFlowAction({}, fd);
-      if (cartResult.error || !cartResult.resourceId) {
-        setCartError(cartResult.error ?? "Unable to generate this cart.");
+  function toggleCartEvent(eventId: string) {
+    setSelectedEventIds((current) =>
+      current.includes(eventId)
+        ? current.filter((id) => id !== eventId)
+        : [...current, eventId],
+    );
+    setCartError(null);
+  }
+
+  function generateCart() {
+    const validIds = recipeEvents
+      .map((event) => event.id)
+      .filter((id) => selectedEventIds.includes(id));
+
+    if (validIds.length === 0) {
+      setCartError("Choose at least one recipe-backed meal.");
+      return;
+    }
+
+    startGeneratingCart(async () => {
+      setCartError(null);
+      const result = await generateMealPlanCartAction({
+        from: range.from,
+        to: range.to,
+        event_ids: validIds,
+        retailer: "kroger",
+        mode: "replace_active",
+      });
+
+      if (result.error) {
+        setCartError(result.error);
         return;
       }
 
-      setShowFullGroceryList(false);
-      router.push(`/carts/${cartResult.resourceId}`);
+      router.push(result.cartId ? `/carts/${result.cartId}` : "/carts");
     });
   }
 
+  async function deleteEvent(event: MealEvent) {
+    if (event.locked) return;
+
+    const rollback = range;
+    setRange((current) => rangeWithoutEvent(current, event.id));
+    const result = await deleteMealEventAction(event.id);
+    if (result.error) {
+      setRange(rollback);
+      setError(result.error);
+      return;
+    }
+
+    void refreshCurrentRange(activeDate);
+  }
+
+  async function setEventStatus(event: MealEvent, status: MealPlanEventStatus) {
+    if (event.locked || status === event.status) return;
+
+    const rollback = range;
+    const nextEvent = { ...event, status };
+    const updateDate = /^\d{4}-\d{2}-\d{2}$/.test(event.date)
+      ? event.date
+      : activeDate;
+    setRange((current) => rangeWithEvent(current, nextEvent));
+    const result = await updateMealEventAction(event.id, {
+      date: updateDate,
+      meal_label: event.meal_label,
+      custom_label: event.custom_label ?? null,
+      source_type: event.source_type,
+      recipe_id: event.recipe_id ?? null,
+      title: event.title,
+      servings: event.servings ?? null,
+      notes: event.notes ?? null,
+      status,
+    });
+    if (result.error || !result.event) {
+      setRange(rollback);
+      setError(result.error ?? "Unable to update that meal.");
+      return;
+    }
+    setRange((current) =>
+      rangeWithEvent(current, {
+        ...event,
+        ...result.event,
+        source_type: event.source_type,
+        recipe_id: event.recipe_id,
+        recipe: result.event?.recipe ?? event.recipe,
+        meal_label: result.event?.meal_label ?? event.meal_label,
+        title: result.event?.title || event.title,
+        servings: result.event?.servings ?? event.servings,
+        status: result.event?.status ?? status,
+      }),
+    );
+    void refreshCurrentRange(event.date);
+  }
+
+  const selectedCount = selectedEventIds.filter((id) =>
+    recipeEvents.some((event) => event.id === id),
+  ).length;
+
   return (
-    <div
-      className="space-y-6"
-      onClick={() => {
-        setPickerSlot(null);
-      }}
-    >
+    <div className="mx-auto max-w-6xl space-y-5 pb-24">
       {error ? (
         <div className="rounded-2xl border border-[#d37c6b]/25 bg-[#fbe6e1] px-4 py-3 text-body-sm text-[#8f3a2f]">
           {error}
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-headline-sm font-bold text-on-surface">
-            Weekly Meal Plan
-          </h2>
-          <div className="flex items-center gap-1.5 bg-surface-container-low rounded-full px-3 py-1.5 text-body-sm text-on-surface-variant">
-            <span className="material-symbols-outlined text-[14px]">
+      <section className="rounded-[28px] border border-outline-variant/25 bg-white p-5 shadow-sm sm:p-6">
+        <p className="text-label-sm font-bold uppercase tracking-[0.18em] text-primary">
+          Meal plan
+        </p>
+        <div className="mt-2 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-display-sm font-black leading-tight text-on-surface">
+              Plan your week
+            </h1>
+            <p className="mt-1 text-body-md text-on-surface-variant">
+              Flexible meals, prep blocks, leftovers, and eat-out plans.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => shiftWeek(-1)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/35 bg-white text-on-surface-variant"
+              aria-label="Previous week"
+            >
+              <span className="material-symbols-outlined text-[20px]">
+                chevron_left
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => loadWeekFrom(new Date())}
+              className="rounded-full border border-outline-variant/35 bg-white px-4 py-2 text-label-md font-semibold text-on-surface-variant"
+            >
+              This week
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftWeek(1)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/35 bg-white text-on-surface-variant"
+              aria-label="Next week"
+            >
+              <span className="material-symbols-outlined text-[20px]">
+                chevron_right
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full bg-surface-container-low px-3 py-2 text-label-md font-semibold text-on-surface-variant">
+            <span className="material-symbols-outlined text-[18px]">
               calendar_month
             </span>
-            {weekLabel}
+            {formatRangeLabel(range.from, range.to)}
+            {isLoadingRange ? (
+              <span className="text-outline">Loading...</span>
+            ) : null}
           </div>
-          {isLoadingWeek ? (
-            <span className="text-label-sm text-outline">Loading week...</span>
+          <div className="grid w-full grid-cols-3 rounded-full bg-[#fff3e4] p-1 sm:w-auto">
+            {(["day", "week", "month"] as PlanView[]).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setView(item)}
+                className={`rounded-full px-4 py-2 text-label-md font-bold capitalize transition ${
+                  view === item
+                    ? "bg-primary text-on-primary shadow-sm"
+                    : "text-[#2f656b]"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <SummaryCard
+          label="Calories"
+          value={String(Math.round(range.nutrition_summary?.calories ?? 0))}
+          helper={`${nutritionTargets.calories} weekly goal`}
+        />
+        <SummaryCard
+          label="Protein"
+          value={`${Math.round(range.nutrition_summary?.protein_g ?? 0)}g`}
+          helper={`${nutritionTargets.protein_g}g weekly goal`}
+        />
+        <SummaryCard
+          label="Carbs"
+          value={`${Math.round(range.nutrition_summary?.carbs_g ?? 0)}g`}
+          helper={`${nutritionTargets.carbs_g}g weekly goal`}
+        />
+        <SummaryCard
+          label="Fat"
+          value={`${Math.round(range.nutrition_summary?.fat_g ?? 0)}g`}
+          helper={`${nutritionTargets.fat_g}g weekly goal`}
+        />
+      </section>
+
+      {view === "day" ? (
+        <DayPlanner
+          days={range.days}
+          activeDate={activeDate}
+          todayKey={todayKey}
+          onSelectDate={setActiveDate}
+          onCreate={openCreate}
+          onEdit={openEdit}
+          onDelete={deleteEvent}
+          onStatus={setEventStatus}
+          recipeById={recipeById}
+          selectedEventIds={selectedEventIds}
+          onToggleCartEvent={toggleCartEvent}
+        />
+      ) : null}
+
+      {view === "week" ? (
+        <WeekPlanner
+          days={range.days}
+          todayKey={todayKey}
+          onCreate={openCreate}
+          onEdit={openEdit}
+          onDelete={deleteEvent}
+          onStatus={setEventStatus}
+          recipeById={recipeById}
+          selectedEventIds={selectedEventIds}
+          onToggleCartEvent={toggleCartEvent}
+        />
+      ) : null}
+
+      {view === "month" ? (
+        <MonthOverview
+          range={range}
+          activeDate={activeDate}
+          onSelectDate={(date) => {
+            setActiveDate(date);
+            setView("day");
+          }}
+        />
+      ) : null}
+
+      {cartError ? (
+        <div className="rounded-2xl border border-[#d37c6b]/25 bg-[#fbe6e1] px-4 py-3 text-body-sm text-[#8f3a2f]">
+          {cartError}
+        </div>
+      ) : null}
+
+      <div className="fixed bottom-[72px] left-0 right-0 z-20 px-5 sm:bottom-6">
+        <div className="mx-auto flex max-w-xl items-center gap-2 rounded-[24px] border border-outline-variant/25 bg-white/95 p-2 shadow-xl backdrop-blur">
+          <button
+            type="button"
+            onClick={generateCart}
+            disabled={isGeneratingCart || recipeEvents.length === 0}
+            className="flex min-h-14 flex-1 items-center justify-center gap-2 rounded-[20px] bg-primary px-4 text-label-lg font-bold text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined text-[21px]">
+              shopping_cart
+            </span>
+            {isGeneratingCart
+              ? "Creating cart..."
+              : `Create cart (${selectedCount})`}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setSelectedEventIds(
+                selectedCount === recipeEvents.length
+                  ? []
+                  : recipeEvents.map((event) => event.id),
+              )
+            }
+            className="flex h-14 w-14 items-center justify-center rounded-[20px] border border-outline-variant/35 text-[#2f656b]"
+            aria-label="Toggle recipe events"
+          >
+            <span className="material-symbols-outlined text-[22px]">
+              checklist
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {editor ? (
+        <MealEventEditor
+          editor={editor}
+          recipes={recipes}
+          onClose={() => setEditor(null)}
+          onSaved={(event) => {
+            setRange((current) => rangeWithEvent(current, event));
+            setActiveDate(event.date);
+            setEditor(null);
+            setError(null);
+            void refreshCurrentRange(event.date);
+          }}
+          onError={setError}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: string;
+  helper: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-outline-variant/25 bg-white p-4 shadow-sm">
+      <p className="text-label-sm font-bold uppercase tracking-[0.14em] text-primary">
+        {label}
+      </p>
+      <p className="mt-1 text-title-lg font-black text-on-surface">{value}</p>
+      <p className="mt-0.5 text-body-sm text-on-surface-variant">{helper}</p>
+    </div>
+  );
+}
+
+function DayPlanner({
+  days,
+  activeDate,
+  todayKey,
+  onSelectDate,
+  onCreate,
+  onEdit,
+  onDelete,
+  onStatus,
+  recipeById,
+  selectedEventIds,
+  onToggleCartEvent,
+}: {
+  days: MealPlanRange["days"];
+  activeDate: string;
+  todayKey: string;
+  onSelectDate: (date: string) => void;
+  onCreate: (date: string) => void;
+  onEdit: (event: MealEvent) => void;
+  onDelete: (event: MealEvent) => void;
+  onStatus: (event: MealEvent, status: MealPlanEventStatus) => void;
+  recipeById: Map<string, BaseRecipe>;
+  selectedEventIds: string[];
+  onToggleCartEvent: (eventId: string) => void;
+}) {
+  const activeDay = days.find((day) => day.date === activeDate) ?? days[0];
+
+  return (
+    <section className="rounded-[28px] border border-outline-variant/25 bg-white p-4 shadow-sm sm:p-5">
+      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+        {days.map((day, index) => {
+          const date = parseDateKey(day.date);
+          const active = day.date === activeDay?.date;
+          const isToday = day.date === todayKey;
+          return (
+            <button
+              key={day.date}
+              type="button"
+              onClick={() => onSelectDate(day.date)}
+              className={`flex min-w-16 flex-col items-center rounded-2xl border px-3 py-2 transition ${
+                active
+                  ? "border-primary bg-primary text-on-primary"
+                  : isToday
+                    ? "border-primary/30 bg-primary-surface text-primary"
+                    : "border-outline-variant/30 bg-surface-container-low text-on-surface-variant"
+              }`}
+            >
+              <span className="text-[10px] font-bold uppercase tracking-widest">
+                {WEEKDAY_LABELS[index] ?? ""}
+              </span>
+              <span className="mt-0.5 text-title-md font-black">
+                {date.getDate()}
+              </span>
+              <span className="text-[10px] font-semibold">
+                {day.events.length}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-label-sm font-bold uppercase tracking-[0.14em] text-primary">
+            {activeDay ? formatDateLabel(activeDay.date) : "Day"}
+          </p>
+          <h2 className="text-headline-sm font-black text-on-surface">
+            {activeDay?.events.length
+              ? `${activeDay.events.length} planned`
+              : "Nothing planned yet"}
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={() => onCreate(activeDay?.date ?? activeDate)}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm"
+          aria-label="Add meal event"
+        >
+          <span className="material-symbols-outlined text-[24px]">add</span>
+        </button>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {activeDay?.events.length ? (
+          activeDay.events.map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              recipe={
+                event.recipe_id ? recipeById.get(event.recipe_id) : undefined
+              }
+              selectedForCart={selectedEventIds.includes(event.id)}
+              onToggleCart={() => onToggleCartEvent(event.id)}
+              onEdit={() => onEdit(event)}
+              onDelete={() => onDelete(event)}
+              onStatus={(status) => onStatus(event, status)}
+            />
+          ))
+        ) : (
+          <button
+            type="button"
+            onClick={() => onCreate(activeDay?.date ?? activeDate)}
+            className="flex min-h-32 w-full flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-outline-variant/35 bg-surface-container-low/40 text-center text-on-surface-variant"
+          >
+            <span className="material-symbols-outlined text-[28px] text-primary">
+              add_circle
+            </span>
+            <span className="mt-1 text-label-lg font-bold">Add a meal</span>
+            <span className="text-body-sm">
+              Recipe, manual meal, prep, leftover, or eat out.
+            </span>
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function WeekPlanner(props: {
+  days: MealPlanRange["days"];
+  todayKey: string;
+  onCreate: (date: string) => void;
+  onEdit: (event: MealEvent) => void;
+  onDelete: (event: MealEvent) => void;
+  onStatus: (event: MealEvent, status: MealPlanEventStatus) => void;
+  recipeById: Map<string, BaseRecipe>;
+  selectedEventIds: string[];
+  onToggleCartEvent: (eventId: string) => void;
+}) {
+  return (
+    <section className="overflow-hidden rounded-[28px] border border-outline-variant/25 bg-white shadow-sm">
+      <div className="grid gap-0 md:grid-cols-7">
+        {props.days.map((day, index) => (
+          <div
+            key={day.date}
+            className="border-b border-outline-variant/15 p-3 last:border-b-0 md:min-h-[420px] md:border-b-0 md:border-r md:last:border-r-0"
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div>
+                <p
+                  className={`text-label-sm font-black uppercase tracking-[0.14em] ${
+                    day.date === props.todayKey
+                      ? "text-primary"
+                      : "text-outline"
+                  }`}
+                >
+                  {WEEKDAY_LABELS[index]}
+                </p>
+                <p className="text-title-md font-black text-on-surface">
+                  {formatDateLabel(day.date)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => props.onCreate(day.date)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-surface text-primary"
+                aria-label={`Add meal on ${day.date}`}
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  add
+                </span>
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {day.events.length ? (
+                day.events.map((event) => (
+                  <CompactEventCard
+                    key={event.id}
+                    event={event}
+                    recipe={
+                      event.recipe_id
+                        ? props.recipeById.get(event.recipe_id)
+                        : undefined
+                    }
+                    selectedForCart={props.selectedEventIds.includes(event.id)}
+                    onToggleCart={() => props.onToggleCartEvent(event.id)}
+                    onEdit={() => props.onEdit(event)}
+                    onDelete={() => props.onDelete(event)}
+                    onStatus={(status) => props.onStatus(event, status)}
+                  />
+                ))
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => props.onCreate(day.date)}
+                  className="w-full rounded-2xl border border-dashed border-outline-variant/35 px-3 py-4 text-label-md font-semibold text-outline"
+                >
+                  Add event
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MonthOverview({
+  range,
+  activeDate,
+  onSelectDate,
+}: {
+  range: MealPlanRange;
+  activeDate: string;
+  onSelectDate: (date: string) => void;
+}) {
+  const anchor = parseDateKey(activeDate || range.from);
+  const days = monthDays(anchor);
+  const eventsByDate = new Map(range.days.map((day) => [day.date, day.events]));
+
+  return (
+    <section className="rounded-[28px] border border-outline-variant/25 bg-white p-4 shadow-sm">
+      <div className="mb-4">
+        <p className="text-label-sm font-bold uppercase tracking-[0.14em] text-primary">
+          Month overview
+        </p>
+        <h2 className="text-headline-sm font-black text-on-surface">
+          {anchor.toLocaleString("en-US", { month: "long" })}{" "}
+          {anchor.getFullYear()}
+        </h2>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {WEEKDAY_LABELS.map((day) => (
+          <p
+            key={day}
+            className="pb-1 text-[10px] font-black uppercase tracking-widest text-outline"
+          >
+            {day.slice(0, 1)}
+          </p>
+        ))}
+        {days.map((date) => {
+          const dateKey = toDateKey(date);
+          const events = eventsByDate.get(dateKey) ?? [];
+          const inMonth = date.getMonth() === anchor.getMonth();
+          return (
+            <button
+              key={dateKey}
+              type="button"
+              onClick={() => onSelectDate(dateKey)}
+              className={`min-h-16 rounded-2xl border p-1 text-left transition ${
+                dateKey === activeDate
+                  ? "border-primary bg-primary-surface"
+                  : "border-outline-variant/20 bg-surface-container-low/40"
+              } ${inMonth ? "opacity-100" : "opacity-40"}`}
+            >
+              <span className="text-label-sm font-black text-on-surface">
+                {date.getDate()}
+              </span>
+              <div className="mt-1 flex flex-wrap gap-0.5">
+                {events.slice(0, 3).map((event) => (
+                  <span
+                    key={event.id}
+                    className="h-1.5 w-4 rounded-full bg-primary"
+                    title={event.title}
+                  />
+                ))}
+                {events.length > 3 ? (
+                  <span className="text-[9px] font-bold text-primary">
+                    +{events.length - 3}
+                  </span>
+                ) : null}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function EventCard(props: {
+  event: MealEvent;
+  recipe?: BaseRecipe;
+  selectedForCart: boolean;
+  onToggleCart: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onStatus: (status: MealPlanEventStatus) => void;
+}) {
+  const { event, recipe } = props;
+  const imageSrc = recipe?.cover_image_url ?? event.recipe?.cover_image_url;
+
+  return (
+    <article className="rounded-[24px] border border-outline-variant/25 bg-surface-container-low/45 p-3">
+      <div className="flex gap-3">
+        {event.source_type === "recipe" ? (
+          <RecipeImage
+            src={imageSrc}
+            alt={event.title}
+            seed={event.recipe_id ?? event.id}
+            className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl"
+            imgClassName="h-20 w-20 object-cover"
+          />
+        ) : (
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white text-primary">
+            <span className="material-symbols-outlined text-[28px]">
+              {sourceIcon(event.source_type)}
+            </span>
+          </div>
+        )}
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="rounded-full bg-primary-surface px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-primary">
+              {event.custom_label || labelText(event.meal_label)}
+            </span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] ${statusClasses(event.status)}`}
+            >
+              {statusText(event.status)}
+            </span>
+          </div>
+          <h3 className="mt-1 line-clamp-2 text-title-md font-black text-on-surface">
+            {event.title}
+          </h3>
+          <p className="mt-0.5 text-body-sm text-on-surface-variant">
+            {sourceText(event.source_type)}
+            {event.servings
+              ? ` · ${event.servings} serving${event.servings === 1 ? "" : "s"}`
+              : ""}
+          </p>
+          {event.notes ? (
+            <p className="mt-1 line-clamp-2 text-body-sm text-on-surface-variant">
+              {event.notes}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <EventActions {...props} />
+    </article>
+  );
+}
+
+function CompactEventCard(props: {
+  event: MealEvent;
+  recipe?: BaseRecipe;
+  selectedForCart: boolean;
+  onToggleCart: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onStatus: (status: MealPlanEventStatus) => void;
+}) {
+  const { event } = props;
+  return (
+    <article className="rounded-2xl border border-outline-variant/20 bg-surface-container-low/45 p-2">
+      <div className="flex items-start gap-2">
+        <span className="material-symbols-outlined mt-0.5 text-[18px] text-primary">
+          {sourceIcon(event.source_type)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 text-body-sm font-bold text-on-surface">
+            {event.title}
+          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-outline">
+            {event.custom_label || labelText(event.meal_label)}
+          </p>
+        </div>
+      </div>
+      <EventActions compact {...props} />
+    </article>
+  );
+}
+
+function EventActions({
+  event,
+  selectedForCart,
+  onToggleCart,
+  onEdit,
+  onDelete,
+  onStatus,
+  compact = false,
+}: {
+  event: MealEvent;
+  selectedForCart: boolean;
+  onToggleCart: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onStatus: (status: MealPlanEventStatus) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`mt-3 flex items-center gap-2 ${compact ? "flex-wrap" : ""}`}
+    >
+      {event.source_type === "recipe" ? (
+        <button
+          type="button"
+          onClick={onToggleCart}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-label-sm font-bold ${
+            selectedForCart
+              ? "bg-primary text-on-primary"
+              : "bg-white text-on-surface-variant"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[17px]">
+            {selectedForCart ? "check_box" : "check_box_outline_blank"}
+          </span>
+          Cart
+        </button>
+      ) : null}
+
+      <select
+        value={event.status}
+        onChange={(changeEvent) =>
+          onStatus(changeEvent.target.value as MealPlanEventStatus)
+        }
+        disabled={event.locked}
+        className="min-w-0 rounded-full border border-outline-variant/30 bg-white px-3 py-1.5 text-label-sm font-semibold text-on-surface-variant"
+      >
+        {STATUSES.map((status) => (
+          <option key={status.value} value={status.value}>
+            {status.label}
+          </option>
+        ))}
+      </select>
+
+      <button
+        type="button"
+        onClick={onEdit}
+        disabled={event.locked}
+        className="ml-auto flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/35 bg-white text-[#2f656b] disabled:opacity-40"
+        aria-label="Edit meal event"
+      >
+        <span className="material-symbols-outlined text-[18px]">edit</span>
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        disabled={event.locked}
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#f1b1a7] bg-white text-[#b3261e] disabled:opacity-40"
+        aria-label="Delete meal event"
+      >
+        <span className="material-symbols-outlined text-[18px]">delete</span>
+      </button>
+    </div>
+  );
+}
+
+function MealEventEditor({
+  editor,
+  recipes,
+  onClose,
+  onSaved,
+  onError,
+}: {
+  editor: EditorState;
+  recipes: BaseRecipe[];
+  onClose: () => void;
+  onSaved: (event: MealEvent) => void;
+  onError: (message: string) => void;
+}) {
+  const event = editor.event;
+  const fallbackDate = /^\d{4}-\d{2}-\d{2}$/.test(editor.date)
+    ? editor.date
+    : toDateKey(new Date());
+  const [date, setDate] = useState(event?.date ?? fallbackDate);
+  const [sourceType, setSourceType] = useState<MealPlanSourceType>(
+    event?.source_type ?? "recipe",
+  );
+  const [mealLabel, setMealLabel] = useState<MealPlanMealLabel>(
+    event?.meal_label ?? "dinner",
+  );
+  const [customLabel, setCustomLabel] = useState(event?.custom_label ?? "");
+  const [recipeId, setRecipeId] = useState(event?.recipe_id ?? "");
+  const initialRecipe = event?.recipe_id
+    ? recipes.find((recipe) => recipe.id === event.recipe_id)
+    : undefined;
+  const [title, setTitle] = useState(
+    event?.title ?? recipeTitle(initialRecipe),
+  );
+  const [servings, setServings] = useState(String(event?.servings ?? 1));
+  const [notes, setNotes] = useState(event?.notes ?? "");
+  const [status, setStatus] = useState<MealPlanEventStatus>(
+    event?.status ?? "planned",
+  );
+  const [search, setSearch] = useState("");
+  const [isSaving, startSaving] = useTransition();
+
+  const filteredRecipes = recipes.filter((recipe) =>
+    recipe.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  function chooseRecipe(nextRecipeId: string) {
+    setRecipeId(nextRecipeId);
+    const recipe = recipes.find((item) => item.id === nextRecipeId);
+    if (recipe) {
+      setTitle(recipe.name);
+      setServings(String(recipe.servings || 1));
+    }
+  }
+
+  function submit() {
+    const normalizedTitle = title.trim();
+    const normalizedDate = /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? date
+      : fallbackDate;
+    if (!normalizedTitle) {
+      onError("Add a title for this meal.");
+      return;
+    }
+
+    const servingCount = Number(servings);
+    const input: CreateMealEventRequest = {
+      date: normalizedDate,
+      meal_label: mealLabel,
+      custom_label: mealLabel === "custom" ? customLabel.trim() || null : null,
+      source_type: sourceType,
+      recipe_id: sourceType === "recipe" ? recipeId : "",
+      title: normalizedTitle,
+      servings: Number.isFinite(servingCount) ? servingCount : 1,
+      notes: notes.trim() || null,
+      status,
+    };
+
+    if (sourceType === "recipe" && !recipeId) {
+      onError("Choose a recipe for this meal.");
+      return;
+    }
+
+    startSaving(async () => {
+      const result =
+        editor.mode === "edit" && event
+          ? await updateMealEventAction(event.id, input)
+          : await createMealEventAction(input);
+
+      if (result.error || !result.event) {
+        onError(result.error ?? "Unable to save that meal.");
+        return;
+      }
+
+      onSaved(result.event);
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end bg-black/45 sm:items-center sm:justify-center">
+      <div className="max-h-[86vh] w-full overflow-y-auto rounded-t-[32px] bg-white p-5 shadow-2xl sm:max-h-[92vh] sm:max-w-2xl sm:rounded-[32px] sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-label-sm font-bold uppercase tracking-[0.18em] text-primary">
+              Meal event
+            </p>
+            <h2 className="text-headline-sm font-black text-on-surface">
+              {editor.mode === "edit" ? "Edit meal" : "Add meal"}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-outline-variant/35 text-on-surface-variant"
+            aria-label="Close"
+          >
+            <span className="material-symbols-outlined text-[22px]">close</span>
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <label className="space-y-1.5">
+            <span className="text-label-sm font-bold uppercase tracking-[0.08em] text-[#5d7d82]">
+              Date
+            </span>
+            <input
+              type="date"
+              value={date}
+              onChange={(changeEvent) => setDate(changeEvent.target.value)}
+              className="w-full rounded-2xl border border-outline-variant/40 px-4 py-3 text-body-md outline-none focus:ring-2 focus:ring-primary/25"
+            />
+          </label>
+
+          <label className="space-y-1.5">
+            <span className="text-label-sm font-bold uppercase tracking-[0.08em] text-[#5d7d82]">
+              Label
+            </span>
+            <select
+              value={mealLabel}
+              onChange={(changeEvent) =>
+                setMealLabel(changeEvent.target.value as MealPlanMealLabel)
+              }
+              className="w-full rounded-2xl border border-outline-variant/40 px-4 py-3 text-body-md outline-none focus:ring-2 focus:ring-primary/25"
+            >
+              {MEAL_LABELS.map((label) => (
+                <option key={label.value} value={label.value}>
+                  {label.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {mealLabel === "custom" ? (
+            <label className="space-y-1.5 sm:col-span-2">
+              <span className="text-label-sm font-bold uppercase tracking-[0.08em] text-[#5d7d82]">
+                Custom label
+              </span>
+              <input
+                value={customLabel}
+                onChange={(changeEvent) =>
+                  setCustomLabel(changeEvent.target.value)
+                }
+                placeholder="Post-workout, brunch, movie night..."
+                className="w-full rounded-2xl border border-outline-variant/40 px-4 py-3 text-body-md outline-none focus:ring-2 focus:ring-primary/25"
+              />
+            </label>
           ) : null}
         </div>
 
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <div className="grid grid-cols-2 rounded-full bg-surface-container-low p-1">
-            {(["day", "week"] as const).map((view) => (
-              <button
-                key={view}
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setManualViewSelection(true);
-                  setPlanView(view);
-                }}
-                className={`rounded-full px-3 py-1.5 text-label-sm font-semibold capitalize transition-all ${
-                  planView === view
-                    ? "bg-white text-on-surface shadow-sm"
-                    : "text-outline hover:text-on-surface"
-                }`}
-              >
-                {view}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={(event) => {
-              event.stopPropagation();
-              shiftWeek(-1);
-            }}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/30 hover:bg-surface-container-low transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              chevron_left
-            </span>
-          </button>
-          <button
-            onClick={(event) => {
-              event.stopPropagation();
-              goToCurrentWeek();
-            }}
-            className="px-3 py-1.5 rounded-full border border-outline-variant/30 text-label-sm text-on-surface-variant hover:bg-surface-container-low transition-colors"
-          >
-            Today
-          </button>
-          <button
-            onClick={(event) => {
-              event.stopPropagation();
-              shiftWeek(1);
-            }}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/30 hover:bg-surface-container-low transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              chevron_right
-            </span>
-          </button>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {SOURCE_TYPES.map((source) => (
+            <button
+              key={source.value}
+              type="button"
+              onClick={() => {
+                setSourceType(source.value);
+                if (source.value !== "recipe") setRecipeId("");
+              }}
+              className={`rounded-2xl border px-3 py-2 text-label-md font-bold transition ${
+                sourceType === source.value
+                  ? "border-primary bg-primary text-on-primary"
+                  : "border-outline-variant/35 bg-white text-on-surface-variant"
+              }`}
+            >
+              {source.label}
+            </button>
+          ))}
         </div>
-      </div>
 
-      {planView === "day" ? (
-        <div className="space-y-4 rounded-[28px] border border-outline-variant/25 bg-white p-4 shadow-sm sm:p-5">
-          <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-            {DAY_LABELS.map((day, index) => {
-              const date = new Date(weekStart);
-              date.setDate(date.getDate() + index);
-              const isToday = date.toDateString() === today.toDateString();
-              const active = activeDayIndex === index;
-
-              return (
+        {sourceType === "recipe" ? (
+          <div className="mt-4 rounded-[24px] border border-outline-variant/25 bg-surface-container-low/40 p-3">
+            <input
+              value={search}
+              onChange={(changeEvent) => setSearch(changeEvent.target.value)}
+              placeholder="Search recipes"
+              className="w-full rounded-2xl border border-outline-variant/40 bg-white px-4 py-3 text-body-md outline-none focus:ring-2 focus:ring-primary/25"
+            />
+            <div className="mt-3 max-h-60 space-y-2 overflow-y-auto pr-1">
+              {filteredRecipes.map((recipe) => (
                 <button
-                  key={day}
+                  key={recipe.id}
                   type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setActiveDayIndex(index);
-                  }}
-                  className={`flex min-w-14 flex-col items-center rounded-2xl border px-3 py-2 transition-colors ${
-                    active
-                      ? "border-primary bg-primary text-on-primary"
-                      : isToday
-                        ? "border-primary/30 bg-primary-surface text-primary"
-                        : "border-outline-variant/30 bg-surface-container-low text-on-surface-variant"
+                  onClick={() => chooseRecipe(recipe.id)}
+                  className={`flex w-full items-center gap-3 rounded-2xl border p-2 text-left transition ${
+                    recipeId === recipe.id
+                      ? "border-primary bg-primary-surface"
+                      : "border-outline-variant/20 bg-white"
                   }`}
                 >
-                  <span className="text-[10px] font-bold uppercase tracking-widest">
-                    {day}
-                  </span>
-                  <span className="mt-0.5 text-body-lg font-bold">
-                    {date.getDate()}
-                  </span>
+                  <RecipeImage
+                    src={recipe.cover_image_url}
+                    alt={recipe.name}
+                    seed={recipe.id}
+                    className="h-12 w-12 shrink-0 overflow-hidden rounded-xl"
+                    imgClassName="h-12 w-12 object-cover"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-body-md font-bold text-on-surface">
+                      {recipe.name}
+                    </p>
+                    <p className="text-label-sm text-on-surface-variant">
+                      {recipe.servings} serving
+                      {recipe.servings === 1 ? "" : "s"}
+                    </p>
+                  </div>
                 </button>
-              );
-            })}
-          </div>
-
-          <div>
-            <p className="text-label-sm font-semibold uppercase tracking-widest text-outline">
-              {DAY_LABELS[activeDayIndex]}
-            </p>
-            <h3 className="text-title-lg font-bold text-on-surface">
-              {MONTH_NAMES[activeDayDate.getMonth()]} {activeDayDate.getDate()}
-            </h3>
-          </div>
-
-          <div className="space-y-3">
-            {MEAL_CONFIG.map((meal) => {
-              const recipeId = plan[activeDayIndex]?.[meal.type];
-              const recipe = getRecipe(recipeId);
-              const isOpen =
-                pickerSlot?.dayIndex === activeDayIndex &&
-                pickerSlot.meal === meal.type;
-
-              return (
-                <div
-                  key={meal.type}
-                  className="relative rounded-2xl border border-outline-variant/25 bg-surface-container-low/40 p-3"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[20px] text-primary">
-                      {meal.icon}
-                    </span>
-                    <p className="text-label-lg font-semibold text-on-surface">
-                      {meal.label}
-                    </p>
-                  </div>
-
-                  {recipe ? (
-                    <div className="flex items-center gap-3 rounded-2xl bg-white p-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPickerSlot(
-                            isOpen
-                              ? null
-                              : { dayIndex: activeDayIndex, meal: meal.type },
-                          )
-                        }
-                        className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                      >
-                        <RecipeImage
-                          src={recipe.cover_image_url}
-                          alt={recipe.name}
-                          seed={recipe.id}
-                          className="h-16 w-16 shrink-0 overflow-hidden rounded-xl"
-                          imgClassName="h-16 w-16 object-cover"
-                        />
-                        <div className="min-w-0">
-                          <p className="line-clamp-2 text-body-md font-semibold text-on-surface">
-                            {recipe.name}
-                          </p>
-                          <p className="mt-1 text-label-sm text-outline">
-                            {recipe.servings} servings
-                          </p>
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setMeal(activeDayIndex, meal.type, undefined);
-                        }}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-container text-outline"
-                        aria-label={`Remove ${meal.label}`}
-                      >
-                        <span className="material-symbols-outlined text-[18px]">
-                          close
-                        </span>
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPickerSlot(
-                          isOpen
-                            ? null
-                            : { dayIndex: activeDayIndex, meal: meal.type },
-                        )
-                      }
-                      className="flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-outline-variant/35 bg-white text-label-md font-semibold text-outline"
-                    >
-                      <span className="material-symbols-outlined text-[20px]">
-                        add
-                      </span>
-                      Add {meal.label}
-                    </button>
-                  )}
-
-                  {isOpen ? (
-                    <div className="absolute left-3 right-3 top-full z-30 mt-2 rounded-2xl border border-outline-variant/30 bg-white p-3 shadow-2xl">
-                      <input
-                        autoFocus
-                        value={pickerSearch}
-                        onChange={(event) =>
-                          setPickerSearch(event.target.value)
-                        }
-                        placeholder="Search recipes..."
-                        className="w-full rounded-xl border border-outline-variant/40 bg-surface-container-low px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      />
-                      <div className="mt-2 max-h-64 space-y-1 overflow-y-auto pr-0.5">
-                        {filteredRecipes.length === 0 ? (
-                          <p className="py-4 text-center text-body-sm text-outline">
-                            No recipes found
-                          </p>
-                        ) : (
-                          filteredRecipes.map((filteredRecipe) => (
-                            <button
-                              key={filteredRecipe.id}
-                              type="button"
-                              onClick={() =>
-                                setMeal(
-                                  activeDayIndex,
-                                  meal.type,
-                                  filteredRecipe.id,
-                                )
-                              }
-                              className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-surface-container-low"
-                            >
-                              <RecipeImage
-                                src={filteredRecipe.cover_image_url}
-                                alt={filteredRecipe.name}
-                                seed={filteredRecipe.id}
-                                className="h-10 w-10 shrink-0 overflow-hidden rounded-lg"
-                                imgClassName="h-10 w-10 object-cover"
-                              />
-                              <div className="min-w-0">
-                                <p className="truncate text-body-sm font-semibold text-on-surface">
-                                  {filteredRecipe.name}
-                                </p>
-                                <p className="text-[11px] text-outline">
-                                  {filteredRecipe.servings} serving
-                                  {filteredRecipe.servings !== 1 ? "s" : ""}
-                                </p>
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-[28px] border border-outline-variant/25 bg-white shadow-sm overflow-x-auto">
-          <div className="min-w-[640px]">
-            <div className="grid grid-cols-[80px_repeat(7,1fr)] border-b border-outline-variant/20 bg-surface-container-low/40">
-              <div />
-              {DAY_LABELS.map((day, index) => {
-                const date = new Date(weekStart);
-                date.setDate(date.getDate() + index);
-                const isToday = date.toDateString() === today.toDateString();
-
-                return (
-                  <div key={day} className="py-3 text-center">
-                    <p
-                      className={`text-[10px] font-bold uppercase tracking-widest ${isToday ? "text-primary" : "text-outline"}`}
-                    >
-                      {day}
-                    </p>
-                    <p
-                      className={`text-body-lg font-bold mt-0.5 ${isToday ? "text-primary" : "text-on-surface"}`}
-                    >
-                      {date.getDate()}
-                    </p>
-                  </div>
-                );
-              })}
+              ))}
             </div>
-
-            {MEAL_CONFIG.map((meal, mealIndex) => (
-              <div
-                key={meal.type}
-                className={`grid grid-cols-[80px_repeat(7,1fr)] ${mealIndex < MEAL_CONFIG.length - 1 ? "border-b border-outline-variant/15" : ""}`}
-              >
-                <div className="flex flex-col items-center justify-center py-4 gap-1 bg-surface-container-low/20 border-r border-outline-variant/15">
-                  <span className="material-symbols-outlined text-[20px] text-primary">
-                    {meal.icon}
-                  </span>
-                  <p className="text-[11px] font-medium text-outline">
-                    {meal.label}
-                  </p>
-                </div>
-
-                {Array.from({ length: 7 }, (_, dayIndex) => {
-                  const recipeId = plan[dayIndex]?.[meal.type];
-                  const recipe = getRecipe(recipeId);
-                  const isOpen =
-                    pickerSlot?.dayIndex === dayIndex &&
-                    pickerSlot.meal === meal.type;
-
-                  return (
-                    <div
-                      key={dayIndex}
-                      className="relative border-r border-outline-variant/10 last:border-r-0 p-1.5"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      {recipe ? (
-                        <div className="group relative w-full rounded-2xl overflow-hidden bg-surface-container-low hover:ring-2 hover:ring-primary/40 transition-all">
-                          <button
-                            onClick={() =>
-                              setPickerSlot(
-                                isOpen ? null : { dayIndex, meal: meal.type },
-                              )
-                            }
-                            className="block w-full text-left"
-                          >
-                            <RecipeImage
-                              src={recipe.cover_image_url}
-                              alt={recipe.name}
-                              seed={recipe.id}
-                              className="w-full h-16"
-                              imgClassName="w-full h-16 object-cover"
-                            />
-                            <div className="px-1.5 py-1.5">
-                              <p className="text-[10px] font-semibold text-on-surface leading-tight line-clamp-2">
-                                {recipe.name}
-                              </p>
-                            </div>
-                          </button>
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setMeal(dayIndex, meal.type, undefined);
-                            }}
-                            className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/45 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                          >
-                            <span className="material-symbols-outlined text-[11px]">
-                              close
-                            </span>
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() =>
-                            setPickerSlot(
-                              isOpen ? null : { dayIndex, meal: meal.type },
-                            )
-                          }
-                          className="w-full min-h-[80px] rounded-2xl border-2 border-dashed border-outline-variant/30 flex items-center justify-center text-outline-variant hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all"
-                        >
-                          <span className="material-symbols-outlined text-[20px]">
-                            add
-                          </span>
-                        </button>
-                      )}
-
-                      {isOpen ? (
-                        <div
-                          className="absolute z-30 top-full left-0 mt-1 w-64 rounded-2xl border border-outline-variant/30 bg-white shadow-2xl p-3 space-y-2"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <input
-                            autoFocus
-                            value={pickerSearch}
-                            onChange={(event) =>
-                              setPickerSearch(event.target.value)
-                            }
-                            placeholder="Search recipes..."
-                            className="w-full rounded-xl border border-outline-variant/40 bg-surface-container-low px-3 py-1.5 text-body-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                          />
-
-                          <div className="max-h-52 overflow-y-auto space-y-0.5 pr-0.5">
-                            {filteredRecipes.length === 0 ? (
-                              <p className="text-body-sm text-outline text-center py-4">
-                                No recipes found
-                              </p>
-                            ) : (
-                              filteredRecipes.map((filteredRecipe) => (
-                                <button
-                                  key={filteredRecipe.id}
-                                  onClick={() =>
-                                    setMeal(
-                                      dayIndex,
-                                      meal.type,
-                                      filteredRecipe.id,
-                                    )
-                                  }
-                                  className="w-full flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-surface-container-low text-left transition-colors"
-                                >
-                                  <RecipeImage
-                                    src={filteredRecipe.cover_image_url}
-                                    alt={filteredRecipe.name}
-                                    seed={filteredRecipe.id}
-                                    className="h-9 w-9 rounded-lg overflow-hidden shrink-0"
-                                    imgClassName="h-9 w-9 object-cover"
-                                  />
-                                  <div className="min-w-0">
-                                    <p className="text-body-sm font-semibold text-on-surface truncate">
-                                      {filteredRecipe.name}
-                                    </p>
-                                    <p className="text-[11px] text-outline">
-                                      {filteredRecipe.servings} serving
-                                      {filteredRecipe.servings !== 1 ? "s" : ""}
-                                    </p>
-                                  </div>
-                                </button>
-                              ))
-                            )}
-                          </div>
-
-                          {recipe ? (
-                            <button
-                              onClick={() =>
-                                setMeal(dayIndex, meal.type, undefined)
-                              }
-                              className="w-full text-center text-label-sm text-error hover:text-error/80 pt-1.5 border-t border-outline-variant/20"
-                            >
-                              Remove meal
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
           </div>
-        </div>
-      )}
+        ) : null}
 
-      <div className="grid gap-5 md:grid-cols-3">
-        <div className="rounded-[24px] border border-outline-variant/25 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-body-lg font-bold text-on-surface">
-              Grocery List
-            </h3>
-            {groceryList.length > 0 ? (
-              <span className="rounded-full bg-secondary-container px-2.5 py-1 text-label-sm text-on-secondary-container">
-                {groceryList.length} items
-              </span>
-            ) : null}
-          </div>
-
-          {groceryList.length === 0 ? (
-            <div className="text-center py-6">
-              <span className="material-symbols-outlined text-[36px] text-outline-variant">
-                shopping_basket
-              </span>
-              <p className="mt-2 text-body-sm text-outline">
-                Add meals to generate your grocery list.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="space-y-2.5">
-                {groceryList.slice(0, 5).map(([name, { amount, unit }]) => (
-                  <button
-                    key={groceryItemKey(name, amount, unit)}
-                    type="button"
-                    onClick={() => toggleGroceryItem(name, amount, unit)}
-                    className="flex w-full items-center gap-2.5 text-left"
-                  >
-                    <span
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
-                        checkedGroceries.has(groceryItemKey(name, amount, unit))
-                          ? "border-primary bg-primary text-on-primary"
-                          : "border-outline-variant/50 bg-white"
-                      }`}
-                    >
-                      {checkedGroceries.has(
-                        groceryItemKey(name, amount, unit),
-                      ) ? (
-                        <span className="material-symbols-outlined text-[12px]">
-                          check
-                        </span>
-                      ) : null}
-                    </span>
-                    <p
-                      className={`text-body-sm capitalize ${
-                        checkedGroceries.has(groceryItemKey(name, amount, unit))
-                          ? "text-outline line-through"
-                          : "text-on-surface"
-                      }`}
-                    >
-                      {name}
-                      {amount > 0 ? (
-                        <span className="text-outline ml-1">
-                          x{Math.ceil(amount)}
-                          {unit ? ` ${unit}` : ""}
-                        </span>
-                      ) : null}
-                    </p>
-                  </button>
-                ))}
-              </div>
-
-              {groceryList.length > 5 ? (
-                <p className="mt-3 text-label-sm text-primary font-semibold">
-                  +{groceryList.length - 5} more items
-                </p>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={() => setShowFullGroceryList(true)}
-                className="mt-4 w-full text-center text-label-md font-semibold text-primary hover:text-primary/80 transition-colors"
-              >
-                View Full List
-              </button>
-              <button
-                type="button"
-                onClick={generateCartFromSelectedRecipes}
-                disabled={
-                  selectedCartRecipeGroups.length === 0 || isGeneratingCart
-                }
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isGeneratingCart ? (
-                  <span className="material-symbols-outlined animate-spin text-[16px]">
-                    refresh
-                  </span>
-                ) : (
-                  <span className="material-symbols-outlined text-[16px]">
-                    shopping_cart
-                  </span>
-                )}
-                {isGeneratingCart ? "Generating..." : "Generate Cart"}
-              </button>
-              {cartError ? (
-                <p className="mt-2 text-center text-body-sm text-error">
-                  {cartError}
-                </p>
-              ) : null}
-            </>
-          )}
-        </div>
-
-        <div className="rounded-[24px] border border-outline-variant/25 bg-white p-5 shadow-sm">
-          <h3 className="text-body-lg font-bold text-on-surface mb-4">
-            Weekly Nutrition
-          </h3>
-          {allRecipeIds.length === 0 ? (
-            <div className="text-center py-6">
-              <span className="material-symbols-outlined text-[36px] text-outline-variant">
-                nutrition
-              </span>
-              <p className="mt-2 text-body-sm text-outline">
-                Plan meals to see nutrition breakdown.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {[
-                {
-                  label: "Calories",
-                  value: nutrition.calories,
-                  target: nutritionTargets.calories,
-                  unit: " kcal",
-                  color: "bg-[#ef4444]",
-                },
-                {
-                  label: "Protein",
-                  value: nutrition.protein_g,
-                  target: nutritionTargets.protein_g,
-                  unit: "g",
-                  color: "bg-[#fe8e17]",
-                },
-                {
-                  label: "Carbs",
-                  value: nutrition.carbs_g,
-                  target: nutritionTargets.carbs_g,
-                  unit: "g",
-                  color: "bg-[#3b82f6]",
-                },
-                {
-                  label: "Fats",
-                  value: nutrition.fat_g,
-                  target: nutritionTargets.fat_g,
-                  unit: "g",
-                  color: "bg-[#22c55e]",
-                },
-              ].map(({ label, value, target, unit, color }) => {
-                const safeTarget = target > 0 ? target : 1;
-                const percent = Math.min(
-                  100,
-                  Math.round((value / safeTarget) * 100),
-                );
-
-                return (
-                  <div key={label}>
-                    <div className="flex justify-between items-baseline mb-1.5">
-                      <span className="text-body-sm text-on-surface-variant">
-                        {label}
-                      </span>
-                      <span className="text-label-sm font-bold text-on-surface">
-                        {percent}%
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full bg-surface-container-low overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${color}`}
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                    <p className="mt-1 text-[11px] text-outline">
-                      {Math.round(value)}
-                      {unit} of {target}
-                      {unit} weekly goal
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {seasonalPick ? (
-          <div className="rounded-[24px] bg-[#fe8e17] p-5 text-white relative overflow-hidden">
-            <div
-              className="absolute inset-0 opacity-10 pointer-events-none"
-              style={{
-                backgroundImage:
-                  "radial-gradient(circle at 70% 20%, white 0%, transparent 55%)",
-              }}
-            />
-            <span className="relative inline-block rounded-full bg-white/25 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest mb-3">
-              Suggested Pick
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="space-y-1.5 sm:col-span-2">
+            <span className="text-label-sm font-bold uppercase tracking-[0.08em] text-[#5d7d82]">
+              Title
             </span>
-            <p className="relative text-headline-sm font-bold leading-tight mb-2">
-              {seasonalPick.name}
-            </p>
-            {seasonalPick.description ? (
-              <p className="relative text-body-sm text-white/80 mb-3 line-clamp-2">
-                {seasonalPick.description}
-              </p>
-            ) : null}
-            <p className="relative text-body-sm text-white/70 mb-4">
-              {seasonalPick.servings} serving
-              {seasonalPick.servings !== 1 ? "s" : ""}
-              {seasonalPick.nutrition_data?.calories
-                ? ` - ${seasonalPick.nutrition_data.calories} kcal`
-                : ""}
-            </p>
-            <button
-              onClick={() => {
-                addRecipeToFirstOpenSlot(seasonalPick.id);
-              }}
-              className="relative rounded-full bg-white/20 hover:bg-white/30 transition-colors px-4 py-2 text-label-md font-semibold"
+            <input
+              value={title}
+              onChange={(changeEvent) => setTitle(changeEvent.target.value)}
+              placeholder="Protein smoothie"
+              className="w-full rounded-2xl border border-outline-variant/40 px-4 py-3 text-body-md outline-none focus:ring-2 focus:ring-primary/25"
+            />
+          </label>
+
+          <label className="space-y-1.5">
+            <span className="text-label-sm font-bold uppercase tracking-[0.08em] text-[#5d7d82]">
+              Servings
+            </span>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={servings}
+              onChange={(changeEvent) => setServings(changeEvent.target.value)}
+              className="w-full rounded-2xl border border-outline-variant/40 px-4 py-3 text-body-md outline-none focus:ring-2 focus:ring-primary/25"
+            />
+          </label>
+
+          <label className="space-y-1.5">
+            <span className="text-label-sm font-bold uppercase tracking-[0.08em] text-[#5d7d82]">
+              Status
+            </span>
+            <select
+              value={status}
+              onChange={(changeEvent) =>
+                setStatus(changeEvent.target.value as MealPlanEventStatus)
+              }
+              className="w-full rounded-2xl border border-outline-variant/40 px-4 py-3 text-body-md outline-none focus:ring-2 focus:ring-primary/25"
             >
-              Add to Plan
-            </button>
-          </div>
-        ) : (
-          <div className="rounded-[24px] border border-outline-variant/20 bg-surface-container-low p-5 flex items-center justify-center">
-            <div className="text-center">
-              <span className="material-symbols-outlined text-[40px] text-outline-variant">
-                auto_awesome
-              </span>
-              <p className="mt-2 text-label-lg font-semibold text-on-surface">
-                {emptyMealSlotCount > 0
-                  ? `${emptyMealSlotCount} meal slot${emptyMealSlotCount !== 1 ? "s" : ""} still open`
-                  : "This week's plan is full"}
-              </p>
-              <p className="mt-1 text-body-sm text-outline">
-                {recipes.length > 0
-                  ? "Every available recipe is already on this week's plan. Reuse one or add more recipes."
-                  : "Create or save recipes to start filling your plan."}
-              </p>
-              {emptyMealSlotCount > 0 && recipes[0] ? (
-                <button
-                  onClick={() => {
-                    const recipe = pickNextLeastUsedRecipe();
-                    if (recipe) {
-                      addRecipeToFirstOpenSlot(recipe.id);
-                    }
-                  }}
-                  className="mt-4 rounded-full bg-primary px-4 py-2 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container"
-                >
-                  Add Random Recipe
-                </button>
-              ) : null}
-            </div>
-          </div>
-        )}
-      </div>
+              {STATUSES.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
-      {showFullGroceryList ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 py-6"
-          onClick={() => setShowFullGroceryList(false)}
-        >
-          <div
-            className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-[32px] bg-white shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-outline-variant/20 px-6 py-5">
-              <div>
-                <h3 className="text-headline-sm font-bold text-on-surface">
-                  Grocery List By Recipe
-                </h3>
-                <p className="mt-1 text-body-sm text-outline">
-                  {groceryList.length} total item
-                  {groceryList.length !== 1 ? "s" : ""} from{" "}
-                  {plannedRecipeGroups.length} recipe
-                  {plannedRecipeGroups.length !== 1 ? "s" : ""} for {weekLabel}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={generateCartFromSelectedRecipes}
-                  disabled={
-                    selectedCartRecipeGroups.length === 0 || isGeneratingCart
-                  }
-                  className="flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isGeneratingCart ? (
-                    <span className="material-symbols-outlined animate-spin text-[16px]">
-                      refresh
-                    </span>
-                  ) : (
-                    <span className="material-symbols-outlined text-[16px]">
-                      shopping_cart
-                    </span>
-                  )}
-                  {isGeneratingCart ? "Generating..." : "Generate Cart"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowFullGroceryList(false)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-outline transition-colors hover:bg-surface-container-low hover:text-on-surface"
-                >
-                  <span className="material-symbols-outlined">close</span>
-                </button>
-              </div>
-            </div>
-
-            {cartError ? (
-              <div className="border-b border-outline-variant/20 bg-error-container/60 px-6 py-3 text-body-sm text-on-error-container">
-                {cartError}
-              </div>
-            ) : null}
-
-            <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
-              {groceryList.length === 0 ? (
-                <div className="col-span-full py-16 text-center">
-                  <span className="material-symbols-outlined text-[36px] text-outline-variant">
-                    shopping_basket
-                  </span>
-                  <p className="mt-2 text-body-sm text-outline">
-                    Add meals to generate your grocery list.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <aside className="border-b border-outline-variant/20 bg-surface-container-low/35 p-5 lg:border-b-0 lg:border-r">
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-label-lg font-bold text-on-surface">
-                          Recipes
-                        </p>
-                        <p className="text-body-sm text-outline">
-                          {selectedCartRecipeGroups.length} selected
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAllCartRecipesSelected(
-                            selectedCartRecipeGroups.length !==
-                              plannedRecipeGroups.length,
-                          )
-                        }
-                        className="rounded-full border border-outline-variant/50 bg-white px-3 py-1.5 text-label-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-low"
-                      >
-                        {selectedCartRecipeGroups.length ===
-                        plannedRecipeGroups.length
-                          ? "Clear"
-                          : "All"}
-                      </button>
-                    </div>
-
-                    <div className="max-h-[calc(88vh-220px)] space-y-2 overflow-y-auto pr-1">
-                      {plannedRecipeGroups.map((group) => {
-                        const selected = selectedCartRecipeIds.includes(
-                          group.id,
-                        );
-                        return (
-                          <button
-                            key={group.id}
-                            type="button"
-                            onClick={() => toggleCartRecipe(group.id)}
-                            className={`flex w-full gap-3 rounded-2xl border p-3 text-left transition-colors ${
-                              selected
-                                ? "border-primary/40 bg-white shadow-sm"
-                                : "border-outline-variant/20 bg-white/60 opacity-70 hover:opacity-100"
-                            }`}
-                          >
-                            <span
-                              className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
-                                selected
-                                  ? "border-primary bg-primary text-on-primary"
-                                  : "border-outline-variant/50 bg-white"
-                              }`}
-                            >
-                              {selected ? (
-                                <span className="material-symbols-outlined text-[14px]">
-                                  check
-                                </span>
-                              ) : null}
-                            </span>
-                            <RecipeImage
-                              src={group.recipe.cover_image_url}
-                              alt={group.recipe.name}
-                              seed={group.recipe.id}
-                              className="h-14 w-14 shrink-0 overflow-hidden rounded-xl"
-                              imgClassName="h-14 w-14 object-cover"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="line-clamp-2 text-body-sm font-bold text-on-surface">
-                                {group.recipe.name}
-                              </p>
-                              <p className="mt-1 text-[11px] text-outline">
-                                {group.recipe.ingredients.length} ingredients
-                                {group.count > 1 ? ` x${group.count}` : ""}
-                              </p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </aside>
-
-                  <div className="max-h-[calc(88vh-128px)] overflow-y-auto p-5">
-                    {selectedCartRecipeGroups.length === 0 ? (
-                      <div className="flex min-h-72 flex-col items-center justify-center rounded-3xl border border-dashed border-outline-variant/40 bg-surface-container-low/40 text-center">
-                        <span className="material-symbols-outlined text-[44px] text-outline-variant">
-                          checklist
-                        </span>
-                        <p className="mt-3 text-label-lg font-semibold text-on-surface">
-                          Choose recipes to build this cart
-                        </p>
-                        <p className="mt-1 max-w-sm text-body-sm text-outline">
-                          Select one or more recipes on the left. Ingredients
-                          will stay grouped by recipe here.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-5">
-                        {selectedCartRecipeGroups.map((group) => (
-                          <section
-                            key={group.id}
-                            className="overflow-hidden rounded-3xl border border-outline-variant/20 bg-white shadow-sm"
-                          >
-                            <div className="flex items-center gap-4 border-b border-outline-variant/15 bg-surface-container-low/35 px-4 py-3">
-                              <RecipeImage
-                                src={group.recipe.cover_image_url}
-                                alt={group.recipe.name}
-                                seed={group.recipe.id}
-                                className="h-12 w-12 shrink-0 overflow-hidden rounded-xl"
-                                imgClassName="h-12 w-12 object-cover"
-                              />
-                              <div className="min-w-0 flex-1">
-                                <h4 className="truncate text-label-lg font-bold text-on-surface">
-                                  {group.recipe.name}
-                                </h4>
-                                <p className="text-body-sm text-outline">
-                                  {group.recipe.ingredients.length} ingredients
-                                  {group.count > 1
-                                    ? ` for ${group.count} meals`
-                                    : ""}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="grid gap-2 p-4 sm:grid-cols-2">
-                              {group.recipe.ingredients.map(
-                                (ingredient, index) => {
-                                  const amount =
-                                    ingredient.amount * group.count;
-                                  const itemKey = groceryItemKey(
-                                    `${group.id}:${ingredient.canonical_ingredient}:${index}`,
-                                    amount,
-                                    ingredient.unit,
-                                  );
-                                  const checked = checkedGroceries.has(itemKey);
-
-                                  return (
-                                    <button
-                                      key={itemKey}
-                                      type="button"
-                                      onClick={() =>
-                                        toggleGroceryItem(
-                                          `${group.id}:${ingredient.canonical_ingredient}:${index}`,
-                                          amount,
-                                          ingredient.unit,
-                                        )
-                                      }
-                                      className="flex items-start gap-3 rounded-2xl border border-outline-variant/20 bg-surface px-3 py-3 text-left transition-colors hover:bg-surface-container-low"
-                                    >
-                                      <span
-                                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
-                                          checked
-                                            ? "border-primary bg-primary text-on-primary"
-                                            : "border-outline-variant/50 bg-white"
-                                        }`}
-                                      >
-                                        {checked ? (
-                                          <span className="material-symbols-outlined text-[14px]">
-                                            check
-                                          </span>
-                                        ) : null}
-                                      </span>
-                                      <div className="min-w-0 flex-1">
-                                        <p
-                                          className={`text-body-md capitalize ${
-                                            checked
-                                              ? "text-outline line-through"
-                                              : "text-on-surface"
-                                          }`}
-                                        >
-                                          {ingredient.display_ingredient ??
-                                            ingredient.canonical_ingredient}
-                                        </p>
-                                        <p className="mt-0.5 text-body-sm text-outline">
-                                          x{Math.ceil(amount)}
-                                          {ingredient.unit
-                                            ? ` ${ingredient.unit}`
-                                            : ""}
-                                          {ingredient.preparation
-                                            ? `, ${ingredient.preparation}`
-                                            : ""}
-                                        </p>
-                                      </div>
-                                    </button>
-                                  );
-                                },
-                              )}
-                            </div>
-                          </section>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {groceryList.length > 0 ? (
-              <div className="flex flex-col gap-3 border-t border-outline-variant/20 bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-body-sm text-outline">
-                  Cart will include {selectedCartRecipeGroups.length} recipe
-                  {selectedCartRecipeGroups.length !== 1 ? "s" : ""} from this
-                  meal plan.
-                </p>
-                <button
-                  type="button"
-                  onClick={generateCartFromSelectedRecipes}
-                  disabled={
-                    selectedCartRecipeGroups.length === 0 || isGeneratingCart
-                  }
-                  className="flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-2.5 text-label-md font-semibold text-on-primary transition-colors hover:bg-on-primary-container disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isGeneratingCart ? (
-                    <span className="material-symbols-outlined animate-spin text-[16px]">
-                      refresh
-                    </span>
-                  ) : (
-                    <span className="material-symbols-outlined text-[16px]">
-                      shopping_cart
-                    </span>
-                  )}
-                  {isGeneratingCart ? "Generating..." : "Generate Cart"}
-                </button>
-              </div>
-            ) : null}
-          </div>
+          <label className="space-y-1.5 sm:col-span-2">
+            <span className="text-label-sm font-bold uppercase tracking-[0.08em] text-[#5d7d82]">
+              Notes
+            </span>
+            <textarea
+              value={notes}
+              onChange={(changeEvent) => setNotes(changeEvent.target.value)}
+              rows={3}
+              placeholder="Use almond milk, prep ahead, restaurant name..."
+              className="w-full resize-none rounded-2xl border border-outline-variant/40 px-4 py-3 text-body-md outline-none focus:ring-2 focus:ring-primary/25"
+            />
+          </label>
         </div>
-      ) : null}
+
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-outline-variant/35 px-4 py-3 text-label-lg font-bold text-on-surface-variant"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={isSaving}
+            className="rounded-full bg-primary px-4 py-3 text-label-lg font-bold text-on-primary disabled:opacity-60"
+          >
+            {isSaving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
