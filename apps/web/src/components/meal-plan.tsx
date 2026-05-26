@@ -607,8 +607,8 @@ export function WeeklyMealPlan({
         </div>
       ) : null}
 
-      <div className="fixed bottom-[72px] left-0 right-0 z-20 px-5 sm:bottom-6">
-        <div className="mx-auto flex max-w-xl items-center gap-2 rounded-[24px] border border-outline-variant/25 bg-white/95 p-2 shadow-xl backdrop-blur">
+      <section className="rounded-[28px] border border-outline-variant/25 bg-white p-2 shadow-sm">
+        <div className="mx-auto flex max-w-xl items-center gap-2">
           <button
             type="button"
             onClick={generateCart}
@@ -639,7 +639,7 @@ export function WeeklyMealPlan({
             </span>
           </button>
         </div>
-      </div>
+      </section>
 
       {editor ? (
         <MealEventEditor
