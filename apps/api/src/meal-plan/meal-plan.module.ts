@@ -3,15 +3,12 @@ import { AuthModule } from '../auth/auth.module';
 import { CartModule } from '../cart/cart.module';
 import { RecipeModule } from '../recipe/recipe.module';
 import { UserModule } from '../user/user.module';
-import {
-  MealEventController,
-  MealPlanController,
-} from './meal-plan.controller';
+import { MealPlanController } from './meal-plan.controller';
 import { MealPlanService } from './meal-plan.service';
 
 @Module({
-  imports: [AuthModule, CartModule, RecipeModule, UserModule],
-  controllers: [MealPlanController, MealEventController],
+  imports: [AuthModule, RecipeModule, UserModule, CartModule],
+  controllers: [MealPlanController],
   providers: [MealPlanService],
 })
 export class MealPlanModule {}

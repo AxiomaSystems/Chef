@@ -217,6 +217,7 @@ model User {
   kitchenInventoryItems     KitchenInventoryItem[]
   visionObservations        VisionObservation[]
   mealPlans                 MealPlan[]
+  mealEvents                MealEvent[]
   foodRules                 UserFoodRule[]
   goals                     UserGoal[]
   pantryStaples             UserPantryStaple[]
@@ -275,6 +276,7 @@ model BaseRecipe {
   recipeTags         RecipeTag[]
   steps              RecipeStep[]
   sourceCapture      Capture?
+  mealEvents         MealEvent[]
 
   @@unique([ownerUserId, forkedFromRecipeId])
   @@index([ownerUserId, createdAt])
@@ -604,6 +606,30 @@ model MealPlan {
 
   @@unique([userId, weekStart])
   @@index([userId, weekStart])
+}
+
+model MealEvent {
+  id          String     @id @default(cuid())
+  userId      String
+  date        DateTime   @db.Date
+  sortOrder   Int        @default(0)
+  mealLabel   String     @default("dinner")
+  customLabel String?
+  sourceType  String     @default("recipe")
+  recipeId    String?
+  title       String
+  servings    Int        @default(1)
+  status      String     @default("planned")
+  locked      Boolean    @default(false)
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe      BaseRecipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date, sortOrder])
+  @@index([userId, status, date])
+  @@index([recipeId])
 }
 
 model Capture {

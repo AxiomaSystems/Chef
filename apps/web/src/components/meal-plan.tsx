@@ -473,9 +473,6 @@ export function WeeklyMealPlan({
             <h1 className="text-display-sm font-black leading-tight text-on-surface">
               Plan your week
             </h1>
-            <p className="mt-1 text-body-md text-on-surface-variant">
-              Flexible meals, prep blocks, leftovers, and eat-out plans.
-            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -506,33 +503,32 @@ export function WeeklyMealPlan({
               </span>
             </button>
           </div>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full bg-surface-container-low px-3 py-2 text-label-md font-semibold text-on-surface-variant">
-            <span className="material-symbols-outlined text-[18px]">
-              calendar_month
-            </span>
-            {formatRangeLabel(range.from, range.to)}
-            {isLoadingRange ? (
-              <span className="text-outline">Loading...</span>
-            ) : null}
-          </div>
-          <div className="grid w-full grid-cols-3 rounded-full bg-[#fff3e4] p-1 sm:w-auto">
-            {(["day", "week", "month"] as PlanView[]).map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setView(item)}
-                className={`rounded-full px-4 py-2 text-label-md font-bold capitalize transition ${
-                  view === item
-                    ? "bg-primary text-on-primary shadow-sm"
-                    : "text-[#2f656b]"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full bg-surface-container-low px-3 py-2 text-label-md font-semibold text-on-surface-variant">
+              <span className="material-symbols-outlined text-[18px]">
+                calendar_month
+              </span>
+              {formatRangeLabel(range.from, range.to)}
+              {isLoadingRange ? (
+                <span className="text-outline">Loading...</span>
+              ) : null}
+            </div>
+            <div className="grid w-full grid-cols-3 rounded-full bg-[#fff3e4] p-1 sm:w-auto">
+              {(["day", "week", "month"] as PlanView[]).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setView(item)}
+                  className={`rounded-full px-4 py-2 text-label-md font-bold capitalize transition ${
+                    view === item
+                      ? "bg-primary text-on-primary shadow-sm"
+                      : "text-[#2f656b]"
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </section>
