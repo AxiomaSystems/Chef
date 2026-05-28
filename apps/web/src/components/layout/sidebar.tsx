@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AppNavLink } from "./app-nav-link";
@@ -7,6 +8,7 @@ import { AppNavLink } from "./app-nav-link";
 const navItems = [
   { href: "/dashboard", icon: "home", label: "Home" },
   { href: "/recipes", icon: "receipt_long", label: "Recipes" },
+  { href: "/meal-plan", icon: "calendar_month", label: "Meal Plan" },
   {
     href: "/carts",
     icon: "shopping_cart",
@@ -27,18 +29,14 @@ export function Sidebar({
     <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-white border-r border-outline-variant/40 z-50">
       {/* Brand */}
       <div className="px-6 pt-7 pb-5">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 text-xl font-black text-primary-fixed-dim"
-        >
-          <img
-            src="/icon-192.png"
-            alt=""
-            className="h-9 w-9 rounded-xl"
-            width={36}
-            height={36}
+        <Link href="/" className="flex items-center" aria-label="Preppie home">
+          <Image
+            src="/Preppie logo_web1.png"
+            alt="Preppie"
+            className="h-20 w-auto object-contain"
+            width={220}
+            height={176}
           />
-          <span>Butter Me</span>
         </Link>
         <p className="text-outline text-xs mt-0.5">Meal Planning</p>
       </div>

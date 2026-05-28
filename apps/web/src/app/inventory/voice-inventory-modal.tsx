@@ -12,6 +12,7 @@ import {
   updateInventoryItemAction,
 } from "./actions";
 import { IngredientImage } from "./ingredient-image";
+import { ModalPortal } from "./modal-portal";
 
 type SpeechRecognitionResultLike = {
   isFinal: boolean;
@@ -746,363 +747,369 @@ export function VoiceInventoryModal({ currentItems, onClose, onSaved }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/45 sm:items-center sm:justify-center">
-      <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:max-w-3xl sm:rounded-3xl">
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-outline-variant/30 bg-white px-5 py-4">
-          <div>
-            <p className="text-label-sm uppercase tracking-widest text-primary">
-              Inventory fill
-            </p>
-            <h2 className="mt-1 text-xl font-bold text-on-surface">
-              Voice inventory
-            </h2>
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4">
+        <div className="max-h-[92vh] w-full overflow-y-auto rounded-3xl bg-white shadow-2xl sm:max-w-3xl">
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-outline-variant/30 bg-white px-5 py-4">
+            <div>
+              <p className="text-label-sm uppercase tracking-widest text-primary">
+                Inventory fill
+              </p>
+              <h2 className="mt-1 text-xl font-bold text-on-surface">
+                Voice inventory
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid h-9 w-9 place-items-center rounded-full bg-surface-container text-outline"
+              aria-label="Close voice inventory"
+            >
+              <span className="material-symbols-outlined text-[20px]">
+                close
+              </span>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid h-9 w-9 place-items-center rounded-full bg-surface-container text-outline"
-            aria-label="Close voice inventory"
-          >
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
-        </div>
 
-        <div className="space-y-5 px-5 py-5">
-          <section className="rounded-2xl border border-outline-variant/30 bg-surface-container-low p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (recording) {
-                      void stopRecording();
-                    } else {
-                      void startRecording();
-                    }
-                  }}
-                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold ${
-                    recording
-                      ? "bg-error-container text-on-error-container"
-                      : "bg-primary text-on-primary"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[18px]">
-                    {recording ? "stop" : "mic"}
-                  </span>
-                  {recording ? "Stop" : "Record"}
-                </button>
-                <button
-                  type="button"
-                  onClick={reviewTranscript}
-                  disabled={loading}
-                  className="inline-flex items-center gap-2 rounded-full bg-surface-container px-4 py-2 text-sm font-bold text-on-surface disabled:opacity-45"
-                >
-                  <span className="material-symbols-outlined text-[18px]">
-                    fact_check
-                  </span>
-                  {loading ? "Reviewing" : "Review"}
-                </button>
-                <button
-                  type="button"
-                  onClick={clearSession}
-                  disabled={
-                    recording ||
-                    (!hasRecording && !transcript && rows.length === 0)
-                  }
-                  className="grid h-9 w-9 place-items-center rounded-full bg-white text-outline disabled:opacity-45"
-                  aria-label="Clear voice inventory session"
-                >
-                  <span className="material-symbols-outlined text-[18px]">
-                    refresh
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-5 flex items-center justify-between gap-4">
-              <div className="flex h-14 flex-1 items-center justify-center gap-1 rounded-2xl bg-white px-4">
-                {Array.from({ length: 12 }).map((_, index) => (
-                  <span
-                    key={index}
-                    className={`w-1.5 rounded-full bg-primary ${
-                      voiceLevel > 0.04 ? "opacity-100" : "opacity-30"
-                    }`}
-                    style={{
-                      height: recording
-                        ? `${8 + voiceLevel * (16 + ((index * 7) % 26))}px`
-                        : "10px",
+          <div className="space-y-5 px-5 py-5">
+            <section className="rounded-2xl border border-outline-variant/30 bg-surface-container-low p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (recording) {
+                        void stopRecording();
+                      } else {
+                        void startRecording();
+                      }
                     }}
-                  />
-                ))}
-              </div>
-              <div className="w-16 text-right font-mono text-sm font-bold text-on-surface">
-                {String(Math.floor(elapsed / 60)).padStart(2, "0")}:
-                {String(elapsed % 60).padStart(2, "0")}
-              </div>
-            </div>
-          </section>
-
-          {error ? (
-            <div className="rounded-xl bg-error-container/40 px-3 py-2 text-sm text-on-error-container">
-              {error}
-            </div>
-          ) : null}
-
-          {reviewed && (
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-on-surface">
-                  Review items ({rows.length})
-                </h3>
-                <span className="text-xs font-semibold text-outline">
-                  {acceptedCount} selected
-                </span>
-              </div>
-
-              {rows.length === 0 ? (
-                <p className="rounded-2xl bg-surface-container-low p-4 text-sm text-outline">
-                  No inventory items were found in that recording.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {rows.map((row) => {
-                    const existing = row.matched_existing_id
-                      ? existingById.get(row.matched_existing_id)
-                      : undefined;
-                    return (
-                      <div
-                        key={row.id}
-                        className="rounded-2xl border border-outline-variant/30 p-3"
-                      >
-                        <div className="flex gap-3">
-                          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-surface-container">
-                            <IngredientImage name={row.item_name} size={48} />
-                            <span className="hidden absolute inset-0 items-center justify-center text-outline">
-                              <span className="material-symbols-outlined text-[20px]">
-                                nutrition
-                              </span>
-                            </span>
-                          </div>
-                          <div className="grid flex-1 gap-2 sm:grid-cols-[1.2fr_1fr_0.7fr_0.8fr]">
-                            <input
-                              value={row.display_name}
-                              onChange={(event) =>
-                                updateRow(row.id, {
-                                  display_name: event.target.value,
-                                })
-                              }
-                              placeholder="Display name"
-                              className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-sm font-semibold outline-none focus:border-primary sm:col-span-2"
-                              aria-label="Display name"
-                            />
-                            <input
-                              value={row.item_name}
-                              onChange={(event) =>
-                                updateRow(row.id, {
-                                  item_name: event.target.value,
-                                })
-                              }
-                              placeholder="Item"
-                              className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
-                              aria-label="Item"
-                            />
-                            <input
-                              value={row.brand ?? ""}
-                              onChange={(event) =>
-                                updateRow(row.id, {
-                                  brand: event.target.value || null,
-                                })
-                              }
-                              placeholder="Brand"
-                              className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-sm outline-none focus:border-primary"
-                              aria-label="Brand"
-                            />
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.1"
-                              value={row.quantity}
-                              onChange={(event) =>
-                                updateRow(row.id, {
-                                  quantity: Number(event.target.value),
-                                })
-                              }
-                              className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
-                              aria-label="Quantity"
-                            />
-                            <select
-                              value={row.unit}
-                              onChange={(event) =>
-                                updateRow(row.id, { unit: event.target.value })
-                              }
-                              className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
-                              aria-label="Unit"
-                            >
-                              {INVENTORY_UNIT_OPTIONS.map((unit) => (
-                                <option key={unit} value={unit}>
-                                  {unit}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeRow(row.id)}
-                            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-outline transition-colors hover:bg-error-container/40 hover:text-error"
-                            aria-label={`Remove ${row.item_name}`}
-                          >
-                            <span className="material-symbols-outlined text-[20px]">
-                              delete
-                            </span>
-                          </button>
-                        </div>
-
-                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="text-xs text-outline">
-                            {existing
-                              ? `Existing: ${formatExisting(existing)}`
-                              : row.notes[0] || "New inventory item"}
-                          </div>
-                          <select
-                            value={row.action}
-                            onChange={(event) =>
-                              updateRow(row.id, {
-                                action: event.target.value as ReviewAction,
-                              })
-                            }
-                            className="rounded-full border border-outline-variant bg-white px-3 py-1.5 text-xs font-bold text-on-surface"
-                            aria-label={`Action for ${row.item_name}`}
-                          >
-                            {row.matched_existing_id ? (
-                              <option value="update">Update existing</option>
-                            ) : null}
-                            <option value="add">
-                              {row.matched_existing_id
-                                ? "Add separately"
-                                : "Add new"}
-                            </option>
-                            <option value="ignore">Ignore</option>
-                          </select>
-                        </div>
-
-                        {row.conflicts.length > 0 ? (
-                          <div className="mt-3 space-y-1 rounded-xl bg-tertiary-container/40 px-3 py-2">
-                            {row.conflicts.map((conflict, index) => (
-                              <p
-                                key={`${row.id}-${conflict.type}-${index}`}
-                                className="text-xs text-on-tertiary-container"
-                              >
-                                {conflict.message}
-                              </p>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
+                    className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold ${
+                      recording
+                        ? "bg-error-container text-on-error-container"
+                        : "bg-primary text-on-primary"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {recording ? "stop" : "mic"}
+                    </span>
+                    {recording ? "Stop" : "Record"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={reviewTranscript}
+                    disabled={loading}
+                    className="inline-flex items-center gap-2 rounded-full bg-surface-container px-4 py-2 text-sm font-bold text-on-surface disabled:opacity-45"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      fact_check
+                    </span>
+                    {loading ? "Reviewing" : "Review"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearSession}
+                    disabled={
+                      recording ||
+                      (!hasRecording && !transcript && rows.length === 0)
+                    }
+                    className="grid h-9 w-9 place-items-center rounded-full bg-white text-outline disabled:opacity-45"
+                    aria-label="Clear voice inventory session"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      refresh
+                    </span>
+                  </button>
                 </div>
-              )}
-            </section>
-          )}
+              </div>
 
-          {reviewed && potentialRows.length > 0 ? (
-            <section className="rounded-2xl border border-outline-variant/30 bg-surface-container-low">
-              <button
-                type="button"
-                onClick={() => setShowPotentialErrors((show) => !show)}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-                aria-expanded={showPotentialErrors}
-              >
-                <div>
-                  <h3 className="text-sm font-bold text-on-surface">
-                    Potential errors ({potentialRows.length})
-                  </h3>
-                  <p className="mt-0.5 text-xs text-outline">
-                    Items that may not belong in kitchen inventory.
-                  </p>
-                </div>
-                <span className="material-symbols-outlined text-[22px] text-outline">
-                  {showPotentialErrors ? "expand_less" : "expand_more"}
-                </span>
-              </button>
-
-              {showPotentialErrors ? (
-                <div className="space-y-2 border-t border-outline-variant/30 p-3">
-                  {potentialRows.map((row) => (
-                    <div
-                      key={row.id}
-                      className="flex items-center gap-3 rounded-xl bg-white p-3"
-                    >
-                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-surface-container">
-                        <IngredientImage name={row.item_name} size={40} />
-                        <span className="hidden absolute inset-0 items-center justify-center text-outline">
-                          <span className="material-symbols-outlined text-[18px]">
-                            help
-                          </span>
-                        </span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-on-surface">
-                          {row.display_name || row.item_name}
-                        </p>
-                        <p className="truncate text-xs text-outline">
-                          {[
-                            row.brand,
-                            row.item_name,
-                            `${row.quantity} ${row.unit}`.trim(),
-                          ]
-                            .filter(Boolean)
-                            .join(" / ")}
-                        </p>
-                        {row.conflicts[0]?.message ? (
-                          <p className="mt-1 text-xs text-on-tertiary-container">
-                            {row.conflicts[0].message}
-                          </p>
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => approvePotentialRow(row)}
-                        className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-on-primary"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removePotentialRow(row.id)}
-                        className="grid h-9 w-9 place-items-center rounded-full text-outline transition-colors hover:bg-error-container/40 hover:text-error"
-                        aria-label={`Delete ${row.item_name}`}
-                      >
-                        <span className="material-symbols-outlined text-[18px]">
-                          delete
-                        </span>
-                      </button>
-                    </div>
+              <div className="mt-5 flex items-center justify-between gap-4">
+                <div className="flex h-14 flex-1 items-center justify-center gap-1 rounded-2xl bg-white px-4">
+                  {Array.from({ length: 12 }).map((_, index) => (
+                    <span
+                      key={index}
+                      className={`w-1.5 rounded-full bg-primary ${
+                        voiceLevel > 0.04 ? "opacity-100" : "opacity-30"
+                      }`}
+                      style={{
+                        height: recording
+                          ? `${8 + voiceLevel * (16 + ((index * 7) % 26))}px`
+                          : "10px",
+                      }}
+                    />
                   ))}
                 </div>
-              ) : null}
+                <div className="w-16 text-right font-mono text-sm font-bold text-on-surface">
+                  {String(Math.floor(elapsed / 60)).padStart(2, "0")}:
+                  {String(elapsed % 60).padStart(2, "0")}
+                </div>
+              </div>
             </section>
-          ) : null}
-        </div>
 
-        <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-outline-variant/30 bg-white px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full px-4 py-2 text-sm font-bold text-outline"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={saveRows}
-            disabled={!reviewed || acceptedCount === 0 || saving}
-            className="rounded-full bg-primary px-5 py-2 text-sm font-bold text-on-primary disabled:opacity-45"
-          >
-            {saving ? "Saving" : "Save"}
-          </button>
+            {error ? (
+              <div className="rounded-xl bg-error-container/40 px-3 py-2 text-sm text-on-error-container">
+                {error}
+              </div>
+            ) : null}
+
+            {reviewed && (
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-on-surface">
+                    Review items ({rows.length})
+                  </h3>
+                  <span className="text-xs font-semibold text-outline">
+                    {acceptedCount} selected
+                  </span>
+                </div>
+
+                {rows.length === 0 ? (
+                  <p className="rounded-2xl bg-surface-container-low p-4 text-sm text-outline">
+                    No inventory items were found in that recording.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {rows.map((row) => {
+                      const existing = row.matched_existing_id
+                        ? existingById.get(row.matched_existing_id)
+                        : undefined;
+                      return (
+                        <div
+                          key={row.id}
+                          className="rounded-2xl border border-outline-variant/30 p-3"
+                        >
+                          <div className="flex gap-3">
+                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-surface-container">
+                              <IngredientImage name={row.item_name} size={48} />
+                              <span className="hidden absolute inset-0 items-center justify-center text-outline">
+                                <span className="material-symbols-outlined text-[20px]">
+                                  nutrition
+                                </span>
+                              </span>
+                            </div>
+                            <div className="grid flex-1 gap-2 sm:grid-cols-[1.2fr_1fr_0.7fr_0.8fr]">
+                              <input
+                                value={row.display_name}
+                                onChange={(event) =>
+                                  updateRow(row.id, {
+                                    display_name: event.target.value,
+                                  })
+                                }
+                                placeholder="Display name"
+                                className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-sm font-semibold outline-none focus:border-primary sm:col-span-2"
+                                aria-label="Display name"
+                              />
+                              <input
+                                value={row.item_name}
+                                onChange={(event) =>
+                                  updateRow(row.id, {
+                                    item_name: event.target.value,
+                                  })
+                                }
+                                placeholder="Item"
+                                className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                                aria-label="Item"
+                              />
+                              <input
+                                value={row.brand ?? ""}
+                                onChange={(event) =>
+                                  updateRow(row.id, {
+                                    brand: event.target.value || null,
+                                  })
+                                }
+                                placeholder="Brand"
+                                className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-sm outline-none focus:border-primary"
+                                aria-label="Brand"
+                              />
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                value={row.quantity}
+                                onChange={(event) =>
+                                  updateRow(row.id, {
+                                    quantity: Number(event.target.value),
+                                  })
+                                }
+                                className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                                aria-label="Quantity"
+                              />
+                              <select
+                                value={row.unit}
+                                onChange={(event) =>
+                                  updateRow(row.id, {
+                                    unit: event.target.value,
+                                  })
+                                }
+                                className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                                aria-label="Unit"
+                              >
+                                {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                                  <option key={unit} value={unit}>
+                                    {unit}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeRow(row.id)}
+                              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-outline transition-colors hover:bg-error-container/40 hover:text-error"
+                              aria-label={`Remove ${row.item_name}`}
+                            >
+                              <span className="material-symbols-outlined text-[20px]">
+                                delete
+                              </span>
+                            </button>
+                          </div>
+
+                          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="text-xs text-outline">
+                              {existing
+                                ? `Existing: ${formatExisting(existing)}`
+                                : row.notes[0] || "New inventory item"}
+                            </div>
+                            <select
+                              value={row.action}
+                              onChange={(event) =>
+                                updateRow(row.id, {
+                                  action: event.target.value as ReviewAction,
+                                })
+                              }
+                              className="rounded-full border border-outline-variant bg-white px-3 py-1.5 text-xs font-bold text-on-surface"
+                              aria-label={`Action for ${row.item_name}`}
+                            >
+                              {row.matched_existing_id ? (
+                                <option value="update">Update existing</option>
+                              ) : null}
+                              <option value="add">
+                                {row.matched_existing_id
+                                  ? "Add separately"
+                                  : "Add new"}
+                              </option>
+                              <option value="ignore">Ignore</option>
+                            </select>
+                          </div>
+
+                          {row.conflicts.length > 0 ? (
+                            <div className="mt-3 space-y-1 rounded-xl bg-tertiary-container/40 px-3 py-2">
+                              {row.conflicts.map((conflict, index) => (
+                                <p
+                                  key={`${row.id}-${conflict.type}-${index}`}
+                                  className="text-xs text-on-tertiary-container"
+                                >
+                                  {conflict.message}
+                                </p>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {reviewed && potentialRows.length > 0 ? (
+              <section className="rounded-2xl border border-outline-variant/30 bg-surface-container-low">
+                <button
+                  type="button"
+                  onClick={() => setShowPotentialErrors((show) => !show)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                  aria-expanded={showPotentialErrors}
+                >
+                  <div>
+                    <h3 className="text-sm font-bold text-on-surface">
+                      Potential errors ({potentialRows.length})
+                    </h3>
+                    <p className="mt-0.5 text-xs text-outline">
+                      Items that may not belong in kitchen inventory.
+                    </p>
+                  </div>
+                  <span className="material-symbols-outlined text-[22px] text-outline">
+                    {showPotentialErrors ? "expand_less" : "expand_more"}
+                  </span>
+                </button>
+
+                {showPotentialErrors ? (
+                  <div className="space-y-2 border-t border-outline-variant/30 p-3">
+                    {potentialRows.map((row) => (
+                      <div
+                        key={row.id}
+                        className="flex items-center gap-3 rounded-xl bg-white p-3"
+                      >
+                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-surface-container">
+                          <IngredientImage name={row.item_name} size={40} />
+                          <span className="hidden absolute inset-0 items-center justify-center text-outline">
+                            <span className="material-symbols-outlined text-[18px]">
+                              help
+                            </span>
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold text-on-surface">
+                            {row.display_name || row.item_name}
+                          </p>
+                          <p className="truncate text-xs text-outline">
+                            {[
+                              row.brand,
+                              row.item_name,
+                              `${row.quantity} ${row.unit}`.trim(),
+                            ]
+                              .filter(Boolean)
+                              .join(" / ")}
+                          </p>
+                          {row.conflicts[0]?.message ? (
+                            <p className="mt-1 text-xs text-on-tertiary-container">
+                              {row.conflicts[0].message}
+                            </p>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => approvePotentialRow(row)}
+                          className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-on-primary"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removePotentialRow(row.id)}
+                          className="grid h-9 w-9 place-items-center rounded-full text-outline transition-colors hover:bg-error-container/40 hover:text-error"
+                          aria-label={`Delete ${row.item_name}`}
+                        >
+                          <span className="material-symbols-outlined text-[18px]">
+                            delete
+                          </span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+          </div>
+
+          <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-outline-variant/30 bg-white px-5 py-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full px-4 py-2 text-sm font-bold text-outline"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={saveRows}
+              disabled={!reviewed || acceptedCount === 0 || saving}
+              className="rounded-full bg-primary px-5 py-2 text-sm font-bold text-on-primary disabled:opacity-45"
+            >
+              {saving ? "Saving" : "Save"}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

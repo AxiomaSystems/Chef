@@ -7,6 +7,7 @@ import {
   INVENTORY_UNIT_OPTIONS,
 } from "@cart/shared";
 import { IngredientImage } from "./ingredient-image";
+import { ModalPortal } from "./modal-portal";
 
 const INGREDIENT_CATALOG: { category: string; items: string[] }[] = [
   {
@@ -571,125 +572,129 @@ function IngredientPicker({
       </div>
 
       {detailItem ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 px-4 pb-4 sm:items-center sm:pb-0">
-          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-3 border-b border-outline-variant/30 px-5 py-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-surface-container-low">
-                  <IngredientImage name={detailItem.name} size={48} />
-                  <span
-                    className="hidden h-full w-full items-center justify-center text-outline"
-                    style={{ display: "none" }}
-                  >
-                    <span className="material-symbols-outlined text-[22px]">
-                      nutrition
+        <ModalPortal>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/45 p-4">
+            <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl">
+              <div className="flex items-start justify-between gap-3 border-b border-outline-variant/30 px-5 py-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-surface-container-low">
+                    <IngredientImage name={detailItem.name} size={48} />
+                    <span
+                      className="hidden h-full w-full items-center justify-center text-outline"
+                      style={{ display: "none" }}
+                    >
+                      <span className="material-symbols-outlined text-[22px]">
+                        nutrition
+                      </span>
                     </span>
-                  </span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
+                      Manual add
+                    </p>
+                    <h3 className="mt-1 break-words text-lg font-bold leading-tight text-on-surface">
+                      {detailItem.name}
+                    </h3>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
-                    Manual add
-                  </p>
-                  <h3 className="mt-1 break-words text-lg font-bold leading-tight text-on-surface">
-                    {detailItem.name}
-                  </h3>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDetailItem(null)}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-container text-outline"
-                aria-label="Close ingredient details"
-              >
-                <span className="material-symbols-outlined text-[20px]">
-                  close
-                </span>
-              </button>
-            </div>
-
-            <div className="space-y-3 px-5 py-4">
-              <div className="rounded-2xl bg-surface-container-low px-4 py-3">
-                <span className="text-xs font-bold uppercase tracking-wide text-outline">
-                  Category
-                </span>
-                <p className="mt-1 text-sm font-semibold text-on-surface">
-                  {detailItem.category}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-[1fr_1fr] gap-3">
-                <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
-                  <span className="text-xs font-bold uppercase tracking-wide text-outline">
-                    Quantity
-                  </span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={detailAmount}
-                    onChange={(event) =>
-                      setAmountByName((previous) => ({
-                        ...previous,
-                        [detailItem.name]: event.target.value,
-                      }))
-                    }
-                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
-                  />
-                </label>
-                <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
-                  <span className="text-xs font-bold uppercase tracking-wide text-outline">
-                    Unit
-                  </span>
-                  <select
-                    value={detailUnit}
-                    onChange={(event) =>
-                      setUnitByName((previous) => ({
-                        ...previous,
-                        [detailItem.name]: event.target.value,
-                      }))
-                    }
-                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
-                  >
-                    {INVENTORY_UNIT_OPTIONS.map((unit) => (
-                      <option key={unit} value={unit}>
-                        {unit}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="rounded-2xl bg-surface-container-low px-4 py-3">
-                <span className="text-xs font-bold uppercase tracking-wide text-outline">
-                  Status
-                </span>
-                <p className="mt-1 text-sm font-semibold text-on-surface">
-                  {detailInKitchen ? "Already in your kitchen" : "Ready to add"}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => void handleCheck(detailItem.name)}
-                disabled={detailInKitchen || detailIsAdding}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-fixed-dim px-4 py-3 text-sm font-bold text-on-primary-fixed transition-colors hover:bg-primary-fixed disabled:opacity-50"
-              >
-                <span
-                  className={`material-symbols-outlined text-[18px] ${
-                    detailIsAdding ? "animate-spin" : ""
-                  }`}
+                <button
+                  type="button"
+                  onClick={() => setDetailItem(null)}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-container text-outline"
+                  aria-label="Close ingredient details"
                 >
-                  {detailIsAdding ? "refresh" : "add"}
-                </span>
-                {detailInKitchen
-                  ? "Already added"
-                  : detailIsAdding
-                    ? "Adding..."
-                    : "Add to inventory"}
-              </button>
+                  <span className="material-symbols-outlined text-[20px]">
+                    close
+                  </span>
+                </button>
+              </div>
+
+              <div className="space-y-3 px-5 py-4">
+                <div className="rounded-2xl bg-surface-container-low px-4 py-3">
+                  <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                    Category
+                  </span>
+                  <p className="mt-1 text-sm font-semibold text-on-surface">
+                    {detailItem.category}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-[1fr_1fr] gap-3">
+                  <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
+                    <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                      Quantity
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={detailAmount}
+                      onChange={(event) =>
+                        setAmountByName((previous) => ({
+                          ...previous,
+                          [detailItem.name]: event.target.value,
+                        }))
+                      }
+                      className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                    />
+                  </label>
+                  <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
+                    <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                      Unit
+                    </span>
+                    <select
+                      value={detailUnit}
+                      onChange={(event) =>
+                        setUnitByName((previous) => ({
+                          ...previous,
+                          [detailItem.name]: event.target.value,
+                        }))
+                      }
+                      className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                    >
+                      {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                        <option key={unit} value={unit}>
+                          {unit}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="rounded-2xl bg-surface-container-low px-4 py-3">
+                  <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                    Status
+                  </span>
+                  <p className="mt-1 text-sm font-semibold text-on-surface">
+                    {detailInKitchen
+                      ? "Already in your kitchen"
+                      : "Ready to add"}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void handleCheck(detailItem.name)}
+                  disabled={detailInKitchen || detailIsAdding}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-fixed-dim px-4 py-3 text-sm font-bold text-on-primary-fixed transition-colors hover:bg-primary-fixed disabled:opacity-50"
+                >
+                  <span
+                    className={`material-symbols-outlined text-[18px] ${
+                      detailIsAdding ? "animate-spin" : ""
+                    }`}
+                  >
+                    {detailIsAdding ? "refresh" : "add"}
+                  </span>
+                  {detailInKitchen
+                    ? "Already added"
+                    : detailIsAdding
+                      ? "Adding..."
+                      : "Add to inventory"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
     </div>
   );
@@ -701,32 +706,34 @@ export function IngredientPickerModal({
   onClose,
 }: IngredientPickerModalProps) {
   return (
-    <div className="fixed inset-0 z-[70] bg-black/80 p-4 flex items-end sm:items-center justify-center">
-      <div className="bg-white w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-3xl shadow-2xl flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/30">
-          <div>
-            <p className="font-bold text-on-surface">Add ingredients</p>
-            <p className="text-xs text-outline">
-              Choose what is in your kitchen
-            </p>
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4">
+        <div className="bg-white w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-3xl shadow-2xl flex flex-col">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/30">
+            <div>
+              <p className="font-bold text-on-surface">Add ingredients</p>
+              <p className="text-xs text-outline">
+                Choose what is in your kitchen
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-surface-container transition-colors"
+              aria-label="Close"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-surface-container transition-colors"
-            aria-label="Close"
-          >
-            <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
 
-        <div className="overflow-y-auto p-5 space-y-5">
-          <IngredientPicker
-            existingNames={existingNames}
-            onAdd={onAdd}
-            embedded
-          />
+          <div className="overflow-y-auto p-5 space-y-5">
+            <IngredientPicker
+              existingNames={existingNames}
+              onAdd={onAdd}
+              embedded
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
