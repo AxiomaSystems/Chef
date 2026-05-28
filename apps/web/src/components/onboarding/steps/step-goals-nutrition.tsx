@@ -107,7 +107,7 @@ export function StepGoalsNutrition({
                       event.target.value,
                     )
                   }
-                  className="min-w-0 flex-1 bg-transparent text-body-sm text-[#143f42] outline-none"
+                  className="min-w-0 w-full flex-1 bg-transparent text-body-sm text-[#143f42] outline-none"
                 />
                 <span className="shrink-0 text-label-sm text-[#5f8689]">
                   {unit}
