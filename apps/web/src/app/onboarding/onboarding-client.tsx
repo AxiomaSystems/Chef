@@ -1,7 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import type { Cuisine, Tag, UserPreferences } from "@cart/shared";
+import { useCallback, useState, useTransition } from "react";
+import type {
+  Cuisine,
+  KitchenInventoryItem,
+  Tag,
+  UserPreferences,
+} from "@cart/shared";
 import type {
   AvailableAppliance,
   BiggestCookingFrustration,
@@ -33,6 +38,7 @@ import { StepGoalsNutrition } from "@/components/onboarding/steps/step-goals-nut
 import { StepShoppingBehavior } from "@/components/onboarding/steps/step-shopping-behavior";
 import { StepDiscoveryFriction } from "@/components/onboarding/steps/step-discovery-friction";
 import { StepLocation } from "@/components/onboarding/steps/step-location";
+import { InventoryClient } from "@/app/inventory/inventory-client";
 import {
   AVAILABLE_APPLIANCE_LABELS,
   DISLIKED_INGREDIENT_LABELS,
@@ -49,7 +55,7 @@ import {
   skipOnboardingAction,
 } from "./actions";
 
-const TOTAL_STEPS = 9;
+const TOTAL_STEPS = 10;
 
 const STEP_COPY: Record<number, { title: string; subtitle: string }> = {
   1: {
@@ -73,18 +79,23 @@ const STEP_COPY: Record<number, { title: string; subtitle: string }> = {
     subtitle: "Equipment and time constraints.",
   },
   6: {
+    title: "What is already in your kitchen?",
+    subtitle:
+      "Add staples now so Chef can avoid telling you to buy what you already have. You can skip this and edit it later.",
+  },
+  7: {
     title: "What should Chef optimize for?",
     subtitle: "Prioritized planning goals.",
   },
-  7: {
+  8: {
     title: "How do you shop?",
     subtitle: "Budget and store defaults.",
   },
-  8: {
+  9: {
     title: "How should Chef help first?",
     subtitle: "Guide future agent behavior.",
   },
-  9: {
+  10: {
     title: "Where should Chef build your cart?",
     subtitle: "Store availability and cart accuracy.",
   },
@@ -260,17 +271,27 @@ export function OnboardingClient({
   cuisines,
   dietaryTags,
   existingPreferences,
+  existingInventory,
 }: {
   cuisines: Cuisine[];
   dietaryTags: Tag[];
   existingPreferences: UserPreferences | null;
+  existingInventory: KitchenInventoryItem[];
 }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(() =>
     buildInitialState(existingPreferences),
   );
+  const [inventoryItems, setInventoryItems] =
+    useState<KitchenInventoryItem[]>(existingInventory);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const handleInventoryItemsChange = useCallback(
+    (items: KitchenInventoryItem[]) => {
+      setInventoryItems(items);
+    },
+    [],
+  );
 
   function patch<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -318,7 +339,16 @@ export function OnboardingClient({
   }
 
   const copy = STEP_COPY[step]!;
-  const memoryItems = buildMemoryItems(form, cuisines, dietaryTags);
+  const memoryItems = [
+    ...buildMemoryItems(form, cuisines, dietaryTags),
+    ...(inventoryItems.length > 0
+      ? [
+          `${inventoryItems.length} inventory ${
+            inventoryItems.length === 1 ? "item" : "items"
+          } ready for meal planning`,
+        ]
+      : []),
+  ];
 
   return (
     <OnboardingShell
@@ -332,6 +362,7 @@ export function OnboardingClient({
       nextLabel={step === TOTAL_STEPS ? "Save memory" : "Continue"}
       isPending={isPending}
       error={error}
+      layout={step === 6 ? "workspace" : "card"}
     >
       {step === 1 && (
         <StepHousehold
@@ -388,6 +419,13 @@ export function OnboardingClient({
         />
       )}
       {step === 6 && (
+        <InventoryClient
+          realItems={inventoryItems}
+          embedded
+          onItemsChange={handleInventoryItemsChange}
+        />
+      )}
+      {step === 7 && (
         <StepGoalsNutrition
           goalPriorities={form.goal_priorities}
           calorieTrackingMode={form.calorie_tracking_mode}
@@ -399,7 +437,7 @@ export function OnboardingClient({
           }
         />
       )}
-      {step === 7 && (
+      {step === 8 && (
         <StepShoppingBehavior
           weeklyBudget={form.weekly_budget}
           preferredStores={form.preferred_stores}
@@ -409,7 +447,7 @@ export function OnboardingClient({
           onShoppingModeChange={(v) => patch("shopping_mode", v)}
         />
       )}
-      {step === 8 && (
+      {step === 9 && (
         <StepDiscoveryFriction
           recipeDiscoverySources={form.recipe_discovery_sources}
           biggestCookingFrustration={form.biggest_cooking_frustration}
@@ -421,7 +459,7 @@ export function OnboardingClient({
           }
         />
       )}
-      {step === 9 && (
+      {step === 10 && (
         <StepLocation
           zip={form.shopping_location_zip}
           label={form.shopping_location_label}

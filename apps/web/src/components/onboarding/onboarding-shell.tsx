@@ -8,6 +8,7 @@ const STEP_META = [
   { label: "Favorites", icon: "favorite" },
   { label: "Avoids", icon: "block" },
   { label: "Kitchen", icon: "kitchen" },
+  { label: "Inventory", icon: "inventory_2" },
   { label: "Goals", icon: "flag" },
   { label: "Shopping", icon: "shopping_cart" },
   { label: "Discovery", icon: "auto_stories" },
@@ -25,6 +26,7 @@ type Props = {
   nextLabel: string;
   isPending: boolean;
   error: string | null;
+  layout?: "card" | "workspace";
   children: ReactNode;
 };
 
@@ -39,11 +41,132 @@ export function OnboardingShell({
   nextLabel,
   isPending,
   error,
+  layout = "card",
   children,
 }: Props) {
   const total = STEP_META.length;
   const progress = (currentStep / total) * 100;
   const activeStep = STEP_META[currentStep - 1]!;
+
+  if (layout === "workspace") {
+    return (
+      <main className="min-h-screen bg-[#fff8ef]">
+        <header className="sticky top-0 z-50 border-b border-[#c0dedf]/60 bg-[#fff8ef]/95 px-4 py-3 backdrop-blur sm:px-6">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#f4790d] text-white">
+                  <span className="material-symbols-outlined text-[18px]">
+                    {activeStep.icon}
+                  </span>
+                </span>
+                <p className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-[#f4790d]">
+                  {activeStep.label} setup
+                </p>
+              </div>
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#c0dedf]">
+                <div
+                  className="h-full rounded-full bg-[#f4790d] transition-all duration-500 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+            <p className="hidden shrink-0 text-[11px] text-[#5f8689] sm:block">
+              Step {currentStep} of {total}
+            </p>
+          </div>
+        </header>
+
+        <section className="mx-auto max-w-6xl px-4 pt-4 sm:px-6">
+          <div className="rounded-2xl border border-[#c0dedf] bg-white/90 p-4 shadow-[0_18px_55px_-42px_rgba(53,24,0,0.8)] backdrop-blur sm:flex sm:items-start sm:justify-between sm:gap-6">
+            <div className="min-w-0">
+              <h2 className="text-headline-sm font-extrabold text-[#132326]">
+                {title}
+              </h2>
+              {subtitle ? (
+                <p className="mt-1 max-w-3xl text-body-sm text-[#315f62]">
+                  {subtitle}
+                </p>
+              ) : null}
+            </div>
+            <p className="mt-3 text-body-sm text-[#5f8689] sm:mt-1 sm:max-w-xs sm:text-right">
+              Add what you know now. You can keep this rough and update it later
+              from Inventory.
+            </p>
+          </div>
+        </section>
+
+        <section className="onboarding-step-panel px-4 py-4 sm:px-6">
+          {children}
+        </section>
+
+        {error ? (
+          <p className="fixed bottom-24 left-4 right-4 z-[65] mx-auto max-w-xl rounded-2xl border border-[#ba1a1a]/20 bg-[#fff8ef] px-4 py-3 text-body-sm text-[#ba1a1a] shadow-xl">
+            {error}
+          </p>
+        ) : null}
+
+        <nav className="fixed inset-x-0 bottom-0 z-[60] border-t border-[#c0dedf]/70 bg-white/95 px-4 py-3 shadow-[0_-18px_45px_-28px_rgba(53,24,0,0.75)] backdrop-blur">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+            {onBack ? (
+              <button
+                type="button"
+                onClick={onBack}
+                disabled={isPending}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-label-md text-[#315f62] transition-all hover:bg-[#fff2e3] hover:text-[#132326] active:scale-[0.98] disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  arrow_back
+                </span>
+                Back
+              </button>
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onSkip}
+                disabled={isPending}
+                className="hidden min-h-11 rounded-full px-3 text-label-md text-[#5f8689] transition-all hover:bg-[#fff2e3] hover:text-[#315f62] active:scale-[0.98] disabled:opacity-50 sm:inline-flex sm:items-center"
+              >
+                Not sure yet
+              </button>
+              <button
+                type="button"
+                onClick={onNext}
+                disabled={isPending}
+                className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#f4790d] px-5 text-label-lg text-white shadow-[0_14px_28px_-16px_rgba(60,154,158,0.8)] transition-all hover:-translate-y-0.5 hover:bg-[#351800] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:px-6"
+              >
+                {isPending ? (
+                  <>
+                    <span className="material-symbols-outlined animate-spin text-[18px]">
+                      refresh
+                    </span>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    {nextLabel}
+                    {nextLabel === "Finish" || nextLabel === "Save memory" ? (
+                      <span className="material-symbols-outlined text-[18px]">
+                        check
+                      </span>
+                    ) : (
+                      <span className="material-symbols-outlined text-[18px]">
+                        arrow_forward
+                      </span>
+                    )}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </nav>
+      </main>
+    );
+  }
 
   return (
     <main className="relative flex min-h-screen overflow-hidden bg-[#fff8ef] px-4 py-6 sm:px-6 lg:px-10">
@@ -230,7 +353,7 @@ export function OnboardingShell({
                   ) : (
                     <>
                       {nextLabel}
-                      {nextLabel === "Finish" ? (
+                      {nextLabel === "Finish" || nextLabel === "Save memory" ? (
                         <span className="material-symbols-outlined text-[18px]">
                           check
                         </span>

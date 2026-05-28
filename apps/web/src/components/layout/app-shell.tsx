@@ -7,6 +7,7 @@ interface AppShellProps {
   topBarTitle?: string;
   topBarActions?: React.ReactNode;
   showBack?: boolean;
+  embedded?: boolean;
   hideCreateActions?: boolean;
   hideBottomCreateButton?: boolean;
 }
@@ -16,10 +17,15 @@ export function AppShell({
   topBarTitle,
   topBarActions,
   showBack,
+  embedded = false,
   hideCreateActions = false,
   hideBottomCreateButton,
 }: AppShellProps) {
   const hideBottomActions = hideCreateActions || hideBottomCreateButton;
+
+  if (embedded) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="min-h-screen bg-background">

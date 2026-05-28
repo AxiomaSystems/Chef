@@ -80,18 +80,18 @@ export function StepGoalsNutrition({
             Add the weekly goals Chef should compare meal plans against.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[
             ["calories", "Calories", "kcal"],
             ["protein_g", "Protein", "g"],
             ["carbs_g", "Carbs", "g"],
             ["fat_g", "Fats", "g"],
           ].map(([key, label, unit]) => (
-            <label key={key} className="grid gap-1.5">
+            <label key={key} className="grid min-w-0 gap-1.5">
               <span className="text-label-sm font-semibold text-[#315f62]">
                 {label}
               </span>
-              <div className="flex items-center rounded-xl border border-[#d9e8e6] bg-white px-3 py-2 focus-within:border-[#fe8e17] focus-within:ring-2 focus-within:ring-[#fe8e17]/20">
+              <div className="flex min-w-0 items-center gap-2 rounded-xl border border-[#d9e8e6] bg-white px-3 py-2 focus-within:border-[#fe8e17] focus-within:ring-2 focus-within:ring-[#fe8e17]/20">
                 <input
                   type="number"
                   min="0"
@@ -109,7 +109,9 @@ export function StepGoalsNutrition({
                   }
                   className="min-w-0 flex-1 bg-transparent text-body-sm text-[#143f42] outline-none"
                 />
-                <span className="text-label-sm text-[#5f8689]">{unit}</span>
+                <span className="shrink-0 text-label-sm text-[#5f8689]">
+                  {unit}
+                </span>
               </div>
             </label>
           ))}
