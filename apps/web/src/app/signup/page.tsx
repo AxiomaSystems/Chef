@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { SignupForm } from "./signup-form";
 import { GoogleSigninButton } from "@/components/auth/google-signin-button";
@@ -6,9 +7,13 @@ export default function SignupPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#fff8ef] px-4 py-6 sm:p-6">
       <div className="w-full max-w-[448px] rounded-2xl bg-white p-5 shadow-[0_4px_20px_-4px_rgba(60,154,158,0.12)] sm:p-8">
-        <p className="text-headline-sm text-[#f4be6b] font-black tracking-tight">
-          Butter Me
-        </p>
+        <Image
+          src="/Preppie logo_mobile1.png"
+          alt="Preppie"
+          className="h-16 w-auto object-contain"
+          width={90}
+          height={72}
+        />
         <h1 className="text-headline-sm text-[#132326] font-bold mt-3">
           Create your account
         </h1>

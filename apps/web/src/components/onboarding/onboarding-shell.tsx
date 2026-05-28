@@ -174,14 +174,14 @@ export function OnboardingShell({
         <aside className="hidden lg:block">
           <div className="max-w-sm">
             <p className="text-[13px] font-black uppercase tracking-[0.22em] text-[#f4790d]">
-              Butter Me
+              Preppie
             </p>
             <h1 className="mt-4 text-[48px] font-black leading-[0.98] text-[#132326]">
-              Build your Butter Me memory.
+              Build your Preppie memory.
             </h1>
             <p className="mt-5 max-w-xs text-body-md text-[#315f62]">
-              Teach Chef how to plan meals, groceries, and cooking help around
-              you.
+              Teach Preppie how to plan meals, groceries, and cooking help
+              around you.
             </p>
 
             <div className="mt-8 grid gap-2.5">
@@ -229,7 +229,7 @@ export function OnboardingShell({
             <div className="mt-6 overflow-hidden rounded-[1.6rem] border border-[#c0dedf] bg-white/70 p-4 shadow-[0_24px_70px_-48px_rgba(53,24,0,0.75)]">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#f4790d]">
-                  Butter Me knows
+                  Preppie knows
                 </p>
                 <span className="material-symbols-outlined text-[18px] text-[#f4790d]">
                   auto_awesome
@@ -249,7 +249,7 @@ export function OnboardingShell({
                 </ul>
               ) : (
                 <p className="mt-3 text-body-sm text-[#5f8689]">
-                  Your answers will appear here as Chef learns your defaults.
+                  Your answers will appear here as Preppie learns your defaults.
                 </p>
               )}
             </div>
@@ -259,10 +259,10 @@ export function OnboardingShell({
         <div className="w-full">
           <div className="mb-6 text-center lg:hidden">
             <p className="font-black tracking-tight text-headline-sm text-[#f4790d]">
-              Butter Me memory
+              Preppie memory
             </p>
             <p className="mt-1 text-body-md text-[#315f62]">
-              Teach Chef your defaults
+              Teach Preppie your defaults
             </p>
           </div>
 

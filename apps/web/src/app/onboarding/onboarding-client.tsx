@@ -59,7 +59,7 @@ const TOTAL_STEPS = 10;
 
 const STEP_COPY: Record<number, { title: string; subtitle: string }> = {
   1: {
-    title: "Who should Chef plan for?",
+    title: "Who should Preppie plan for?",
     subtitle: "Set the default serving context.",
   },
   2: {
@@ -67,11 +67,11 @@ const STEP_COPY: Record<number, { title: string; subtitle: string }> = {
     subtitle: "Cuisine and dietary defaults.",
   },
   3: {
-    title: "What should Chef reach for first?",
+    title: "What should Preppie reach for first?",
     subtitle: "Soft taste preferences.",
   },
   4: {
-    title: "What should Chef avoid?",
+    title: "What should Preppie avoid?",
     subtitle: "Soft dislikes for recipe ranking.",
   },
   5: {
@@ -81,10 +81,10 @@ const STEP_COPY: Record<number, { title: string; subtitle: string }> = {
   6: {
     title: "What is already in your kitchen?",
     subtitle:
-      "Add staples now so Chef can avoid telling you to buy what you already have. You can skip this and edit it later.",
+      "Add staples now so Preppie can avoid telling you to buy what you already have. You can skip this and edit it later.",
   },
   7: {
-    title: "What should Chef optimize for?",
+    title: "What should Preppie optimize for?",
     subtitle: "Prioritized planning goals.",
   },
   8: {
@@ -92,11 +92,11 @@ const STEP_COPY: Record<number, { title: string; subtitle: string }> = {
     subtitle: "Budget and store defaults.",
   },
   9: {
-    title: "How should Chef help first?",
+    title: "How should Preppie help first?",
     subtitle: "Guide future agent behavior.",
   },
   10: {
-    title: "Where should Chef build your cart?",
+    title: "Where should Preppie build your cart?",
     subtitle: "Store availability and cart accuracy.",
   },
 };

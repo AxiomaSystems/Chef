@@ -46,7 +46,7 @@ export function StepGoalsNutrition({
     <div className="grid gap-8">
       <div className="grid gap-3">
         <p className="text-label-lg font-semibold text-[#315f62]">
-          What are you trying to achieve with Chef?
+          What are you trying to achieve with Preppie?
         </p>
         <p className="text-body-sm text-[#5f8689]">
           Pick everything that applies.
@@ -77,7 +77,7 @@ export function StepGoalsNutrition({
             Weekly nutrition targets
           </p>
           <p className="mt-1 text-body-sm text-[#5f8689]">
-            Add the weekly goals Chef should compare meal plans against.
+            Add the weekly goals Preppie should compare meal plans against.
           </p>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

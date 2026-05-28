@@ -4,12 +4,12 @@ const features = [
   {
     icon: "receipt_long",
     title: "Curated Recipes",
-    desc: "Browse a growing library of chef-quality recipes across every cuisine.",
+    desc: "Browse a growing library of Preppie-quality recipes across every cuisine.",
   },
   {
     icon: "tune",
     title: "Smart Planning",
-    desc: "Pick recipes, set servings, and Chef aggregates every ingredient automatically.",
+    desc: "Pick recipes, set servings, and Preppie aggregates every ingredient automatically.",
   },
   {
     icon: "shopping_cart",
@@ -32,7 +32,7 @@ const steps = [
   {
     n: "02",
     title: "Generate a cart",
-    desc: "Chef aggregates all ingredients across your recipes and matches them to real retailer products.",
+    desc: "Preppie aggregates all ingredients across your recipes and matches them to real retailer products.",
   },
   {
     n: "03",
@@ -48,7 +48,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 bg-[#fff8ef]/90 backdrop-blur-sm border-b border-[#c0dedf]/30">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <span className="text-xl font-black text-[#f4be6b] tracking-tight">
-            Butter Me
+            Preppie
           </span>
           <div className="flex items-center gap-3">
             <Link
@@ -83,8 +83,8 @@ export default function LandingPage() {
           in one click.
         </h1>
         <p className="text-body-lg text-[#315f62] mt-6 max-w-xl mx-auto leading-relaxed">
-          Chef turns your weekly recipe picks into a ready-to-order grocery cart
-          — with every ingredient measured, aggregated, and matched to real
+          Preppie turns your weekly recipe picks into a ready-to-order grocery
+          cart — with every ingredient measured, aggregated, and matched to real
           retailer products.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
@@ -143,7 +143,7 @@ export default function LandingPage() {
             Everything you need
           </h2>
           <p className="text-body-lg text-[#315f62] mt-3 max-w-lg mx-auto">
-            Chef handles the busywork so you can focus on cooking.
+            Preppie handles the busywork so you can focus on cooking.
           </p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -221,9 +221,9 @@ export default function LandingPage() {
       {/* ── Footer ── */}
       <footer className="border-t border-[#c0dedf]/30 py-8">
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="font-black text-[#f4be6b] text-lg">Butter Me</span>
+          <span className="font-black text-[#f4be6b] text-lg">Preppie</span>
           <p className="text-body-sm text-[#5f8689]">
-            &copy; {new Date().getFullYear()} Butter Me. Meal Planning.
+            &copy; {new Date().getFullYear()} Preppie. Meal Planning.
           </p>
           <div className="flex gap-6">
             <Link
