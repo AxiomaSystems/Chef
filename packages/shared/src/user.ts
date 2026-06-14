@@ -229,6 +229,14 @@ export const BIGGEST_COOKING_FRUSTRATION_VALUES = [
 export type BiggestCookingFrustration =
   (typeof BIGGEST_COOKING_FRUSTRATION_VALUES)[number];
 
+export const AI_PLANNING_OPTIMIZATION_VALUES = [
+  "cost_reduction",
+  "trend_best_recipe",
+] as const;
+
+export type AiPlanningOptimization =
+  (typeof AI_PLANNING_OPTIMIZATION_VALUES)[number];
+
 export type SavedAddress = {
   id: string;
   label: string;
@@ -311,6 +319,7 @@ export type UserPreferences = {
   shopping_mode?: ShoppingMode;
   recipe_discovery_sources?: RecipeDiscoverySource[];
   biggest_cooking_frustration?: BiggestCookingFrustration;
+  ai_planning_optimization?: AiPlanningOptimization;
 };
 
 export type WeeklyNutritionTargets = {

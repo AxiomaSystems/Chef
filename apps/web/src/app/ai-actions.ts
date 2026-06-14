@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type {
   BaseRecipe,
+  AiPlanningOptimization,
   KitchenInventoryItem,
   RecipeListPage,
   RecipeNutritionData,
@@ -85,6 +86,7 @@ type GenerateMealsActionInput = {
   maxTimeMinutes?: number;
   maxCostPerServing?: number;
   qualityGoals?: string[];
+  aiPlanningOptimization?: AiPlanningOptimization;
   notes?: string;
 };
 
@@ -198,7 +200,12 @@ export async function getInventoryAlternativesAction(input: {
   inventory: {
     id: string;
     display_name: string;
+    ingredient_id?: string | null;
+    canonical_name?: string | null;
     category?: string | null;
+    estimated_amount?: number | null;
+    unit?: string | null;
+    aliases?: string[];
   }[];
 }): Promise<{
   suggestions?: InventoryAlternativeSuggestion[];
@@ -244,23 +251,37 @@ export async function getInventoryAlternativesAction(input: {
 
 export async function getIngredientPrepAction(input: {
   recipeName: string;
+  recipeServings?: number;
   ingredients: {
     canonical_ingredient: string;
     display_ingredient: string | null;
     amount: number;
     unit: string;
+    preparation?: string | null;
   }[];
 }): Promise<IngredientPrepActionState> {
-  const ingredientList = input.ingredients
-    .map(
-      (i, idx) =>
-        `${idx + 1}. ${i.amount} ${i.unit} ${i.display_ingredient ?? i.canonical_ingredient}`,
-    )
-    .join("\n");
-
-  const message = `For each ingredient in "${input.recipeName}", write one short prep instruction (how to wash, cut, measure, or get it ready before cooking starts). Reply ONLY with a valid JSON array of strings, one instruction per ingredient in the exact same order listed. No markdown, no extra text.\n\nIngredients:\n${ingredientList}`;
-
-  const result = await askChefAction({ message, history: [] });
+  const result = await askChefAction({
+    message:
+      "For each ingredient in the provided recipe context, write one short prep instruction. Reply only with a valid JSON array of strings, one instruction per ingredient in the exact same order.",
+    history: [],
+    context: {
+      surface: "ingredient_prep_guide",
+      active_recipe: {
+        name: input.recipeName,
+        servings: input.recipeServings ?? null,
+      },
+      ingredients: input.ingredients.map((ingredient, index) => ({
+        index,
+        name: ingredient.display_ingredient ?? ingredient.canonical_ingredient,
+        canonical_ingredient: ingredient.canonical_ingredient,
+        amount: ingredient.amount,
+        unit: ingredient.unit,
+        existing_preparation: ingredient.preparation ?? null,
+      })),
+      output_contract:
+        "JSON array of strings only, same length and order as ingredients.",
+    },
+  });
 
   if (result.error || !result.message) {
     return { error: result.error ?? "Could not generate prep guide." };
@@ -385,6 +406,10 @@ function buildGenerateMealsRequest(
     input.notes,
     mealGenerationContextNote(preferences, profileMemory),
   ]).join(" ");
+  const aiPlanningOptimization =
+    input.aiPlanningOptimization ??
+    preferences?.ai_planning_optimization ??
+    "cost_reduction";
 
   return {
     meal_prompt: input.mealPrompt.trim(),
@@ -401,6 +426,7 @@ function buildGenerateMealsRequest(
     max_cost_per_serving:
       input.maxCostPerServing ?? maxCostPerServingFromContext(preferences),
     quality_goals: qualityGoals,
+    ai_planning_optimization: aiPlanningOptimization,
     notes,
   };
 }
@@ -428,7 +454,14 @@ function formatInventoryItemForPrompt(item: KitchenInventoryItem) {
     item.estimated_amount !== undefined && item.unit
       ? `${item.estimated_amount} ${item.unit} `
       : "";
-  return `${amount}${item.display_name}`.trim();
+  const canonical = item.ingredient?.canonical_name
+    ? `canonical: ${item.ingredient.canonical_name}`
+    : undefined;
+  const category = item.ingredient?.category
+    ? `category: ${item.ingredient.category}`
+    : undefined;
+  const metadata = [canonical, category].filter(Boolean).join("; ");
+  return `${amount}${item.display_name}${metadata ? ` (${metadata})` : ""}`.trim();
 }
 
 function isAllergyTag(tag: { name: string; slug: string }) {
@@ -539,6 +572,11 @@ function mealGenerationContextNote(
           .map((cuisine) => cuisine.label)
           .join(", ")}.`
       : undefined,
+    preferences?.ai_planning_optimization
+      ? `AI planning optimization: ${formatEnumLabel(
+          preferences.ai_planning_optimization,
+        )}.`
+      : undefined,
     preferences?.household_size
       ? `Household size: ${formatEnumLabel(preferences.household_size)}.`
       : undefined,
@@ -566,8 +604,36 @@ function mealGenerationContextNote(
           .map(formatEnumLabel)
           .join(", ")}.`
       : undefined,
+    preferences?.weekly_nutrition_targets &&
+    Object.values(preferences.weekly_nutrition_targets).some(Boolean)
+      ? `Weekly nutrition targets: ${[
+          preferences.weekly_nutrition_targets.calories
+            ? `${preferences.weekly_nutrition_targets.calories} calories`
+            : undefined,
+          preferences.weekly_nutrition_targets.protein_g
+            ? `${preferences.weekly_nutrition_targets.protein_g}g protein`
+            : undefined,
+          preferences.weekly_nutrition_targets.carbs_g
+            ? `${preferences.weekly_nutrition_targets.carbs_g}g carbs`
+            : undefined,
+          preferences.weekly_nutrition_targets.fat_g
+            ? `${preferences.weekly_nutrition_targets.fat_g}g fat`
+            : undefined,
+        ]
+          .filter(Boolean)
+          .join(", ")}.`
+      : undefined,
     profileMemory?.summary.pantry.labels.length
       ? `Pantry staples: ${profileMemory.summary.pantry.labels.join(", ")}.`
+      : undefined,
+    profileMemory?.food_rules.some(
+      (rule) => rule.active && rule.strictness === "hard",
+    )
+      ? `Hard dietary rules: ${profileMemory.food_rules
+          .filter((rule) => rule.active && rule.strictness === "hard")
+          .map((rule) => `${rule.action} ${rule.label}`)
+          .slice(0, 12)
+          .join(", ")}.`
       : undefined,
   ];
 

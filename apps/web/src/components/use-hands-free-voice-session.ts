@@ -11,9 +11,21 @@ import type {
   HandsFreeSessionContext,
 } from "./hands-free-mode-types";
 
-const WAKE_COMMAND_TIMEOUT_MS = 20000;
-const WAKE_WORD = "Chef";
-const WAKE_WORD_VARIANTS = ["chef", "chief", "shef", "jeff"];
+const WAKE_COMMAND_TIMEOUT_MS = 5000;
+const WAKE_WORD_LABEL = "Chef, Prep, or Preppie";
+const WAKE_WORD_VARIANTS = [
+  "chef",
+  "chief",
+  "shef",
+  "jeff",
+  "prep",
+  "preppy",
+  "preppie",
+  "preppi",
+  "prepi",
+  "pre pee",
+  "pre p",
+];
 const WAKE_WORD_PATTERN = new RegExp(
   `\\b(?:${WAKE_WORD_VARIANTS.join("|")})\\b`,
   "i",
@@ -133,17 +145,19 @@ export function useHandsFreeVoiceSession({
   const [mode, setMode] = useState<HandsFreeModeStatus>("connecting");
   const [agentMessage, setAgentMessage] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [wakeDebug, setWakeDebug] = useState<string | null>(null);
+  const [isAudioPaused, setIsAudioPaused] = useState(false);
   const acceptsVoiceRef = useRef(false);
   const agentSpeakingRef = useRef(false);
   const commandTimeoutRef = useRef<number | null>(null);
   const conversationRef = useRef<ElevenLabsConversation | null>(null);
+  const isAudioPausedRef = useRef(false);
   const localSpeechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const onAgentResponseRef = useRef(onAgentResponse);
   const onClientToolCallRef = useRef(onClientToolCall);
   const onUserTranscriptRef = useRef(onUserTranscript);
   const sessionRunIdRef = useRef(0);
   const startWakeRecognitionRef = useRef<() => void>(() => {});
+  const stopWakeRecognitionRef = useRef<() => void>(() => {});
   const toolCallIdRef = useRef(0);
   const wakeWordAvailableRef = useRef(true);
   const voiceActivationMode =
@@ -168,19 +182,23 @@ export function useHandsFreeVoiceSession({
   }
 
   function formatWakePrompt() {
-    return `Say "${WAKE_WORD}" when you need me.`;
+    return `Say ${WAKE_WORD_LABEL} when you need me.`;
   }
 
   function effectiveVoiceActivationMode() {
-    return voiceActivationMode === "wake_word" && !wakeWordAvailableRef.current
+    return voiceActivationMode !== "tap_to_talk" &&
+      !wakeWordAvailableRef.current
       ? "tap_to_talk"
       : voiceActivationMode;
   }
 
+  function usesWakePhraseMode() {
+    return effectiveVoiceActivationMode() !== "tap_to_talk";
+  }
+
   function formatIdlePrompt() {
     const effectiveMode = effectiveVoiceActivationMode();
-    if (effectiveMode === "tap_to_talk") return "Tap the mic to talk.";
-    if (effectiveMode === "always_listening") return "I'm listening.";
+    if (effectiveMode === "tap_to_talk") return "Tap to talk.";
     return formatWakePrompt();
   }
 
@@ -201,37 +219,33 @@ export function useHandsFreeVoiceSession({
   function armVoiceIdle(message?: string) {
     clearCommandTimeout();
     agentSpeakingRef.current = false;
-    const effectiveMode = effectiveVoiceActivationMode();
-    if (effectiveMode === "always_listening") {
-      acceptsVoiceRef.current = true;
-      setConversationMicMuted(false);
-      setMode((current) =>
-        current === "disconnected" ? current : "listening",
-      );
-    } else {
+    if (isAudioPausedRef.current) {
       acceptsVoiceRef.current = false;
-      setConversationMicMuted(true);
-      if (effectiveMode === "wake_word") {
-        startWakeRecognitionRef.current();
-      }
-      setMode((current) => (current === "disconnected" ? current : idleMode()));
+      stopWakeRecognitionRef.current();
+      setMode((current) => (current === "disconnected" ? current : "paused"));
+      return;
     }
+    acceptsVoiceRef.current = false;
+    setConversationMicMuted(true);
+    if (usesWakePhraseMode()) {
+      startWakeRecognitionRef.current();
+    }
+    setMode((current) => (current === "disconnected" ? current : idleMode()));
     if (message) {
       setAgentMessage(message);
       window.setTimeout(() => setAgentMessage(null), 3500);
     }
   }
 
-  function openCommandGate(message = `Heard "${WAKE_WORD}". Go ahead.`) {
+  function openCommandGate(message = "Heard you. Go ahead.") {
+    if (isAudioPausedRef.current) return;
     clearCommandTimeout();
     acceptsVoiceRef.current = true;
     agentSpeakingRef.current = false;
     setConversationMicMuted(false);
     setMode((current) => (current === "disconnected" ? current : "listening"));
     setAgentMessage(message);
-    setWakeDebug(null);
     window.setTimeout(() => setAgentMessage(null), 2500);
-    if (effectiveVoiceActivationMode() === "always_listening") return;
     commandTimeoutRef.current = window.setTimeout(() => {
       armVoiceIdle(formatIdlePrompt());
     }, WAKE_COMMAND_TIMEOUT_MS);
@@ -240,7 +254,8 @@ export function useHandsFreeVoiceSession({
   function startTapToTalk() {
     if (
       effectiveVoiceActivationMode() !== "tap_to_talk" ||
-      mode === "disconnected"
+      mode === "disconnected" ||
+      isAudioPausedRef.current
     ) {
       return;
     }
@@ -256,6 +271,10 @@ export function useHandsFreeVoiceSession({
     agentSpeakingRef.current = false;
     window.speechSynthesis?.cancel();
     localSpeechUtteranceRef.current = null;
+    if (isAudioPausedRef.current) {
+      setMode((current) => (current === "disconnected" ? current : "paused"));
+      return;
+    }
     setMode((current) =>
       current === "disconnected"
         ? current
@@ -266,7 +285,7 @@ export function useHandsFreeVoiceSession({
   }
 
   function speakLocal(text: string) {
-    if (!("speechSynthesis" in window)) return;
+    if (isAudioPausedRef.current || !("speechSynthesis" in window)) return;
 
     stopQueuedSpeech();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -284,6 +303,36 @@ export function useHandsFreeVoiceSession({
     };
     utterance.onerror = utterance.onend;
     window.speechSynthesis.speak(utterance);
+  }
+
+  function setConversationOutputVolume(volume: number) {
+    try {
+      conversationRef.current?.setVolume({ volume });
+    } catch {
+      // Output volume control is best-effort across SDK/browser modes.
+    }
+  }
+
+  function pauseAudioMode() {
+    isAudioPausedRef.current = true;
+    setIsAudioPaused(true);
+    clearCommandTimeout();
+    acceptsVoiceRef.current = false;
+    agentSpeakingRef.current = false;
+    stopWakeRecognitionRef.current();
+    window.speechSynthesis?.cancel();
+    localSpeechUtteranceRef.current = null;
+    setConversationOutputVolume(0);
+    setConversationMicMuted(true);
+    setAgentMessage("Audio paused.");
+    setMode((current) => (current === "disconnected" ? current : "paused"));
+  }
+
+  function resumeAudioMode() {
+    isAudioPausedRef.current = false;
+    setIsAudioPaused(false);
+    setConversationOutputVolume(1);
+    armVoiceIdle(formatIdlePrompt());
   }
 
   useEffect(() => {
@@ -369,7 +418,7 @@ export function useHandsFreeVoiceSession({
         const SpeechRecognition = getSpeechRecognitionConstructor();
         const wakeGateSupported = Boolean(SpeechRecognition);
         wakeWordAvailableRef.current =
-          voiceActivationMode !== "wake_word" || wakeGateSupported;
+          voiceActivationMode === "tap_to_talk" || wakeGateSupported;
 
         if (SpeechRecognition) {
           const warmupStream = await navigator.mediaDevices
@@ -391,13 +440,14 @@ export function useHandsFreeVoiceSession({
           recognition.interimResults = true;
           recognition.lang = "en-US";
           recognition.onresult = (event) => {
-            if (!isCurrentRun() || acceptsVoiceRef.current) return;
+            if (
+              !isCurrentRun() ||
+              acceptsVoiceRef.current ||
+              isAudioPausedRef.current
+            )
+              return;
             for (let i = 0; i < event.results.length; i++) {
               const heard = event.results[i]?.[0]?.transcript ?? "";
-              const normalizedHeard = heard.trim();
-              if (normalizedHeard) {
-                setWakeDebug(`Wake heard: ${normalizedHeard}`);
-              }
               if (WAKE_WORD_PATTERN.test(heard)) {
                 recognitionShouldRun = false;
                 try {
@@ -410,20 +460,21 @@ export function useHandsFreeVoiceSession({
               }
             }
           };
-          recognition.onerror = (event) => {
+          recognition.onerror = () => {
             if (!isCurrentRun()) return;
             recognitionShouldRun = false;
             wakeWordAvailableRef.current = false;
             armVoiceIdle("Wake phrase detection is unavailable. Tap to talk.");
-            setWakeDebug(
-              `Wake detector error: ${
-                "error" in event ? String(event.error) : "unknown"
-              }`,
-            );
           };
           recognition.onend = () => {
-            if (!isCurrentRun() || !recognitionShouldRun) return;
+            if (
+              !isCurrentRun() ||
+              !recognitionShouldRun ||
+              isAudioPausedRef.current
+            )
+              return;
             window.setTimeout(() => {
+              if (isAudioPausedRef.current) return;
               try {
                 recognition?.start();
               } catch {
@@ -432,7 +483,12 @@ export function useHandsFreeVoiceSession({
             }, 250);
           };
           startWakeRecognitionRef.current = () => {
-            if (!isCurrentRun() || acceptsVoiceRef.current) return;
+            if (
+              !isCurrentRun() ||
+              acceptsVoiceRef.current ||
+              isAudioPausedRef.current
+            )
+              return;
             recognitionShouldRun = true;
             try {
               recognition?.start();
@@ -440,8 +496,17 @@ export function useHandsFreeVoiceSession({
               // Browser may already be starting recognition.
             }
           };
+          stopWakeRecognitionRef.current = () => {
+            recognitionShouldRun = false;
+            try {
+              recognition?.stop();
+            } catch {
+              // Recognition may already be stopped.
+            }
+          };
         } else {
           startWakeRecognitionRef.current = () => {};
+          stopWakeRecognitionRef.current = () => {};
         }
 
         const stepsText = recipe.steps
@@ -453,6 +518,7 @@ export function useHandsFreeVoiceSession({
         const conversation = await Conversation.startSession({
           connectionType: "webrtc",
           conversationToken: tokenData.conversation_token,
+          useWakeLock: true,
           textOnly: false,
           dynamicVariables: {
             recipe_name: recipe.name,
@@ -489,18 +555,15 @@ export function useHandsFreeVoiceSession({
             if (!isCurrentRun()) return;
             reconnectAttempts = 0;
             setConnectionError(null);
-            if (voiceActivationMode === "wake_word" && wakeGateSupported) {
+            if (voiceActivationMode !== "tap_to_talk" && wakeGateSupported) {
               armVoiceIdle(`Hands-free is ready. ${formatIdlePrompt()}`);
-              setWakeDebug("Wake detector is listening locally.");
-            } else if (voiceActivationMode === "wake_word") {
+            } else if (voiceActivationMode !== "tap_to_talk") {
               wakeWordAvailableRef.current = false;
-              setWakeDebug("Wake detector is unavailable in this browser.");
               armVoiceIdle(
                 "Wake phrase is unavailable here. Tap the mic to talk.",
               );
             } else {
               armVoiceIdle(`Hands-free is ready. ${formatIdlePrompt()}`);
-              setWakeDebug(null);
             }
             window.setTimeout(() => setAgentMessage(null), 4000);
           },
@@ -523,9 +586,13 @@ export function useHandsFreeVoiceSession({
           },
           onMessage: ({ message, source }) => {
             if (!isCurrentRun()) return;
+            if (isAudioPausedRef.current) return;
             if (source === "user") {
               onUserTranscriptRef.current?.(message);
               setAgentMessage(`Heard: ${message}`);
+              acceptsVoiceRef.current = false;
+              clearCommandTimeout();
+              setConversationMicMuted(true);
               return;
             }
 
@@ -538,6 +605,10 @@ export function useHandsFreeVoiceSession({
           },
           onModeChange: ({ mode: nextMode }) => {
             if (!isCurrentRun()) return;
+            if (isAudioPausedRef.current) {
+              setMode("paused");
+              return;
+            }
             if (nextMode === "speaking") {
               clearCommandTimeout();
               acceptsVoiceRef.current = false;
@@ -548,12 +619,6 @@ export function useHandsFreeVoiceSession({
             }
 
             agentSpeakingRef.current = false;
-            if (effectiveVoiceActivationMode() === "always_listening") {
-              acceptsVoiceRef.current = true;
-              setConversationMicMuted(false);
-              setMode("listening");
-              return;
-            }
             armVoiceIdle(formatIdlePrompt());
           },
           onStatusChange: ({ status }) => {
@@ -574,7 +639,10 @@ export function useHandsFreeVoiceSession({
         }
 
         conversationRef.current = conversation;
-        conversation.setMicMuted(false);
+        setConversationOutputVolume(isAudioPausedRef.current ? 0 : 1);
+        if (!isAudioPausedRef.current) {
+          conversation.setMicMuted(false);
+        }
       } catch (error) {
         if (!isCurrentRun()) return;
         setMode("disconnected");
@@ -605,6 +673,7 @@ export function useHandsFreeVoiceSession({
         window.clearTimeout(reconnectTimer);
       }
       recognitionShouldRun = false;
+      stopWakeRecognitionRef.current = () => {};
       clearCommandTimeout();
       try {
         recognition?.stop();
@@ -634,11 +703,13 @@ export function useHandsFreeVoiceSession({
     agentMessage,
     canTapToTalk: effectiveVoiceActivationMode() === "tap_to_talk",
     connectionError,
+    isAudioPaused,
     mode,
+    pauseAudioMode,
+    resumeAudioMode,
     speakLocal,
     startTapToTalk,
     stopTapToTalk,
     stopQueuedSpeech,
-    wakeDebug,
   };
 }

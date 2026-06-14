@@ -1,4 +1,5 @@
 import type {
+  AiPlanningOptimization,
   AvailableAppliance,
   BiggestCookingFrustration,
   CalorieTrackingMode,
@@ -18,6 +19,14 @@ import type {
   TypicalMealTime,
   WeeklyBudget,
 } from "@cart/shared";
+
+export const AI_PLANNING_OPTIMIZATION_LABELS: Record<
+  AiPlanningOptimization,
+  string
+> = {
+  cost_reduction: "Reduce cost and use what I have",
+  trend_best_recipe: "Best recipe / trend-worthy result",
+};
 
 export const HOUSEHOLD_SIZE_LABELS: Record<HouseholdSize, string> = {
   just_me: "Just me",
@@ -157,15 +166,13 @@ export const GOAL_PRIORITY_LABELS: Record<GoalPriority, string> = {
   eat_more_plant_based: "Eat more plant-based",
 };
 
-export const CALORIE_TRACKING_MODE_LABELS: Record<
-  CalorieTrackingMode,
-  string
-> = {
-  none: "No, not for me",
-  casual: "Casually",
-  calories: "Track calories",
-  full_macros: "Track full macros",
-};
+export const CALORIE_TRACKING_MODE_LABELS: Record<CalorieTrackingMode, string> =
+  {
+    none: "No, not for me",
+    casual: "Casually",
+    calories: "Track calories",
+    full_macros: "Track full macros",
+  };
 
 export const WEEKLY_BUDGET_LABELS: Record<WeeklyBudget, string> = {
   under_50: "Under $50",
@@ -220,3 +227,30 @@ export const BIGGEST_COOKING_FRUSTRATION_LABELS: Record<
   make_mid_cook_mistakes: "I get stuck mid-cook",
   same_meals_on_repeat: "I keep repeating the same meals",
 };
+
+export const DIETARY_RESTRICTION_PRESETS = [
+  { slug: "nut-allergy", label: "Nut Allergy" },
+  { slug: "peanut-allergy", label: "Peanut Allergy" },
+  { slug: "tree-nut-allergy", label: "Tree Nut Allergy" },
+  { slug: "beef-free", label: "Beef-free" },
+  { slug: "pork-free", label: "Pork-free" },
+  { slug: "shellfish-free", label: "Shellfish-free" },
+  { slug: "dairy-free", label: "Dairy-free" },
+  { slug: "gluten-free", label: "Gluten-free" },
+  { slug: "halal", label: "Halal" },
+  { slug: "kosher", label: "Kosher" },
+  { slug: "vegetarian", label: "Vegetarian" },
+  { slug: "vegan", label: "Vegan" },
+  { slug: "pescatarian", label: "Pescatarian" },
+  { slug: "low-sodium", label: "Low sodium" },
+  { slug: "diabetic-friendly", label: "Diabetic-friendly" },
+  { slug: "gluten-intolerance", label: "Gluten Intolerance" },
+  { slug: "celiac-disease", label: "Celiac Disease" },
+  { slug: "lactose-intolerance", label: "Lactose Intolerance" },
+  { slug: "dairy-allergy", label: "Dairy Allergy" },
+  { slug: "shellfish-allergy", label: "Shellfish Allergy" },
+  { slug: "fish-allergy", label: "Fish Allergy" },
+  { slug: "egg-allergy", label: "Egg Allergy" },
+  { slug: "soy-allergy", label: "Soy Allergy" },
+  { slug: "wheat-allergy", label: "Wheat Allergy" },
+] as const;

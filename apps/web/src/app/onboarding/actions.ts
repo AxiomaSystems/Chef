@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ACCESS_TOKEN_COOKIE, buildApiUrl } from "@/lib/auth";
 import type {
+  AiPlanningOptimization,
   AvailableAppliance,
   BiggestCookingFrustration,
   CalorieTrackingMode,
@@ -55,6 +56,7 @@ export type SavePreferencesInput = {
   preferred_cooking_time: PreferredCookingTime | null;
   typical_meal_times: TypicalMealTime[];
   goal_priorities: GoalPriority[];
+  ai_planning_optimization: AiPlanningOptimization | null;
   calorie_tracking_mode: CalorieTrackingMode | null;
   weekly_nutrition_targets: WeeklyNutritionTargets;
   weekly_budget: WeeklyBudget | null;
@@ -134,6 +136,7 @@ function buildProfileMemoryRequest(
       preferred_cooking_time: input.preferred_cooking_time ?? undefined,
       typical_meal_times: input.typical_meal_times,
       calorie_tracking_mode: input.calorie_tracking_mode ?? undefined,
+      ai_planning_optimization: input.ai_planning_optimization ?? undefined,
       weekly_nutrition_targets: input.weekly_nutrition_targets,
       weekly_budget: input.weekly_budget ?? undefined,
       preferred_stores: input.preferred_stores,

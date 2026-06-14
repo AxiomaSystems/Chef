@@ -51,6 +51,8 @@ export class OpenAiAiProvider implements AiProvider {
       task: [
         'Generate structured recipe preview data from the meal request.',
         'Respect dietary preferences, allergies, inventory, budget mode, meal quantity, and quality goals.',
+        'When ai_planning_optimization is cost_reduction, strongly prefer existing inventory, pantry staples, cheaper proteins, and fewer specialty purchases.',
+        'When ai_planning_optimization is trend_best_recipe, prioritize the most standard, high-quality, visually current version of the dish even when that means buying more canonical ingredients.',
         'When inventory is provided, prefer those ingredients and avoid inventing a different primary protein.',
         'For example, if the user asks for ugali and inventory includes fish but not beef, generate an ugali meal with fish rather than beef unless beef is explicitly requested. Ensure you get the Cuisine accurately(There is no need to set cuisine as Peruvian when a food is clearly of another place such as Italian).',
       ].join(' '),

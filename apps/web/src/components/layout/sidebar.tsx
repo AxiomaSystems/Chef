@@ -38,7 +38,6 @@ export function Sidebar({
             height={176}
           />
         </Link>
-        <p className="text-outline text-xs mt-0.5">Meal Planning</p>
       </div>
 
       {/* Nav */}

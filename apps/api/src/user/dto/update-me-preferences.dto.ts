@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  AI_PLANNING_OPTIMIZATION_VALUES,
   AVAILABLE_APPLIANCE_VALUES,
   BIGGEST_COOKING_FRUSTRATION_VALUES,
   CALORIE_TRACKING_MODE_VALUES,
@@ -212,4 +213,9 @@ export class UpdateMePreferencesDto {
   @IsOptional()
   @IsIn(BIGGEST_COOKING_FRUSTRATION_VALUES)
   biggest_cooking_frustration?: string;
+
+  @ApiPropertyOptional({ enum: AI_PLANNING_OPTIMIZATION_VALUES })
+  @IsOptional()
+  @IsIn(AI_PLANNING_OPTIMIZATION_VALUES)
+  ai_planning_optimization?: string;
 }

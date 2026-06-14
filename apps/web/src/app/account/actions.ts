@@ -36,6 +36,18 @@ function parseOptionalNumber(formData: FormData, name: string) {
   return Number.isFinite(numberValue) ? numberValue : undefined;
 }
 
+function parseOptionalString(formData: FormData, name: string) {
+  const value = String(formData.get(name) ?? "").trim();
+  return value || undefined;
+}
+
+function parseStringArray(formData: FormData, name: string) {
+  return formData
+    .getAll(name)
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+}
+
 async function callAuthedJson(path: string, init?: RequestInit) {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
@@ -93,12 +105,11 @@ export async function updatePreferencesAction(
   _previousState: PreferencesActionState,
   formData: FormData,
 ): Promise<PreferencesActionState> {
-  const preferredCuisineIds = formData
-    .getAll("preferred_cuisine_ids")
-    .map((value) => String(value));
-  const preferredTagIds = formData
-    .getAll("preferred_tag_ids")
-    .map((value) => String(value));
+  const preferredCuisineIds = parseStringArray(
+    formData,
+    "preferred_cuisine_ids",
+  );
+  const preferredTagIds = parseStringArray(formData, "preferred_tag_ids");
   const shoppingLocationZipCode = String(
     formData.get("shopping_location_zip_code") ?? "",
   ).trim();
@@ -108,14 +119,14 @@ export async function updatePreferencesAction(
   const shoppingLocationKrogerLocationId = String(
     formData.get("shopping_location_kroger_location_id") ?? "",
   ).trim();
-  const customCuisineLabels = formData
-    .getAll("custom_cuisine_labels")
-    .map((value) => String(value).trim())
-    .filter(Boolean);
-  const customDietaryLabels = formData
-    .getAll("custom_dietary_labels")
-    .map((value) => String(value).trim())
-    .filter(Boolean);
+  const customCuisineLabels = parseStringArray(
+    formData,
+    "custom_cuisine_labels",
+  );
+  const customDietaryLabels = parseStringArray(
+    formData,
+    "custom_dietary_labels",
+  );
   const weeklyNutritionTargets = {
     calories: parseOptionalNumber(formData, "weekly_target_calories"),
     protein_g: parseOptionalNumber(formData, "weekly_target_protein_g"),
@@ -136,7 +147,41 @@ export async function updatePreferencesAction(
         label: shoppingLocationLabel,
         kroger_location_id: shoppingLocationKrogerLocationId,
       },
+      household_size: parseOptionalString(formData, "household_size"),
+      kids_profile: parseOptionalString(formData, "kids_profile"),
+      favorite_proteins: parseStringArray(formData, "favorite_proteins"),
+      favorite_flavors: parseStringArray(formData, "favorite_flavors"),
+      spice_level: parseOptionalString(formData, "spice_level"),
+      disliked_ingredients: parseStringArray(formData, "disliked_ingredients"),
+      disliked_textures: parseStringArray(formData, "disliked_textures"),
+      cooking_skill_level: parseOptionalString(formData, "cooking_skill_level"),
+      available_appliances: parseStringArray(formData, "available_appliances"),
+      preferred_cooking_time: parseOptionalString(
+        formData,
+        "preferred_cooking_time",
+      ),
+      typical_meal_times: parseStringArray(formData, "typical_meal_times"),
+      goal_priorities: parseStringArray(formData, "goal_priorities"),
+      calorie_tracking_mode: parseOptionalString(
+        formData,
+        "calorie_tracking_mode",
+      ),
       weekly_nutrition_targets: weeklyNutritionTargets,
+      weekly_budget: parseOptionalString(formData, "weekly_budget"),
+      preferred_stores: parseStringArray(formData, "preferred_stores"),
+      shopping_mode: parseOptionalString(formData, "shopping_mode"),
+      recipe_discovery_sources: parseStringArray(
+        formData,
+        "recipe_discovery_sources",
+      ),
+      biggest_cooking_frustration: parseOptionalString(
+        formData,
+        "biggest_cooking_frustration",
+      ),
+      ai_planning_optimization: parseOptionalString(
+        formData,
+        "ai_planning_optimization",
+      ),
     }),
   }).catch(() => null);
 

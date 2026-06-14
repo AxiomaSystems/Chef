@@ -8,6 +8,7 @@ import type {
   UserPreferences,
 } from "@cart/shared";
 import type {
+  AiPlanningOptimization,
   AvailableAppliance,
   BiggestCookingFrustration,
   CalorieTrackingMode,
@@ -41,6 +42,7 @@ import { StepLocation } from "@/components/onboarding/steps/step-location";
 import { InventoryClient } from "@/app/inventory/inventory-client";
 import {
   AVAILABLE_APPLIANCE_LABELS,
+  AI_PLANNING_OPTIMIZATION_LABELS,
   DISLIKED_INGREDIENT_LABELS,
   DISLIKED_TEXTURE_LABELS,
   FAVORITE_FLAVOR_LABELS,
@@ -118,6 +120,7 @@ type FormState = {
   preferred_cooking_time: PreferredCookingTime | null;
   typical_meal_times: TypicalMealTime[];
   goal_priorities: GoalPriority[];
+  ai_planning_optimization: AiPlanningOptimization | null;
   calorie_tracking_mode: CalorieTrackingMode | null;
   weekly_nutrition_targets: WeeklyNutritionTargets;
   weekly_budget: WeeklyBudget | null;
@@ -150,6 +153,7 @@ function buildInitialState(prefs: UserPreferences | null): FormState {
     preferred_cooking_time: prefs?.preferred_cooking_time ?? null,
     typical_meal_times: (prefs?.typical_meal_times ?? []) as TypicalMealTime[],
     goal_priorities: (prefs?.goal_priorities ?? []) as GoalPriority[],
+    ai_planning_optimization: prefs?.ai_planning_optimization ?? null,
     calorie_tracking_mode: prefs?.calorie_tracking_mode ?? null,
     weekly_nutrition_targets: prefs?.weekly_nutrition_targets ?? {},
     weekly_budget: prefs?.weekly_budget ?? null,
@@ -244,6 +248,12 @@ function buildMemoryItems(
 
   if (goalLabels.length > 0) {
     items.push(`Optimizes for ${joinLabels(goalLabels)}`);
+  }
+
+  if (form.ai_planning_optimization) {
+    items.push(
+      `AI planning: ${AI_PLANNING_OPTIMIZATION_LABELS[form.ai_planning_optimization]}`,
+    );
   }
 
   if (Object.values(form.weekly_nutrition_targets).some(Boolean)) {
@@ -428,9 +438,13 @@ export function OnboardingClient({
       {step === 7 && (
         <StepGoalsNutrition
           goalPriorities={form.goal_priorities}
+          aiPlanningOptimization={form.ai_planning_optimization}
           calorieTrackingMode={form.calorie_tracking_mode}
           weeklyNutritionTargets={form.weekly_nutrition_targets}
           onGoalPrioritiesChange={(v) => patch("goal_priorities", v)}
+          onAiPlanningOptimizationChange={(v) =>
+            patch("ai_planning_optimization", v)
+          }
           onCalorieTrackingModeChange={(v) => patch("calorie_tracking_mode", v)}
           onWeeklyNutritionTargetsChange={(v) =>
             patch("weekly_nutrition_targets", v)

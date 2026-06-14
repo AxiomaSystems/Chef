@@ -39,6 +39,8 @@ export class AiService {
       budget_mode: input.budget_mode ?? 'balanced',
       meal_style: input.meal_style ?? 'standard',
       quality_goals: input.quality_goals ?? [],
+      ai_planning_optimization:
+        input.ai_planning_optimization ?? 'cost_reduction',
       notes: input.notes ?? '',
     });
   }

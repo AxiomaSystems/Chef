@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import type { BaseRecipe } from "@cart/shared";
 import type { CookingContext } from "@/lib/cooking-context";
 import {
@@ -26,6 +27,22 @@ function cleanAgentText(text: string) {
     .replace(/\s{2,}/g, " ")
     .trim();
 }
+
+function formatIngredientQuantity(
+  ingredient: BaseRecipe["ingredients"][number],
+) {
+  return [ingredient.amount, ingredient.unit, ingredient.display_ingredient]
+    .filter((part) => part !== null && part !== undefined && part !== "")
+    .map(String)
+    .join(" ");
+}
+
+type ScreenWakeLockSentinel = {
+  released: boolean;
+  release: () => Promise<void>;
+  addEventListener: (type: "release", listener: () => void) => void;
+  removeEventListener: (type: "release", listener: () => void) => void;
+};
 
 type Props = {
   recipe: BaseRecipe;
@@ -58,16 +75,6 @@ export function HandsFreeMode({
   const handledToolCallIdsRef = useRef(new Set<string>());
   const transcriptIdRef = useRef(0);
 
-  const currentPhase =
-    activeStep === 0
-      ? "Getting set up"
-      : activeStep >= recipe.steps.length - 1
-        ? "Finishing"
-        : activeStep < recipe.steps.length / 3
-          ? "Building momentum"
-          : activeStep < (recipe.steps.length * 2) / 3
-            ? "Active cooking"
-            : "Bring it home";
   function addTranscript(speaker: TranscriptEntry["speaker"], text: string) {
     const trimmed =
       speaker === "chef"
@@ -124,6 +131,53 @@ export function HandsFreeMode({
   useEffect(() => {
     timersRef.current = timers;
   }, [timers]);
+
+  useEffect(() => {
+    let mounted = true;
+    let wakeLock: ScreenWakeLockSentinel | null = null;
+    const nav = navigator as Navigator & {
+      wakeLock?: {
+        request: (type: "screen") => Promise<ScreenWakeLockSentinel>;
+      };
+    };
+
+    function handleWakeLockRelease() {
+      wakeLock?.removeEventListener("release", handleWakeLockRelease);
+      wakeLock = null;
+      if (mounted && document.visibilityState === "visible") {
+        void requestWakeLock();
+      }
+    }
+
+    async function requestWakeLock() {
+      if (!mounted || !nav.wakeLock || document.visibilityState !== "visible") {
+        return;
+      }
+      try {
+        wakeLock = await nav.wakeLock.request("screen");
+        wakeLock.addEventListener("release", handleWakeLockRelease);
+      } catch {
+        wakeLock = null;
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible" && !wakeLock) {
+        void requestWakeLock();
+      }
+    }
+
+    void requestWakeLock();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      mounted = false;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      wakeLock?.removeEventListener("release", handleWakeLockRelease);
+      void wakeLock?.release().catch(() => {});
+      wakeLock = null;
+    };
+  }, []);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -564,11 +618,14 @@ export function HandsFreeMode({
     agentMessage,
     canTapToTalk,
     connectionError,
+    isAudioPaused,
     mode,
+    pauseAudioMode,
+    resumeAudioMode,
     speakLocal,
     startTapToTalk,
     stopTapToTalk,
-    wakeDebug,
+    stopQueuedSpeech,
   } = useHandsFreeVoiceSession({
     cookingContext,
     onAgentResponse: (text) => addTranscript("chef", text),
@@ -581,6 +638,11 @@ export function HandsFreeMode({
     sessionContext,
   });
 
+  function moveStep(delta: number) {
+    stopQueuedSpeech();
+    goToStep(activeStepRef.current + delta);
+  }
+
   const modeConfig: Record<
     HandsFreeModeStatus,
     { label: string; icon: string; ring: string }
@@ -591,7 +653,7 @@ export function HandsFreeMode({
       ring: "bg-[#fff8ef] text-outline",
     },
     waiting_for_wake: {
-      label: 'Say "Chef"',
+      label: "Say Chef, Prep, or Preppie",
       icon: "radio_button_checked",
       ring: "bg-[#ecf8f4] text-[#2f7f83]",
     },
@@ -610,17 +672,31 @@ export function HandsFreeMode({
       icon: "volume_up",
       ring: "bg-[#fff2e3] text-primary",
     },
+    paused: {
+      label: "Audio paused",
+      icon: "pause",
+      ring: "bg-surface-container text-outline",
+    },
     disconnected: {
       label: "Disconnected",
       icon: "mic_off",
       ring: "bg-error-container/50 text-error",
     },
   };
-  const { label, icon, ring } = modeConfig[mode];
+  const { label, ring } = modeConfig[mode];
   const visibleTimers = timers.filter((timer) => !timer.completed).slice(0, 4);
   const completedTimers = timers.filter((timer) => timer.completed).slice(0, 2);
+  const currentStep = recipe.steps[activeStep];
+  const stepProgress = recipe.steps.length
+    ? ((activeStep + 1) / recipe.steps.length) * 100
+    : 0;
+  const ingredientQuantityItems = recipe.ingredients
+    .map(formatIngredientQuantity)
+    .filter(Boolean)
+    .slice(0, 8);
+
   return (
-    <div className="fixed inset-0 z-80 overflow-y-auto bg-[#fff8ef] text-on-surface">
+    <div className="fixed inset-0 z-80 max-w-full overflow-x-hidden overflow-y-auto bg-[#fff8ef] text-on-surface">
       <video
         className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-70"
         src="/videos/axioma-blobs.mp4"
@@ -632,19 +708,19 @@ export function HandsFreeMode({
       />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(180deg,rgba(255,248,239,0.28)_0%,rgba(255,253,250,0.56)_44%,rgba(255,248,239,0.68)_100%)]" />
 
-      <div className="relative flex min-h-dvh flex-col">
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-[#eadfd2]/80 bg-[#fffdfa]/78 px-4 py-4 backdrop-blur-xl sm:px-6">
+      <div className="relative flex min-h-dvh min-w-0 max-w-full flex-col overflow-x-hidden">
+        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-[#eadfd2]/80 bg-[#fffdfa]/78 px-3 py-2.5 backdrop-blur-xl sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff2e3] text-primary shadow-sm">
+            <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff2e3] text-primary shadow-sm sm:flex">
               <span className="material-symbols-outlined text-[22px]">
                 cooking
               </span>
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary sm:text-[10px]">
                 Hands-free
               </p>
-              <h2 className="truncate text-xl font-black leading-tight text-on-surface sm:text-2xl">
+              <h2 className="truncate text-base font-black leading-tight text-on-surface sm:text-2xl">
                 {recipe.name}
               </h2>
             </div>
@@ -654,65 +730,117 @@ export function HandsFreeMode({
             type="button"
             onClick={onClose}
             aria-label="Exit cooking copilot"
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-[#c0dedf] bg-white text-[#5f8689] shadow-sm hover:bg-[#fff8ef] hover:text-on-surface"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#c0dedf] bg-white text-[#5f8689] shadow-sm hover:bg-[#fff8ef] hover:text-on-surface sm:h-11 sm:w-11"
           >
             <span className="material-symbols-outlined text-[22px]">close</span>
           </button>
         </header>
 
-        <main className="grid flex-1 gap-5 px-4 py-5 pb-28 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:pb-6 xl:grid-cols-[minmax(0,1fr)_25rem]">
-          <section className="space-y-4">
-            <section className="rounded-[1.75rem] border border-[#c0dedf] bg-white/80 p-5 shadow-[0_18px_50px_rgba(60,154,158,0.12)] backdrop-blur-xl">
-              <div className="flex items-center gap-4">
-                <div className="relative grid h-20 w-20 shrink-0 place-items-center">
+        <main className="grid min-w-0 flex-1 max-w-full gap-4 overflow-x-hidden px-2 py-3 pb-20 sm:px-6 sm:py-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:pb-6 xl:grid-cols-[minmax(0,1fr)_25rem]">
+          <section className="min-w-0 max-w-full space-y-3 overflow-hidden sm:space-y-4">
+            <section className="min-w-0 max-w-full overflow-hidden rounded-[1.25rem] border border-[#c0dedf] bg-white/84 p-3 shadow-[0_14px_42px_rgba(60,154,158,0.11)] backdrop-blur-xl sm:rounded-[1.75rem] sm:p-5">
+              <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+                <button
+                  type="button"
+                  onClick={isAudioPaused ? resumeAudioMode : pauseAudioMode}
+                  disabled={mode === "connecting" || mode === "disconnected"}
+                  aria-label={
+                    isAudioPaused
+                      ? "Resume Preppie audio"
+                      : "Pause Preppie audio"
+                  }
+                  aria-pressed={isAudioPaused}
+                  className="relative grid h-16 w-16 shrink-0 place-items-center disabled:cursor-not-allowed disabled:opacity-70 sm:h-20 sm:w-20"
+                >
                   <span
                     className={`absolute inset-0 rounded-full ${
                       mode === "listening"
                         ? "animate-ping bg-primary/18"
                         : mode === "speaking"
                           ? "bg-[#c0dedf]/60"
-                          : "bg-[#fff2e3]"
+                          : mode === "paused"
+                            ? "bg-surface-container"
+                            : "bg-[#fff2e3]"
                     }`}
                   />
                   <span
-                    className={`relative grid h-14 w-14 place-items-center rounded-full border border-[#c0dedf] ${ring}`}
+                    className={`relative grid h-12 w-12 place-items-center overflow-hidden rounded-full border border-[#c0dedf] bg-white sm:h-14 sm:w-14 ${ring}`}
                   >
-                    <span className="material-symbols-outlined text-[26px]">
-                      {icon}
-                    </span>
+                    <Image
+                      src="/P_Preppie Logo_web.png"
+                      alt=""
+                      width={48}
+                      height={48}
+                      className={`h-10 w-10 object-contain sm:h-12 sm:w-12 ${
+                        isAudioPaused ? "grayscale" : ""
+                      }`}
+                    />
                   </span>
-                </div>
+                </button>
 
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-                    {label}
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">
+                        Step {activeStep + 1}/{recipe.steps.length}
+                      </p>
+                      <p className="text-[10px] font-bold text-outline sm:text-xs">
+                        {label}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => moveStep(-1)}
+                        disabled={activeStep === 0}
+                        aria-label="Previous step"
+                        className="grid h-9 w-9 place-items-center rounded-full border border-[#c0dedf] bg-white text-[#5f8689] transition-colors hover:bg-[#fff8ef] disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:w-10"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">
+                          arrow_back
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveStep(1)}
+                        disabled={activeStep >= recipe.steps.length - 1}
+                        aria-label="Next step"
+                        className="grid h-9 w-9 place-items-center rounded-full bg-primary text-on-primary shadow-[0_10px_24px_rgba(244,121,13,0.18)] transition-colors hover:bg-on-primary-container disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:w-10"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">
+                          arrow_forward
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="line-clamp-4 text-base font-black leading-5 text-on-surface sm:text-2xl sm:leading-8">
+                    {currentStep?.what_to_do ?? "No recipe step loaded."}
                   </p>
-                  <p className="mt-1 line-clamp-3 text-lg font-black leading-6 text-on-surface">
-                    {agentMessage ??
-                      (mode === "waiting_for_wake"
-                        ? 'Say "Chef" when you need me.'
-                        : mode === "waiting_for_tap"
-                          ? "Tap the mic when you need me."
-                          : mode === "listening"
-                            ? "I'm listening."
-                            : mode === "speaking"
-                              ? "Chef is responding."
-                              : mode === "connecting"
-                                ? "Setting up Chef..."
-                                : "Voice is offline.")}
-                  </p>
+
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[#fff2e3] sm:h-2">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      style={{ width: `${stepProgress}%` }}
+                    />
+                  </div>
+
+                  {agentMessage &&
+                  (mode === "listening" ||
+                    mode === "speaking" ||
+                    mode === "paused" ||
+                    mode === "connecting" ||
+                    mode === "disconnected") ? (
+                    <p className="line-clamp-2 text-xs font-semibold leading-4 text-on-surface-variant">
+                      {agentMessage}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
               {connectionError ? (
                 <p className="mt-4 rounded-2xl border border-error/20 bg-error-container/35 px-4 py-3 text-sm leading-6 text-error">
                   {connectionError}
-                </p>
-              ) : null}
-
-              {wakeDebug && mode !== "disconnected" ? (
-                <p className="mt-3 rounded-2xl bg-[#fff8ef] px-4 py-3 text-xs leading-5 text-outline">
-                  {wakeDebug}
                 </p>
               ) : null}
 
@@ -723,28 +851,42 @@ export function HandsFreeMode({
                   onClick={
                     mode === "listening" ? stopTapToTalk : startTapToTalk
                   }
-                  className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-black text-on-primary shadow-[0_12px_28px_rgba(244,121,13,0.22)]"
+                  aria-label={
+                    mode === "listening" ? "Stop listening" : "Tap to talk"
+                  }
+                  className="mt-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-on-primary shadow-[0_12px_28px_rgba(244,121,13,0.22)]"
                 >
                   <span className="material-symbols-outlined text-[20px]">
                     {mode === "listening" ? "mic_off" : "mic"}
                   </span>
-                  {mode === "listening" ? "Stop listening" : "Tap to talk"}
                 </button>
+              ) : null}
+
+              {ingredientQuantityItems.length > 0 ? (
+                <div className="mt-3 max-w-full overflow-x-auto pb-1">
+                  <div className="flex w-max max-w-none gap-2 pr-2">
+                    {ingredientQuantityItems.map((item, index) => (
+                      <span
+                        key={`${item}-${index}`}
+                        className="max-w-[11rem] truncate rounded-full border border-[#c0dedf]/70 bg-[#fffdfa] px-3 py-1.5 text-[11px] font-bold text-on-surface-variant"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               ) : null}
             </section>
 
             <HandsFreeAsidePanels
-              activeStep={activeStep}
               adaptations={adaptations}
               completedTimers={completedTimers}
-              currentPhase={currentPhase}
-              recipe={recipe}
               setTimers={setTimers}
               visibleTimers={visibleTimers}
             />
           </section>
 
-          <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+          <aside className="min-w-0 max-w-full space-y-4 overflow-hidden lg:sticky lg:top-24 lg:self-start">
             <HandsFreeTranscriptPanel
               lastAction={lastAction}
               lastHeard={lastHeard}

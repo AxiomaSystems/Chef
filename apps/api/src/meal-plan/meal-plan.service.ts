@@ -524,7 +524,9 @@ export class MealPlanService {
         }
 
         const servingMultiplier =
-          event.servings && event.servings > 0 ? event.servings : 1;
+          event.servings && event.servings > 0 && recipe.servings
+            ? event.servings / recipe.servings
+            : 1;
 
         return {
           calories:

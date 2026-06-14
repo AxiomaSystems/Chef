@@ -50,8 +50,8 @@ const VOICE_ACTIVATION_OPTIONS: Array<{
 }> = [
   {
     value: "wake_word",
-    label: 'Say "Chef"',
-    detail: "Best when your browser supports local speech recognition.",
+    label: "Say Chef",
+    detail: "Also recognizes Prep and Preppie before each command.",
   },
   {
     value: "tap_to_talk",
@@ -60,8 +60,8 @@ const VOICE_ACTIVATION_OPTIONS: Array<{
   },
   {
     value: "always_listening",
-    label: "Always listening",
-    detail: "Mic stays open while hands-free mode is active.",
+    label: "Wake listening",
+    detail: "Listens for Chef, Prep, or Preppie while cook mode is active.",
   },
 ];
 

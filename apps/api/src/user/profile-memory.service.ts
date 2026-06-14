@@ -419,6 +419,10 @@ export class ProfileMemoryService {
         preferences.biggest_cooking_frustration;
     }
 
+    if (preferences.ai_planning_optimization !== undefined) {
+      userData.aiPlanningOptimization = preferences.ai_planning_optimization;
+    }
+
     if (Object.keys(userData).length > 0) {
       await tx.user.update({
         where: { id: userId },

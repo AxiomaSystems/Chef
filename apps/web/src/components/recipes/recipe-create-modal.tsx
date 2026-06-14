@@ -289,6 +289,12 @@ export function RecipeCreateModal({
   const [lastAutofilledName, setLastAutofilledName] = useState("");
   const [editSaveMode, setEditSaveMode] = useState<"update" | "copy">("update");
 
+  function clearCuisineRequiredError() {
+    setError((currentError) =>
+      currentError === "Cuisine is required." ? undefined : currentError,
+    );
+  }
+
   function isLikelyEmptyRecipeDraft() {
     const hasDescription = description.trim().length > 0;
     const hasRealIngredients = ingredients.some(
@@ -379,6 +385,9 @@ export function RecipeCreateModal({
     setIsCuisineMenuOpen(true);
     const cuisine = nextQuery.trim() ? resolveCuisineForText(nextQuery) : null;
     setCuisineId(cuisine?.id ?? "");
+    if (cuisine?.id) {
+      clearCuisineRequiredError();
+    }
   }
 
   function commitCuisineQuery() {
@@ -387,11 +396,13 @@ export function RecipeCreateModal({
     if (matchedCuisine) {
       setCuisineId(matchedCuisine.id);
       setCuisineQuery(matchedCuisine.label);
+      clearCuisineRequiredError();
       return;
     }
 
     if (cuisineQuery.trim()) {
       setCuisineId(getFallbackCuisine()?.id ?? "");
+      clearCuisineRequiredError();
     }
 
     setIsCuisineMenuOpen(false);
@@ -417,6 +428,7 @@ export function RecipeCreateModal({
     setCuisineId(cuisine.id);
     setCuisineQuery(cuisine.label);
     setIsCuisineMenuOpen(false);
+    clearCuisineRequiredError();
   }
 
   function handleServingsChange(nextValue: string) {
@@ -443,11 +455,13 @@ export function RecipeCreateModal({
     if (matchedCuisine) {
       setCuisineId(matchedCuisine.id);
       setCuisineQuery(matchedCuisine.label);
+      clearCuisineRequiredError();
       return;
     }
 
     setCuisineId(getFallbackCuisine()?.id ?? "");
     setCuisineQuery(label.trim());
+    clearCuisineRequiredError();
   }
 
   function getSelectedCuisineLabel() {
@@ -600,6 +614,7 @@ export function RecipeCreateModal({
     recipe: AiRecipePreview,
     options: { renameRecipe?: boolean } = {},
   ) {
+    setError(undefined);
     if (options.renameRecipe && recipe.name.trim()) {
       setName(recipe.name.trim());
     }

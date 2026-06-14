@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type {
   AvailableAppliance,
+  AiPlanningOptimization,
   BiggestCookingFrustration,
   CalorieTrackingMode,
   CheckoutProfile,
@@ -150,6 +151,7 @@ export class MeService {
       shoppingMode: string | null;
       recipeDiscoverySources: unknown;
       biggestCookingFrustration: string | null;
+      aiPlanningOptimization: string | null;
     };
     preferredCuisines: Array<{
       cuisine: Parameters<typeof mapCuisine>[0];
@@ -241,6 +243,8 @@ export class MeService {
       ) as RecipeDiscoverySource[],
       biggest_cooking_frustration: (input.user.biggestCookingFrustration ??
         undefined) as BiggestCookingFrustration | undefined,
+      ai_planning_optimization: (input.user.aiPlanningOptimization ??
+        undefined) as AiPlanningOptimization | undefined,
     };
   }
 
@@ -507,6 +511,7 @@ export class MeService {
           shoppingMode: true,
           recipeDiscoverySources: true,
           biggestCookingFrustration: true,
+          aiPlanningOptimization: true,
         },
       }),
       this.prisma.userPreferredCuisine.findMany({
@@ -634,6 +639,7 @@ export class MeService {
             input.recipe_discovery_sources,
           ),
           biggestCookingFrustration: input.biggest_cooking_frustration ?? null,
+          aiPlanningOptimization: input.ai_planning_optimization ?? null,
         },
       }),
       this.prisma.userPreferredCuisine.deleteMany({

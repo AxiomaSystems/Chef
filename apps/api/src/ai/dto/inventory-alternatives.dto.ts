@@ -47,11 +47,44 @@ export class InventoryAlternativeItemDto {
   @MaxLength(200)
   display_name!: string;
 
+  @ApiPropertyOptional({ example: 'ingredient-turkey' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  ingredient_id?: string | null;
+
+  @ApiPropertyOptional({ example: 'turkey' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  canonical_name?: string | null;
+
   @ApiPropertyOptional({ example: 'protein' })
   @IsOptional()
   @IsString()
   @MaxLength(120)
   category?: string | null;
+
+  @ApiPropertyOptional({ example: 1.5 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(10000)
+  estimated_amount?: number | null;
+
+  @ApiPropertyOptional({ example: 'lb' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  unit?: string | null;
+
+  @ApiPropertyOptional({ example: ['turkey breast', 'turkey cutlets'] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  @MaxLength(120, { each: true })
+  aliases?: string[];
 }
 
 export class InventoryAlternativesDto {

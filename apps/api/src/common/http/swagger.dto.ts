@@ -514,6 +514,9 @@ export class UserPreferencesResponseDto {
 
   @ApiPropertyOptional({ example: 'dont_know_what_to_make' })
   biggest_cooking_frustration?: string;
+
+  @ApiPropertyOptional({ example: 'cost_reduction' })
+  ai_planning_optimization?: string;
 }
 
 export class UserFoodRuleResponseDto {

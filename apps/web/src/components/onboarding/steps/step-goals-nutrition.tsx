@@ -1,35 +1,42 @@
 "use client";
 
 import type {
+  AiPlanningOptimization,
   CalorieTrackingMode,
   GoalPriority,
   WeeklyNutritionTargets,
 } from "@cart/shared";
 import {
+  AI_PLANNING_OPTIMIZATION_VALUES,
   CALORIE_TRACKING_MODE_VALUES,
   GOAL_PRIORITY_VALUES,
 } from "@cart/shared";
 import { ChipMultiSelect } from "@/components/onboarding/ui/chip-multi-select";
 import { ChipSingleSelect } from "@/components/onboarding/ui/chip-single-select";
 import {
+  AI_PLANNING_OPTIMIZATION_LABELS,
   CALORIE_TRACKING_MODE_LABELS,
   GOAL_PRIORITY_LABELS,
 } from "@/components/onboarding/labels";
 
 type Props = {
   goalPriorities: GoalPriority[];
+  aiPlanningOptimization: AiPlanningOptimization | null;
   calorieTrackingMode: CalorieTrackingMode | null;
   weeklyNutritionTargets: WeeklyNutritionTargets;
   onGoalPrioritiesChange: (v: GoalPriority[]) => void;
+  onAiPlanningOptimizationChange: (v: AiPlanningOptimization) => void;
   onCalorieTrackingModeChange: (v: CalorieTrackingMode) => void;
   onWeeklyNutritionTargetsChange: (v: WeeklyNutritionTargets) => void;
 };
 
 export function StepGoalsNutrition({
   goalPriorities,
+  aiPlanningOptimization,
   calorieTrackingMode,
   weeklyNutritionTargets,
   onGoalPrioritiesChange,
+  onAiPlanningOptimizationChange,
   onCalorieTrackingModeChange,
   onWeeklyNutritionTargetsChange,
 }: Props) {
@@ -56,6 +63,22 @@ export function StepGoalsNutrition({
           selected={goalPriorities}
           onChange={onGoalPrioritiesChange}
           getLabel={(v) => GOAL_PRIORITY_LABELS[v]}
+        />
+      </div>
+
+      <div className="grid gap-3">
+        <p className="text-label-lg font-semibold text-[#315f62]">
+          What should Preppie optimize for?
+        </p>
+        <p className="text-body-sm text-[#5f8689]">
+          Cost reduction uses your kitchen first. Best recipe prioritizes the
+          most standard, trend-worthy result.
+        </p>
+        <ChipSingleSelect
+          options={AI_PLANNING_OPTIMIZATION_VALUES}
+          selected={aiPlanningOptimization}
+          onChange={onAiPlanningOptimizationChange}
+          getLabel={(v) => AI_PLANNING_OPTIMIZATION_LABELS[v]}
         />
       </div>
 

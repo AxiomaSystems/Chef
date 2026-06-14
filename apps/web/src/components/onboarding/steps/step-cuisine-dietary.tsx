@@ -2,21 +2,7 @@
 
 import { useState } from "react";
 import type { Cuisine, Tag } from "@cart/shared";
-
-const DIETARY_RESTRICTION_PRESETS = [
-  { slug: "nut-allergy", label: "Nut Allergy" },
-  { slug: "peanut-allergy", label: "Peanut Allergy" },
-  { slug: "tree-nut-allergy", label: "Tree Nut Allergy" },
-  { slug: "gluten-intolerance", label: "Gluten Intolerance" },
-  { slug: "celiac-disease", label: "Celiac Disease" },
-  { slug: "lactose-intolerance", label: "Lactose Intolerance" },
-  { slug: "dairy-allergy", label: "Dairy Allergy" },
-  { slug: "shellfish-allergy", label: "Shellfish Allergy" },
-  { slug: "fish-allergy", label: "Fish Allergy" },
-  { slug: "egg-allergy", label: "Egg Allergy" },
-  { slug: "soy-allergy", label: "Soy Allergy" },
-  { slug: "wheat-allergy", label: "Wheat Allergy" },
-];
+import { DIETARY_RESTRICTION_PRESETS } from "@/components/onboarding/labels";
 
 function toRestrictionSlug(text: string): string {
   return text
@@ -127,7 +113,7 @@ export function StepCuisineDietary({
     onDietaryRestrictionsChange(dietaryRestrictions.filter((s) => s !== slug));
   }
 
-  const presetRestrictionSlugs = new Set(
+  const presetRestrictionSlugs = new Set<string>(
     DIETARY_RESTRICTION_PRESETS.map((p) => p.slug),
   );
   const customRestrictions = dietaryRestrictions.filter(
