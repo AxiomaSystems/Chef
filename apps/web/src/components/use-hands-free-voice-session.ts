@@ -151,7 +151,6 @@ export function useHandsFreeVoiceSession({
   const commandTimeoutRef = useRef<number | null>(null);
   const conversationRef = useRef<ElevenLabsConversation | null>(null);
   const isAudioPausedRef = useRef(false);
-  const localSpeechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const onAgentResponseRef = useRef(onAgentResponse);
   const onClientToolCallRef = useRef(onClientToolCall);
   const onUserTranscriptRef = useRef(onUserTranscript);
@@ -269,8 +268,6 @@ export function useHandsFreeVoiceSession({
 
   function stopQueuedSpeech() {
     agentSpeakingRef.current = false;
-    window.speechSynthesis?.cancel();
-    localSpeechUtteranceRef.current = null;
     if (isAudioPausedRef.current) {
       setMode((current) => (current === "disconnected" ? current : "paused"));
       return;
@@ -282,27 +279,6 @@ export function useHandsFreeVoiceSession({
           ? "listening"
           : idleMode(),
     );
-  }
-
-  function speakLocal(text: string) {
-    if (isAudioPausedRef.current || !("speechSynthesis" in window)) return;
-
-    stopQueuedSpeech();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
-    localSpeechUtteranceRef.current = utterance;
-    setConversationMicMuted(true);
-    setMode("speaking");
-    utterance.onend = () => {
-      if (localSpeechUtteranceRef.current === utterance) {
-        localSpeechUtteranceRef.current = null;
-        agentSpeakingRef.current = false;
-        armVoiceIdle(formatIdlePrompt());
-      }
-    };
-    utterance.onerror = utterance.onend;
-    window.speechSynthesis.speak(utterance);
   }
 
   function setConversationOutputVolume(volume: number) {
@@ -320,8 +296,6 @@ export function useHandsFreeVoiceSession({
     acceptsVoiceRef.current = false;
     agentSpeakingRef.current = false;
     stopWakeRecognitionRef.current();
-    window.speechSynthesis?.cancel();
-    localSpeechUtteranceRef.current = null;
     setConversationOutputVolume(0);
     setConversationMicMuted(true);
     setAgentMessage("Audio paused.");
@@ -680,8 +654,6 @@ export function useHandsFreeVoiceSession({
       } catch {
         // Recognition may already be stopped.
       }
-      window.speechSynthesis?.cancel();
-      localSpeechUtteranceRef.current = null;
       const conversation = activeConversation;
       if (conversationRef.current === conversation) {
         conversationRef.current = null;
@@ -707,7 +679,6 @@ export function useHandsFreeVoiceSession({
     mode,
     pauseAudioMode,
     resumeAudioMode,
-    speakLocal,
     startTapToTalk,
     stopTapToTalk,
     stopQueuedSpeech,
