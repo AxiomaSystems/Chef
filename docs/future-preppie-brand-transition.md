@@ -1,18 +1,38 @@
-# Future Preppie Brand Transition
+# Preppie Brand Transition Notes
 
-This note records the deeper brand migration work that should wait until the team is ready for a coordinated rename. For the current client/demo pass, keep the scope to visible web UI copy and logos only.
+Preppie is now the product-facing brand. `business_plan.pdf` is the source of truth for product positioning, pricing, go-to-market, and roadmap.
 
-## Do Later, Deliberately
+The codebase still contains internal Chef naming in routes, DTOs, packages, copy, docs, and deployment references. Do not rename those casually. Product-facing docs and public-facing copy should use Preppie, while internal technical names should remain stable until a coordinated migration is planned.
 
-- Rename backend/API public strings from Chef to Preppie.
-- Rename shared types such as Chef memory DTOs only with coordinated frontend/backend updates.
-- Rename `/chef-ai` only after redirects, navigation, analytics, screenshots, and docs are updated.
-- Rename lab packages such as `chef_llm` and `chef_vision` only with import-path verification.
-- Rename hosting/repository references such as AxiomaSystems/Chef only when deploy settings are ready.
-- Replace app/PWA/mobile icons only after checking Expo, Next metadata, manifest, service worker cache names, and deployed asset paths.
-- Update docs and historical handoff files in one controlled documentation pass.
+## Use Preppie Now
 
-## Current Demo Scope
+- README and product-facing docs.
+- Website/app copy intended for screenshots or customer demos.
+- Business, GTM, pricing, roadmap, and customer-facing feature descriptions.
+- Brand references such as the AI sous chef and parrot mascot.
 
-- Use Preppie in visible website surfaces for screenshots.
-- Keep existing routes, filenames, API contracts, service-worker names, mobile config, and hosting references stable.
+## Keep Existing Internal Names For Now
+
+- Backend/API public strings that are tied to existing contracts.
+- Routes such as `/chef-ai` until redirects, navigation, analytics, screenshots, and docs are updated.
+- Shared types such as Chef memory DTOs unless frontend/backend code changes together.
+- Lab packages such as `chef_llm` and `chef_vision`.
+- Hosting/repository references such as `AxiomaSystems/Chef` until deploy settings are ready.
+- App/PWA/mobile icons, manifests, service-worker names, and deployed asset paths until cache and platform behavior are checked.
+
+## Migration Rule
+
+When a doc describes the product, say Preppie.
+
+When a doc describes current code, routes, DTOs, database fields, package names, or deployment settings, use the current technical name and explain that it is an internal legacy name when needed.
+
+## Later Coordinated Rename
+
+A deeper rename should include:
+
+- API routes and Swagger copy audit
+- frontend route/nav redirect plan
+- shared DTO/type rename plan
+- deployment and environment variable review
+- app metadata, manifest, icon, and service-worker cache review
+- search pass through docs, code, screenshots, and seeded data

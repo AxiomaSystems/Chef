@@ -1,6 +1,6 @@
 # AGENTS
 
-This file defines expectations for AI agents contributing to Chef.
+This file defines expectations for AI agents contributing to Preppie.
 
 It is written for agent-assisted coding workflows used by the team. It applies whether the agent is generating code, reviewing code, refactoring, documenting, or preparing deploy work.
 
@@ -55,6 +55,8 @@ Preferred behavior:
 - read only the files needed for the current task
 - prefer entrypoints, touched files, diffs, and referenced docs over exploratory repo-wide reading
 - read small slices first (`Get-Content -TotalCount`, targeted matches, nearby sections), then expand only if needed
+- use the `pdf-to-markdown` skill when reading PDFs so full-document context can be extracted once and reused efficiently
+- use the `create-readme` skill when creating or updating `README.md`
 - rely on the repo docs that already capture branch/process/setup state
 - summarize long docs instead of quoting them back
 - avoid broad repo scans unless the task truly needs them
