@@ -49,6 +49,7 @@ yarn-error.log*
 .railway/
 docs-private/
 docs/superpowers/
+/artifacts/
 
 # Vision / ML artifacts
 *.pt

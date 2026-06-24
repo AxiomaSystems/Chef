@@ -93,6 +93,29 @@ When a task is about process, setup, architecture, or handoff context, prefer ch
 
 If a task is about process rather than code, start from the smallest relevant source instead of exploring the whole repo again.
 
+## Repo Context Map
+
+Agents should use the project docs as context pointers, not as content to paste
+back into `AGENTS.md`.
+
+Useful sources:
+
+- `README.md`: high-level product and repository overview
+- `local-dev-setup.md`: current local startup, env, and reset flow
+- `docs/branching.md`: branch policy and integration expectations
+- `docs/architecture.md`: system boundaries and module overview
+- `docs/models.md`: shared domain models and type ownership
+- `docs/frontend-meal-plan-handoff.md`: current flexible meal-plan contract
+- `docs/supabase-database.md`: database environment and Supabase notes
+- `docs/specs/`: approved or in-progress feature/backend specs
+- `docs/archive/`: historical docs that should not drive new implementation unless explicitly referenced
+- `.github/workflows/`: CI behavior and expected checks
+- `scripts/`: setup, env, and local automation entry points
+
+When a user references recent Cline or agent work, check these docs first before
+reconstructing context from the entire repository. Do not copy whole Cline rule
+files into `AGENTS.md`; preserve only durable repo-wide conventions here.
+
 ## What Agents Are Allowed To Do
 
 Agents may:
