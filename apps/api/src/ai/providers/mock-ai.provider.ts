@@ -21,7 +21,7 @@ export class MockAiProvider implements AiProvider {
 
   generateMeals(input: GenerateMealsDto): Promise<AiMealGenerationResult> {
     const recipeCount = input.meals_needed && input.meals_needed > 2 ? 3 : 1;
-    const recipeName = titleCase(input.meal_prompt || 'Chef test meal');
+    const recipeName = titleCase(input.meal_prompt || 'Preppie test meal');
     const dietaryText = (input.dietary_preferences ?? [])
       .join(' ')
       .toLowerCase();
@@ -185,7 +185,7 @@ export class MockAiProvider implements AiProvider {
 
   chat(input: { message: string }): Promise<AiChatResult> {
     return Promise.resolve({
-      message: `Mock Chef answer: for "${input.message}", start by clarifying servings, dietary needs, available ingredients, and budget. Then choose one simple structured recipe and review missing ingredients before shopping.`,
+      message: `Mock Preppie answer: for "${input.message}", start by clarifying servings, dietary needs, available ingredients, and budget. Then choose one simple structured recipe and review missing ingredients before shopping.`,
       follow_up_prompts: [
         'What can I make with my inventory?',
         'Make this cheaper.',

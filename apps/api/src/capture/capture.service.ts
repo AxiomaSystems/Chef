@@ -468,7 +468,7 @@ function buildAssumptions(
           ? 'Some quantities or timings may be inferred from incomplete source content.'
           : '',
         resultKind === 'inspired_recipe'
-          ? 'Chef generated a cookable version inspired by the pasted input.'
+          ? 'Preppie generated a cookable version inspired by the pasted input.'
           : '',
       ].filter(Boolean),
     ),

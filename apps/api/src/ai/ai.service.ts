@@ -243,7 +243,7 @@ async function extractRecipeSource(url: string, supplementalText: string) {
     }
   } catch {
     extractionNotes.push(
-      'Source fetch failed, so Chef will rely on metadata heuristics and any pasted text.',
+      'Source fetch failed, so Preppie will rely on metadata heuristics and any pasted text.',
     );
   }
 
@@ -316,7 +316,7 @@ async function extractRecipeSource(url: string, supplementalText: string) {
       }
     } else {
       extractionNotes.push(
-        'Instagram public caption embed was unavailable; Chef may need pasted caption text for this source.',
+        'Instagram public caption embed was unavailable; Preppie may need pasted caption text for this source.',
       );
     }
   }

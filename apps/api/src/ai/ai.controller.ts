@@ -117,7 +117,7 @@ export class AiController {
   @AiUsageCategory('chat')
   @UseGuards(AiRateLimitGuard)
   @ApiOkResponse({
-    description: 'Answers a contextual Chef assistant chat prompt.',
+    description: 'Answers a contextual Preppie assistant chat prompt.',
   })
   chat(@Body() input: AiChatDto): Promise<AiChatResult> {
     return this.aiService.chat(input);

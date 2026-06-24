@@ -25,7 +25,7 @@ describe('AppController', () => {
 
   describe('root', () => {
     it('should return the API name', () => {
-      expect(appController.getHello()).toBe('Chef API');
+      expect(appController.getHello()).toBe('Preppie API');
     });
   });
 });

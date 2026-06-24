@@ -37,7 +37,7 @@ export class CartExportService {
 
     return this.instacartProvider.createShoppingList({
       cartId: input.cartId,
-      title: input.cartName ?? 'Chef shopping list',
+      title: input.cartName ?? 'Preppie shopping list',
       overview: input.overview,
       dishes: input.dishes,
     });

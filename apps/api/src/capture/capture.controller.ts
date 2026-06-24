@@ -25,7 +25,7 @@ export class CaptureController {
   @AiUsageCategory('imports')
   @UseGuards(AiRateLimitGuard)
   @ApiCreatedResponse({
-    description: 'Creates a Chef Capture draft for user review.',
+    description: 'Creates a Preppie Capture draft for user review.',
   })
   createCapture(
     @CurrentUser() user: AuthenticatedUser,
@@ -35,7 +35,7 @@ export class CaptureController {
   }
 
   @Get(':id')
-  @ApiOkResponse({ description: 'Returns a persisted Chef Capture draft.' })
+  @ApiOkResponse({ description: 'Returns a persisted Preppie Capture draft.' })
   getCapture(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
@@ -45,7 +45,8 @@ export class CaptureController {
 
   @Post(':id/save-recipe')
   @ApiCreatedResponse({
-    description: 'Saves a reviewed Chef Capture draft as a user-owned recipe.',
+    description:
+      'Saves a reviewed Preppie Capture draft as a user-owned recipe.',
   })
   saveCaptureAsRecipe(
     @CurrentUser() user: AuthenticatedUser,

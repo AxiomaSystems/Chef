@@ -255,7 +255,7 @@ export const ApiGetProfileMemory = () =>
     }),
     ApiOkResponse({
       description:
-        'Returns legacy preferences plus v2 food rules, goals, pantry staples, and a derived Chef memory summary.',
+        'Returns legacy preferences plus v2 food rules, goals, pantry staples, and a derived Preppie memory summary.',
       type: UserProfileMemoryResponseDto,
       content: {
         'application/json': {
