@@ -1,319 +1,164 @@
-# Goals - Chef
+# Goals - Preppie
 
-Chef is being shaped as a startup, not just a recipe-to-cart side project.
+Preppie is being shaped as a campus-first AI cooking companion for young adults.
 
-The long-term product is an agentic food operating system: a workspace that helps people decide what to cook, adapt meals to their constraints, understand what they already have, generate what they need to buy, and eventually guide them while cooking.
+The definitive product direction is [business_plan.pdf](business_plan.pdf). This document translates that plan into product and engineering goals.
 
 ## Product Thesis
 
-People do not struggle because there are not enough recipes online.
-
-They struggle because the path from wanting food to actually cooking it is fragmented:
+Young adults do not struggle because recipes are unavailable. They struggle because cooking requires too much operational work:
 
 ```text
-food idea -> recipe -> constraints -> missing ingredients -> grocery cart -> cooking -> tracking
+find inspiration -> choose a meal -> check pantry -> plan groceries -> cook without getting stuck
 ```
 
-Chef should own that workflow.
-
-The first wedge is practical:
+Preppie should own the connected workflow:
 
 ```text
-meal idea or recipe -> structured recipe -> editable ingredients -> real grocery cart
+Plan -> Shop -> Cook
 ```
 
-The long-term platform is broader:
-
-```text
-preferences + recipes + inventory + nutrition + retailers + AI agents -> meals people can actually cook
-```
+The product should feel like a personalized AI sous chef that helps users build confidence, not like a static recipe database or generic chatbot.
 
 ## Product Definition
 
-Chef is an AI-powered meal execution platform that helps people turn food ideas, saved recipes, restaurant dishes, creator content, or personal cravings into meals they can actually cook.
+Preppie helps college students and young professionals plan, shop, and cook with confidence.
 
 Users should be able to:
 
-- generate recipes with an LLM
-- fork/import recipes from outside sources
-- edit meals around constraints such as budget, calories, macros, dietary restrictions, allergies, available time, available ingredients, and retailer availability
-- turn recipes into consolidated ingredients
-- remove or adjust ingredients they already have
-- generate real grocery carts from retailers such as Kroger, Instacart, Walmart, Target, or future providers
-- manually correct cart products and quantities
-- track calories and macros across recipes, meals, days, and plans
-- eventually ask a contextual cooking assistant for help while cooking
+- set dietary, preference, household, cooking ability, and shopping context
+- save, generate, and import recipes
+- organize meals into a plan
+- manage pantry and inventory context with low-friction inputs
+- identify missing ingredients
+- generate grocery/cart support
+- cook with contextual, hands-free assistance
+- ask for substitutions, repeated steps, timers, and recipe-specific help
 
-The product should not be positioned as a generic recipe database, grocery list app, calorie tracker, or chatbot. It should be positioned as the system that connects all of those jobs.
+## Product Principles
 
-## Core Problem
-
-Home cooking is operationally annoying.
-
-Users often want to cook, eat healthier, save money, or follow macros, but the process takes too much mental energy:
-
-- deciding what to cook
-- adapting recipes to dietary or budget constraints
-- figuring out missing ingredients
-- translating ingredients into real grocery products
-- checking what they already have
-- keeping nutrition/macros aligned
-- cooking without getting stuck mid-recipe
-
-The customer pain is not discovery alone. It is execution.
+- Protect the Plan -> Shop -> Cook loop.
+- Keep the product beginner-friendly for first-time and developing cooks.
+- Treat pantry and inventory as useful context, not perfect accounting.
+- Make AI outputs editable and reviewable.
+- Control AI, voice, and vision costs before scaling premium usage.
+- Avoid feature sprawl that does not improve planning, shopping, or cooking confidence.
 
 ## Initial Target
 
-The initial target should be busy home cooks who already want to cook but fail at planning.
+Primary audience:
 
-Strong early users:
+- Gen Z college students and young professionals, ages 18-28
+- students in dorms, apartments, and shared housing
+- young professionals learning independent meal routines
+- beginner and intermediate cooks
+- health-conscious users who want structure
+- busy users who rely on takeout because cooking feels overwhelming
 
-- students moving into independent living
-- recent graduates
-- young professionals
-- couples
-- people trying to eat healthier
-- people who save recipes from TikTok, Instagram, YouTube, or blogs but rarely make them
-- people who manually make grocery lists in notes apps
-- macro-conscious users who want meals and groceries tied together
+Launch environment:
 
-The first user is not the person who hates cooking. It is the person who wants to cook but hates the planning and grocery work around cooking.
+- college campuses and nearby student communities
+- shared kitchens and roommate contexts
+- student organizations, ambassador loops, and live demos
 
-## MVP Scope
+## Current Product Priorities
 
-The MVP should stay narrow:
+### 1. PWA Beta Readiness
 
-```text
-input meal idea or recipe -> generate/structure recipe -> show ingredients -> let user adjust/remove ingredients -> generate editable Kroger cart
-```
+Preppie should first work as a mobile-friendly Progressive Web App so the team can test quickly without waiting for native app store deployment.
 
-MVP capabilities:
+Priority outcomes:
 
-- onboarding/preferences
-- enter a meal idea such as "Pakistani biryani"
-- generate a structured recipe
-- show structured ingredients and steps
-- let the user delete/edit ingredients before cart generation
-- generate a Kroger shopping cart
-- let the user replace products, add manual items, delete items, and edit quantities
-- save recipes/carts
+- smooth onboarding
+- clear home/navigation model
+- fast meal planning flow
+- reliable recipe save/import/generation paths
+- functional cart and grocery-support flows
+- controlled Knox College beta readiness
 
-Nice-to-have if fast:
+### 2. Pantry And Inventory Friction
 
-- paste/import recipe text
-- basic nutrition estimate
-- basic "things I usually have" pantry/staples list
+Pantry context is valuable only if updates are easy.
 
-Current status:
+Near-term inputs:
 
-- basic pantry/staples support now exists as shared `Ingredient` catalog plus user `KitchenInventoryItem`
-- demo cart overviews can mark ingredients as already in kitchen
-- retailer shopping-cart generation skips those already-owned ingredients
-- exact quantity tracking remains out of scope
+- manual inventory
+- voice-to-text pantry capture
+- barcode intake
+- image/camera-assisted review
+- cart-based updates after shopping
 
-Not MVP:
+Inventory should remain reviewable and forgiving. Exact quantity accounting is not required for early success.
 
-- exact inventory tracking
-- fridge object detection
-- live cooking chatbot
-- social/community profiles
-- voice assistant
-- cute food mascots
-- direct checkout
-- full macro diary
+### 3. Hands-Free Cooking
 
-## Added To The Vision
+Hands-free cooking is a flagship differentiator, not a distant side quest.
 
-The latest product discussion added these major directions:
+The experience should support:
 
-### Inventory Awareness
+- asking contextual questions
+- repeating steps
+- moving between steps
+- setting and checking timers
+- finding substitutions
+- receiving real-time help without touching the phone
 
-Chef should eventually know what the user has in their kitchen.
+### 4. Recipe Import And Generation
 
-Possible inputs:
+Preppie should help users turn scattered inspiration into usable meals.
 
-- fridge/pantry photos
-- receipt/cart history
-- manual pantry staples
-- shopping carts generated by Chef
-- later, scales or object detection
+Important sources:
 
-Important constraint:
+- text
+- URLs
+- screenshots/images
+- menus
+- social-platform content
+- creator recipes
 
-- inventory does not need to be perfectly precise at first
-- rough awareness is still useful
-- exact quantity tracking is later
+Imported/generated content should begin as a reviewable draft, not final truth.
 
-### Recipe Import/Forking From Anywhere
+### 5. Usage Limits And Premium Readiness
 
-Users should be able to bring food ideas from outside Chef.
+Before scaling premium, the app needs explicit controls for:
 
-Possible sources:
+- AI recipe generation
+- recipe imports
+- voice pantry usage
+- hands-free AI cooking
+- vision/image flows
 
-- recipe URLs
-- restaurant menus
-- screenshots/photos
-- creator posts
-- meal service menus
-- plain text
-- other users' public recipes/carts
-
-The system should convert outside content into structured recipes that can be adapted, tracked, and shopped.
-
-### AI Recipe Editing Per Recipe
-
-Each recipe should eventually have an AI editing surface.
-
-Examples:
-
-- "I do not have apple or cinnamon. What can I use?"
-- "Make this halal."
-- "Make this cheaper."
-- "Make it high protein."
-- "Reduce calories but keep the texture."
-
-The output should be a structured recipe variant or fork, not just a chat answer.
-
-### General Food Agent
-
-Longer term, Chef should have a general agent that knows:
-
-- user preferences
-- saved recipes
-- recent meals
-- inventory
-- nutrition goals
-- shopping history
-- retailer availability
-
-The agent should answer:
-
-- "What should I cook today?"
-- "What can I make with what I have?"
-- "What should I buy this week?"
-- "Give me something high-protein and cheap."
-
-### Live Cooking Assistant
-
-The cooking assistant should be contextual.
-
-It should understand:
-
-- the current recipe
-- the current step
-- user constraints
-- selected grocery products
-- possible substitutions
-
-This is not MVP, but it is one of the strongest long-term differentiators.
-
-### Community And Creator Layer
-
-Chef may eventually support a lightweight social/community layer.
-
-The right analogy is closer to Spotify profiles/playlists than Instagram.
-
-Possible features:
-
-- public recipes
-- public carts
-- recipe/cart forking
-- creator profiles
-- influencer badges
-- "shop this recipe" links
-
-This is later. The core utility has to work first.
-
-### Branding Personality
-
-Food characters, mascots, and playful assistants may be useful for brand.
-
-This is not MVP. It belongs to brand/product polish later.
-
-## Strategic Constraints
-
-### Frontend
-
-The current frontend is a prototype and validation harness.
-
-Use it to test:
-
-- auth
-- onboarding
-- recipes
-- carts
-- Kroger matching
-- shopping-cart editing
-- future AI endpoints
-
-Do not spend major effort polishing it visually. A future frontend can be rebuilt with Lovable, Stitch, v0, or a hand-built production interface once the backend contracts are stronger.
-
-### AI
-
-AI should produce structured domain data.
-
-Allowed:
-
-- recipe generation
-- recipe editing
-- substitution reasoning
-- cooking guidance
-- ambiguous ingredient normalization
-
-Not allowed:
-
-- final pricing
-- final quantity math
-- hidden product matching decisions without deterministic checks
-
-### MCPs And Open-Source Tools
-
-MCPs can accelerate integrations, but should not become the core architecture.
-
-Use them as adapters behind internal interfaces:
-
-- `RetailerProductProvider`
-- `NutritionProvider`
-- `RecipeGenerationProvider`
-- `RecipeEditingProvider`
-- `CartExportProvider`
-- `CookingAssistantToolProvider`
+Fair-use controls should be product-facing enough to protect margins without making the app feel punitive.
 
 ## Roadmap
 
-### Now
-
-1. Keep strengthening Kroger matching.
-2. Add recipe generation from a meal idea.
-3. Add pre-cart ingredient editing.
-4. Add basic nutrition/macro estimation contract.
-5. Evaluate nutrition and recipe-import MCPs/tools.
-
-### Next
-
-1. Add recipe import/forking from URL/text/screenshot.
-2. Add AI recipe editing per recipe.
-3. Add a usable kitchen-inventory editor and per-cart ingredient review override.
-4. Add better store/location persistence.
-5. Add cart export/share experiments.
-
-### Later
-
-1. Add contextual live cooking assistant.
-2. Add inventory from photos and purchase history.
-3. Add social/community recipe and cart forking.
-4. Add creator workflows.
-5. Add voice/mascot/cooking character experience.
+| Track              | Now: May                                                                                             | Beta Launch: Jun                                       | Growth: Jul                                                    | Expansion: Aug                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------- | --------------------------------------------------------------- |
+| Product            | PWA foundations, onboarding, inventory, recipe generation, cart, meal planning, hands-free base flow | beta testing, tighter UX, feedback loops, bug fixes    | improve meal planning, refine import flows, retention features | native app planning, deeper personalization, community features |
+| AI / Vision        | AI generation/import, voice pantry, hands-free assistant, camera scanning prototype                  | cost limits, better prompts, faster hands-free support | vision intake, smarter pantry suggestions                      | advanced contextual agent and vision workflows                  |
+| Commerce / Revenue | premium logic, usage limits, pricing model                                                           | Stripe/billing readiness, fair-use rules               | referral rewards, creator recipe packs, partner testing        | grocery partnership exploration and scalable monetization       |
+| Operations         | hosting, APIs, database, analytics, admin basics                                                     | monitoring, feedback tools, campus support process     | ambassador playbook, content engine, customer support basics   | campus expansion playbook, stronger analytics and operations    |
 
 ## Success Criteria
 
-Chef is on the right path if:
+Preppie is on the right path if:
 
-- a user can type a food idea and get a grocery-ready cart
-- the cart contains real products near them
-- they can remove what they already have before shopping
-- generated recipes are structured and editable
-- nutrition/macros become useful across meals
-- provider failures are clear and recoverable
-- the backend is stable enough for a frontend rebuild
-- the product feels like execution help, not just recipe inspiration
+- users understand the Plan -> Shop -> Cook promise quickly
+- beta users can create a meal plan and grocery support without handholding
+- users trust pantry/inventory suggestions because they remain editable
+- hands-free cooking feels useful during real cooking, not just impressive in a demo
+- campus testing produces repeated usage and clear feedback loops
+- AI/voice/vision costs stay within controlled usage assumptions
+- premium value is understandable at `$7.99/month` or `$59.99/year`
+
+## Not The Goal Right Now
+
+Avoid spending near-term effort on:
+
+- broad social networking
+- native app store launch before PWA validation
+- direct checkout as the primary product promise
+- perfect pantry quantity accounting
+- unreviewed automatic pantry mutation from vision
+- unlimited AI/voice/vision without cost controls
+- internal code renames that risk breaking routes, DTOs, hosting, or analytics before the brand migration is planned

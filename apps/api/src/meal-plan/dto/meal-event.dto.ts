@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
-  IsArray,
   IsIn,
   IsInt,
   IsOptional,
@@ -9,11 +8,15 @@ import {
   Max,
   MaxLength,
   Min,
-  ArrayMinSize,
-  ArrayMaxSize,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import type {
+  MealPlanEventStatus,
+  MealPlanMealLabel,
+  MealPlanSourceType,
+} from '@cart/shared';
 
-const mealLabels = [
+export const MEAL_EVENT_LABELS = [
   'breakfast',
   'lunch',
   'dinner',
@@ -21,154 +24,154 @@ const mealLabels = [
   'prep',
   'leftover',
   'custom',
-] as const;
+] as const satisfies readonly MealPlanMealLabel[];
 
-const sourceTypes = [
+export const MEAL_EVENT_SOURCE_TYPES = [
   'recipe',
   'manual',
   'leftover',
   'eat_out',
   'prep',
-] as const;
-const statuses = ['planned', 'cooked', 'eaten', 'skipped'] as const;
+] as const satisfies readonly MealPlanSourceType[];
+
+export const MEAL_EVENT_STATUSES = [
+  'planned',
+  'cooked',
+  'eaten',
+  'skipped',
+] as const satisfies readonly MealPlanEventStatus[];
 
 export class CreateMealEventDto {
-  @ApiProperty({ example: '2026-05-21' })
+  @ApiProperty({ example: '2026-05-18' })
   @IsString()
   @MaxLength(10)
   date!: string;
 
-  @ApiProperty({ enum: mealLabels })
-  @IsIn(mealLabels)
-  meal_label!: (typeof mealLabels)[number];
+  @ApiPropertyOptional({ enum: MEAL_EVENT_LABELS })
+  @IsOptional()
+  @IsIn(MEAL_EVENT_LABELS)
+  meal_label?: MealPlanMealLabel;
 
   @ApiPropertyOptional({ example: 'Post-workout' })
   @IsOptional()
   @IsString()
-  @MaxLength(80)
-  custom_label?: string | null;
+  @MaxLength(40)
+  custom_label?: string;
 
-  @ApiProperty({ enum: sourceTypes })
-  @IsIn(sourceTypes)
-  source_type!: (typeof sourceTypes)[number];
+  @ApiPropertyOptional({ enum: MEAL_EVENT_SOURCE_TYPES })
+  @IsOptional()
+  @IsIn(MEAL_EVENT_SOURCE_TYPES)
+  source_type?: MealPlanSourceType;
 
   @ApiPropertyOptional({ example: 'recipe-1' })
   @IsOptional()
   @IsString()
   @MaxLength(80)
-  recipe_id?: string | null;
+  recipe_id?: string;
 
-  @ApiProperty({ example: 'Lemon Herb Salmon' })
-  @IsString()
-  @MaxLength(160)
-  title!: string;
-
-  @ApiPropertyOptional({ example: 2 })
+  @ApiPropertyOptional({ example: 'Turkey lettuce wraps' })
   @IsOptional()
+  @IsString()
+  @MaxLength(140)
+  title?: string;
+
+  @ApiPropertyOptional({ example: 4 })
+  @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
-  servings?: number | null;
+  servings?: number;
 
-  @ApiPropertyOptional({ example: 'Use almond milk' })
+  @ApiPropertyOptional({ example: 0 })
   @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  notes?: string | null;
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  sort_order?: number;
 
-  @ApiPropertyOptional({ enum: statuses })
+  @ApiPropertyOptional({ enum: MEAL_EVENT_STATUSES })
   @IsOptional()
-  @IsIn(statuses)
-  status?: (typeof statuses)[number];
+  @IsIn(MEAL_EVENT_STATUSES)
+  status?: MealPlanEventStatus;
 
   @ApiPropertyOptional({ example: false })
   @IsOptional()
   @IsBoolean()
   locked?: boolean;
+
+  @ApiPropertyOptional({ example: 'Double the sauce.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  notes?: string;
 }
 
 export class UpdateMealEventDto {
-  @ApiPropertyOptional({ example: '2026-05-21' })
+  @ApiPropertyOptional({ example: '2026-05-18' })
   @IsOptional()
   @IsString()
   @MaxLength(10)
   date?: string;
 
-  @ApiPropertyOptional({ enum: mealLabels })
+  @ApiPropertyOptional({ enum: MEAL_EVENT_LABELS })
   @IsOptional()
-  @IsIn(mealLabels)
-  meal_label?: (typeof mealLabels)[number];
+  @IsIn(MEAL_EVENT_LABELS)
+  meal_label?: MealPlanMealLabel;
 
   @ApiPropertyOptional({ example: 'Post-workout' })
   @IsOptional()
   @IsString()
-  @MaxLength(80)
-  custom_label?: string | null;
+  @MaxLength(40)
+  custom_label?: string;
 
-  @ApiPropertyOptional({ enum: sourceTypes })
+  @ApiPropertyOptional({ enum: MEAL_EVENT_SOURCE_TYPES })
   @IsOptional()
-  @IsIn(sourceTypes)
-  source_type?: (typeof sourceTypes)[number];
+  @IsIn(MEAL_EVENT_SOURCE_TYPES)
+  source_type?: MealPlanSourceType;
 
   @ApiPropertyOptional({ example: 'recipe-1' })
   @IsOptional()
   @IsString()
   @MaxLength(80)
-  recipe_id?: string | null;
+  recipe_id?: string;
 
-  @ApiPropertyOptional({ example: 'Lemon Herb Salmon' })
+  @ApiPropertyOptional({ example: 'Turkey lettuce wraps' })
   @IsOptional()
   @IsString()
-  @MaxLength(160)
+  @MaxLength(140)
   title?: string;
 
-  @ApiPropertyOptional({ example: 2 })
+  @ApiPropertyOptional({ example: 4 })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
-  servings?: number | null;
+  servings?: number;
 
-  @ApiPropertyOptional({ example: 'Use almond milk' })
+  @ApiPropertyOptional({ example: 0 })
   @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  notes?: string | null;
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  sort_order?: number;
 
-  @ApiPropertyOptional({ enum: statuses })
+  @ApiPropertyOptional({ enum: MEAL_EVENT_STATUSES })
   @IsOptional()
-  @IsIn(statuses)
-  status?: (typeof statuses)[number];
+  @IsIn(MEAL_EVENT_STATUSES)
+  status?: MealPlanEventStatus;
 
   @ApiPropertyOptional({ example: false })
   @IsOptional()
   @IsBoolean()
   locked?: boolean;
-}
 
-export class GenerateMealPlanCartDto {
-  @ApiProperty({ example: '2026-05-18' })
+  @ApiPropertyOptional({ example: 'Double the sauce.' })
+  @IsOptional()
   @IsString()
-  @MaxLength(10)
-  from!: string;
-
-  @ApiProperty({ example: '2026-05-24' })
-  @IsString()
-  @MaxLength(10)
-  to!: string;
-
-  @ApiProperty({ type: [String] })
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(100)
-  @IsString({ each: true })
-  event_ids!: string[];
-
-  @ApiProperty({ enum: ['walmart', 'kroger', 'instacart'] })
-  @IsIn(['walmart', 'kroger', 'instacart'])
-  retailer!: 'walmart' | 'kroger' | 'instacart';
-
-  @ApiProperty({ enum: ['replace_active', 'append_active'] })
-  @IsIn(['replace_active', 'append_active'])
-  mode!: 'replace_active' | 'append_active';
+  @MaxLength(500)
+  notes?: string;
 }

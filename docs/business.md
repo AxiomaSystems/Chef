@@ -1,272 +1,185 @@
-# Business - Chef
+# Business - Preppie
 
-This document frames Chef as a startup: the problem, customer, wedge, sales motion, and marketing strategy.
+This document summarizes the product and business direction from [business_plan.pdf](business_plan.pdf). That PDF is the definitive source of truth.
 
-## One-Liner
+## Positioning
 
-Chef turns food ideas into meals you can actually cook.
+Preppie helps young adults plan, shop, and cook with confidence through a personalized AI sous chef.
 
-## Expanded One-Liner
+The product is built around one loop:
 
-Chef is an AI-powered meal execution platform that turns recipes, cravings, creator content, and dietary goals into structured meals, missing ingredients, real grocery carts, nutrition tracking, and eventually live cooking guidance.
+```text
+Plan -> Shop -> Cook
+```
+
+Preppie connects scattered recipe inspiration, pantry context, grocery support, meal planning, and hands-free cooking help. It is not just a recipe app, grocery list, pantry tracker, or generic AI chatbot.
 
 ## Problem
 
-People do not need another place to browse recipes.
+Young adults need to cook, but the cooking process is fragmented.
 
-They need help executing cooking.
-
-The current cooking workflow is fragmented:
-
-- recipes live in TikTok, Instagram, blogs, YouTube, notes, menus, and screenshots
-- dietary goals live in calorie/macro trackers
-- grocery shopping lives in retailer apps
-- meal planning lives in notes or memory
-- substitutions happen through Google or generic chatbots
-- cooking help happens mid-recipe when the user is already stuck
-
-The result:
-
-- people eat the same easy meals repeatedly
-- people order food instead of cooking
-- people buy groceries without a plan
-- people waste ingredients
-- people give up when a recipe does not fit their constraints
+- Recipe ideas live across TikTok, Instagram, screenshots, websites, and notes.
+- Pantry tracking is inconsistent, so users forget what they have or buy duplicates.
+- Grocery planning requires manual comparison between recipes and available ingredients.
+- Beginner cooks get stuck on timing, substitutions, unclear steps, and technique.
+- Cooking often loses to takeout because the planning burden starts before cooking begins.
 
 The core problem:
 
 ```text
-People want to cook, but the operational work between food intent and cooked meal is too high.
+Cooking becomes mentally exhausting before users even begin.
 ```
 
-## Target Customer
+## Target Market
 
-### Initial ICP
+Preppie’s primary target market is Gen Z college students and young professionals between ages 18 and 28.
 
-Busy young adults who want to cook more often but hate planning groceries.
+Early user groups:
 
-Examples:
+- college students in dorms, apartments, or shared housing
+- young professionals building independent meal routines
+- beginner and intermediate cooks
+- health-conscious users who want structure
+- busy users who want convenience
+- users who rely too often on takeout because cooking feels overwhelming
 
-- students living independently
-- recent graduates
-- young professionals
-- couples
-- people who save recipes but never make them
-- people who care about health, budget, or macros but dislike meal planning
+These users are digitally native, comfortable with AI, and already use social platforms for food inspiration.
 
-Behavioral traits:
+## Product Solution
 
-- already use grocery apps
-- already save recipes online
-- already ask AI or Google cooking questions
-- already feel planning friction
-- willing to try a tool that saves time
+Preppie turns the scattered cooking process into one guided Plan -> Shop -> Cook loop.
 
-### Secondary Segments
+Current product foundations:
 
-Later targets:
+| Feature area       | What it does                                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Onboarding         | Collects preferences, dietary restrictions, cooking habits, cooking ability, household size, and inventory context |
+| Pantry/inventory   | Supports manual entry, barcode, voice, and camera-oriented inventory intake                                        |
+| Recipe generation  | Uses AI to generate recipes from preferences, pantry context, and cooking goals                                    |
+| Recipe import      | Structures recipes from online sources, images, social content, and websites                                       |
+| Cart generation    | Creates missing-ingredient and grocery support from selected recipes and pantry context                            |
+| Hands-free cooking | Guides users through recipes with voice support and contextual assistance                                          |
+| Meal planning      | Organizes meals across a week and supports cooking routines                                                        |
 
-- fitness and macro-conscious users
-- families planning weekly dinners
-- food creators and influencers
-- nutrition coaches
-- meal-prep coaches
-- culturally diverse home cooks looking for substitutions in US retailers
-- people with dietary restrictions
+## Differentiation
 
-## Wedge
+Competitors solve individual pieces of the meal journey. Preppie’s opportunity is to connect the full workflow.
 
-The wedge is not "AI recipes."
+| Capability                   | Preppie |
+| ---------------------------- | ------- |
+| AI personalization           | Yes     |
+| Pantry tracking              | Yes     |
+| Grocery support              | Yes     |
+| Hands-free cooking           | Yes     |
+| End-to-end workflow          | Yes     |
+| Beginner / Gen Z positioning | Yes     |
 
-The wedge is:
+Why Preppie can stand out:
 
-```text
-Generate or import a meal -> edit it to your constraints -> remove what you already have -> generate a real grocery cart.
-```
-
-This is concrete, demoable, and different from most recipe apps.
-
-## MVP Promise
-
-"Tell Chef what you want to cook. It gives you a recipe, lets you adjust ingredients, and builds the grocery cart."
-
-MVP flow:
-
-1. User enters a food idea or recipe.
-2. Chef generates or structures the recipe.
-3. User reviews ingredients.
-4. User removes what they already have.
-5. Chef generates a Kroger shopping cart.
-6. User edits products/quantities and saves the cart.
-
-## Product Pillars
-
-### 1. Recipe Intelligence
-
-- generate recipes with LLMs
-- import/fork recipes from outside sources
-- edit recipes based on constraints
-- create structured ingredients and steps
-- support recipe variants
-
-### 2. Grocery Execution
-
-- aggregate ingredients
-- identify missing ingredients
-- match ingredients to real retailer products
-- generate editable shopping carts
-- support cart export/share later
-
-### 3. Nutrition And Tracking
-
-- calculate calories and macros per recipe
-- calculate per serving and per meal
-- eventually track across day/week
-- adapt recipes to macro/calorie goals
-
-### 4. Kitchen Context
-
-- know user preferences
-- later know pantry/fridge state
-- infer inventory from purchases and cooking
-- support manual pantry staples first
-- use camera/object detection later
-
-### 5. Cooking Assistance
-
-- contextual chat per recipe
-- live cooking guidance
-- substitutions
-- troubleshooting
-- timing help
-- voice/character experience later
+- It uses pantry context, preferences, shopping support, and cooking assistance together.
+- It focuses on young adults building practical cooking habits.
+- Its hands-free AI cooking assistant supports step repeats, substitutions, timers, and contextual cooking questions.
+- The parrot mascot reinforces the “assistant on your shoulder” kitchen experience.
 
 ## Business Model
 
-### Initial Model
-
-Freemium consumer subscription.
+Preppie uses a freemium model.
 
 Free tier:
 
-- limited recipe generation/import
-- limited cart generation
-- basic grocery cart editing
+- recipe saving
+- basic explore/feed behavior
+- basic cart generation
+- 5 AI recipe generations per month
+- 3 recipe imports per week
+- 5 voice-to-text pantry actions per month
+- guided hands-free mode with limited AI trials
 
-Paid tier:
+Premium tier:
 
-- more generations
-- real retailer integrations
-- nutrition/macros
-- recipe editing
-- saved preferences/history
-- advanced cart features
-- future cooking assistant
+- `$7.99/month` or `$59.99/year`
+- advanced planning and personalization
+- unlimited AI recipe generation with fair-use controls
+- unlimited recipe imports with fair-use controls
+- unlimited voice-to-text pantry actions with fair-use controls
+- full hands-free AI cooking mode
 
-Possible pricing hypothesis:
+Pricing discipline:
 
-- consumer: `$8-15/month`
-- pro/creator/coach tier later
+> “Unlimited” must be presented with fair-use limits. This protects margins from heavy AI, voice, and vision usage while keeping premium simple for users.
 
-### Future Revenue Lines
+Future revenue opportunities:
 
-- affiliate revenue from grocery retailers
-- creator tools
-- nutrition coach/client workspace
-- cart export partnerships
-- premium AI cooking assistant
-- family/shared planning plans
+- grocery partnerships and affiliate revenue
+- creator collaborations
+- sponsored recipe packs or ingredient campaigns
 
 ## Go-To-Market
 
-### Demo-Led Content
+Preppie launches campus-first because campuses create dense, high-feedback environments. Students share kitchens, live near each other, cook with roommates, and spread recommendations through friend groups and organizations.
 
-Chef should be marketed through visual demos.
+Goal: reach 5,000 active users by the end of 2026.
 
-Examples:
+| Phase                                         | Focus                                | Tactics                                                                                       | Goal                                       |
+| --------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Phase 1: College Campus Beta                  | Validate product and messaging       | QR onboarding, live demos, dorm/apartment cooking sessions, user testing, feedback interviews | Gauge enthusiasm and guide future design   |
+| Phase 2: Campus Growth                        | Build word-of-mouth                  | ambassadors, food sampling, campus org partnerships, referrals, cooking challenges            | Improve retention and collect proof points |
+| Phase 3: Social Expansion                     | Scale awareness                      | TikTok, Instagram Reels, YouTube Shorts                                                       | Share the story and mission                |
+| Phase 4: Creator Partnerships and PR Packages | Develop brand interest               | micro-influencers, interactive PR boxes, merch, recipe challenges                             | Drive trust and Gen Z adoption             |
+| Phase 5: Paid Support                         | Use ads after message fit is clearer | TikTok, Instagram, Google, recipe-site ads                                                    | Reach the 2026 active-user goal            |
 
-- "I turned Pakistani biryani into a Kroger cart."
-- "I generated a high-protein dinner and removed what I already had."
-- "I imported a TikTok recipe and got the grocery cart."
-- "I asked for dinner under 700 calories and got the cart."
+Marketing allocation:
 
-### Creator Partnerships
+- social content: 40%
+- creator partnerships: 25%
+- paid ads: 20%
+- PR packages: 10%
+- SEO/content: 5%
 
-Food creators can be a distribution channel.
+## Financial Plan
 
-Possible offer:
+Base assumptions:
 
-- cart-ready recipe links
-- public recipe/carts
-- creator profiles
-- influencer badges
-- free pro access
+| Metric              | Assumption                     |
+| ------------------- | ------------------------------ |
+| Starting cash       | `$50,000`                      |
+| Initial users       | 120                            |
+| Year 1 ending users | 8,000                          |
+| Year 2 ending users | 25,000                         |
+| Paid conversion     | 2.5% in Year 1, 5% in Year 2   |
+| Blended ARPPU       | `$6.75/month`                  |
+| Premium price       | `$7.99/month` or `$59.99/year` |
 
-### SEO
+Unit cost assumptions:
 
-Target high-intent searches:
+- free user COGS: `$0.16/user/month`
+- paid user COGS: `$1.45/user/month`
+- payment processing: 4.2% of subscription revenue
+- fixed operating expenses: `$650/month` ramping to `$4,200/month`
+- Year 1 marketing budget: `$12,000`
+- Year 2 marketing budget: `$36,000`
 
-- recipe to grocery list
-- AI meal planner
-- meal planner with grocery cart
-- grocery list from recipe
-- macro meal planner
-- Kroger meal planning app
-- Instacart recipe cart
+Financial takeaway:
 
-### Community
+Preppie is not expected to reach monthly break-even within the first 24 months. The model highlights the levers that matter: paid conversion, AI cost control, marketing efficiency, and additional runway.
 
-Potential communities:
+## Risks And Mitigation
 
-- meal prep
-- Eat Cheap And Healthy
-- fitness/macros
-- cooking
-- student cooking
-- budget food
-- cultural food communities
-
-## What Not To Sell First
-
-Do not sell Chef as:
-
-- another recipe database
-- a generic AI chatbot
-- a calorie tracker clone
-- a grocery delivery app
-- a social network
-
-Sell it as:
-
-```text
-the fastest way to turn what you want to eat into what you need to buy and cook
-```
-
-## Strategic Risks
-
-- real retailer APIs can be hard or bureaucratic
-- grocery matching can be noisy
-- exact inventory tracking can become too demanding for users
-- generic AI recipe generation is crowded
-- frontend polish can distract from the core engine
-
-## Strategic Advantages
-
-- the recipe -> cart -> shopping cart model is already implemented
-- Kroger is already working as a live retailer path
-- the provider boundary makes future retailers easier
-- structured recipe data makes AI output useful
-- editable shopping carts reduce the need for perfect automation
-- the product can expand naturally into nutrition, inventory, and cooking assistance
+| Risk                             | Why it matters                                                | Mitigation                                                                            |
+| -------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| High AI, voice, and vision costs | Heavy users could reduce margins or make premium unprofitable | fair-use limits, usage caps, caching, model routing, paid-tier controls               |
+| Pantry update friction           | Inventory only works if users keep it reasonably current      | barcode, voice, image intake, cart-based updates, low-effort edit flows               |
+| Routine formation risk           | Users may try the app once but fail to build a habit          | weekly planning, reminders, saved recipes, hands-free cooking, referrals              |
+| Competitor imitation             | Larger apps could copy individual AI cooking features         | own the Gen Z Plan -> Shop -> Cook workflow and campus-first brand/community strategy |
+| Paid acquisition costs           | Consumer apps can become expensive to scale through ads       | start with campus communities, ambassadors, creators, referrals                       |
+| Privacy and trust concerns       | Users may be cautious about dietary, pantry, and grocery data | editable AI suggestions, clear data use, no selling personal data                     |
 
 ## Current Startup Bet
 
-Chef wins if users believe:
+Preppie wins if young adults believe:
 
 ```text
-I can tell it what I want to eat, and it will help me actually cook it.
+This makes cooking feel possible.
 ```
 
-That means the first product must be practical before it is magical.
-
-The magic comes later through agents, inventory, nutrition, community, and live cooking assistance.
+The product should stay focused on the loop that matters most: helping users decide what to make, understand what they have, buy what they need, and cook with support.

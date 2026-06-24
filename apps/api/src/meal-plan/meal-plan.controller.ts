@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -14,48 +15,41 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { RequestActorGuard } from '../auth/request-actor.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import {
+  ApiCreateMealEvent,
+  ApiCreateMealPlanCart,
+  ApiDeleteMealEvent,
+  ApiGetMealEvents,
   ApiGetMealPlan,
   ApiMealPlanController,
+  ApiUpdateMealEvent,
   ApiUpsertMealPlan,
 } from './meal-plan.swagger';
+import { CreateMealPlanCartDto } from './dto/create-meal-plan-cart.dto';
+import { CreateMealEventDto, UpdateMealEventDto } from './dto/meal-event.dto';
+import { MealPlanRangeQueryDto } from './dto/meal-plan-range-query.dto';
 import { UpsertMealPlanDto } from './dto/upsert-meal-plan.dto';
-import {
-  CreateMealEventDto,
-  GenerateMealPlanCartDto,
-  UpdateMealEventDto,
-} from './dto/meal-event.dto';
 import { MealPlanService } from './meal-plan.service';
 
-@Controller('api/v1/meal-plans')
+@Controller('api/v1')
 @UseGuards(RequestActorGuard)
 @ApiMealPlanController()
 export class MealPlanController {
   constructor(private readonly mealPlanService: MealPlanService) {}
 
-  @Get()
+  @Get('meal-plans')
   @ApiGetMealPlan()
   getMealPlan(
-    @Query('week_start') weekStart: string,
-    @Query('from') from: string,
-    @Query('to') to: string,
+    @Query() query: MealPlanRangeQueryDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    if (from && to) {
-      return this.mealPlanService.getRangePlan(from, to, user.sub);
+    if (query.week_start && !query.from && !query.to) {
+      return this.mealPlanService.getWeekPlan(query.week_start, user.sub);
     }
 
-    return this.mealPlanService.getWeekPlan(weekStart, user.sub);
+    return this.mealPlanService.getRangePlan(query, user.sub);
   }
 
-  @Post('cart')
-  generateCart(
-    @Body() input: GenerateMealPlanCartDto,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.mealPlanService.generateCart(input, user.sub);
-  }
-
-  @Put()
+  @Put('meal-plans')
   @ApiUpsertMealPlan()
   upsertMealPlan(
     @Query('week_start') weekStart: string,
@@ -64,23 +58,39 @@ export class MealPlanController {
   ) {
     return this.mealPlanService.upsertWeekPlan(weekStart, input, user.sub);
   }
-}
 
-@Controller('api/v1/meal-events')
-@UseGuards(RequestActorGuard)
-export class MealEventController {
-  constructor(private readonly mealPlanService: MealPlanService) {}
+  @Post('meal-plans/cart')
+  @HttpCode(201)
+  @ApiCreateMealPlanCart()
+  createMealPlanCart(
+    @Body() input: CreateMealPlanCartDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.mealPlanService.createCartFromPlan(input, user.sub);
+  }
 
-  @Post()
-  createEvent(
+  @Get('meal-events')
+  @ApiGetMealEvents()
+  listMealEvents(
+    @Query() query: MealPlanRangeQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.mealPlanService.listEvents(query, user.sub);
+  }
+
+  @Post('meal-events')
+  @HttpCode(201)
+  @ApiCreateMealEvent()
+  createMealEvent(
     @Body() input: CreateMealEventDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mealPlanService.createEvent(input, user.sub);
   }
 
-  @Patch(':id')
-  updateEvent(
+  @Patch('meal-events/:id')
+  @ApiUpdateMealEvent()
+  updateMealEvent(
     @Param('id') id: string,
     @Body() input: UpdateMealEventDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -88,8 +98,13 @@ export class MealEventController {
     return this.mealPlanService.updateEvent(id, input, user.sub);
   }
 
-  @Delete(':id')
-  deleteEvent(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.mealPlanService.deleteEvent(id, user.sub);
+  @Delete('meal-events/:id')
+  @HttpCode(204)
+  @ApiDeleteMealEvent()
+  async deleteMealEvent(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    await this.mealPlanService.deleteEvent(id, user.sub);
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type {
   BaseRecipe,
@@ -122,6 +122,12 @@ function buildEmptyRange(from: string, to: string): MealPlanRange {
     grocery_summary: [],
     nutrition_summary: {},
   };
+}
+
+function getRecipeEventIds(range: MealPlanRange) {
+  return range.events
+    .filter((event) => event.source_type === "recipe" && event.recipe_id)
+    .map((event) => event.id);
 }
 
 function isMealPlanRange(
@@ -270,7 +276,9 @@ export function WeeklyMealPlan({
   );
   const [view, setView] = useState<PlanView>("day");
   const [editor, setEditor] = useState<EditorState | null>(null);
-  const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
+  const [selectedEventIds, setSelectedEventIds] = useState<string[]>(() =>
+    getRecipeEventIds(initialRange),
+  );
   const [error, setError] = useState<string | null>(null);
   const [cartError, setCartError] = useState<string | null>(null);
   const [isLoadingRange, startLoadingRange] = useTransition();
@@ -287,18 +295,12 @@ export function WeeklyMealPlan({
       ),
     [range.events],
   );
-  const activeDay =
-    range.days.find((day) => day.date === activeDate) ?? range.days[0];
   const nutritionTargets = {
     calories: weeklyNutritionTargets?.calories ?? DEFAULT_TARGETS.calories,
     protein_g: weeklyNutritionTargets?.protein_g ?? DEFAULT_TARGETS.protein_g,
     carbs_g: weeklyNutritionTargets?.carbs_g ?? DEFAULT_TARGETS.carbs_g,
     fat_g: weeklyNutritionTargets?.fat_g ?? DEFAULT_TARGETS.fat_g,
   };
-
-  useEffect(() => {
-    setSelectedEventIds(recipeEvents.map((event) => event.id));
-  }, [recipeEvents]);
 
   function loadWeekFrom(date: Date) {
     const nextRange = getRangeForWeek(date);
@@ -316,6 +318,7 @@ export function WeeklyMealPlan({
         ? result.mealPlan
         : buildEmptyRange(nextRange.from, nextRange.to);
       setRange(nextPlan);
+      setSelectedEventIds(getRecipeEventIds(nextPlan));
       setActiveDate(
         nextPlan.days.find((day) => day.date === todayKey)?.date ??
           nextPlan.days[0]?.date ??
@@ -350,6 +353,7 @@ export function WeeklyMealPlan({
       ? result.mealPlan
       : buildEmptyRange(range.from, range.to);
     setRange(nextPlan);
+    setSelectedEventIds(getRecipeEventIds(nextPlan));
     setActiveDate(
       nextPlan.days.some((day) => day.date === preferredActiveDate)
         ? preferredActiveDate
@@ -473,9 +477,6 @@ export function WeeklyMealPlan({
             <h1 className="text-display-sm font-black leading-tight text-on-surface">
               Plan your week
             </h1>
-            <p className="mt-1 text-body-md text-on-surface-variant">
-              Flexible meals, prep blocks, leftovers, and eat-out plans.
-            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -506,33 +507,32 @@ export function WeeklyMealPlan({
               </span>
             </button>
           </div>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full bg-surface-container-low px-3 py-2 text-label-md font-semibold text-on-surface-variant">
-            <span className="material-symbols-outlined text-[18px]">
-              calendar_month
-            </span>
-            {formatRangeLabel(range.from, range.to)}
-            {isLoadingRange ? (
-              <span className="text-outline">Loading...</span>
-            ) : null}
-          </div>
-          <div className="grid w-full grid-cols-3 rounded-full bg-[#fff3e4] p-1 sm:w-auto">
-            {(["day", "week", "month"] as PlanView[]).map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setView(item)}
-                className={`rounded-full px-4 py-2 text-label-md font-bold capitalize transition ${
-                  view === item
-                    ? "bg-primary text-on-primary shadow-sm"
-                    : "text-[#2f656b]"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full bg-surface-container-low px-3 py-2 text-label-md font-semibold text-on-surface-variant">
+              <span className="material-symbols-outlined text-[18px]">
+                calendar_month
+              </span>
+              {formatRangeLabel(range.from, range.to)}
+              {isLoadingRange ? (
+                <span className="text-outline">Loading...</span>
+              ) : null}
+            </div>
+            <div className="grid w-full grid-cols-3 rounded-full bg-[#fff3e4] p-1 sm:w-auto">
+              {(["day", "week", "month"] as PlanView[]).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setView(item)}
+                  className={`rounded-full px-4 py-2 text-label-md font-bold capitalize transition ${
+                    view === item
+                      ? "bg-primary text-on-primary shadow-sm"
+                      : "text-[#2f656b]"
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </section>

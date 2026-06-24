@@ -1,156 +1,124 @@
-# Chef
+# Preppie
 
-Chef is an AI-powered meal execution platform.
+Preppie helps young adults plan, shop, and cook with confidence through a personalized AI sous chef.
 
-The product vision is to help people move from food intent to cooked meal:
+The product connects the everyday cooking loop:
 
 ```text
-food idea -> structured recipe -> constraints -> missing ingredients -> real grocery cart -> cooking guidance
+food inspiration -> meal plan -> pantry context -> grocery support -> hands-free cooking help
 ```
 
-The initial wedge is practical: generate or import a meal, edit it to the user's constraints, remove what they already have, and generate an editable retailer grocery cart.
+Preppie is built for college students and young professionals who want to cook more often but get stuck between scattered recipe ideas, grocery planning, pantry uncertainty, and cooking anxiety. The repo is still named `cart-generator`, and some internal code/routes still use the earlier Chef name, but product-facing docs should now treat **Preppie** as the source-of-truth brand.
 
-The repo is still named `cart-generator`, but the internal product/team name is now Chef.
+> [!NOTE]
+> The definitive product and business source is [docs/business_plan.pdf](docs/business_plan.pdf).
 
-## Changelog
+## What Preppie Does
 
-See [CHANGELOG.md](CHANGELOG.md) for recent changes and fixes.
+- **Plan**: capture preferences, goals, dietary needs, household context, recipes, and meal plans.
+- **Shop**: compare recipes against pantry/inventory context, generate missing-ingredient support, and create grocery/cart workflows.
+- **Cook**: guide users through recipes with contextual AI and hands-free cooking support.
 
-## Product Direction
+Preppie is not just a recipe generator, grocery list, pantry tracker, or generic chatbot. The product promise is the full beginner-friendly Plan -> Shop -> Cook workflow.
 
-Chef is not meant to be another recipe database, generic grocery list, calorie tracker, or chatbot.
+## Current Product Foundations
 
-It should become a personal cooking operating system that connects:
+The app already has working foundations for:
 
-- recipe generation
-- recipe import/forking from outside sources
-- AI recipe editing
-- calories and macros
-- grocery cart generation
-- retailer product matching
-- pantry/inventory awareness
-- live cooking assistance
-- future community recipe/cart forking
+- email/password auth and Google login support
+- required onboarding and account preferences
+- profile memory for cuisines, dietary filters, household size, goals, shopping behavior, and kitchen defaults
+- recipe browsing, private recipe creation, and editable saved copies
+- recipe capture/import from text and URLs as reviewable drafts
+- AI meal generation, recipe structuring, ingredient swaps, and contextual cooking chat
+- flexible meal planning with user-owned meal events
+- pantry/inventory management with manual, voice, barcode, and camera-oriented foundations
+- recipe-to-cart planning and ingredient aggregation
+- grocery support through provider boundaries such as Kroger and Instacart handoff
+- hands-free cooking mode with voice-oriented cooking support foundations
+- shared TypeScript contracts between the web app and NestJS API
 
-The current frontend should be treated as a functional validation harness. Avoid major frontend polish unless it unblocks core product validation. The next durable work should happen in backend contracts, provider/tool boundaries, recipe AI, nutrition, and cart execution.
+Some AI, voice, vision, retailer, and checkout-adjacent flows are still beta/provider-dependent and should not be oversold as final customer-ready behavior.
 
-## What Exists Today
+## Target Market
 
-The backend is well past scaffold stage, and the current web app validates the core recipe-to-cart loop. The current product already has:
+Preppie’s first users are Gen Z college students and young professionals, roughly ages 18-28.
 
-- real auth with email/password and Google login
-- required onboarding
-- account/settings and security
-- account checkout profile editing for saved addresses and payment cards
-- a planning home
-- a weekly meal-planning surface
-- a dedicated recipe library
-- a dedicated kitchen inventory surface
-- draft/cart creation and editing through large overlays
-- persisted `CartDraft`, `Cart`, and `ShoppingCart` resources behind the internal `/api/v1` contract
-- persisted weekly `MealPlan` resources behind the internal `/api/v1` contract
-- quantity controls for recipe selections in the planning composer and for line quantities in shopping carts
-- a shared ingredient catalog and user kitchen inventory for demoing "already have this" behavior
-- an authenticated AI layer for chat, structured recipe generation, import structuring, and ingredient swap suggestions
-- a live Kroger retailer path behind a provider boundary
-- an Instacart shopping-list handoff path behind a cart-export boundary
+They are digitally native, comfortable with AI, and already discover food through TikTok, Instagram, screenshots, websites, and notes. They want to eat better, save money, and cook more often, but planning and grocery organization make cooking feel harder than ordering takeout.
 
-### Web App
+Initial launch focus:
 
-The Next.js web app in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web) now splits product surfaces more explicitly:
+- college students in dorms, apartments, and shared kitchens
+- young professionals building independent meal routines
+- beginner and intermediate cooks
+- health-conscious users who want structure
+- busy users who need convenience without losing confidence
 
-- `/` is the authenticated planning home for recent carts and drafts
-- `/recipes` is the dedicated recipe library surface
-- `/shopping` is the dedicated saved shopping-cart library
-- `/meal-plan` is the weekly planning workspace for breakfast/lunch/dinner assignment
-- `/inventory` is the kitchen inventory workspace with manual add flow and a camera-assisted capture UI shell
-- `/chef-ai` is the dedicated AI workspace, while the global Chef chat widget is mounted across authenticated app pages
-- recipe detail opens as a large overlay
-- `Add to cart` from recipe detail opens the cart builder preloaded with that recipe
-- draft creation, cart creation, draft detail, and cart detail all use large overlays instead of being the primary navigation path
-- draft/cart detail overlays now support edit and delete flows
-- cart detail can now generate a `ShoppingCart` and open its retailer-facing detail overlay in place
-- shopping-cart detail now supports manual editing over the same persisted resource: replace matches, add manual items, delete lines, and save
-- saved shopping carts can now be browsed from a dedicated `/shopping` surface
-- `/account/settings/*` holds account, preferences, and security
-- `/account/settings/payment` now edits the user's checkout profile with saved addresses and payment cards
-- onboarding and account preferences now also persist a neutral `shopping_location` block (manual first, GPS-ready later)
+## Business Model
 
-### API
+Preppie uses a freemium model.
 
-The NestJS API in [apps/api](/C:/Users/akuma/repos/cart-generator/apps/api) currently supports:
+Free tier:
 
-- user and admin identities in the database
-- real auth endpoints for email/password, Google login, refresh, logout, and `/me`
-- `/api/v1/me/preferences` for auth-backed cuisine and tag preferences
-- `/api/v1/me/preferences` also carries a neutral `shopping_location` profile block
-- `shopping_location` now also supports `kroger_location_id` so future store reuse can skip repeated location resolution
-- `/api/v1/me/checkout-profile` for saved addresses and payment cards used by checkout-oriented UI flows
-- `/api/v1/me/onboarding/complete` for explicit onboarding completion
-- `/api/v1/meal-plans` for user-scoped weekly meal-plan read/upsert by `week_start`
-- a global controlled cuisine catalog exposed at `/api/v1/cuisines`
-- hybrid tags with explicit `/api/v1/tags` endpoints
-- global system recipes and user-owned recipes
-- recipe CRUD for user-owned recipes
-- optional `cover_image_url` and `nutrition_data` on recipes
-- explicit dietary badge tags through `Tag.kind = dietary_badge`
-- shared `Ingredient` records seeded from recipe ingredients
-- user-scoped kitchen inventory at `/api/v1/me/kitchen-inventory`
-- an explicit fork flow for copying a system recipe into a user-owned editable recipe
-- persisted `cart-drafts`, `carts`, and `shopping-carts`
-- deterministic conversion from recipe selections into recipe-based carts
-- persisted retailer context on drafts and carts
-- derived aggregated ingredient overviews on cart reads
-- deterministic ingredient aggregation and provider-backed retailer matching behind shopping-cart generation
-- a mock retailer provider for local/dev fallback
-- a real Kroger provider for live location lookup and product search
-- an Instacart cart-export provider that can generate an external shopping-list URL
-- `/api/v1/retailers/capabilities` to expose which retailer paths are configured, handoff-only, or partner-gated
-- a Walmart provider boundary that remains available but inactive by default
-- retailer product search and shopping-cart editing APIs behind the same shopping-cart boundary
-- rule-based grocery matching refinement for produce/plain pantry items and honest no-match handling for specialty ingredients
-- authenticated AI endpoints under `/api/v1/ai` for Chef chat, structured meal generation, recipe-import structuring, and ingredient swap proposals
-- internal `/api/v1` route families for `recipes`, `recipe-forks`, `cart-drafts`, `carts`, and `shopping-carts`
-- internal `/api/v1/tags` for visible system tags and user-owned tags
-- Swagger UI at `/docs`
-- request tracing via `x-request-id`
+- recipe saving
+- basic explore/feed behavior
+- basic cart generation
+- limited AI recipe generation and imports
+- limited voice-to-text pantry actions
+- guided hands-free trials
 
-### Shared Package
+Premium tier:
 
-[packages/shared](/C:/Users/akuma/repos/cart-generator/packages/shared) contains the current TypeScript domain contracts for:
+- `$7.99/month` or `$59.99/year`
+- advanced planning and personalization
+- expanded AI recipe generation/imports with fair-use limits
+- full hands-free AI cooking mode
+- broader voice, AI, and personalization usage
 
-- recipes
-- cuisines
-- selection and cart models
-- meal plans
-- aggregation
-- matching
-- users
-- checkout profile data
+“Unlimited” features should always be presented with fair-use controls so AI, voice, and vision costs stay predictable.
 
-### Database and Infra
+## Go-To-Market
 
-The API uses Prisma + PostgreSQL.
+Preppie launches campus-first because campuses create dense feedback loops, shared kitchens, roommate word-of-mouth, student organizations, and repeat cooking contexts.
 
-- Prisma schema: [apps/api/prisma/schema.prisma](/C:/Users/akuma/repos/cart-generator/apps/api/prisma/schema.prisma)
-- Migrations: [apps/api/prisma/migrations](/C:/Users/akuma/repos/cart-generator/apps/api/prisma/migrations)
-- Seed data: [apps/api/prisma/seed](/C:/Users/akuma/repos/cart-generator/apps/api/prisma/seed)
-- Local Docker stack: [infra/docker/docker-compose.yml](/C:/Users/akuma/repos/cart-generator/infra/docker/docker-compose.yml)
-- Shared Supabase setup: [docs/supabase-database.md](/C:/Users/akuma/repos/cart-generator/docs/supabase-database.md)
+Growth phases:
 
-### Documentation
+| Phase                       | Focus                                                                       | Goal                                    |
+| --------------------------- | --------------------------------------------------------------------------- | --------------------------------------- |
+| College campus beta         | QR onboarding, live demos, dorm/apartment cooking sessions, interviews      | Validate product and messaging          |
+| Campus growth               | ambassadors, food sampling, org partnerships, referrals, cooking challenges | Improve retention and proof points      |
+| Social expansion            | TikTok, Instagram Reels, YouTube Shorts                                     | Scale awareness                         |
+| Creator partnerships and PR | micro-influencers, interactive PR boxes, creator recipe challenges          | Build trust and Gen Z adoption          |
+| Paid support                | targeted TikTok, Instagram, Google, and recipe-site ads                     | Reach 5,000 active users by end of 2026 |
 
-The main architecture and design notes live in:
+## Roadmap
 
-- [docs/business.md](/C:/Users/akuma/repos/cart-generator/docs/business.md)
-- [docs/goals.md](/C:/Users/akuma/repos/cart-generator/docs/goals.md)
-- [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md)
-- [docs/branching.md](/C:/Users/akuma/repos/cart-generator/docs/branching.md)
-- [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md)
-- [docs/llm-mechanism.md](/C:/Users/akuma/repos/cart-generator/docs/llm-mechanism.md)
-- [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md)
+Near-term priorities:
 
-Those docs now describe the startup thesis, the implemented `v1` direction, the current prototype web state, the agentic product direction, and the next product/backend milestones.
+- protect the Plan -> Shop -> Cook loop
+- prepare the PWA for a controlled Knox College beta launch
+- make pantry updates faster through voice, barcode, image, and cart-based updates
+- refine hands-free cooking for questions, repeated steps, timers, substitutions, and contextual help
+- improve recipe imports from images, links, menus, and social platforms
+- add usage limits and fair-use controls before scaling premium AI usage
+
+Development tracks:
+
+| Track              | Now                                                                                   | Beta                                                   | Growth                                       | Expansion                                      |
+| ------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------- | ---------------------------------------------- |
+| Product            | PWA foundations, onboarding, inventory, recipes, cart, meal planning, hands-free flow | beta testing, UX fixes, feedback loops                 | improve meal planning and imports            | deeper personalization and community features  |
+| AI / Vision        | AI generation/import, voice pantry, hands-free assistant, camera prototype            | cost limits, prompt quality, faster hands-free support | vision intake and smarter pantry suggestions | advanced contextual agent and vision workflows |
+| Commerce / Revenue | premium logic, usage limits, pricing model                                            | Stripe/billing readiness and fair-use rules            | referral rewards and creator recipe packs    | grocery partnerships and scalable monetization |
+| Operations         | hosting, APIs, database, analytics, admin basics                                      | monitoring, feedback tools, campus support             | ambassador playbook and content engine       | stronger analytics and customer operations     |
+
+## Tech Stack
+
+- **Web**: Next.js, React, TypeScript
+- **API**: NestJS, Prisma, PostgreSQL
+- **Shared contracts**: workspace package `@cart/shared`
+- **AI/provider boundaries**: OpenAI-capable AI provider, retailer providers, cart export providers, vision sidecar support
+- **Local infra**: Docker Postgres
+- **Deployment path**: Vercel web, Railway/API-oriented backend setup
 
 ## Repository Layout
 
@@ -172,382 +140,57 @@ cart-generator/
 `-- pnpm-workspace.yaml
 ```
 
-## License
+## Local Development
 
-This repository is public source, not open source.
+Prerequisites:
 
-The code is published for transparency, demonstration, and evaluation only. No permission is granted to copy, modify, distribute, sublicense, sell, host, operate, or otherwise use the software without prior written permission.
+- Node 22+
+- pnpm version from the root `packageManager`
+- Docker Desktop for local Postgres
+- Python 3.11+ only for optional vision work
 
-See [LICENSE](/C:/Users/akuma/repos/cart-generator/LICENSE) for details.
-
-## Workspace Commands
-
-### Prerequisites
-
-Full app development requires:
-
-- Node.js and pnpm
-- Docker Desktop for the local PostgreSQL stack
-- Python 3.11 or newer for the vision sidecar
-- a local `.env` copied from `.env.example`
-
-On Windows, install Python first if `python --version` or `py -3 --version` does not work:
+First-time setup for web + API:
 
 ```powershell
-winget install Python.Python.3.11
-```
-
-### Fresh Clone Setup
-
-Use this path when setting up the full app on a new machine or after a clean clone.
-
-For the shortest current setup guide, prefer [local-dev-setup.md](/C:/Users/akuma/repos/cart-generator/local-dev-setup.md).
-
-On Windows PowerShell:
-
-```powershell
-pnpm setup
-pnpm build
-```
-
-`pnpm setup` installs Node dependencies, creates `.env` from `.env.example` when missing, starts local PostgreSQL, generates Prisma, applies migrations, seeds data, creates `.venv`, and installs the vision dependencies.
-
-Notes:
-
-- `.env` is intentionally ignored. Copy `.env.example` locally, then fill in any real secrets or shared database URLs out of band.
-- `apps/api/generated/prisma` is intentionally ignored. Regenerate it with `pnpm --filter api prisma:generate`; do not commit the generated client.
-- `node_modules`, `.venv`, `.next`, `dist`, Python caches, local datasets, and model checkpoints are local artifacts. Do not commit them to fix another developer's machine.
-- Vision checkpoint folders are tracked under `apps/vision-lab/checkpoints/`, but checkpoint binaries are intentionally ignored. Download shared checkpoints from the team Drive folder into the documented paths in `apps/vision-lab/checkpoints/README.md`.
-- Datasets, imports, previews, and scratch training output under `apps/vision-lab/data/` are local artifacts and should stay out of Git.
-
-Install dependencies:
-
-```bash
-pnpm install
-```
-
-Run the full app:
-
-```bash
-pnpm dev
-```
-
-Run one app or a reduced stack:
-
-```bash
-pnpm dev:api
-pnpm dev:web
-pnpm dev:vision
+pnpm setup:main
 pnpm dev:main
 ```
 
-`pnpm dev` and `pnpm dev:all` run web, API, and vision-lab together. `pnpm dev:main` is only for working on web/API without the vision sidecar.
-
-Build the workspace:
-
-```bash
-pnpm build
-```
-
-Run workspace checks:
-
-```bash
-pnpm lint
-pnpm test
-pnpm typecheck
-```
-
-### Vision Lab Commands
-
-Create or refresh the repo-local virtual environment and install the base vision dependencies:
+Useful commands:
 
 ```powershell
-pnpm vision:setup
+pnpm --filter api test -- --runInBand
+pnpm -r build
+pnpm --filter web lint
+pnpm --filter api prisma:generate
+pnpm --dir apps/api exec prisma migrate deploy
 ```
 
-For the optional live webcam path:
+Local URLs:
 
-```powershell
-pnpm vision:setup:live
-```
+- Web: `http://localhost:3000`
+- API: `http://localhost:3001`
+- Swagger: `http://localhost:3001/docs`
 
-Run the FastAPI vision sidecar:
+See [local-dev-setup.md](local-dev-setup.md) for env and database details.
 
-```powershell
-pnpm dev:vision
-```
+## Documentation
 
-Run the Streamlit lab:
+Start here:
 
-```powershell
-pnpm vision:streamlit
-```
-
-The setup script creates `.venv` at the repo root. `.venv` is intentionally ignored and should not be committed.
-
-Check whether shared checkpoint files are present:
-
-```powershell
-pnpm vision:checkpoints
-```
-
-Shared checkpoint convention:
-
-- Put base YOLO weights in `apps/vision-lab/checkpoints/base/`.
-- Put ingredient classifier checkpoints in `apps/vision-lab/checkpoints/classifiers/ingredient/<run-name>/best_model.pt`.
-- Put FoodSeg103 segmenter checkpoints in `apps/vision-lab/checkpoints/segmenters/foodseg103/<run-name>/weights/best.pt`.
-- Put ingredient detector checkpoints in `apps/vision-lab/checkpoints/detectors/ingredient/<run-name>/weights/best.pt`.
-
-The folder tree and manifest template are tracked in Git; the checkpoint binaries are shared separately.
-
-## Local API Setup
-
-Root shortcuts:
-
-```bash
-pnpm api:setup
-pnpm api:up
-pnpm api:reset
-```
-
-What they do:
-
-- `pnpm api:setup`
-  Prepares the local backend without starting the server.
-  Starts Postgres, generates Prisma client, applies existing migrations, and seeds local data.
-
-- `pnpm api:up`
-  Starts Postgres if needed and then runs the API in dev mode.
-
-- `pnpm api:reset`
-  Destructive.
-  Resets the local API database, reapplies migrations, and reruns seed through Prisma.
-
-Start PostgreSQL:
-
-```bash
-docker compose -f infra/docker/docker-compose.yml up -d
-```
-
-Apply migrations:
-
-```bash
-cd apps/api
-pnpm prisma:migrate:dev
-```
-
-Seed the database:
-
-```bash
-pnpm db:seed
-```
-
-Start the API:
-
-```bash
-pnpm start:dev
-```
-
-Recommended first-time local flow:
-
-```bash
-pnpm api:setup
-pnpm api:up
-```
-
-Useful API commands:
-
-```bash
-pnpm build
-pnpm test --runInBand
-pnpm test:e2e
-pnpm test:e2e:ci
-pnpm prisma:generate
-pnpm prisma:studio
-```
-
-Swagger:
-
-- UI: [http://localhost:3001/docs](http://localhost:3001/docs)
-- OpenAPI JSON: [http://localhost:3001/docs/openapi.json](http://localhost:3001/docs/openapi.json)
-
-## Current Product Rules
-
-- system recipes are global and immutable
-- user-created recipes are private by default
-- unauthenticated recipe reads only see global system recipes
-- authenticated users see global recipes plus their own recipes
-- writes require authentication
-- `/api/v1/me` is the authenticated profile boundary
-- cuisines are now explicit global resources with `kind`-based curation
-- recipe writes now use `cuisine_id`, and recipe reads return both `cuisine_id` and expanded `cuisine`
-- tags are now explicit resources with `system` and `user` scope
-- tags now also carry `kind`, so dietary badges like `halal`, `vegan`, and `gluten-free` are explicit curated system tags with `kind = dietary_badge`
-- recipe writes now use `tag_ids`, and recipe reads return both `tag_ids` and expanded `tags`
-- forking a system recipe creates a user-owned editable copy
-- duplicate forks of the same source recipe are prevented per user
-- `CartDraft` is editable incomplete intent, not the main product object
-- `Cart` is the stable recipe-based meal plan snapshot with retailer context and a derived ingredient overview
-- `ShoppingCart` is the retailer-facing basket derived from a `Cart`
-- kitchen inventory is a persistent "user says they have it" layer, not exact pantry automation
-- cart overviews can mark ingredients as `in_kitchen`, and shopping-cart generation skips those lines
-- aggregation and retailer matching remain deterministic
-- `ShoppingCart` can now be manually corrected without regenerating a new planning artifact
-- dietary badges should come from tag metadata, not hardcoded booleans on recipes
-- `nutrition_data` is optional recipe detail metadata, not something every compact recipe card needs to show
-- generating a cart from an existing draft should consume that draft so recent work does not duplicate the same planning run
-
-## Live API Shape
-
-The clean internal `v1` contract is now the implemented direction under `/api/v1`.
-
-Resource families:
-
-- `recipes`
-- `recipe-forks`
-- `cart-drafts`
-- `carts`
-- `shopping-carts`
-
-Approved conceptual flow:
-
-```text
-Recipe -> CartDraft -> Cart -> ShoppingCart
-```
-
-Interpretation:
-
-- `CartDraft` is editable user intent
-- `Cart` is the stable recipe-based meal plan snapshot with retailer context and derived ingredient overview
-- `ShoppingCart` is the retailer-facing purchase basket derived from a `Cart`
-
-This separation is intentional:
-
-- `Cart` answers "what do I want to cook?"
-- `ShoppingCart` answers "what do I need to buy?"
-- retailer matching and purchasable-product state still belong behind `ShoppingCart`
-- real auth and future tags should be built on top of this API shape, not by reshaping it again
-
-## What Changed Recently
-
-- `/api/v1` is now the active internal API contract.
-- auth persistence now includes `AuthIdentity` and `RefreshToken`.
-- cuisine persistence now includes a global `Cuisine` catalog.
-- tags persistence now includes `Tag` and `RecipeTag`.
-- `/api/v1/auth/register`, `/login`, `/google`, `/refresh`, `/logout`, `GET /me`, and `PATCH /me` are implemented.
-- `/api/v1/cuisines` now exposes the global cuisine catalog.
-- `/api/v1/me/preferences` now supports read/replace for user cuisine and system-tag preferences.
-- `/api/v1/me/preferences` now also supports `shopping_location` (`zip_code`, `label`, `latitude`, `longitude`, `kroger_location_id`) for future store resolution and location reuse.
-- `/api/v1/me/onboarding/complete` now marks onboarding completion independently from preferences.
-- `/api/v1/tags` now supports list/create/update/delete.
-- `/api/v1/tags` now returns `kind` so clients can distinguish general taxonomy tags from dietary badge tags.
-- `/api/v1/ingredients` exposes the shared ingredient catalog.
-- `/api/v1/me/kitchen-inventory` supports listing, adding, and deleting the current user's kitchen inventory items.
-- `Cart.overview` and `ShoppingCart.overview` can now mark `in_kitchen` ingredients, and shopping-cart generation only matches/exports missing ingredients.
-- `POST /api/v1/recipe-forks` replaced the old save-style route.
-- recipes now require `cuisine_id` and return expanded `cuisine` objects.
-- carts now require `retailer` on write and return derived `overview` ingredient data on read.
-- `cart-drafts`, `carts`, and `shopping-carts` are separate resources in API, shared models, and database schema.
-- Prisma migration `20260319113000_split_cart_and_shopping_cart_v1` materializes the new `Cart`/`ShoppingCart` split.
-- Prisma migration `20260319124500_add_cuisine_catalog` materializes the controlled cuisine catalog and recipe relation.
-- Prisma migration `20260321130500_add_cart_retailer` materializes retailer persistence on `Cart`.
-- the web app dashboard in [apps/web](/C:/Users/akuma/repos/cart-generator/apps/web) now reads the `/api/v1` endpoints and reflects the new model vocabulary.
-- the web app now separates planning home from recipe browsing: `/` focuses on planning state and recent work, while `/recipes` owns the recipe library.
-- `/recipes` now has recipe detail overlays with ingredients, steps, and `nutrition_data`
-- recipe detail now uses `Add to cart` instead of creating drafts immediately
-- the cart builder is now the central planning composer, and drafts are treated as secondary persistence for incomplete work
-- draft/cart detail overlays now support edit flows by reopening the same composer with hydrated selections, retailer, and name
-- draft/cart detail overlays now support delete flows
-- generating a cart from an existing draft now deletes that draft after successful cart creation
-- cart detail now supports `Generate shopping cart`, which opens a retailer-facing shopping-cart detail overlay on top of the same workspace
-- shopping-cart detail now supports manual correction on the same persisted resource
-- `/api/v1/retailers/:retailer/products/search` now exposes provider-backed product search behind the shopping-cart editor
-- the matching module now supports `MockRetailerProductProvider`, `KrogerRetailerProductProvider`, and `WalmartRetailerProductProvider`
-- Kroger is now the first live retailer path, using the user's shopping location to resolve a nearby store before product search
-- the Kroger provider now deduplicates concurrent token fetches, throttles uncached search bursts, and caches locations/query results to reduce burst traffic
-- Instacart is now supported as a shopping-cart handoff path through `CartExportService`, storing `external_url` on the persisted `ShoppingCart`
-- new API envs:
-  - `WALMART_USE_REAL_PROVIDER=true|false`
-  - `WALMART_CLIENT_ID`
-  - `WALMART_CLIENT_SECRET`
-  - `WALMART_ENV=sandbox|production`
-- additional API envs:
-  - `KROGER_USE_REAL_PROVIDER=true|false`
-  - `KROGER_CLIENT_ID`
-  - `KROGER_CLIENT_SECRET`
-- Instacart API envs:
-  - `INSTACART_USE_REAL_PROVIDER=true|false`
-  - `INSTACART_API_KEY`
-  - `INSTACART_ENV=development|production`
-  - `INSTACART_API_BASE_URL` optional override for sandbox/dev endpoints
-- `PATCH /api/v1/shopping-carts/:id` now persists manual shopping-cart edits
-- shopping-cart editing now supports manual line items, replacing matches, deleting lines, and changing `selected_quantity`
-- draft/cart editing now supports per-recipe quantities, so the same dish can appear multiple times in one planning run
-- `/api/v1/retailers/capabilities` now reports demo-ready retailer capabilities:
-  - Instacart is the preferred cart handoff path when configured
-  - Kroger is the live product-search and subtotal path
-  - Walmart remains partner/approval-gated for now
-- `/api/v1/meal-plans` now persists one weekly meal plan per user and Monday `week_start`
-- `/api/v1/me/checkout-profile` now persists saved addresses and payment cards for checkout-oriented flows
-- `/api/v1/ai/chat`, `/api/v1/ai/meals/generate`, `/api/v1/ai/recipe-imports/structure`, and `/api/v1/ai/recipes/swap-ingredient` now provide the first integrated Chef AI layer
-- the web app now mounts a global Chef chat widget across authenticated workspace pages through `AppShell`
-- the web app now includes dedicated `/meal-plan`, `/inventory`, `/chef-ai`, and `/account/settings/payment` surfaces
-- `apps/llm-testing` now exists as a separate Streamlit lab for prompt/schema experimentation outside the main app
-
-### LLM Configuration
-
-Use mock AI locally without model calls:
-
-```bash
-CHEF_LLM_PROVIDER=mock
-```
-
-Use OpenAI for real model calls:
-
-```bash
-CHEF_LLM_PROVIDER=openai
-OPENAI_API_KEY=your_key_here
-OPENAI_MODEL=gpt-5.4-mini
-```
-
-## Upcoming Work
-
-The next high-signal work is now more product-shaped than before.
-
-The current frontend should be treated as a functional prototype and validation harness. Avoid heavy visual investment there unless it unblocks core flows. A future frontend rebuild can happen once the backend/API contracts are stronger.
-
-1. Add meal-idea -> structured recipe generation.
-2. Persist generated/imported AI recipe previews into the main recipe library after explicit confirmation.
-3. Add pre-cart ingredient review so users can override inventory per planning run.
-4. Keep improving Kroger matching quality with more ingredient query planning, synonym maps, and stronger produce/pantry heuristics.
-5. Wire Instacart credentials into the demo branch and validate real hosted shopping-list creation.
-6. Add GPS-assisted shopping-location setup and better Kroger store reuse.
-7. Evaluate open-source MCPs/tools for retailer search, nutrition lookup, cart export, pantry, and recipe import.
-8. Strengthen the weekly meal-planning and checkout-profile flows so they move beyond prototype UI state.
+- [docs/business_plan.pdf](docs/business_plan.pdf) - definitive product and business plan
+- [docs/business.md](docs/business.md) - Markdown business summary derived from the plan
+- [docs/goals.md](docs/goals.md) - current product goals and roadmap
+- [docs/FEATURES.md](docs/FEATURES.md) - customer-facing feature inventory
+- [docs/architecture.md](docs/architecture.md) - technical system architecture
+- [docs/models.md](docs/models.md) - shared/API domain model map
+- [docs/future-preppie-brand-transition.md](docs/future-preppie-brand-transition.md) - naming transition notes for internal Chef references
 
 ## Current Gaps
 
-- recipe variants and AI-assisted adaptation are not implemented yet
-- meal-idea recipe generation exists, but generated previews are not yet first-class saved recipes in the core workflow
-- recipe import structuring exists, but imported previews are not yet persisted into the main recipe library flow
-- kitchen inventory persistence exists, but the user-facing inventory flow is still an early prototype and the camera path is UI-only today
-- pre-cart ingredient editing/removal is not implemented as a dedicated per-cart override flow yet
-- external recipe import/forking from URLs, screenshots, menus, or creator content is not implemented yet
-- the Walmart provider boundary exists, the first live matching path is Kroger, and the first external handoff path is Instacart
-- delete flows exist, but recovery/versioning does not
-- drafts and carts can now be edited, but there is still no broader history/timeline model for planning runs
-- shopping-cart history exists in API and `/shopping`, but revisit/history tools are still fairly light
-- store resolution is still manual-first; GPS capture and explicit saved-store management are not in UX yet
-- the current web app is useful for validation, but it is not the intended final frontend
-- AI recipe generation is integrated but still incomplete as a persisted product workflow; AI recipe editing, nutrition providers, richer cart export, and contextual cooking assistant flows are still design/runtime work
-
-## Practical Reading Guide
-
-If you want the current truth of the system:
-
-1. Read [docs/business.md](/C:/Users/akuma/repos/cart-generator/docs/business.md) for the startup thesis, target, and go-to-market.
-2. Read [docs/goals.md](/C:/Users/akuma/repos/cart-generator/docs/goals.md) for the product and engineering direction.
-3. Read [docs/architecture.md](/C:/Users/akuma/repos/cart-generator/docs/architecture.md) for the layered system and the approved `Cart` vs `ShoppingCart` split.
-4. Read [docs/decisions.md](/C:/Users/akuma/repos/cart-generator/docs/decisions.md) for the policy and API-shape decisions.
-5. Read [docs/models.md](/C:/Users/akuma/repos/cart-generator/docs/models.md) for the conceptual model vocabulary.
-6. Read Swagger at `/docs` for the live implemented `/api/v1` contract.
+- Full social-media ingestion is not complete.
+- Vision-assisted pantry updates are still review-first and beta.
+- Native app distribution is not the current launch path; the near-term product is a mobile-friendly PWA.
+- Direct retailer checkout is not the primary supported flow.
+- AI, voice, and vision usage need strict fair-use controls before broad premium scale.
+- Internal Chef naming remains in routes, DTOs, code, and some technical docs until a coordinated rename is planned.

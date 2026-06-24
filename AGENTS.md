@@ -1,6 +1,6 @@
 # AGENTS
 
-This file defines expectations for AI agents contributing to Chef.
+This file defines expectations for AI agents contributing to Preppie.
 
 It is written for agent-assisted coding workflows used by the team. It applies whether the agent is generating code, reviewing code, refactoring, documenting, or preparing deploy work.
 
@@ -55,6 +55,8 @@ Preferred behavior:
 - read only the files needed for the current task
 - prefer entrypoints, touched files, diffs, and referenced docs over exploratory repo-wide reading
 - read small slices first (`Get-Content -TotalCount`, targeted matches, nearby sections), then expand only if needed
+- use the `pdf-to-markdown` skill when reading PDFs so full-document context can be extracted once and reused efficiently
+- use the `create-readme` skill when creating or updating `README.md`
 - rely on the repo docs that already capture branch/process/setup state
 - summarize long docs instead of quoting them back
 - avoid broad repo scans unless the task truly needs them
@@ -92,6 +94,29 @@ When a task is about process, setup, architecture, or handoff context, prefer ch
 - `.github/workflows/` for CI behavior
 
 If a task is about process rather than code, start from the smallest relevant source instead of exploring the whole repo again.
+
+## Repo Context Map
+
+Agents should use the project docs as context pointers, not as content to paste
+back into `AGENTS.md`.
+
+Useful sources:
+
+- `README.md`: high-level product and repository overview
+- `local-dev-setup.md`: current local startup, env, and reset flow
+- `docs/branching.md`: branch policy and integration expectations
+- `docs/architecture.md`: system boundaries and module overview
+- `docs/models.md`: shared domain models and type ownership
+- `docs/frontend-meal-plan-handoff.md`: current flexible meal-plan contract
+- `docs/supabase-database.md`: database environment and Supabase notes
+- `docs/specs/`: approved or in-progress feature/backend specs
+- `docs/archive/`: historical docs that should not drive new implementation unless explicitly referenced
+- `.github/workflows/`: CI behavior and expected checks
+- `scripts/`: setup, env, and local automation entry points
+
+When a user references recent Cline or agent work, check these docs first before
+reconstructing context from the entire repository. Do not copy whole Cline rule
+files into `AGENTS.md`; preserve only durable repo-wide conventions here.
 
 ## What Agents Are Allowed To Do
 
