@@ -444,7 +444,8 @@ export function RecipesClient({
                 Import recipe
               </p>
               <p className="mt-0.5 text-body-sm leading-snug text-outline">
-                Paste a link or recipe text and Chef will draft it for review.
+                Paste a link or recipe text and Preppie will draft it for
+                review.
               </p>
             </div>
             <span className="material-symbols-outlined text-[20px] text-outline">

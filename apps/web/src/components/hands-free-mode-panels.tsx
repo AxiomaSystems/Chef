@@ -37,7 +37,7 @@ export function HandsFreeTranscriptPanel({
           </div>
           <div className="min-w-0 overflow-hidden rounded-2xl border border-[#f4be6b]/50 bg-[#fff2e3] px-3 py-2.5 sm:px-4 sm:py-3">
             <span className="block text-[9px] font-black uppercase tracking-widest text-primary">
-              Chef did
+              Preppie did
             </span>
             <span className="mt-1 line-clamp-2 block min-w-0 break-words text-sm text-on-surface">
               {lastAction ?? "No command action yet."}
@@ -68,7 +68,7 @@ export function HandsFreeTranscriptPanel({
                     ? "You"
                     : entry.speaker === "system"
                       ? "Action"
-                      : "Chef"}
+                      : "Preppie"}
                 </span>
                 {entry.text}
               </div>

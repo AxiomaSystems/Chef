@@ -133,7 +133,7 @@ export async function askChefAction(input: {
   const message = input.message.trim();
 
   if (!message) {
-    return { error: "Ask Chef something first." };
+    return { error: "Ask Preppie something first." };
   }
 
   const cookieStore = await cookies();
@@ -159,7 +159,10 @@ export async function askChefAction(input: {
 
   if (!response?.ok) {
     return {
-      error: await readErrorMessage(response, "Chef is unavailable right now."),
+      error: await readErrorMessage(
+        response,
+        "Preppie is unavailable right now.",
+      ),
     };
   }
 
@@ -647,7 +650,7 @@ export async function generateMealsAction(
   const mealPrompt = input.mealPrompt.trim();
 
   if (!mealPrompt) {
-    return { error: "Give Chef a meal idea first." };
+    return { error: "Give Preppie a meal idea first." };
   }
 
   const accessToken = await requireAccessToken();
@@ -668,7 +671,7 @@ export async function generateMealsAction(
     return {
       error: await readErrorMessage(
         response,
-        "Chef could not generate meals right now.",
+        "Preppie could not generate meals right now.",
       ),
     };
   }
@@ -840,7 +843,7 @@ export async function importRecipeFromUrlAction(input: {
     return {
       error: await readErrorMessage(
         response,
-        "Chef could not import that link right now.",
+        "Preppie could not import that link right now.",
       ),
     };
   }

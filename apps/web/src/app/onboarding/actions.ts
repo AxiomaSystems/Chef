@@ -207,7 +207,7 @@ export async function savePreferencesAndCompleteAction(
   }).catch(() => null);
 
   if (!profileMemoryResponse?.ok) {
-    return { error: "Unable to save your Chef memory right now." };
+    return { error: "Unable to save your Preppie memory right now." };
   }
 
   const completionResponse = await callAuthedJson("/me/onboarding/complete", {

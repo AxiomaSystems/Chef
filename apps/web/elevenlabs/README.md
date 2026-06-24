@@ -1,6 +1,6 @@
 # ElevenLabs Agent Config
 
-This directory is the source of truth for the Chef hands-free cooking copilot.
+This directory is the source of truth for the Preppie hands-free cooking copilot.
 
 The dashboard can still be used for inspection, but prompt and tool changes
 should be made here and synced with:

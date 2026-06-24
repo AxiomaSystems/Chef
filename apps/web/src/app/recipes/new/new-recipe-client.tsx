@@ -82,13 +82,13 @@ export function NewRecipeClient({
               {initialDraft ? "Review import" : "New recipe"}
             </p>
             <h1 className="mt-2 max-w-xl text-[2.2rem] font-black leading-[0.96] text-on-surface sm:text-headline-lg">
-              {initialDraft ? "Make Chef's draft yours." : "Build a recipe."}
+              {initialDraft ? "Make Preppie's draft yours." : "Build a recipe."}
             </h1>
           </div>
           <p className="max-w-2xl text-body-md leading-7 text-on-surface-variant lg:justify-self-end">
             {initialDraft
-              ? "Chef filled the form from your capture. Review the ingredients, steps, image, and tags before saving it to your kitchen."
-              : "Start with the basics, then fill ingredients and steps manually or ask Chef to draft the rest from the recipe name."}
+              ? "Preppie filled the form from your capture. Review the ingredients, steps, image, and tags before saving it to your kitchen."
+              : "Start with the basics, then fill ingredients and steps manually or ask Preppie to draft the rest from the recipe name."}
           </p>
         </div>
 
@@ -111,7 +111,7 @@ export function NewRecipeClient({
           />
         ) : (
           <div className="rounded-[2rem] border border-outline-variant/40 bg-background p-8 text-body-md text-on-surface-variant shadow-[0_24px_80px_rgba(46,30,15,0.12)]">
-            Loading Chef&apos;s imported draft...
+            Loading Preppie&apos;s imported draft...
           </div>
         )}
       </main>

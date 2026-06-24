@@ -218,7 +218,7 @@ Ask about substitutions, timing, scaling, or dietary changes.${getHandsFreeSuffi
 I can help with substitutions, dietary changes, servings, timing, and nutrition.${getHandsFreeSuffix(handsFreeMode)}`;
   }
 
-  return `I am Chef AI and I can help with:
+  return `I am Preppie AI and I can help with:
 
 - substitutions
 - vegan or gluten-free changes
@@ -268,7 +268,7 @@ export function ChefAIClient({ recipes }: { recipes: BaseRecipe[] }) {
       id: "welcome",
       role: "ai",
       content:
-        "Hello! I'm your **Chef AI**. I can help with a saved recipe, a social link, or quick kitchen questions while you cook.",
+        "Hello! I'm your **Preppie AI**. I can help with a saved recipe, a social link, or quick kitchen questions while you cook.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -387,7 +387,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
   const currentPromptSet = handsFreeMode ? HANDS_FREE_CHIPS : QUICK_CHIPS;
 
   return (
-    <AppShell topBarTitle="Chef AI">
+    <AppShell topBarTitle="Preppie AI">
       <div
         className="flex flex-col bg-[#fff8ef]"
         style={{ height: "calc(100svh - 52px)" }}
@@ -405,7 +405,7 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
               </div>
               <div className="min-w-0">
                 <p className="text-lg font-bold leading-tight text-white">
-                  Chef AI
+                  Preppie AI
                 </p>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-white/85">
                   <span className="flex items-center gap-1.5">
@@ -781,8 +781,8 @@ Ask for substitutions, timing, scaling, or a simpler step-by-step version.`,
                   type="text"
                   placeholder={
                     handsFreeMode
-                      ? "Ask Chef AI for the next step..."
-                      : "Ask Chef AI..."
+                      ? "Ask Preppie for the next step..."
+                      : "Ask Preppie..."
                   }
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
