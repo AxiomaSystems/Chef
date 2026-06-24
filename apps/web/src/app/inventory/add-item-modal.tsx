@@ -61,7 +61,7 @@ export function AddItemModal({
             autoFocus
           />
           <p className="text-xs text-outline">
-            Type any ingredient — we'll add it to your kitchen.
+            Type any ingredient — we&apos;ll add it to your kitchen.
           </p>
         </div>
 

@@ -1,5 +1,4 @@
 import type {
-  BaseRecipe,
   MealPlanRange,
   RecipeListPage,
   UserPreferences,

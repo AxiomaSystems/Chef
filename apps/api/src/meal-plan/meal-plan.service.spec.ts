@@ -21,7 +21,7 @@ describe('MealPlanService', () => {
         id: 'event-1',
         source_type: 'recipe',
         servings: 2,
-        recipeDetails: {
+        recipe: {
           id: 'recipe-1',
           servings: 4,
           nutrition_data: {
