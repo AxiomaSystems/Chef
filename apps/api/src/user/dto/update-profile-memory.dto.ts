@@ -17,6 +17,7 @@ import {
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  AI_PLANNING_OPTIMIZATION_VALUES,
   USER_FOOD_RULE_ACTION_VALUES,
   USER_FOOD_RULE_KIND_VALUES,
   USER_GOAL_KIND_VALUES,
@@ -187,6 +188,10 @@ export class ProfileMemoryPreferencesPatchDto {
   @IsOptional()
   @IsIn(BIGGEST_COOKING_FRUSTRATION_VALUES)
   biggest_cooking_frustration?: (typeof BIGGEST_COOKING_FRUSTRATION_VALUES)[number];
+
+  @IsOptional()
+  @IsIn(AI_PLANNING_OPTIMIZATION_VALUES)
+  ai_planning_optimization?: (typeof AI_PLANNING_OPTIMIZATION_VALUES)[number];
 }
 
 export class UpsertUserFoodRuleDto {

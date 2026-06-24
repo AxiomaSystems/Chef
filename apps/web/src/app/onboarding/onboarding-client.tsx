@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import type { Cuisine, Tag, UserPreferences } from "@cart/shared";
+import { useCallback, useState, useTransition } from "react";
 import type {
+  Cuisine,
+  KitchenInventoryItem,
+  Tag,
+  UserPreferences,
+} from "@cart/shared";
+import type {
+  AiPlanningOptimization,
   AvailableAppliance,
   BiggestCookingFrustration,
   CalorieTrackingMode,
@@ -33,8 +39,10 @@ import { StepGoalsNutrition } from "@/components/onboarding/steps/step-goals-nut
 import { StepShoppingBehavior } from "@/components/onboarding/steps/step-shopping-behavior";
 import { StepDiscoveryFriction } from "@/components/onboarding/steps/step-discovery-friction";
 import { StepLocation } from "@/components/onboarding/steps/step-location";
+import { InventoryClient } from "@/app/inventory/inventory-client";
 import {
   AVAILABLE_APPLIANCE_LABELS,
+  AI_PLANNING_OPTIMIZATION_LABELS,
   DISLIKED_INGREDIENT_LABELS,
   DISLIKED_TEXTURE_LABELS,
   FAVORITE_FLAVOR_LABELS,
@@ -49,11 +57,11 @@ import {
   skipOnboardingAction,
 } from "./actions";
 
-const TOTAL_STEPS = 9;
+const TOTAL_STEPS = 10;
 
 const STEP_COPY: Record<number, { title: string; subtitle: string }> = {
   1: {
-    title: "Who should Chef plan for?",
+    title: "Who should Preppie plan for?",
     subtitle: "Set the default serving context.",
   },
   2: {
@@ -61,11 +69,11 @@ const STEP_COPY: Record<number, { title: string; subtitle: string }> = {
     subtitle: "Cuisine and dietary defaults.",
   },
   3: {
-    title: "What should Chef reach for first?",
+    title: "What should Preppie reach for first?",
     subtitle: "Soft taste preferences.",
   },
   4: {
-    title: "What should Chef avoid?",
+    title: "What should Preppie avoid?",
     subtitle: "Soft dislikes for recipe ranking.",
   },
   5: {
@@ -73,19 +81,24 @@ const STEP_COPY: Record<number, { title: string; subtitle: string }> = {
     subtitle: "Equipment and time constraints.",
   },
   6: {
-    title: "What should Chef optimize for?",
-    subtitle: "Prioritized planning goals.",
+    title: "What is already in your kitchen?",
+    subtitle:
+      "Add staples now so Preppie can avoid telling you to buy what you already have. You can skip this and edit it later.",
   },
   7: {
+    title: "What should Preppie optimize for?",
+    subtitle: "Prioritized planning goals.",
+  },
+  8: {
     title: "How do you shop?",
     subtitle: "Budget and store defaults.",
   },
-  8: {
-    title: "How should Chef help first?",
+  9: {
+    title: "How should Preppie help first?",
     subtitle: "Guide future agent behavior.",
   },
-  9: {
-    title: "Where should Chef build your cart?",
+  10: {
+    title: "Where should Preppie build your cart?",
     subtitle: "Store availability and cart accuracy.",
   },
 };
@@ -107,6 +120,7 @@ type FormState = {
   preferred_cooking_time: PreferredCookingTime | null;
   typical_meal_times: TypicalMealTime[];
   goal_priorities: GoalPriority[];
+  ai_planning_optimization: AiPlanningOptimization | null;
   calorie_tracking_mode: CalorieTrackingMode | null;
   weekly_nutrition_targets: WeeklyNutritionTargets;
   weekly_budget: WeeklyBudget | null;
@@ -139,6 +153,7 @@ function buildInitialState(prefs: UserPreferences | null): FormState {
     preferred_cooking_time: prefs?.preferred_cooking_time ?? null,
     typical_meal_times: (prefs?.typical_meal_times ?? []) as TypicalMealTime[],
     goal_priorities: (prefs?.goal_priorities ?? []) as GoalPriority[],
+    ai_planning_optimization: prefs?.ai_planning_optimization ?? null,
     calorie_tracking_mode: prefs?.calorie_tracking_mode ?? null,
     weekly_nutrition_targets: prefs?.weekly_nutrition_targets ?? {},
     weekly_budget: prefs?.weekly_budget ?? null,
@@ -235,6 +250,12 @@ function buildMemoryItems(
     items.push(`Optimizes for ${joinLabels(goalLabels)}`);
   }
 
+  if (form.ai_planning_optimization) {
+    items.push(
+      `AI planning: ${AI_PLANNING_OPTIMIZATION_LABELS[form.ai_planning_optimization]}`,
+    );
+  }
+
   if (Object.values(form.weekly_nutrition_targets).some(Boolean)) {
     items.push("Uses custom weekly nutrition targets");
   }
@@ -260,17 +281,27 @@ export function OnboardingClient({
   cuisines,
   dietaryTags,
   existingPreferences,
+  existingInventory,
 }: {
   cuisines: Cuisine[];
   dietaryTags: Tag[];
   existingPreferences: UserPreferences | null;
+  existingInventory: KitchenInventoryItem[];
 }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(() =>
     buildInitialState(existingPreferences),
   );
+  const [inventoryItems, setInventoryItems] =
+    useState<KitchenInventoryItem[]>(existingInventory);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const handleInventoryItemsChange = useCallback(
+    (items: KitchenInventoryItem[]) => {
+      setInventoryItems(items);
+    },
+    [],
+  );
 
   function patch<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -318,7 +349,16 @@ export function OnboardingClient({
   }
 
   const copy = STEP_COPY[step]!;
-  const memoryItems = buildMemoryItems(form, cuisines, dietaryTags);
+  const memoryItems = [
+    ...buildMemoryItems(form, cuisines, dietaryTags),
+    ...(inventoryItems.length > 0
+      ? [
+          `${inventoryItems.length} inventory ${
+            inventoryItems.length === 1 ? "item" : "items"
+          } ready for meal planning`,
+        ]
+      : []),
+  ];
 
   return (
     <OnboardingShell
@@ -332,6 +372,7 @@ export function OnboardingClient({
       nextLabel={step === TOTAL_STEPS ? "Save memory" : "Continue"}
       isPending={isPending}
       error={error}
+      layout={step === 6 ? "workspace" : "card"}
     >
       {step === 1 && (
         <StepHousehold
@@ -388,18 +429,29 @@ export function OnboardingClient({
         />
       )}
       {step === 6 && (
+        <InventoryClient
+          realItems={inventoryItems}
+          embedded
+          onItemsChange={handleInventoryItemsChange}
+        />
+      )}
+      {step === 7 && (
         <StepGoalsNutrition
           goalPriorities={form.goal_priorities}
+          aiPlanningOptimization={form.ai_planning_optimization}
           calorieTrackingMode={form.calorie_tracking_mode}
           weeklyNutritionTargets={form.weekly_nutrition_targets}
           onGoalPrioritiesChange={(v) => patch("goal_priorities", v)}
+          onAiPlanningOptimizationChange={(v) =>
+            patch("ai_planning_optimization", v)
+          }
           onCalorieTrackingModeChange={(v) => patch("calorie_tracking_mode", v)}
           onWeeklyNutritionTargetsChange={(v) =>
             patch("weekly_nutrition_targets", v)
           }
         />
       )}
-      {step === 7 && (
+      {step === 8 && (
         <StepShoppingBehavior
           weeklyBudget={form.weekly_budget}
           preferredStores={form.preferred_stores}
@@ -409,7 +461,7 @@ export function OnboardingClient({
           onShoppingModeChange={(v) => patch("shopping_mode", v)}
         />
       )}
-      {step === 8 && (
+      {step === 9 && (
         <StepDiscoveryFriction
           recipeDiscoverySources={form.recipe_discovery_sources}
           biggestCookingFrustration={form.biggest_cooking_frustration}
@@ -421,7 +473,7 @@ export function OnboardingClient({
           }
         />
       )}
-      {step === 9 && (
+      {step === 10 && (
         <StepLocation
           zip={form.shopping_location_zip}
           label={form.shopping_location_label}

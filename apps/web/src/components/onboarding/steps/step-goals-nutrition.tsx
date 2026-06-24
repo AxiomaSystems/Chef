@@ -1,35 +1,42 @@
 "use client";
 
 import type {
+  AiPlanningOptimization,
   CalorieTrackingMode,
   GoalPriority,
   WeeklyNutritionTargets,
 } from "@cart/shared";
 import {
+  AI_PLANNING_OPTIMIZATION_VALUES,
   CALORIE_TRACKING_MODE_VALUES,
   GOAL_PRIORITY_VALUES,
 } from "@cart/shared";
 import { ChipMultiSelect } from "@/components/onboarding/ui/chip-multi-select";
 import { ChipSingleSelect } from "@/components/onboarding/ui/chip-single-select";
 import {
+  AI_PLANNING_OPTIMIZATION_LABELS,
   CALORIE_TRACKING_MODE_LABELS,
   GOAL_PRIORITY_LABELS,
 } from "@/components/onboarding/labels";
 
 type Props = {
   goalPriorities: GoalPriority[];
+  aiPlanningOptimization: AiPlanningOptimization | null;
   calorieTrackingMode: CalorieTrackingMode | null;
   weeklyNutritionTargets: WeeklyNutritionTargets;
   onGoalPrioritiesChange: (v: GoalPriority[]) => void;
+  onAiPlanningOptimizationChange: (v: AiPlanningOptimization) => void;
   onCalorieTrackingModeChange: (v: CalorieTrackingMode) => void;
   onWeeklyNutritionTargetsChange: (v: WeeklyNutritionTargets) => void;
 };
 
 export function StepGoalsNutrition({
   goalPriorities,
+  aiPlanningOptimization,
   calorieTrackingMode,
   weeklyNutritionTargets,
   onGoalPrioritiesChange,
+  onAiPlanningOptimizationChange,
   onCalorieTrackingModeChange,
   onWeeklyNutritionTargetsChange,
 }: Props) {
@@ -46,7 +53,7 @@ export function StepGoalsNutrition({
     <div className="grid gap-8">
       <div className="grid gap-3">
         <p className="text-label-lg font-semibold text-[#315f62]">
-          What are you trying to achieve with Chef?
+          What are you trying to achieve with Preppie?
         </p>
         <p className="text-body-sm text-[#5f8689]">
           Pick everything that applies.
@@ -56,6 +63,22 @@ export function StepGoalsNutrition({
           selected={goalPriorities}
           onChange={onGoalPrioritiesChange}
           getLabel={(v) => GOAL_PRIORITY_LABELS[v]}
+        />
+      </div>
+
+      <div className="grid gap-3">
+        <p className="text-label-lg font-semibold text-[#315f62]">
+          What should Preppie optimize for?
+        </p>
+        <p className="text-body-sm text-[#5f8689]">
+          Cost reduction uses your kitchen first. Best recipe prioritizes the
+          most standard, trend-worthy result.
+        </p>
+        <ChipSingleSelect
+          options={AI_PLANNING_OPTIMIZATION_VALUES}
+          selected={aiPlanningOptimization}
+          onChange={onAiPlanningOptimizationChange}
+          getLabel={(v) => AI_PLANNING_OPTIMIZATION_LABELS[v]}
         />
       </div>
 
@@ -77,7 +100,7 @@ export function StepGoalsNutrition({
             Weekly nutrition targets
           </p>
           <p className="mt-1 text-body-sm text-[#5f8689]">
-            Add the weekly goals Chef should compare meal plans against.
+            Add the weekly goals Preppie should compare meal plans against.
           </p>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -87,11 +110,11 @@ export function StepGoalsNutrition({
             ["carbs_g", "Carbs", "g"],
             ["fat_g", "Fats", "g"],
           ].map(([key, label, unit]) => (
-            <label key={key} className="grid gap-1.5">
+            <label key={key} className="grid min-w-0 gap-1.5">
               <span className="text-label-sm font-semibold text-[#315f62]">
                 {label}
               </span>
-              <div className="flex min-w-0 items-center rounded-xl border border-[#d9e8e6] bg-white px-3 py-2 focus-within:border-[#fe8e17] focus-within:ring-2 focus-within:ring-[#fe8e17]/20">
+              <div className="flex min-w-0 items-center gap-2 rounded-xl border border-[#d9e8e6] bg-white px-3 py-2 focus-within:border-[#fe8e17] focus-within:ring-2 focus-within:ring-[#fe8e17]/20">
                 <input
                   type="number"
                   min="0"

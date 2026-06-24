@@ -1,11 +1,12 @@
 # Supabase Database
 
-Chef can use either local Docker Postgres or the shared Supabase Postgres database.
+Chef can use local Docker Postgres or a Supabase Postgres database.
 
 The rule is:
 
 - if `SUPABASE_DATABASE_URL` exists, the API and Prisma CLI use Supabase
 - otherwise they fall back to `DATABASE_URL`, usually local Docker Postgres
+- committed schema history lives in Prisma migrations, not Supabase dashboard changes
 
 ## Environment Variables
 
@@ -29,6 +30,10 @@ directUrl = env("DIRECT_URL")
 
 The API env loader and Prisma config translate the `SUPABASE_*` variables into `DATABASE_URL` and `DIRECT_URL` at runtime.
 
+For isolated Supabase testing, update the root `.env` directly with the
+test/staging project's pooled and direct Supabase connection strings. Keep any
+previous URL commented in `.env` if you need to switch back manually.
+
 ## Passwords With Special Characters
 
 Supabase database passwords can contain characters such as `@`.
@@ -46,7 +51,7 @@ The repo has a small defensive normalization for unescaped `@`, but do not rely 
 
 ## Applying Migrations
 
-From `apps/api`:
+For local Docker Postgres or an already-selected root `.env` target, from `apps/api`:
 
 ```bash
 pnpm prisma:generate
@@ -91,6 +96,8 @@ For that reason, public tables have RLS enabled without permissive anon/auth pol
 Do not add broad policies such as `USING (true)` just to quiet dashboard warnings.
 
 When adding new Prisma tables in the `public` schema, include RLS in the same migration or run a follow-up migration that enables RLS across all public tables. A one-time catch-up migration only covers tables that existed when it ran.
+
+New Supabase projects may also stop granting Data API access to new `public` tables by default. Chef's Nest/Prisma backend should not need broad `anon` or `authenticated` table grants. If a future feature deliberately uses Supabase's generated REST/GraphQL API or browser `supabase-js` table access, add explicit grants and narrowly scoped RLS policies in the same reviewed migration.
 
 ## Migration Discipline
 

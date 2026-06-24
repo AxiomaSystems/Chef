@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type SetStateAction,
+} from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import {
@@ -13,6 +19,7 @@ import {
 import { AppShell } from "@/components/layout/app-shell";
 import { routeMemoryKey, usePageMemory } from "@/lib/page-memory";
 import { IngredientImage } from "./ingredient-image";
+import { ModalPortal } from "./modal-portal";
 import {
   removeInventoryItemAction,
   addInventoryItemAction,
@@ -106,8 +113,12 @@ function formatInventoryDate(value: string) {
 
 export function InventoryClient({
   realItems,
+  embedded = false,
+  onItemsChange,
 }: {
   realItems: KitchenInventoryItem[];
+  embedded?: boolean;
+  onItemsChange?: (items: KitchenInventoryItem[]) => void;
 }) {
   const [ingredientPickerOpen, setIngredientPickerOpen] = useState(false);
   const [voiceInventoryOpen, setVoiceInventoryOpen] = useState(false);
@@ -129,12 +140,12 @@ export function InventoryClient({
     setUnitDrafts({});
   }, []);
   const [pageMemory, setPageMemory] = usePageMemory<InventoryPageMemory>(
-    routeMemoryKey("/inventory"),
+    routeMemoryKey(embedded ? "/onboarding/inventory" : "/inventory"),
     INVENTORY_MEMORY_DEFAULT,
     {
       onReset: resetInventoryOverlays,
       restoreScrollKey: "scrollY",
-      routeHref: "/inventory",
+      routeHref: embedded ? "/onboarding/inventory" : "/inventory",
     },
   );
 
@@ -199,6 +210,10 @@ export function InventoryClient({
   const detailDisplay = detailItem ? realToDisplay(detailItem) : null;
   const inventoryOverlayOpen =
     barcodeOpen || ingredientPickerOpen || voiceInventoryOpen || !!detailItemId;
+
+  useEffect(() => {
+    onItemsChange?.(inventoryItems);
+  }, [inventoryItems, onItemsChange]);
 
   async function handlePickerAdd(
     name: string,
@@ -292,9 +307,16 @@ export function InventoryClient({
     <>
       <AppShell
         topBarTitle="Inventory"
+        embedded={embedded}
         hideBottomCreateButton={inventoryOverlayOpen}
       >
-        <div className="px-4 py-6 max-w-6xl mx-auto space-y-6">
+        <div
+          className={
+            embedded
+              ? "mx-auto max-w-6xl space-y-6 px-0 pb-32 pt-0 sm:px-4"
+              : "px-4 py-6 max-w-6xl mx-auto space-y-6"
+          }
+        >
           {/* Hero */}
           <div className="relative rounded-3xl overflow-hidden min-h-44 p-6 flex flex-col justify-between">
             <Image
@@ -560,136 +582,138 @@ export function InventoryClient({
       </AppShell>
 
       {detailItem && detailDisplay ? (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 px-4 pb-4 sm:items-center sm:pb-0">
-          <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-3 border-b border-outline-variant/30 px-5 py-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-surface-container-low">
-                  <IngredientImage name={detailDisplay.name} size={48} />
-                  <span
-                    className="hidden h-full w-full items-center justify-center text-outline"
-                    style={{ display: "none" }}
-                  >
-                    <span className="material-symbols-outlined text-[22px]">
-                      nutrition
+        <ModalPortal>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4">
+            <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white shadow-2xl">
+              <div className="flex items-start justify-between gap-3 border-b border-outline-variant/30 px-5 py-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-surface-container-low">
+                    <IngredientImage name={detailDisplay.name} size={48} />
+                    <span
+                      className="hidden h-full w-full items-center justify-center text-outline"
+                      style={{ display: "none" }}
+                    >
+                      <span className="material-symbols-outlined text-[22px]">
+                        nutrition
+                      </span>
                     </span>
-                  </span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
+                      Inventory item
+                    </p>
+                    <h3 className="mt-1 break-words text-lg font-bold leading-tight text-on-surface">
+                      {detailDisplay.name}
+                    </h3>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
-                    Inventory item
-                  </p>
-                  <h3 className="mt-1 break-words text-lg font-bold leading-tight text-on-surface">
-                    {detailDisplay.name}
-                  </h3>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setInventoryMemoryValue("detailItemId", null)}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-container text-outline"
-                aria-label="Close inventory item details"
-              >
-                <span className="material-symbols-outlined text-[20px]">
-                  close
-                </span>
-              </button>
-            </div>
-
-            <div className="space-y-3 px-5 py-4">
-              <div className="grid grid-cols-[1fr_1fr] gap-3">
-                <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
-                  <span className="text-xs font-bold uppercase tracking-wide text-outline">
-                    Quantity
-                  </span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={
-                      amountDrafts[detailDisplay.id] ??
-                      String(detailDisplay.estimatedAmount ?? "")
-                    }
-                    onChange={(event) =>
-                      setAmountDrafts((prev) => ({
-                        ...prev,
-                        [detailDisplay.id]: event.target.value,
-                      }))
-                    }
-                    onBlur={() => void handleQuantitySave(detailDisplay)}
-                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
-                    aria-label={`Quantity for ${detailDisplay.name}`}
-                  />
-                </label>
-                <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
-                  <span className="text-xs font-bold uppercase tracking-wide text-outline">
-                    Unit
-                  </span>
-                  <select
-                    value={
-                      unitDrafts[detailDisplay.id] ?? detailDisplay.unit ?? ""
-                    }
-                    onChange={(event) => {
-                      const nextUnit = event.target.value;
-                      setUnitDrafts((prev) => ({
-                        ...prev,
-                        [detailDisplay.id]: nextUnit,
-                      }));
-                      void handleQuantitySave(detailDisplay, {
-                        unit: nextUnit,
-                      });
-                    }}
-                    className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
-                    aria-label={`Unit for ${detailDisplay.name}`}
-                  >
-                    {INVENTORY_UNIT_OPTIONS.map((unit) => (
-                      <option key={unit} value={unit}>
-                        {unit}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              {[
-                ["Display name", detailItem.display_name],
-                ["Category", detailDisplay.category],
-                [
-                  "Canonical",
-                  detailItem.ingredient?.canonical_name ?? "Not linked",
-                ],
-                ["Normalized", detailItem.normalized_name],
-                ["Brand / label", detailItem.label ?? "None"],
-                ["Ingredient ID", detailItem.ingredient_id ?? "Not linked"],
-                [
-                  "Ingredient slug",
-                  detailItem.ingredient?.slug ?? "Not linked",
-                ],
-                [
-                  "Default unit",
-                  detailItem.ingredient?.default_unit ?? "Not configured",
-                ],
-                ["Source", detailItem.source],
-                ["Confidence", detailItem.confidence],
-                ["Status", detailItem.review_status],
-                ["Created", formatInventoryDate(detailItem.created_at)],
-                ["Updated", formatInventoryDate(detailItem.updated_at)],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="flex items-start justify-between gap-4 rounded-2xl bg-surface-container-low px-4 py-3"
+                <button
+                  type="button"
+                  onClick={() => setInventoryMemoryValue("detailItemId", null)}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-container text-outline"
+                  aria-label="Close inventory item details"
                 >
-                  <span className="shrink-0 text-xs font-bold uppercase tracking-wide text-outline">
-                    {label}
+                  <span className="material-symbols-outlined text-[20px]">
+                    close
                   </span>
-                  <span className="min-w-0 break-words text-right text-sm font-semibold text-on-surface">
-                    {value}
-                  </span>
+                </button>
+              </div>
+
+              <div className="space-y-3 px-5 py-4">
+                <div className="grid grid-cols-[1fr_1fr] gap-3">
+                  <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
+                    <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                      Quantity
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={
+                        amountDrafts[detailDisplay.id] ??
+                        String(detailDisplay.estimatedAmount ?? "")
+                      }
+                      onChange={(event) =>
+                        setAmountDrafts((prev) => ({
+                          ...prev,
+                          [detailDisplay.id]: event.target.value,
+                        }))
+                      }
+                      onBlur={() => void handleQuantitySave(detailDisplay)}
+                      className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                      aria-label={`Quantity for ${detailDisplay.name}`}
+                    />
+                  </label>
+                  <label className="block rounded-2xl bg-surface-container-low px-4 py-3">
+                    <span className="text-xs font-bold uppercase tracking-wide text-outline">
+                      Unit
+                    </span>
+                    <select
+                      value={
+                        unitDrafts[detailDisplay.id] ?? detailDisplay.unit ?? ""
+                      }
+                      onChange={(event) => {
+                        const nextUnit = event.target.value;
+                        setUnitDrafts((prev) => ({
+                          ...prev,
+                          [detailDisplay.id]: nextUnit,
+                        }));
+                        void handleQuantitySave(detailDisplay, {
+                          unit: nextUnit,
+                        });
+                      }}
+                      className="mt-2 w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
+                      aria-label={`Unit for ${detailDisplay.name}`}
+                    >
+                      {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                        <option key={unit} value={unit}>
+                          {unit}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
-              ))}
+
+                {[
+                  ["Display name", detailItem.display_name],
+                  ["Category", detailDisplay.category],
+                  [
+                    "Canonical",
+                    detailItem.ingredient?.canonical_name ?? "Not linked",
+                  ],
+                  ["Normalized", detailItem.normalized_name],
+                  ["Brand / label", detailItem.label ?? "None"],
+                  ["Ingredient ID", detailItem.ingredient_id ?? "Not linked"],
+                  [
+                    "Ingredient slug",
+                    detailItem.ingredient?.slug ?? "Not linked",
+                  ],
+                  [
+                    "Default unit",
+                    detailItem.ingredient?.default_unit ?? "Not configured",
+                  ],
+                  ["Source", detailItem.source],
+                  ["Confidence", detailItem.confidence],
+                  ["Status", detailItem.review_status],
+                  ["Created", formatInventoryDate(detailItem.created_at)],
+                  ["Updated", formatInventoryDate(detailItem.updated_at)],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="flex items-start justify-between gap-4 rounded-2xl bg-surface-container-low px-4 py-3"
+                  >
+                    <span className="shrink-0 text-xs font-bold uppercase tracking-wide text-outline">
+                      {label}
+                    </span>
+                    <span className="min-w-0 break-words text-right text-sm font-semibold text-on-surface">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
 
       {/* Modals */}

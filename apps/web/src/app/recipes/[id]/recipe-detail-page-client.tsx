@@ -160,7 +160,12 @@ export function RecipeDetailPageClient({
       inventory: inventory.map((item) => ({
         id: item.id,
         display_name: item.display_name,
+        ingredient_id: item.ingredient_id ?? null,
+        canonical_name: item.ingredient?.canonical_name ?? null,
         category: item.ingredient?.category ?? null,
+        estimated_amount: item.estimated_amount ?? null,
+        unit: item.unit ?? null,
+        aliases: item.ingredient?.aliases ?? [],
       })),
     });
 

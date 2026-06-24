@@ -40,7 +40,7 @@ type WidgetContext =
       type: "recipe";
       name: string;
       detail: string;
-      recipeId: string;
+      recipe: BaseRecipe;
     }
   | {
       type: "generated";
@@ -100,6 +100,36 @@ export function ChefChatWidget() {
       selected_context_type: context.type,
       selected_context_name: context.type === "none" ? null : context.name,
       selected_context_detail: context.type === "none" ? null : context.detail,
+      selected_recipe:
+        context.type === "recipe"
+          ? {
+              id: context.recipe.id,
+              name: context.recipe.name,
+              cuisine: context.recipe.cuisine.label,
+              description: context.recipe.description ?? "",
+              servings: context.recipe.servings,
+              ingredients: context.recipe.ingredients.map((ingredient) => ({
+                name:
+                  ingredient.display_ingredient ??
+                  ingredient.canonical_ingredient,
+                canonical_ingredient: ingredient.canonical_ingredient,
+                amount: ingredient.amount,
+                unit: ingredient.unit,
+                preparation: ingredient.preparation ?? null,
+                optional: ingredient.optional ?? false,
+              })),
+              steps: context.recipe.steps.map((step) => ({
+                step: step.step,
+                instruction: step.what_to_do,
+              })),
+              nutrition_data: context.recipe.nutrition_data ?? null,
+              tags: context.recipe.tags.map((tag) => tag.name),
+            }
+          : null,
+      generated_recipe:
+        context.type === "generated" || context.type === "imported"
+          ? context.recipe
+          : null,
     };
   }
 
@@ -222,7 +252,7 @@ export function ChefChatWidget() {
       type: "recipe",
       name: recipe.name,
       detail: `${recipe.servings} servings`,
-      recipeId: recipe.id,
+      recipe,
     });
     setRecipePickerOpen(false);
     setGeneratedRecipes([]);

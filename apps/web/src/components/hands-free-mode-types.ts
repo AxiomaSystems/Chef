@@ -46,4 +46,5 @@ export type HandsFreeModeStatus =
   | "waiting_for_tap"
   | "listening"
   | "speaking"
+  | "paused"
   | "disconnected";

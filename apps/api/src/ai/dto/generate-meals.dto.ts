@@ -124,6 +124,14 @@ export class GenerateMealsDto {
   quality_goals?: string[];
 
   @ApiPropertyOptional({
+    enum: ['cost_reduction', 'trend_best_recipe'],
+    example: 'cost_reduction',
+  })
+  @IsOptional()
+  @IsIn(['cost_reduction', 'trend_best_recipe'])
+  ai_planning_optimization?: 'cost_reduction' | 'trend_best_recipe';
+
+  @ApiPropertyOptional({
     example: 'Use ingredients available in a normal US grocery store.',
   })
   @IsOptional()

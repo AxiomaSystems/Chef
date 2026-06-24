@@ -59,8 +59,8 @@ export function StepLocation({
           info
         </span>
         <p className="text-body-sm text-[#315f62]">
-          Chef uses your location to surface in-stock items at nearby stores and
-          build your grocery cart automatically.
+          Preppie uses your location to surface in-stock items at nearby stores
+          and build your grocery cart automatically.
         </p>
       </div>
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -26,10 +27,10 @@ export function TopBar({ title, showBack, actions }: TopBarProps) {
           : pathname.startsWith("/carts") || pathname.startsWith("/shopping")
             ? "Cart"
             : pathname.startsWith("/chef-ai")
-              ? "Butter Me AI"
+              ? "Preppie AI"
               : pathname.startsWith("/account")
                 ? "Account"
-                : "Butter Me");
+                : "Preppie");
 
   return (
     <header className="flex items-center justify-between px-6 py-3 sticky top-0 z-40 bg-surface-bright/95 backdrop-blur-sm border-b border-outline-variant/30">
@@ -49,16 +50,16 @@ export function TopBar({ title, showBack, actions }: TopBarProps) {
         {/* Brand visible only on mobile (lg shows sidebar) */}
         <Link
           href="/dashboard"
-          className="lg:hidden flex items-center gap-2 text-xl font-black text-primary-fixed-dim"
+          className="lg:hidden flex items-center"
+          aria-label="Preppie dashboard"
         >
-          <img
-            src="/icon-192.png"
-            alt=""
-            className="h-8 w-8 rounded-lg"
-            width={32}
-            height={32}
+          <Image
+            src="/Preppie logo_mobile1.png"
+            alt="Preppie"
+            className="h-12 w-auto object-contain"
+            width={60}
+            height={48}
           />
-          <span>Butter Me</span>
         </Link>
         {title && (
           <span className="hidden lg:block text-headline-sm text-on-surface">

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import type { BaseRecipe } from "@cart/shared";
+import type { BaseRecipe, KitchenInventoryItem } from "@cart/shared";
 import { askChefAction, type ChefChatMessage } from "@/app/ai-actions";
 import { ChatMarkdown } from "@/components/ai/chat-markdown";
+import type { CookingContext } from "@/lib/cooking-context";
 
 const DEFAULT_PROMPTS = [
   "Explain this step more simply.",
@@ -17,6 +18,8 @@ type PreparationChefAssistantProps = {
   currentStepNumber: number;
   currentStepText: string | null;
   checkedCount: number;
+  cookingContext?: CookingContext;
+  inventory: KitchenInventoryItem[];
   ingredientCompletion: number;
   started: boolean;
 };
@@ -26,6 +29,8 @@ export function PreparationChefAssistant({
   currentStepNumber,
   currentStepText,
   checkedCount,
+  cookingContext,
+  inventory,
   ingredientCompletion,
   started,
 }: PreparationChefAssistantProps) {
@@ -86,6 +91,22 @@ export function PreparationChefAssistant({
         checked_ingredients: checkedCount,
         ingredient_completion_percent: ingredientCompletion,
       },
+      user_cooking_context: cookingContext ?? null,
+      hard_dietary_rules: cookingContext?.dietaryRules ?? [],
+      available_inventory: inventory
+        .filter(
+          (item) =>
+            item.review_status === "active" || item.review_status === "pending",
+        )
+        .slice(0, 80)
+        .map((item) => ({
+          id: item.id,
+          display_name: item.display_name,
+          canonical_name: item.ingredient?.canonical_name ?? null,
+          category: item.ingredient?.category ?? null,
+          estimated_amount: item.estimated_amount ?? null,
+          unit: item.unit ?? null,
+        })),
       full_ingredients: recipeSummary,
       full_steps: recipeSteps,
       current_position: currentStepText

@@ -195,6 +195,7 @@ model User {
   shoppingMode              String?
   recipeDiscoverySources    Json?
   biggestCookingFrustration String?
+  aiPlanningOptimization    String?
   preferredZipCode          String?
   preferredLocationLabel    String?
   preferredLatitude         Float?

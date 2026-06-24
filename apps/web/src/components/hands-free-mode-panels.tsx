@@ -1,6 +1,6 @@
 "use client";
 
-import type { BaseRecipe } from "@cart/shared";
+import type { Dispatch, SetStateAction } from "react";
 import type {
   CookingAdaptation,
   CookingTimer,
@@ -19,7 +19,7 @@ export function HandsFreeTranscriptPanel({
   lastAction,
 }: TranscriptPanelProps) {
   return (
-    <div className="rounded-[1.5rem] border border-[#c0dedf] bg-white/80 p-4 shadow-[0_12px_34px_rgba(60,154,158,0.08)] backdrop-blur-xl">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-[1.25rem] border border-[#c0dedf] bg-white/80 p-3 shadow-[0_12px_34px_rgba(60,154,158,0.08)] backdrop-blur-xl sm:rounded-[1.5rem] sm:p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
           Live transcript
@@ -27,19 +27,19 @@ export function HandsFreeTranscriptPanel({
       </div>
       {(lastHeard || lastAction) && (
         <div className="mb-4 grid gap-2">
-          <div className="rounded-2xl border border-[#c0dedf]/70 bg-[#fffdfa] px-4 py-3">
+          <div className="min-w-0 overflow-hidden rounded-2xl border border-[#c0dedf]/70 bg-[#fffdfa] px-3 py-2.5 sm:px-4 sm:py-3">
             <span className="block text-[9px] font-black uppercase tracking-widest text-outline">
               Heard
             </span>
-            <span className="mt-1 line-clamp-2 block text-sm text-on-surface-variant">
+            <span className="mt-1 line-clamp-2 block min-w-0 break-words text-sm text-on-surface-variant">
               {lastHeard ?? "Waiting for your voice..."}
             </span>
           </div>
-          <div className="rounded-2xl border border-[#f4be6b]/50 bg-[#fff2e3] px-4 py-3">
+          <div className="min-w-0 overflow-hidden rounded-2xl border border-[#f4be6b]/50 bg-[#fff2e3] px-3 py-2.5 sm:px-4 sm:py-3">
             <span className="block text-[9px] font-black uppercase tracking-widest text-primary">
               Chef did
             </span>
-            <span className="mt-1 line-clamp-2 block text-sm text-on-surface">
+            <span className="mt-1 line-clamp-2 block min-w-0 break-words text-sm text-on-surface">
               {lastAction ?? "No command action yet."}
             </span>
           </div>
@@ -55,7 +55,7 @@ export function HandsFreeTranscriptPanel({
               }`}
             >
               <div
-                className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6 ${
+                className={`min-w-0 max-w-full break-words rounded-2xl px-3 py-2.5 text-sm leading-6 sm:max-w-[86%] sm:px-4 sm:py-3 ${
                   entry.speaker === "you"
                     ? "bg-primary text-on-primary"
                     : entry.speaker === "system"
@@ -85,12 +85,9 @@ export function HandsFreeTranscriptPanel({
 }
 
 type AsidePanelsProps = {
-  activeStep: number;
   adaptations: CookingAdaptation[];
   completedTimers: CookingTimer[];
-  currentPhase: string;
-  recipe: BaseRecipe;
-  setTimers: React.Dispatch<React.SetStateAction<CookingTimer[]>>;
+  setTimers: Dispatch<SetStateAction<CookingTimer[]>>;
   visibleTimers: CookingTimer[];
 };
 
@@ -99,90 +96,48 @@ function formatTime(s: number) {
 }
 
 export function HandsFreeAsidePanels({
-  activeStep,
   adaptations,
   completedTimers,
-  currentPhase,
-  recipe,
   setTimers,
   visibleTimers,
 }: AsidePanelsProps) {
-  const currentStep = recipe.steps[activeStep];
   const primaryTimer = visibleTimers[0] ?? null;
-  const stepProgress = recipe.steps.length
-    ? ((activeStep + 1) / recipe.steps.length) * 100
-    : 0;
 
   return (
-    <section className="space-y-4">
-      <div className="rounded-[2rem] border border-[#c0dedf] bg-white/82 p-5 shadow-[0_18px_50px_rgba(60,154,158,0.12)] backdrop-blur-xl sm:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-              Now cooking
-            </p>
-            <h1 className="mt-2 text-3xl font-black leading-tight text-on-surface sm:text-5xl">
-              Step {activeStep + 1}
-            </h1>
-            <p className="mt-1 text-sm font-semibold text-on-surface-variant">
-              {currentPhase} - {recipe.steps.length} total steps
-            </p>
-          </div>
-          <span className="shrink-0 rounded-full bg-[#fff2e3] px-3 py-1.5 text-xs font-black text-primary">
-            {activeStep + 1}/{recipe.steps.length}
-          </span>
-        </div>
-
-        <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-[#fff2e3]">
-          <div
-            className="h-full rounded-full bg-primary transition-all duration-500"
-            style={{ width: `${stepProgress}%` }}
-          />
-        </div>
-
-        <div className="mt-5 rounded-[1.5rem] border border-[#f4be6b]/45 bg-[#fff8ef]/78 p-5 backdrop-blur">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-            Current instruction
-          </p>
-          <p className="mt-3 text-2xl font-black leading-9 text-on-surface">
-            {currentStep?.what_to_do ?? "No recipe step loaded."}
-          </p>
-        </div>
-
-        {primaryTimer ? (
-          <div className="mt-4 rounded-[1.5rem] border border-[#f4be6b]/55 bg-[#fff2e3]/88 p-4 backdrop-blur">
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-                  Timer running
-                </p>
-                <h3 className="mt-1 truncate text-lg font-black text-on-surface">
-                  {primaryTimer.label}
-                </h3>
-              </div>
-              <span className="font-mono text-2xl font-black tabular-nums text-primary">
-                {formatTime(primaryTimer.remainingSeconds)}
-              </span>
+    <section className="min-w-0 max-w-full space-y-4 overflow-hidden">
+      {primaryTimer ? (
+        <div className="min-w-0 max-w-full overflow-hidden rounded-[1.5rem] border border-[#f4be6b]/55 bg-[#fff2e3]/88 p-4 shadow-[0_14px_36px_rgba(244,121,13,0.08)] backdrop-blur">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+                Timer running
+              </p>
+              <h3 className="mt-1 truncate text-lg font-black text-on-surface">
+                {primaryTimer.label}
+              </h3>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-500"
-                style={{
-                  width: `${Math.max(
-                    0,
-                    Math.min(
+            <span className="font-mono text-2xl font-black tabular-nums text-primary">
+              {formatTime(primaryTimer.remainingSeconds)}
+            </span>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-500"
+              style={{
+                width: `${Math.max(
+                  0,
+                  Math.min(
+                    100,
+                    (primaryTimer.remainingSeconds /
+                      primaryTimer.totalSeconds) *
                       100,
-                      (primaryTimer.remainingSeconds /
-                        primaryTimer.totalSeconds) *
-                        100,
-                    ),
-                  )}%`,
-                }}
-              />
-            </div>
+                  ),
+                )}%`,
+              }}
+            />
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {visibleTimers.length > 1 || completedTimers.length > 0 ? (
         <div className="rounded-[2rem] border border-[#c0dedf] bg-white/82 p-5 shadow-[0_18px_50px_rgba(60,154,158,0.08)] backdrop-blur-xl">

@@ -219,7 +219,12 @@ export function RecipePreparationClient({
       inventory: inventory.map((item) => ({
         id: item.id,
         display_name: item.display_name,
+        ingredient_id: item.ingredient_id ?? null,
+        canonical_name: item.ingredient?.canonical_name ?? null,
         category: item.ingredient?.category ?? null,
+        estimated_amount: item.estimated_amount ?? null,
+        unit: item.unit ?? null,
+        aliases: item.ingredient?.aliases ?? [],
       })),
     });
 
@@ -237,11 +242,13 @@ export function RecipePreparationClient({
     startPrepTransition(async () => {
       const result = await getIngredientPrepAction({
         recipeName: recipe.name,
+        recipeServings: recipe.servings,
         ingredients: recipe.ingredients.map((ingredient) => ({
           canonical_ingredient: ingredient.canonical_ingredient,
           display_ingredient: ingredient.display_ingredient ?? null,
           amount: ingredient.amount,
           unit: ingredient.unit,
+          preparation: ingredient.preparation ?? null,
         })),
       });
       if (result.error) {
@@ -616,6 +623,8 @@ export function RecipePreparationClient({
                   currentStepNumber={currentStep?.step ?? activeStep + 1}
                   currentStepText={currentStep?.what_to_do ?? null}
                   checkedCount={checkedCount}
+                  cookingContext={cookingContext}
+                  inventory={inventory}
                   ingredientCompletion={ingredientCompletion}
                   started={started}
                 />
