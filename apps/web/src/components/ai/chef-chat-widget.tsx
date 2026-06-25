@@ -417,7 +417,7 @@ export function ChefChatWidget() {
         }`}
       >
         <p className="text-sm font-semibold text-on-surface">
-          Plan meals with Butter Me
+          Plan meals with Preppie
         </p>
         <div className="mt-3 space-y-3">
           <input
@@ -699,7 +699,7 @@ export function ChefChatWidget() {
                         </div>
                         <div>
                           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
-                            Butter Me AI
+                            Preppie AI
                           </p>
                           <h2 className="text-base font-semibold text-on-surface">
                             Kitchen sidekick
