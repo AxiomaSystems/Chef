@@ -139,11 +139,13 @@ describe('AppController (e2e)', () => {
       enableShutdownHooks: jest.fn(),
       $queryRawUnsafe: jest.fn(async () => [{ '?column?': 1 }]),
       user: {
-        findUnique: jest.fn(async ({ where }: { where: { id?: string; email?: string } }) => ({
-          id: where.id ?? 'user-1',
-          email: where.email ?? 'user-1@cart-generator.local',
-          role: 'user',
-        })),
+        findUnique: jest.fn(
+          async ({ where }: { where: { id?: string; email?: string } }) => ({
+            id: where.id ?? 'user-1',
+            email: where.email ?? 'user-1@cart-generator.local',
+            role: 'user',
+          }),
+        ),
       },
     };
 
@@ -179,7 +181,7 @@ describe('AppController (e2e)', () => {
     return request(app.getHttpServer())
       .get('/')
       .expect(200)
-      .expect('Chef API');
+      .expect('Preppie API');
   });
 
   it('GET /health returns liveness status', async () => {
@@ -238,7 +240,7 @@ describe('AppController (e2e)', () => {
       .get('/docs/openapi.json')
       .expect(200)
       .expect((response) => {
-        expect(response.body.info.title).toBe('Chef API');
+        expect(response.body.info.title).toBe('Preppie API');
         expect(response.body.paths['/api/v1/recipes']).toBeDefined();
       });
   });
