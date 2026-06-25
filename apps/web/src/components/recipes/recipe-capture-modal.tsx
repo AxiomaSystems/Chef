@@ -98,7 +98,7 @@ export function RecipeCaptureModal({
     capture?.source_attribution.attribution_label ??
     capture?.source_attribution.site ??
     capture?.source_attribution.url ??
-    "Chef Capture";
+    "Preppie Capture";
 
   useEffect(() => {
     if (!isCapturing) {
@@ -139,7 +139,7 @@ export function RecipeCaptureModal({
       );
 
       if (result.error || !result.capture) {
-        setError(result.error ?? "Chef could not create that capture.");
+        setError(result.error ?? "Preppie could not create that capture.");
         return;
       }
 
@@ -150,7 +150,7 @@ export function RecipeCaptureModal({
 
       if (onReviewDraft) {
         setError(
-          "Chef could not extract enough usable recipe details from that source. Paste the caption, transcript, or recipe text below and try again.",
+          "Preppie could not extract enough usable recipe details from that source. Paste the caption, transcript, or recipe text below and try again.",
         );
         setCapture(null);
         setFailedImageUrl(null);
@@ -192,7 +192,7 @@ export function RecipeCaptureModal({
       setImageDataUrl(compressed);
       setImageName(file.name);
     } catch {
-      setError("Chef could not read that image. Try another photo.");
+      setError("Preppie could not read that image. Try another photo.");
     }
   }
 
@@ -204,14 +204,14 @@ export function RecipeCaptureModal({
         <div className="relative flex items-start justify-between gap-4 border-b border-[#eadfce] px-5 py-5 sm:px-7 lg:px-10">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.22em] text-primary">
-              Chef Capture
+              Preppie Capture
             </p>
             <h2 className="mt-1 text-2xl font-black leading-tight text-on-surface sm:text-3xl">
               Turn a food idea into a recipe
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-on-surface-variant">
-              Paste a recipe link, raw text, or capture an image. If Chef finds
-              enough detail, it will open an editable recipe form.
+              Paste a recipe link, raw text, or capture an image. If Preppie
+              finds enough detail, it will open an editable recipe form.
             </p>
           </div>
           <button
@@ -293,7 +293,7 @@ export function RecipeCaptureModal({
                         value={text}
                         onChange={(event) => setText(event.target.value)}
                         rows={5}
-                        placeholder="If Instagram blocks the caption, paste the visible post text here. Chef will keep the original link as the source."
+                        placeholder="If Instagram blocks the caption, paste the visible post text here. Preppie will keep the original link as the source."
                         className="w-full resize-none rounded-2xl border border-outline-variant/60 bg-white px-4 py-3 text-base outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
                       />
                       <p className="text-xs text-outline">
@@ -378,7 +378,7 @@ export function RecipeCaptureModal({
                           Capture a recipe, menu, screenshot, or dish
                         </p>
                         <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-on-surface-variant">
-                          Chef will inspect the image and create a reviewable
+                          Preppie will inspect the image and create a reviewable
                           recipe draft. Nothing raw is saved to your recipe
                           until you review it.
                         </p>
@@ -417,7 +417,7 @@ export function RecipeCaptureModal({
                         value={text}
                         onChange={(event) => setText(event.target.value)}
                         rows={4}
-                        placeholder="Tell Chef what this is, or what you want changed: make it vegetarian, use the visible dish as inspiration..."
+                        placeholder="Tell Preppie what this is, or what you want changed: make it vegetarian, use the visible dish as inspiration..."
                         className="w-full resize-none rounded-2xl border border-outline-variant/60 bg-white px-4 py-3 text-base outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
                       />
                     </div>
@@ -435,7 +435,7 @@ export function RecipeCaptureModal({
                           {THINKING_STEPS[thinkingStep]}
                         </p>
                         <p className="text-xs text-on-surface-variant">
-                          Chef is turning the source into a draft you can
+                          Preppie is turning the source into a draft you can
                           review.
                         </p>
                       </div>
@@ -455,7 +455,7 @@ export function RecipeCaptureModal({
                   disabled={!canSubmit || isCapturing}
                   className="mt-5 w-full rounded-2xl bg-primary px-5 py-3.5 text-base font-black text-on-primary shadow-[0_14px_34px_rgba(255,112,0,0.24)] transition hover:translate-y-[-1px] disabled:translate-y-0 disabled:opacity-50"
                 >
-                  {isCapturing ? "Capturing..." : "Capture with Chef"}
+                  {isCapturing ? "Capturing..." : "Capture with Preppie"}
                 </button>
               </section>
             </div>
@@ -463,7 +463,7 @@ export function RecipeCaptureModal({
             <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
               <section className="rounded-[1.7rem] border border-[#ecdcc8] bg-white p-5 shadow-sm">
                 <div className="rounded-2xl border border-error/20 bg-error-container/30 p-4 text-sm text-error">
-                  Chef could not turn this source into a usable recipe draft.
+                  Preppie could not turn this source into a usable recipe draft.
                   Start over with a clearer link, caption, transcript, or recipe
                   text.
                 </div>
@@ -526,7 +526,7 @@ export function RecipeCaptureModal({
                     )}
                     {capture.assumptions.length > 0 && (
                       <InfoList
-                        title="Chef assumed"
+                        title="Preppie assumed"
                         items={capture.assumptions}
                       />
                     )}
@@ -587,7 +587,7 @@ export function RecipeCaptureModal({
             </div>
           ) : (
             <div className="rounded-[1.7rem] border border-error/20 bg-error-container/30 p-5 text-error">
-              Chef created a capture, but it did not include a recipe draft.
+              Preppie created a capture, but it did not include a recipe draft.
             </div>
           )}
         </div>

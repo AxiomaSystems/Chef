@@ -8,7 +8,7 @@ export class AppService {
   constructor(private readonly prisma: PrismaService) {}
 
   getHello(): string {
-    return 'Chef API';
+    return 'Preppie API';
   }
 
   getHealth() {

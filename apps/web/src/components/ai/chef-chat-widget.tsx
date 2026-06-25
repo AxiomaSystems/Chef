@@ -218,7 +218,7 @@ export function ChefChatWidget() {
       });
 
       if (result.error || !result.result) {
-        setError(result.error ?? "Chef could not import that link.");
+        setError(result.error ?? "Preppie could not import that link.");
         return;
       }
 
@@ -279,7 +279,7 @@ export function ChefChatWidget() {
         mealsNeeded: 3,
         servingsPerMeal: 4,
         notes:
-          "Return practical meal ideas that work well inside Chef's recipe and shopping workflow.",
+          "Return practical meal ideas that work well inside Preppie's recipe and shopping workflow.",
       });
 
       if (result.error) {
@@ -652,7 +652,7 @@ export function ChefChatWidget() {
                 ? "flex h-14 w-14 rounded-2xl"
                 : "flex h-12 w-12 rounded-2xl"
             }`}
-            aria-label="Ask Chef"
+            aria-label="Ask Preppie"
           >
             <span className="material-symbols-outlined text-[20px]">send</span>
           </button>
@@ -716,7 +716,7 @@ export function ChefChatWidget() {
                           type="button"
                           onClick={() => setIsExpanded(false)}
                           className="flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
-                          aria-label="Shrink Chef chat"
+                          aria-label="Shrink Preppie chat"
                         >
                           <span className="material-symbols-outlined text-[19px]">
                             close_fullscreen
@@ -729,7 +729,7 @@ export function ChefChatWidget() {
                             setIsExpanded(false);
                           }}
                           className="flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
-                          aria-label="Close Chef chat"
+                          aria-label="Close Preppie chat"
                         >
                           <span className="material-symbols-outlined text-[19px]">
                             close
@@ -749,7 +749,7 @@ export function ChefChatWidget() {
                       </p>
                       <p className="mt-1 text-xs leading-5 text-outline">
                         {context.type === "none"
-                          ? "Import a link, pick one of your recipes, or generate ideas to give Chef more context."
+                          ? "Import a link, pick one of your recipes, or generate ideas to give Preppie more context."
                           : context.detail}
                       </p>
                     </div>
@@ -888,7 +888,7 @@ export function ChefChatWidget() {
                     </div>
                     <div>
                       <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
-                        Chef AI
+                        Preppie AI
                       </p>
                       <h2 className="text-sm font-semibold text-on-surface">
                         Kitchen sidekick
@@ -904,7 +904,7 @@ export function ChefChatWidget() {
                       type="button"
                       onClick={() => setIsExpanded(true)}
                       className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
-                      aria-label="Expand Chef chat"
+                      aria-label="Expand Preppie chat"
                     >
                       <span className="material-symbols-outlined text-[19px]">
                         open_in_full
@@ -917,7 +917,7 @@ export function ChefChatWidget() {
                         setIsExpanded(false);
                       }}
                       className="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
-                      aria-label="Close Chef chat"
+                      aria-label="Close Preppie chat"
                     >
                       <span className="material-symbols-outlined text-[19px]">
                         close
@@ -1027,7 +1027,7 @@ export function ChefChatWidget() {
           focusInputSoon();
         }}
         className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-fixed-dim text-on-primary-fixed shadow-xl ring-1 ring-white/70 transition hover:bg-primary-fixed active:scale-95"
-        aria-label="Open Chef chat"
+        aria-label="Open Preppie chat"
       >
         <span className="material-symbols-outlined text-[25px]">
           {isOpen ? "keyboard_arrow_down" : "restaurant"}

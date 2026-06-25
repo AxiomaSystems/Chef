@@ -8,7 +8,7 @@ The product connects the everyday cooking loop:
 food inspiration -> meal plan -> pantry context -> grocery support -> hands-free cooking help
 ```
 
-Preppie is built for college students and young professionals who want to cook more often but get stuck between scattered recipe ideas, grocery planning, pantry uncertainty, and cooking anxiety. The repo is still named `cart-generator`, and some internal code/routes still use the earlier Chef name, but product-facing docs should now treat **Preppie** as the source-of-truth brand.
+Preppie is built for college students and young professionals who want to cook more often but get stuck between scattered recipe ideas, grocery planning, pantry uncertainty, and cooking anxiety.
 
 > [!NOTE]
 > The definitive product and business source is [docs/business_plan.pdf](docs/business_plan.pdf).

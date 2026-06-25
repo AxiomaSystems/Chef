@@ -12,7 +12,7 @@ import type {
 } from "./hands-free-mode-types";
 
 const WAKE_COMMAND_TIMEOUT_MS = 5000;
-const WAKE_WORD_LABEL = "Chef, Prep, or Preppie";
+const WAKE_WORD_LABEL = "Preppie or Prep";
 const WAKE_WORD_VARIANTS = [
   "chef",
   "chief",
@@ -503,7 +503,7 @@ export function useHandsFreeVoiceSession({
             user_cooking_context: stringifyCookingContext(cookingContext),
             session_cooking_context: stringifySessionContext(sessionContext),
             hands_free_client_rules:
-              "Act like an adaptive cooking copilot, not a recipe step reader. Keep responses under 2 short sentences. Use cooking_plan_rules and user_cooking_context for safe personalization. Never override hard dietary/allergy rules. The client only forwards audio after the local wake phrase or tap-to-talk gate, so treat incoming user speech as intentionally addressed to Chef. Do not ask 'are you still there' or send idle check-ins. When the user asks for next/back/repeat/go to step N or timer actions, call the matching client tool.",
+              "Act like an adaptive cooking copilot, not a recipe step reader. Keep responses under 2 short sentences. Use cooking_plan_rules and user_cooking_context for safe personalization. Never override hard dietary/allergy rules. The client only forwards audio after the local wake phrase or tap-to-talk gate, so treat incoming user speech as intentionally addressed to Preppie. Do not ask 'are you still there' or send idle check-ins. When the user asks for next/back/repeat/go to step N or timer actions, call the matching client tool.",
           },
           clientTools: {
             adapt_current_step: (params: Record<string, unknown>) =>

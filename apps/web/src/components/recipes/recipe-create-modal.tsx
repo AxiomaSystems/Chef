@@ -197,7 +197,7 @@ export function RecipeCreateModal({
     reader.onload = (e) => {
       const result = e.target?.result;
       if (typeof result !== "string") {
-        setError("Chef could not read that image file.");
+        setError("Preppie could not read that image file.");
         return;
       }
       uploadVersionRef.current += 1;
@@ -205,7 +205,7 @@ export function RecipeCreateModal({
       setCoverImageUrl(result);
     };
     reader.onerror = () => {
-      setError("Chef could not read that image file.");
+      setError("Preppie could not read that image file.");
     };
     reader.readAsDataURL(file);
   }
@@ -283,7 +283,7 @@ export function RecipeCreateModal({
   const [saving, setSaving] = useState(false);
   const [autofillHint, setAutofillHint] = useState<string | undefined>(
     initialDraft
-      ? "Chef imported this as a draft. Review the fields before creating the recipe."
+      ? "Preppie imported this as a draft. Review the fields before creating the recipe."
       : undefined,
   );
   const [lastAutofilledName, setLastAutofilledName] = useState("");
@@ -714,7 +714,7 @@ export function RecipeCreateModal({
 
       const recipe = result.recipes?.[0];
       if (!recipe) {
-        setError("Chef could not generate a recipe draft from that name.");
+        setError("Preppie could not generate a recipe draft from that name.");
         return;
       }
 
@@ -740,10 +740,10 @@ export function RecipeCreateModal({
       setLastAutofilledName(normalizedName);
       setAutofillHint(
         trigger === "auto"
-          ? "Chef filled in the rest of the form from the recipe name."
+          ? "Preppie filled in the rest of the form from the recipe name."
           : shouldSaveAsNew
-            ? "Chef drafted a new edited version with a fresh name."
-            : "Chef refreshed this recipe with AI suggestions.",
+            ? "Preppie drafted a new edited version with a fresh name."
+            : "Preppie refreshed this recipe with AI suggestions.",
       );
     });
   }
@@ -912,7 +912,7 @@ export function RecipeCreateModal({
                 {isEditing
                   ? "Update this recipe or save the edit as a new version"
                   : initialDraft
-                    ? "Review Chef's imported draft before saving it"
+                    ? "Review Preppie's imported draft before saving it"
                     : "Build your own culinary masterpiece"}
               </p>
             </div>
@@ -1074,7 +1074,7 @@ export function RecipeCreateModal({
               <p className="text-[11px] leading-5 text-outline sm:flex-1">
                 {isEditing
                   ? "Use AI after adding dietary restrictions or edit instructions."
-                  : "Set servings, then Chef can draft the rest automatically."}
+                  : "Set servings, then Preppie can draft the rest automatically."}
               </p>
               <button
                 type="button"

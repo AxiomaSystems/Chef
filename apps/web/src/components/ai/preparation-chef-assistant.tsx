@@ -166,13 +166,13 @@ export function PreparationChefAssistant({
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
-              Chef AI
+              Preppie AI
             </p>
             <h3 className="mt-1 text-title-md text-on-surface">
               Recipe-aware help when you actually need it
             </h3>
             <p className="mt-2 max-w-xl text-body-sm leading-6 text-on-surface-variant">
-              Chef understands the full recipe, full ingredient list, full
+              Preppie understands the full recipe, full ingredient list, full
               preparation flow, and where you currently are.
             </p>
 
@@ -195,7 +195,7 @@ export function PreparationChefAssistant({
               onClick={() => setIsOpen(true)}
               className="rounded-[20px] bg-primary px-5 py-3 text-center text-label-lg text-on-primary shadow-[0_10px_24px_rgba(244,121,13,0.25)] transition-opacity hover:opacity-90"
             >
-              Ask Chef about this recipe
+              Ask Preppie about this recipe
             </button>
           </div>
         </div>
@@ -237,7 +237,7 @@ export function PreparationChefAssistant({
                       </div>
                       <div>
                         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-fixed-dim">
-                          Chef AI
+                          Preppie AI
                         </p>
                         <h2 className="text-base font-semibold text-on-surface">
                           {recipe.name}
@@ -252,7 +252,7 @@ export function PreparationChefAssistant({
                       type="button"
                       onClick={() => setIsOpen(false)}
                       className="flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/60 bg-white hover:bg-surface-container-low"
-                      aria-label="Close Chef recipe assistant"
+                      aria-label="Close Preppie recipe assistant"
                     >
                       <span className="material-symbols-outlined text-[19px]">
                         close
@@ -424,7 +424,7 @@ export function PreparationChefAssistant({
                       type="submit"
                       disabled={isPending || !prompt.trim()}
                       className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-fixed-dim text-on-primary-fixed hover:bg-primary-fixed disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label="Ask Chef"
+                      aria-label="Ask Preppie"
                     >
                       <span className="material-symbols-outlined text-[20px]">
                         send

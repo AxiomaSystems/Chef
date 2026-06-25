@@ -3,7 +3,7 @@ import { AppShell } from "@/components/layout/app-shell";
 
 export default function ChefAIPage() {
   return (
-    <AppShell topBarTitle="Chef AI">
+    <AppShell topBarTitle="Preppie AI">
       <div className="mx-auto max-w-4xl px-6 py-10">
         <section className="overflow-hidden rounded-[32px] border border-[#c0dedf] bg-white shadow-[0_20px_80px_rgba(60,154,158,0.08)]">
           <div
@@ -11,17 +11,17 @@ export default function ChefAIPage() {
             style={{ background: "linear-gradient(120deg, #fff8ef, #fffdfa)" }}
           >
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary-fixed-dim">
-              Chef AI
+              Preppie AI
             </p>
             <h1 className="mt-2 text-3xl font-bold text-on-surface">
               Your assistant now lives beside the workflow
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-on-surface-variant">
-              Instead of sending you to a separate AI screen, Chef AI now stays
-              available as a side chatbot across the workspace. You can paste a
-              creator link, pin one of your saved recipes, generate meal ideas,
-              and switch into hands-free cooking mode without leaving the page
-              you are already on.
+              Instead of sending you to a separate AI screen, Preppie now stays
+              available beside the workflow. You can paste a creator link, pin
+              one of your saved recipes, generate meal ideas, and switch into
+              hands-free cooking mode without leaving the page you are already
+              on.
             </p>
           </div>
 

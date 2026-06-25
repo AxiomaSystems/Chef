@@ -56,7 +56,7 @@ export async function createCaptureAction(
     return {
       error: await readErrorMessage(
         response,
-        "Chef could not capture that source right now.",
+        "Preppie could not capture that source right now.",
       ),
     };
   }
@@ -75,7 +75,7 @@ export async function saveCaptureAsRecipeAction(
     return {
       error: await readErrorMessage(
         response,
-        "Chef could not save this capture as a recipe right now.",
+        "Preppie could not save this capture as a recipe right now.",
       ),
     };
   }

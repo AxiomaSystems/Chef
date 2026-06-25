@@ -721,7 +721,7 @@ export function HandsFreeMode({
       ring: "bg-[#fff8ef] text-outline",
     },
     waiting_for_wake: {
-      label: "Say Chef, Prep, or Preppie",
+      label: "Say Preppie or Prep",
       icon: "radio_button_checked",
       ring: "bg-[#ecf8f4] text-[#2f7f83]",
     },

@@ -50,7 +50,7 @@ const VOICE_ACTIVATION_OPTIONS: Array<{
 }> = [
   {
     value: "wake_word",
-    label: "Say Chef",
+    label: "Say Preppie",
     detail: "Also recognizes Prep and Preppie before each command.",
   },
   {
@@ -61,7 +61,7 @@ const VOICE_ACTIVATION_OPTIONS: Array<{
   {
     value: "always_listening",
     label: "Wake listening",
-    detail: "Listens for Chef, Prep, or Preppie while cook mode is active.",
+    detail: "Listens for Preppie or Prep while cook mode is active.",
   },
 ];
 
@@ -125,10 +125,10 @@ export function HandsFreeSetupModal({ recipe, onCancel, onStart }: Props) {
                 Before cooking
               </p>
               <h2 className="mt-2 text-2xl font-black leading-tight text-on-surface">
-                Set Chef up for this session
+                Set Preppie up for this session
               </h2>
               <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-                Add anything temporary Chef should know. This does not change
+                Add anything temporary Preppie should know. This does not change
                 the saved recipe.
               </p>
             </div>
@@ -149,7 +149,7 @@ export function HandsFreeSetupModal({ recipe, onCancel, onStart }: Props) {
           <div className="space-y-5">
             <label className="block">
               <span className="text-sm font-black text-on-surface">
-                Anything Chef should know?
+                Anything Preppie should know?
               </span>
               <textarea
                 value={notes}
@@ -275,7 +275,7 @@ export function HandsFreeSetupModal({ recipe, onCancel, onStart }: Props) {
             onClick={start}
             className="rounded-full bg-primary-fixed-dim px-6 py-3 text-sm font-black text-on-primary-fixed shadow-[0_12px_28px_rgba(244,121,13,0.22)]"
           >
-            Start with Chef
+            Start with Preppie
           </button>
         </footer>
       </section>

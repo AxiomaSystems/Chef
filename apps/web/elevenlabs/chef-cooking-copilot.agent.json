@@ -1,6 +1,6 @@
 {
-  "name": "Chef Cooking Copilot",
-  "tags": ["chef", "hands-free", "cooking"],
+  "name": "Preppie Cooking Copilot",
+  "tags": ["preppie", "hands-free", "cooking"],
   "first_message": "I'm here when you need me. We're cooking {{recipe_name}}.",
   "language": "en",
   "llm": "gemini-2.0-flash",

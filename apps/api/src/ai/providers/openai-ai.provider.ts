@@ -25,9 +25,9 @@ import type { SwapIngredientDto } from '../dto/swap-ingredient.dto';
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 
 const SYSTEM_PROMPT = `
-You are Chef's food and cooking assistant.
-Chef turns food ideas into structured recipes, missing ingredients, and grocery-ready carts.
-Use structured Chef domain vocabulary.
+You are Preppie's food and cooking assistant.
+Preppie helps young adults plan, shop, and cook with confidence through a personalized AI sous chef.
+Use structured Preppie domain vocabulary.
 Do not claim to know exact retailer prices unless provided.
 Do not perform final product matching, checkout, or subtotal math.
 Treat provided inventory as strong planning context, especially when meal_style is "inventory_first".
@@ -105,7 +105,7 @@ export class OpenAiAiProvider implements AiProvider {
       schemaName: 'chef_recipe_import',
       schema: recipeImportSchema,
       task: [
-        'Turn the imported recipe source into one structured Chef recipe preview. Use the extracted source text, metadata, and any supplemental caption/transcript text. Be explicit when fields are inferred or uncertain.',
+        'Turn the imported recipe source into one structured Preppie recipe preview. Use the extracted source text, metadata, and any supplemental caption/transcript text. Be explicit when fields are inferred or uncertain.',
         'If an image is provided, inspect it directly. It may be a screenshot, cookbook page, handwritten/printed recipe, menu, social post, ingredient list, or finished dish photo. Return a cookable draft even when the image is only inspiration.',
         'For image imports, add one extraction note beginning with "Image source type:" and one of written_recipe, screenshot_caption, plated_dish, menu_or_label, or unclear.',
         'Always include nutrition_estimate with numeric calories, protein_g, carbs_g, and fat_g per serving. Estimate reasonable values when exact nutrition is not provided by the source.',
@@ -123,7 +123,7 @@ export class OpenAiAiProvider implements AiProvider {
     return this.createStructuredResponse<AiChatResult>({
       schemaName: 'chef_food_chat',
       schema: chatSchema,
-      task: 'Answer the user as a concise cooking, meal prep, ingredient, recipe, and Chef workflow assistant. Use context when provided.',
+      task: 'Answer the user as a concise cooking, meal prep, ingredient, recipe, and Preppie workflow assistant. Use context when provided.',
       payload: input,
     });
   }
