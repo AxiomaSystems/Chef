@@ -320,6 +320,7 @@ model Tag {
   @@index([scope, kind, name])
   @@index([scope, slug])
   @@index([ownerUserId, scope, slug])
+  @@unique([id, scope])
 }
 
 model UserPreferredCuisine {
@@ -336,12 +337,13 @@ model UserPreferredCuisine {
 model UserPreferredTag {
   userId    String
   tagId     String
+  tagScope  TagScope @default(system)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId, tagScope], references: [id, scope], onDelete: Cascade)
 
   @@id([userId, tagId])
-  @@index([tagId])
+  @@index([tagId, tagScope])
 }
 
 model UserFoodRule {
@@ -438,7 +440,7 @@ model DishIngredient {
   baseRecipe          BaseRecipe  @relation(fields: [baseRecipeId], references: [id], onDelete: Cascade)
   ingredient          Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
 
-  @@index([baseRecipeId, sortOrder])
+  @@unique([baseRecipeId, sortOrder])
   @@index([ingredientId])
   @@index([baseRecipeId, ingredientId])
 }
@@ -592,8 +594,8 @@ model ShoppingCart {
 
   @@index([userId, createdAt])
   @@index([userId, status, updatedAt])
-  @@index([cartId])
-  @@index([cartDraftId])
+  @@index([cartId, userId])
+  @@index([cartDraftId, userId])
 }
 
 model MealPlan {
@@ -606,7 +608,6 @@ model MealPlan {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, weekStart])
-  @@index([userId, weekStart])
 }
 
 model MealEvent {
@@ -660,6 +661,5 @@ model Capture {
 
   @@index([userId, createdAt])
   @@index([userId, status, createdAt])
-  @@index([savedRecipeId])
   @@index([sourceKind, createdAt])
 }

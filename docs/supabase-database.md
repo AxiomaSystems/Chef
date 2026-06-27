@@ -99,9 +99,32 @@ When adding new Prisma tables in the `public` schema, include RLS in the same mi
 
 New Supabase projects may also stop granting Data API access to new `public` tables by default. Chef's Nest/Prisma backend should not need broad `anon` or `authenticated` table grants. If a future feature deliberately uses Supabase's generated REST/GraphQL API or browser `supabase-js` table access, add explicit grants and narrowly scoped RLS policies in the same reviewed migration.
 
+Existing broad `anon` and `authenticated` grants on public tables are revoked by
+repo-owned migrations. RLS remains enabled without permissive policies, and
+direct Supabase table access should stay closed unless a feature explicitly
+designs that access surface.
+
+## Pending BaseRecipe Maintenance
+
+Most domain constraints are repo-owned migrations and have been applied through
+Prisma. `BaseRecipe` has one remaining maintenance item: contract constraints
+for servings, name length, description length, and `nutritionData` JSON shape.
+
+The data already satisfies those checks, but Supabase currently has a stale
+Supavisor session `idle in transaction` holding `AccessShareLock` on
+`BaseRecipe`, so DDL with a short `lock_timeout` cannot acquire the required
+lock. Keep the pending SQL in
+`apps/api/prisma/scripts/pending-core-numeric-domain-constraints.sql` until that
+session is confirmed safe to terminate or a quiet maintenance window is
+available. After the blocker is cleared, create a fresh Prisma migration from
+that script and apply it with `migrate deploy`.
+
 ## Migration Discipline
 
 Supabase is a shared database, but the repo owns database history.
+
+For the current hardening status, applied checks, verification commands, and
+remaining operational follow-up, see `docs/database-hardening-audit.md`.
 
 Do not apply schema changes directly from the Supabase dashboard or from a local branch that will not be committed. Every schema change must land as a Prisma migration in `apps/api/prisma/migrations` with matching updates to `schema.prisma`, generated client, shared contracts, API code, tests, and docs.
 
