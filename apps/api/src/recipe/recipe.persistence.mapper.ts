@@ -1,5 +1,8 @@
 import { Prisma } from '../../generated/prisma/index.js';
-import type { CreateRecipeDto } from './dto/create-recipe.dto';
+import type {
+  CreateRecipeDto,
+  RecipePlanningInputDto,
+} from './dto/create-recipe.dto';
 import type { UpdateRecipeDto } from './dto/update-recipe.dto';
 
 const mapIngredientCreateInput = (
@@ -25,6 +28,31 @@ const mapStepCreateInput = (step: CreateRecipeDto['steps'][number]) => ({
   whatToDo: step.what_to_do,
 });
 
+const normalizeStringArray = (values?: string[]) =>
+  Array.from(
+    new Set(
+      (values ?? [])
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .slice(0, 6),
+    ),
+  );
+
+const uniqueMealTypes = (mealTypes?: RecipePlanningInputDto['meal_types']) =>
+  Array.from(new Set(mealTypes ?? []));
+
+const mapPlanningProfileData = (
+  planning: RecipePlanningInputDto,
+): Prisma.RecipePlanningProfileUncheckedCreateWithoutRecipeInput => ({
+  difficulty: planning.difficulty,
+  difficultyReason: planning.difficulty_reason,
+  prepTimeMinutes: planning.prep_time_minutes,
+  cookTimeMinutes: planning.cook_time_minutes,
+  totalTimeMinutes: planning.total_time_minutes,
+  estimatedCostTier: planning.estimated_cost_tier,
+  costNotes: normalizeStringArray(planning.cost_notes) as Prisma.InputJsonValue,
+});
+
 export const buildCreateRecipeData = (
   input: CreateRecipeDto,
   ownerUserId: string,
@@ -44,6 +72,20 @@ export const buildCreateRecipeData = (
       }
     : {}),
   servings: input.servings,
+  ...(input.planning
+    ? {
+        planningProfile: {
+          create: mapPlanningProfileData(input.planning),
+        },
+        mealTypes: {
+          create: uniqueMealTypes(input.planning.meal_types).map(
+            (mealType) => ({
+              mealType,
+            }),
+          ),
+        },
+      }
+    : {}),
   ingredients: {
     create: input.ingredients.map((ingredient, index) =>
       mapIngredientCreateInput(ingredient, index, ingredientIdsByIndex),
@@ -76,6 +118,35 @@ export const buildUpdateRecipeData = (
       }
     : {}),
   ...(input.servings !== undefined ? { servings: input.servings } : {}),
+  ...('planning' in input
+    ? input.planning === null
+      ? {
+          planningProfile: {
+            delete: true,
+          },
+          mealTypes: {
+            deleteMany: {},
+          },
+        }
+      : input.planning
+        ? {
+            planningProfile: {
+              upsert: {
+                create: mapPlanningProfileData(input.planning),
+                update: mapPlanningProfileData(input.planning),
+              },
+            },
+            mealTypes: {
+              deleteMany: {},
+              create: uniqueMealTypes(input.planning.meal_types).map(
+                (mealType) => ({
+                  mealType,
+                }),
+              ),
+            },
+          }
+        : {}
+    : {}),
   ...(input.ingredients
     ? {
         ingredients: {

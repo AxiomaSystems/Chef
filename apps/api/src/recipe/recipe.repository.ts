@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import type { BaseRecipe } from '@cart/shared';
 import type { HomeRecipeRecommendations, RecipeListPage } from '@cart/shared';
-import { Prisma } from '../../generated/prisma/index.js';
+import { Prisma, type $Enums } from '../../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
@@ -26,6 +26,9 @@ import {
 const RECIPE_INCLUDE = {
   cuisine: true,
   ingredients: true,
+  planningProfile: true,
+  mealTypes: true,
+  provenanceProfile: true,
   recipeTags: {
     include: {
       tag: true,
@@ -33,6 +36,27 @@ const RECIPE_INCLUDE = {
   },
   steps: true,
 } satisfies Prisma.BaseRecipeInclude;
+
+const MATERIAL_RECIPE_UPDATE_FIELDS: Array<keyof UpdateRecipeDto> = [
+  'name',
+  'cuisine_id',
+  'description',
+  'cover_image_url',
+  'nutrition_data',
+  'servings',
+  'planning',
+  'ingredients',
+  'steps',
+];
+
+export type RecipeProvenanceCreateOptions = {
+  sourceType: $Enums.RecipeSourceType;
+  sourceUrl?: string | null;
+  sourceName?: string | null;
+  attributionLabel?: string | null;
+  reviewStatus?: $Enums.RecipeReviewStatus;
+  extractionConfidence?: $Enums.RecipeExtractionConfidence | null;
+};
 
 @Injectable()
 export class RecipeRepository {
@@ -69,14 +93,7 @@ export class RecipeRepository {
         isSystemRecipe: false,
       },
       include: {
-        cuisine: true,
-        ingredients: true,
-        recipeTags: {
-          include: {
-            tag: true,
-          },
-        },
-        steps: true,
+        ...RECIPE_INCLUDE,
       },
     });
   }
@@ -142,6 +159,7 @@ export class RecipeRepository {
   async create(
     input: CreateRecipeDto,
     actorUserId?: string,
+    options?: { provenance?: RecipeProvenanceCreateOptions },
   ): Promise<BaseRecipe> {
     const actor = await this.resolveActorUser(actorUserId);
     const tagIds = await this.validateTagIdsForActor(actor.id, input.tag_ids);
@@ -164,17 +182,18 @@ export class RecipeRepository {
             },
           })),
         },
-      },
-      include: {
-        cuisine: true,
-        ingredients: true,
-        recipeTags: {
-          include: {
-            tag: true,
+        provenanceProfile: {
+          create: {
+            sourceType: options?.provenance?.sourceType ?? 'user_created',
+            sourceUrl: options?.provenance?.sourceUrl,
+            sourceName: options?.provenance?.sourceName,
+            attributionLabel: options?.provenance?.attributionLabel,
+            reviewStatus: options?.provenance?.reviewStatus ?? 'reviewed',
+            extractionConfidence: options?.provenance?.extractionConfidence,
           },
         },
-        steps: true,
       },
+      include: RECIPE_INCLUDE,
     });
 
     return mapBaseRecipe(recipe);
@@ -199,6 +218,10 @@ export class RecipeRepository {
       q?: string;
       cuisine_id?: string;
       tag_id?: string;
+      meal_type?: string;
+      difficulty?: string;
+      max_total_time_minutes?: number;
+      estimated_cost_tier?: string;
       owner?: 'public' | 'mine' | 'saved';
     },
     actorUserId?: string,
@@ -207,8 +230,12 @@ export class RecipeRepository {
     const cursor = decodeRecipeCursor(input.cursor);
     const limit = Math.min(Math.max(input.limit, 1), 100);
     const taxonomyFilters = buildRecipeListTaxonomyFilters(input);
+    const planningFilters = await buildRecipeListPlanningFilters(
+      this.prisma,
+      input,
+    );
     const ownerFilter = buildRecipeListOwnerFilter(input.owner, actor?.id);
-    const filters = [...taxonomyFilters, ...ownerFilter];
+    const filters = [...taxonomyFilters, ...planningFilters, ...ownerFilter];
     const listWhere: Prisma.BaseRecipeWhereInput = {
       AND: [
         buildVisibleRecipeWhere(actor?.id),
@@ -230,6 +257,7 @@ export class RecipeRepository {
       AND: [
         buildVisibleRecipeWhere(actor?.id),
         ...taxonomyFilters,
+        ...planningFilters,
         ...buildRecipeListOwnerFilter(owner, actor?.id),
       ],
     });
@@ -363,16 +391,7 @@ export class RecipeRepository {
         id,
         ...buildVisibleRecipeWhere(actor?.id),
       },
-      include: {
-        cuisine: true,
-        ingredients: true,
-        recipeTags: {
-          include: {
-            tag: true,
-          },
-        },
-        steps: true,
-      },
+      include: RECIPE_INCLUDE,
     });
 
     return recipe ? mapBaseRecipe(recipe) : null;
@@ -389,16 +408,7 @@ export class RecipeRepository {
         id: { in: ids },
         ...buildVisibleRecipeWhere(actor?.id),
       },
-      include: {
-        cuisine: true,
-        ingredients: true,
-        recipeTags: {
-          include: {
-            tag: true,
-          },
-        },
-        steps: true,
-      },
+      include: RECIPE_INCLUDE,
     });
 
     return recipes.map(mapBaseRecipe);
@@ -412,16 +422,7 @@ export class RecipeRepository {
     const actor = await this.resolveActorUser(actorUserId);
     const existing = await this.prisma.baseRecipe.findFirst({
       where: buildOwnedMutableRecipeWhere(id, actor.id),
-      include: {
-        cuisine: true,
-        ingredients: true,
-        recipeTags: {
-          include: {
-            tag: true,
-          },
-        },
-        steps: true,
-      },
+      include: RECIPE_INCLUDE,
     });
 
     if (!existing) {
@@ -450,6 +451,16 @@ export class RecipeRepository {
           },
           ingredientIdsByIndex,
         ),
+        ...(existing.provenanceProfile?.reviewStatus === 'trusted' &&
+        hasMaterialRecipeUpdate(input)
+          ? {
+              provenanceProfile: {
+                update: {
+                  reviewStatus: 'reviewed',
+                },
+              },
+            }
+          : {}),
         ...(tagIds !== null
           ? {
               recipeTags: {
@@ -463,16 +474,7 @@ export class RecipeRepository {
             }
           : {}),
       },
-      include: {
-        cuisine: true,
-        ingredients: true,
-        recipeTags: {
-          include: {
-            tag: true,
-          },
-        },
-        steps: true,
-      },
+      include: RECIPE_INCLUDE,
     });
 
     return mapBaseRecipe(recipe);
@@ -489,16 +491,7 @@ export class RecipeRepository {
         isSystemRecipe: true,
         ownerUserId: null,
       },
-      include: {
-        cuisine: true,
-        ingredients: true,
-        recipeTags: {
-          include: {
-            tag: true,
-          },
-        },
-        steps: true,
-      },
+      include: RECIPE_INCLUDE,
     });
 
     if (!sourceRecipe) {
@@ -533,6 +526,51 @@ export class RecipeRepository {
               },
             })),
           },
+          ...(sourceRecipe.planningProfile
+            ? {
+                planningProfile: {
+                  create: {
+                    difficulty: sourceRecipe.planningProfile.difficulty,
+                    difficultyReason:
+                      sourceRecipe.planningProfile.difficultyReason,
+                    prepTimeMinutes:
+                      sourceRecipe.planningProfile.prepTimeMinutes,
+                    cookTimeMinutes:
+                      sourceRecipe.planningProfile.cookTimeMinutes,
+                    totalTimeMinutes:
+                      sourceRecipe.planningProfile.totalTimeMinutes,
+                    estimatedCostTier:
+                      sourceRecipe.planningProfile.estimatedCostTier,
+                    costNotes: sourceRecipe.planningProfile
+                      .costNotes as Prisma.InputJsonValue,
+                  },
+                },
+              }
+            : {}),
+          mealTypes: {
+            create: (sourceRecipe.mealTypes ?? []).map((mealType) => ({
+              mealType: mealType.mealType,
+            })),
+          },
+          provenanceProfile: {
+            create: sourceRecipe.provenanceProfile
+              ? {
+                  sourceType: sourceRecipe.provenanceProfile.sourceType,
+                  sourceUrl: sourceRecipe.provenanceProfile.sourceUrl,
+                  sourceName: sourceRecipe.provenanceProfile.sourceName,
+                  attributionLabel:
+                    sourceRecipe.provenanceProfile.attributionLabel,
+                  reviewStatus: sourceRecipe.provenanceProfile.reviewStatus,
+                  extractionConfidence:
+                    sourceRecipe.provenanceProfile.extractionConfidence,
+                }
+              : {
+                  sourceType: 'unknown',
+                  reviewStatus: sourceRecipe.isSystemRecipe
+                    ? 'trusted'
+                    : 'reviewed',
+                },
+          },
           ingredients: {
             create: sourceRecipe.ingredients.map((ingredient) => ({
               ingredientId: ingredient.ingredientId,
@@ -553,16 +591,7 @@ export class RecipeRepository {
             })),
           },
         },
-        include: {
-          cuisine: true,
-          ingredients: true,
-          recipeTags: {
-            include: {
-              tag: true,
-            },
-          },
-          steps: true,
-        },
+        include: RECIPE_INCLUDE,
       });
 
       return { recipe: mapBaseRecipe(savedRecipe), created: true };
@@ -705,6 +734,64 @@ function buildRecipeListTaxonomyFilters(input: {
   return filters;
 }
 
+async function buildRecipeListPlanningFilters(
+  prisma: PrismaService,
+  input: {
+    meal_type?: string;
+    difficulty?: string;
+    max_total_time_minutes?: number;
+    estimated_cost_tier?: string;
+  },
+): Promise<Prisma.BaseRecipeWhereInput[]> {
+  const filters: Prisma.BaseRecipeWhereInput[] = [];
+
+  if (input.meal_type) {
+    filters.push({
+      mealTypes: {
+        some: {
+          mealType: input.meal_type as Prisma.EnumMealTypeFilter['equals'],
+        },
+      },
+    });
+  }
+
+  if (input.difficulty || input.estimated_cost_tier) {
+    filters.push({
+      planningProfile: {
+        is: {
+          ...(input.difficulty
+            ? {
+                difficulty:
+                  input.difficulty as Prisma.EnumRecipeDifficultyNullableFilter['equals'],
+              }
+            : {}),
+          ...(input.estimated_cost_tier
+            ? {
+                estimatedCostTier:
+                  input.estimated_cost_tier as Prisma.EnumRecipeCostTierNullableFilter['equals'],
+              }
+            : {}),
+        },
+      },
+    });
+  }
+
+  if (input.max_total_time_minutes !== undefined) {
+    const rows = await prisma.$queryRaw<Array<{ recipeId: string }>>`
+      SELECT "recipeId"
+      FROM "RecipePlanningProfile"
+      WHERE COALESCE("totalTimeMinutes", "prepTimeMinutes" + "cookTimeMinutes") <= ${input.max_total_time_minutes}
+    `;
+    filters.push({
+      id: {
+        in: rows.map((row) => row.recipeId),
+      },
+    });
+  }
+
+  return filters;
+}
+
 function buildRecipeListOwnerFilter(
   owner?: 'public' | 'mine' | 'saved',
   actorId?: string,
@@ -743,4 +830,8 @@ function buildRecipeListOwnerFilter(
   }
 
   return [];
+}
+
+function hasMaterialRecipeUpdate(input: UpdateRecipeDto): boolean {
+  return MATERIAL_RECIPE_UPDATE_FIELDS.some((field) => field in input);
 }

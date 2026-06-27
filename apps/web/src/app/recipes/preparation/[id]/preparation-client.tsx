@@ -59,6 +59,9 @@ function splitStepCopy(copy: string) {
 }
 
 function estimatePrepMinutes(recipe: BaseRecipe) {
+  if (typeof recipe.planning?.prep_time_minutes === "number") {
+    return recipe.planning.prep_time_minutes;
+  }
   return Math.max(recipe.steps.length * 8, 15);
 }
 

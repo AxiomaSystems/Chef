@@ -109,11 +109,15 @@ Reviewed captures can be saved into the normal recipe system.
 - requires capture ownership
 - requires a recipe preview
 - creates a user-owned, non-system `BaseRecipe`
+- copies reviewable planning fields into the recipe planning profile when present
+- creates recipe provenance from capture source kind, attribution, and extraction confidence
 - links the capture to the saved recipe through `savedRecipeId`
 - marks the capture as `saved`
 - returns the existing recipe if the capture was already saved
 
 This keeps raw Capture data separate from the user's canonical recipe library while still making Capture useful end-to-end.
+
+Capture is process evidence, not the permanent recipe object. After save, `BaseRecipe` owns the cookable recipe, `RecipePlanningProfile` owns browsing/planning metadata, and `RecipeProvenanceProfile` owns content origin and review status. The `Capture` row remains useful for audit/debug/review history.
 
 ## Future Integration
 

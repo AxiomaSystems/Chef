@@ -32,6 +32,12 @@ export const mealGenerationSchema = {
         'steps',
         'tags',
         'nutrition_estimate',
+        'meal_types',
+        'difficulty',
+        'difficulty_reason',
+        'prep_time_minutes',
+        'cook_time_minutes',
+        'total_time_minutes',
         'estimated_cost_tier',
         'cost_notes',
         'quality_tradeoffs',
@@ -54,6 +60,38 @@ export const mealGenerationSchema = {
         },
         tags: { type: 'array', items: { type: 'string' } },
         nutrition_estimate: { $ref: '#/$defs/nutritionEstimate' },
+        meal_types: {
+          type: 'array',
+          minItems: 1,
+          items: {
+            type: 'string',
+            enum: [
+              'breakfast',
+              'brunch',
+              'lunch',
+              'dinner',
+              'snack',
+              'dessert',
+              'side',
+              'appetizer',
+              'drink',
+            ],
+          },
+        },
+        difficulty: {
+          type: 'string',
+          enum: ['easy', 'medium', 'hard'],
+        },
+        difficulty_reason: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        prep_time_minutes: {
+          anyOf: [{ type: 'integer', minimum: 0 }, { type: 'null' }],
+        },
+        cook_time_minutes: {
+          anyOf: [{ type: 'integer', minimum: 0 }, { type: 'null' }],
+        },
+        total_time_minutes: {
+          anyOf: [{ type: 'integer', minimum: 0 }, { type: 'null' }],
+        },
         estimated_cost_tier: {
           type: 'string',
           enum: ['low', 'medium', 'high'],

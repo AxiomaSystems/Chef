@@ -12,6 +12,7 @@ import {
 } from 'class-validator';
 import {
   CreateDishIngredientDto,
+  RecipePlanningInputDto,
   RecipeNutritionDataDto,
   CreateRecipeStepDto,
 } from './create-recipe.dto';
@@ -53,6 +54,13 @@ export class UpdateRecipeDto {
   @IsInt()
   @Min(1)
   servings?: number;
+
+  @ApiPropertyOptional({ type: () => RecipePlanningInputDto, nullable: true })
+  @Transform(({ value }) => (value === '' ? null : value))
+  @ValidateIf((_object, value) => value !== null && value !== undefined)
+  @ValidateNested()
+  @Type(() => RecipePlanningInputDto)
+  planning?: RecipePlanningInputDto | null;
 
   @ApiPropertyOptional({ type: () => [CreateDishIngredientDto] })
   @IsOptional()

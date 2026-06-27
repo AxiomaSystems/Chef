@@ -1,11 +1,36 @@
 import { mapCuisine } from '../cuisines/cuisines.mapper';
 import { mapTag } from '../tags/tags.mapper';
-import type { BaseRecipe, DishIngredient, RecipeStep } from '@cart/shared';
+import type {
+  BaseRecipe,
+  DishIngredient,
+  RecipeCostTier,
+  RecipeDifficulty,
+  RecipeExtractionConfidence,
+  RecipeMealType,
+  RecipeReviewStatus,
+  RecipeSourceType,
+  RecipeStep,
+} from '@cart/shared';
 import type {
   DishIngredient as PrismaDishIngredient,
+  RecipeMealType as PrismaRecipeMealType,
+  RecipePlanningProfile as PrismaRecipePlanningProfile,
+  RecipeProvenanceProfile as PrismaRecipeProvenanceProfile,
   RecipeStep as PrismaRecipeStep,
 } from '../../generated/prisma/index.js';
 import type { BaseRecipeWithRelations } from './recipe.persistence.types';
+
+const MEAL_TYPE_ORDER: RecipeMealType[] = [
+  'breakfast',
+  'brunch',
+  'lunch',
+  'dinner',
+  'snack',
+  'dessert',
+  'side',
+  'appetizer',
+  'drink',
+];
 
 const mapIngredient = (ingredient: PrismaDishIngredient): DishIngredient => ({
   ingredient_id: ingredient.ingredientId ?? undefined,
@@ -23,6 +48,69 @@ const mapStep = (step: PrismaRecipeStep): RecipeStep => ({
   what_to_do: step.whatToDo,
 });
 
+const jsonStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+    .filter(Boolean);
+};
+
+const effectiveTotalTimeMinutes = (
+  profile: PrismaRecipePlanningProfile,
+): number | undefined => {
+  if (profile.totalTimeMinutes !== null) return profile.totalTimeMinutes;
+  if (profile.prepTimeMinutes === null || profile.cookTimeMinutes === null) {
+    return undefined;
+  }
+
+  return profile.prepTimeMinutes + profile.cookTimeMinutes;
+};
+
+const mapPlanningProfile = (
+  profile: PrismaRecipePlanningProfile | null,
+  mealTypes: PrismaRecipeMealType[],
+): BaseRecipe['planning'] => {
+  if (!profile && mealTypes.length === 0) return undefined;
+
+  const sortedMealTypes = mealTypes
+    .map((entry) => entry.mealType as RecipeMealType)
+    .sort((left, right) => {
+      return MEAL_TYPE_ORDER.indexOf(left) - MEAL_TYPE_ORDER.indexOf(right);
+    });
+
+  return {
+    meal_types: sortedMealTypes,
+    difficulty: (profile?.difficulty as RecipeDifficulty | null) ?? undefined,
+    difficulty_reason: profile?.difficultyReason ?? undefined,
+    prep_time_minutes: profile?.prepTimeMinutes ?? undefined,
+    cook_time_minutes: profile?.cookTimeMinutes ?? undefined,
+    total_time_minutes: profile
+      ? effectiveTotalTimeMinutes(profile)
+      : undefined,
+    estimated_cost_tier:
+      (profile?.estimatedCostTier as RecipeCostTier | null) ?? undefined,
+    cost_notes: jsonStringArray(profile?.costNotes),
+  };
+};
+
+const mapProvenanceProfile = (
+  profile: PrismaRecipeProvenanceProfile | null,
+): BaseRecipe['provenance'] => {
+  if (!profile) return undefined;
+
+  return {
+    source_type: profile.sourceType as RecipeSourceType,
+    source_url: profile.sourceUrl ?? undefined,
+    source_name: profile.sourceName ?? undefined,
+    attribution_label: profile.attributionLabel ?? undefined,
+    review_status: profile.reviewStatus as RecipeReviewStatus,
+    extraction_confidence:
+      (profile.extractionConfidence as RecipeExtractionConfidence | null) ??
+      undefined,
+  };
+};
+
 export const mapBaseRecipe = (recipe: BaseRecipeWithRelations): BaseRecipe => ({
   id: recipe.id,
   owner_user_id: recipe.ownerUserId ?? undefined,
@@ -36,6 +124,8 @@ export const mapBaseRecipe = (recipe: BaseRecipeWithRelations): BaseRecipe => ({
   nutrition_data:
     (recipe.nutritionData as BaseRecipe['nutrition_data']) ?? undefined,
   servings: recipe.servings,
+  planning: mapPlanningProfile(recipe.planningProfile, recipe.mealTypes ?? []),
+  provenance: mapProvenanceProfile(recipe.provenanceProfile),
   ingredients: recipe.ingredients
     .slice()
     .sort((left, right) => left.sortOrder - right.sortOrder)

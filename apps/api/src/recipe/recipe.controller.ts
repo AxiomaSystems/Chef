@@ -61,6 +61,10 @@ export class RecipeController {
       query.q ||
       query.cuisine_id ||
       query.tag_id ||
+      query.meal_type ||
+      query.difficulty ||
+      query.max_total_time_minutes !== undefined ||
+      query.estimated_cost_tier ||
       query.owner;
 
     if (hasPageQuery) {
@@ -71,6 +75,10 @@ export class RecipeController {
           q: query.q,
           cuisine_id: query.cuisine_id,
           tag_id: query.tag_id,
+          meal_type: query.meal_type,
+          difficulty: query.difficulty,
+          max_total_time_minutes: query.max_total_time_minutes,
+          estimated_cost_tier: query.estimated_cost_tier,
           owner: query.owner,
         },
         user?.sub,
