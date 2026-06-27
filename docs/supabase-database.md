@@ -104,20 +104,17 @@ repo-owned migrations. RLS remains enabled without permissive policies, and
 direct Supabase table access should stay closed unless a feature explicitly
 designs that access surface.
 
-## Pending BaseRecipe Maintenance
+## BaseRecipe Maintenance
 
 Most domain constraints are repo-owned migrations and have been applied through
-Prisma. `BaseRecipe` has one remaining maintenance item: contract constraints
-for servings, name length, description length, and `nutritionData` JSON shape.
+Prisma. `BaseRecipe` contract constraints for servings, name length,
+description length, and `nutritionData` JSON shape are applied by
+`20260627120000_add_base_recipe_contract_constraints`.
 
-The data already satisfies those checks, but Supabase currently has a stale
-Supavisor session `idle in transaction` holding `AccessShareLock` on
-`BaseRecipe`, so DDL with a short `lock_timeout` cannot acquire the required
-lock. Keep the pending SQL in
-`apps/api/prisma/scripts/pending-core-numeric-domain-constraints.sql` until that
-session is confirmed safe to terminate or a quiet maintenance window is
-available. After the blocker is cleared, create a fresh Prisma migration from
-that script and apply it with `migrate deploy`.
+That migration was blocked until a stale Supavisor session
+`idle in transaction` holding `AccessShareLock` on `BaseRecipe` was terminated.
+After the session was closed, `prisma migrate deploy` applied and validated the
+constraints successfully.
 
 ## Migration Discipline
 
