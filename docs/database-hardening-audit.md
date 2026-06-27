@@ -17,6 +17,8 @@ The audit added repo-owned Prisma migrations for:
 - Ownership consistency FKs for shopping carts.
 - FK index coverage and duplicate index cleanup.
 - Partial lifecycle/index hygiene for carts and shopping carts.
+- Base recipe contract constraints for servings, text lengths, and
+  `nutritionData` JSON object shape.
 
 ## Current Verification
 
@@ -26,7 +28,7 @@ The latest audit checks against Supabase show:
 - No duplicate exact indexes.
 - No public application tables without RLS.
 - No broad `anon` or `authenticated` table grants.
-- No unvalidated constraints.
+- No unvalidated constraints on application-owned public tables.
 - Prisma migrations are up to date.
 
 Validation commands used:
@@ -41,28 +43,17 @@ pnpm --filter web build
 `prisma generate` was also run after schema changes that affected the generated
 client.
 
-## Pending Operational Item
+## Completed Operational Item
 
-`BaseRecipe` still needs contract constraints for:
+The previous `BaseRecipe` blocker was a stale Supavisor session
+`idle in transaction` holding `AccessShareLock` on `BaseRecipe`. After that
+session was terminated, migration
+`20260627120000_add_base_recipe_contract_constraints` applied and validated the
+remaining base recipe checks.
 
-- `servings` range.
-- `name` length.
-- `description` length.
-- `nutritionData` JSON object shape.
-
-The data already satisfies the intended checks, but DDL with a short
-`lock_timeout` cannot acquire the required lock because Supabase currently has a
-stale Supavisor session `idle in transaction` holding `AccessShareLock` on
-`BaseRecipe`.
-
-The pending SQL and blocker inspection query live in:
-
-```text
-apps/api/prisma/scripts/pending-core-numeric-domain-constraints.sql
-```
-
-After that stale session is confirmed safe to terminate, create a fresh Prisma
-migration from the pending SQL and apply it with `migrate deploy`.
+Supabase still reports one unvalidated constraint in its own `realtime` schema:
+`realtime.messages.messages_payload_exclusive`. That table is Supabase-managed
+infrastructure, not an application-owned public table.
 
 ## Out Of Scope
 
