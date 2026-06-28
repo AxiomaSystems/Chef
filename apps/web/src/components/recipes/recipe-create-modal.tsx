@@ -5,6 +5,9 @@ import type {
   BaseRecipe,
   CaptureRecipePreview,
   Cuisine,
+  RecipeCostTier,
+  RecipeDifficulty,
+  RecipeMealType,
   Tag,
 } from "@cart/shared";
 import { createRecipeAction, updateRecipeAction } from "@/app/home-actions";
@@ -39,6 +42,30 @@ const UNITS = [
   "handful",
   "pinch",
   "to taste",
+];
+
+const MEAL_TYPE_OPTIONS: { value: RecipeMealType; label: string }[] = [
+  { value: "breakfast", label: "Breakfast" },
+  { value: "brunch", label: "Brunch" },
+  { value: "lunch", label: "Lunch" },
+  { value: "dinner", label: "Dinner" },
+  { value: "snack", label: "Snack" },
+  { value: "dessert", label: "Dessert" },
+  { value: "side", label: "Side" },
+  { value: "appetizer", label: "Appetizer" },
+  { value: "drink", label: "Drink" },
+];
+
+const DIFFICULTY_OPTIONS: { value: RecipeDifficulty; label: string }[] = [
+  { value: "easy", label: "Easy" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
+];
+
+const COST_TIER_OPTIONS: { value: RecipeCostTier; label: string }[] = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
 ];
 
 function normalizeTagName(name: string) {
@@ -265,6 +292,52 @@ export function RecipeCreateModal({
   const [fatG, setFatG] = useState(
     nutritionValue(initialRecipe?.nutrition_data, "fat_g") ||
       nutritionValue(initialDraft?.nutrition_estimate, "fat_g"),
+  );
+  const [mealTypes, setMealTypes] = useState<RecipeMealType[]>(
+    initialRecipe?.planning?.meal_types ?? initialDraft?.meal_types ?? [],
+  );
+  const [difficulty, setDifficulty] = useState<RecipeDifficulty | "">(
+    initialRecipe?.planning?.difficulty ?? initialDraft?.difficulty ?? "",
+  );
+  const [difficultyReason, setDifficultyReason] = useState(
+    initialRecipe?.planning?.difficulty_reason ??
+      initialDraft?.difficulty_reason ??
+      "",
+  );
+  const [prepTimeMinutes, setPrepTimeMinutes] = useState(
+    initialRecipe?.planning?.prep_time_minutes !== undefined
+      ? String(initialRecipe.planning.prep_time_minutes)
+      : initialDraft?.prep_time_minutes !== undefined
+        ? String(initialDraft.prep_time_minutes)
+        : "",
+  );
+  const [cookTimeMinutes, setCookTimeMinutes] = useState(
+    initialRecipe?.planning?.cook_time_minutes !== undefined
+      ? String(initialRecipe.planning.cook_time_minutes)
+      : initialDraft?.cook_time_minutes !== undefined
+        ? String(initialDraft.cook_time_minutes)
+        : "",
+  );
+  const [totalTimeMinutes, setTotalTimeMinutes] = useState(
+    initialRecipe?.planning?.total_time_minutes !== undefined
+      ? String(initialRecipe.planning.total_time_minutes)
+      : initialDraft?.total_time_minutes !== undefined
+        ? String(initialDraft.total_time_minutes)
+        : "",
+  );
+  const [estimatedCostTier, setEstimatedCostTier] = useState<
+    RecipeCostTier | ""
+  >(
+    initialRecipe?.planning?.estimated_cost_tier ??
+      initialDraft?.estimated_cost_tier ??
+      "",
+  );
+  const [costNotes, setCostNotes] = useState(
+    (
+      initialRecipe?.planning?.cost_notes ??
+      initialDraft?.cost_notes ??
+      []
+    ).join("\n"),
   );
   const [dietaryRestrictionInput, setDietaryRestrictionInput] = useState("");
   const [customTagNames, setCustomTagNames] = useState<string[]>(
@@ -654,6 +727,29 @@ export function RecipeCreateModal({
     setProteinG(nutritionValue(recipe.nutrition_estimate, "protein_g"));
     setCarbsG(nutritionValue(recipe.nutrition_estimate, "carbs_g"));
     setFatG(nutritionValue(recipe.nutrition_estimate, "fat_g"));
+    setMealTypes(recipe.meal_types ?? []);
+    setDifficulty(recipe.difficulty ?? "");
+    setDifficultyReason(recipe.difficulty_reason ?? "");
+    setPrepTimeMinutes(
+      recipe.prep_time_minutes !== null &&
+        recipe.prep_time_minutes !== undefined
+        ? String(recipe.prep_time_minutes)
+        : "",
+    );
+    setCookTimeMinutes(
+      recipe.cook_time_minutes !== null &&
+        recipe.cook_time_minutes !== undefined
+        ? String(recipe.cook_time_minutes)
+        : "",
+    );
+    setTotalTimeMinutes(
+      recipe.total_time_minutes !== null &&
+        recipe.total_time_minutes !== undefined
+        ? String(recipe.total_time_minutes)
+        : "",
+    );
+    setEstimatedCostTier(recipe.estimated_cost_tier ?? "");
+    setCostNotes((recipe.cost_notes ?? []).join("\n"));
   }
 
   function autofillFromName(trigger: "auto" | "manual") {
@@ -795,6 +891,20 @@ export function RecipeCreateModal({
     );
   }
 
+  function toggleMealType(mealType: RecipeMealType) {
+    setMealTypes((prev) =>
+      prev.includes(mealType)
+        ? prev.filter((value) => value !== mealType)
+        : [...prev, mealType],
+    );
+  }
+
+  function optionalPositiveInt(value: string) {
+    if (!value.trim()) return undefined;
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+  }
+
   function handleSubmit(mode = editSaveMode) {
     setError(undefined);
     const shouldCreateNewRecipe = isEditing && mode === "copy";
@@ -841,6 +951,29 @@ export function RecipeCreateModal({
       cover_image_url: coverImageUrl.trim() || undefined,
       tag_ids: selectedTagIds.length ? selectedTagIds : undefined,
       custom_tag_names: customTagNames.length ? customTagNames : undefined,
+      planning:
+        mealTypes.length ||
+        difficulty ||
+        difficultyReason.trim() ||
+        prepTimeMinutes ||
+        cookTimeMinutes ||
+        totalTimeMinutes ||
+        estimatedCostTier ||
+        costNotes.trim()
+          ? {
+              meal_types: mealTypes,
+              difficulty: difficulty || undefined,
+              difficulty_reason: difficultyReason.trim() || undefined,
+              prep_time_minutes: optionalPositiveInt(prepTimeMinutes),
+              cook_time_minutes: optionalPositiveInt(cookTimeMinutes),
+              total_time_minutes: optionalPositiveInt(totalTimeMinutes),
+              estimated_cost_tier: estimatedCostTier || undefined,
+              cost_notes: costNotes
+                .split(/\r?\n/)
+                .map((note) => note.trim())
+                .filter(Boolean),
+            }
+          : undefined,
       ingredients: validIngredients.map((row) => ({
         canonical_ingredient: row.canonical_ingredient.trim(),
         amount: parseFloat(row.amount),
@@ -1241,6 +1374,130 @@ export function RecipeCreateModal({
               </div>
             </section>
           )}
+
+          <section className="space-y-3">
+            <h3 className="border-b border-outline-variant/30 pb-2 text-label-lg font-bold text-on-surface">
+              Planning{" "}
+              <span className="text-body-sm font-normal text-outline">
+                (optional)
+              </span>
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {MEAL_TYPE_OPTIONS.map((option) => {
+                const selected = mealTypes.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => toggleMealType(option.value)}
+                    className={`rounded-full px-3 py-1.5 text-label-sm font-semibold transition-all ${
+                      selected
+                        ? "bg-secondary text-on-secondary"
+                        : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <label className="text-label-sm text-outline">Difficulty</label>
+                <select
+                  value={difficulty}
+                  onChange={(event) =>
+                    setDifficulty(event.target.value as RecipeDifficulty | "")
+                  }
+                  className="w-full rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">Unset</option>
+                  {DIFFICULTY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-label-sm text-outline">Cost tier</label>
+                <select
+                  value={estimatedCostTier}
+                  onChange={(event) =>
+                    setEstimatedCostTier(
+                      event.target.value as RecipeCostTier | "",
+                    )
+                  }
+                  className="w-full rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">Unset</option>
+                  {COST_TIER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-label-sm text-outline">Total min</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={totalTimeMinutes}
+                  onChange={(event) => setTotalTimeMinutes(event.target.value)}
+                  placeholder="Auto"
+                  className="w-full rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-label-sm text-outline">Prep min</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={prepTimeMinutes}
+                  onChange={(event) => setPrepTimeMinutes(event.target.value)}
+                  placeholder="15"
+                  className="w-full rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-label-sm text-outline">Cook min</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={cookTimeMinutes}
+                  onChange={(event) => setCookTimeMinutes(event.target.value)}
+                  placeholder="25"
+                  className="w-full rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-label-sm text-outline">
+                  Difficulty reason
+                </label>
+                <input
+                  value={difficultyReason}
+                  onChange={(event) => setDifficultyReason(event.target.value)}
+                  placeholder="Simple prep, one pan..."
+                  className="w-full rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-label-sm text-outline">Cost notes</label>
+                <textarea
+                  value={costNotes}
+                  onChange={(event) => setCostNotes(event.target.value)}
+                  placeholder="One note per line"
+                  rows={1}
+                  className="w-full resize-none rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+          </section>
 
           <section className="space-y-3">
             <h3 className="border-b border-outline-variant/30 pb-2 text-label-lg font-bold text-on-surface">

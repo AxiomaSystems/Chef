@@ -16,6 +16,58 @@ export type RecipeStep = {
   what_to_do: string;
 };
 
+export type RecipeDifficulty = "easy" | "medium" | "hard";
+
+export type RecipeCostTier = "low" | "medium" | "high";
+
+export type RecipeMealType =
+  | "breakfast"
+  | "brunch"
+  | "lunch"
+  | "dinner"
+  | "snack"
+  | "dessert"
+  | "side"
+  | "appetizer"
+  | "drink";
+
+export type RecipeSourceType =
+  | "user_created"
+  | "ai_generated"
+  | "recipe_url"
+  | "social_url"
+  | "pasted_text"
+  | "image"
+  | "unknown";
+
+export type RecipeReviewStatus =
+  | "draft"
+  | "needs_review"
+  | "reviewed"
+  | "trusted";
+
+export type RecipeExtractionConfidence = "low" | "medium" | "high";
+
+export type RecipePlanningProfile = {
+  meal_types: RecipeMealType[];
+  difficulty?: RecipeDifficulty;
+  difficulty_reason?: string;
+  prep_time_minutes?: number;
+  cook_time_minutes?: number;
+  total_time_minutes?: number;
+  estimated_cost_tier?: RecipeCostTier;
+  cost_notes: string[];
+};
+
+export type RecipeProvenanceProfile = {
+  source_type: RecipeSourceType;
+  source_url?: string;
+  source_name?: string;
+  attribution_label?: string;
+  review_status: RecipeReviewStatus;
+  extraction_confidence?: RecipeExtractionConfidence;
+};
+
 export type DishIngredient = {
   ingredient_id?: string;
   canonical_ingredient: string;
@@ -49,6 +101,8 @@ export type BaseRecipe = {
   cover_image_url?: string;
   nutrition_data?: RecipeNutritionData;
   servings: number;
+  planning?: RecipePlanningProfile;
+  provenance?: RecipeProvenanceProfile;
   ingredients: DishIngredient[];
   steps: RecipeStep[];
   tag_ids: string[];

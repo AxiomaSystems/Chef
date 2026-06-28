@@ -103,6 +103,41 @@ enum CaptureConfidence {
   high
 }
 
+enum RecipeDifficulty {
+  easy
+  medium
+  hard
+}
+
+enum RecipeCostTier {
+  low
+  medium
+  high
+}
+
+enum RecipeSourceType {
+  user_created
+  ai_generated
+  recipe_url
+  social_url
+  pasted_text
+  image
+  unknown
+}
+
+enum RecipeReviewStatus {
+  draft
+  needs_review
+  reviewed
+  trusted
+}
+
+enum RecipeExtractionConfidence {
+  low
+  medium
+  high
+}
+
 enum CartStatus {
   active
   archived
@@ -116,8 +151,14 @@ enum ShoppingCartStatus {
 
 enum MealType {
   breakfast
+  brunch
   lunch
   dinner
+  snack
+  dessert
+  side
+  appetizer
+  drink
 }
 
 enum UserFoodRuleKind {
@@ -274,6 +315,9 @@ model BaseRecipe {
   forkedFromRecipe   BaseRecipe?      @relation("ForkedRecipeSource", fields: [forkedFromRecipeId], references: [id], onDelete: SetNull)
   forkedRecipes      BaseRecipe[]     @relation("ForkedRecipeSource")
   ingredients        DishIngredient[]
+  planningProfile    RecipePlanningProfile?
+  mealTypes          RecipeMealType[]
+  provenanceProfile  RecipeProvenanceProfile?
   recipeTags         RecipeTag[]
   steps              RecipeStep[]
   sourceCapture      Capture?
@@ -423,6 +467,48 @@ model RecipeTag {
   @@id([recipeId, tagId])
   @@index([tagId])
   @@index([tagId, recipeId])
+}
+
+model RecipePlanningProfile {
+  recipeId          String          @id
+  difficulty        RecipeDifficulty?
+  difficultyReason  String?
+  prepTimeMinutes   Int?
+  cookTimeMinutes   Int?
+  totalTimeMinutes  Int?
+  estimatedCostTier RecipeCostTier?
+  costNotes         Json            @default("[]")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  recipe            BaseRecipe      @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([difficulty])
+  @@index([estimatedCostTier])
+}
+
+model RecipeMealType {
+  recipeId String
+  mealType MealType
+  recipe   BaseRecipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, mealType])
+  @@index([mealType, recipeId])
+}
+
+model RecipeProvenanceProfile {
+  recipeId              String                       @id
+  sourceType            RecipeSourceType             @default(user_created)
+  sourceUrl             String?
+  sourceName            String?
+  attributionLabel      String?
+  reviewStatus          RecipeReviewStatus           @default(reviewed)
+  extractionConfidence  RecipeExtractionConfidence?
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  recipe                BaseRecipe                   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([sourceType])
+  @@index([reviewStatus])
 }
 
 model DishIngredient {

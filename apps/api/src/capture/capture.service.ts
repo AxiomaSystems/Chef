@@ -21,6 +21,7 @@ import type {
 } from '../ai/ai.types';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateRecipeDto } from '../recipe/dto/create-recipe.dto';
+import type { RecipeProvenanceCreateOptions } from '../recipe/recipe.repository';
 import { RecipeService } from '../recipe/recipe.service';
 import { CreateCaptureDto } from './dto/create-capture.dto';
 import { mapCapture } from './capture.mapper';
@@ -194,6 +195,9 @@ export class CaptureService {
     const recipe = await this.recipeService.create(
       buildRecipeInput(preview, cuisineId),
       userId,
+      {
+        provenance: buildRecipeProvenanceInput(capture),
+      },
     );
 
     await this.prisma.capture.update({
@@ -264,6 +268,16 @@ function buildRecipeInput(
     cover_image_url: preview.cover_image_url,
     nutrition_data: preview.nutrition_estimate ?? undefined,
     servings: preview.servings,
+    planning: {
+      meal_types: preview.meal_types ?? [],
+      difficulty: preview.difficulty,
+      difficulty_reason: preview.difficulty_reason,
+      prep_time_minutes: preview.prep_time_minutes,
+      cook_time_minutes: preview.cook_time_minutes,
+      total_time_minutes: preview.total_time_minutes,
+      estimated_cost_tier: preview.estimated_cost_tier,
+      cost_notes: preview.cost_notes,
+    },
     ingredients: preview.ingredients.map((ingredient) => ({
       canonical_ingredient: ingredient.canonical_ingredient,
       amount: ingredient.amount,
@@ -306,10 +320,41 @@ function buildCaptureRecipePreview(
     })),
     tags: preview.tags,
     nutrition_estimate: preview.nutrition_estimate,
+    meal_types: preview.meal_types ?? [],
+    difficulty: preview.difficulty,
+    difficulty_reason: preview.difficulty_reason ?? undefined,
+    prep_time_minutes: preview.prep_time_minutes ?? undefined,
+    cook_time_minutes: preview.cook_time_minutes ?? undefined,
+    total_time_minutes: preview.total_time_minutes ?? undefined,
     estimated_cost_tier: preview.estimated_cost_tier,
     cost_notes: preview.cost_notes,
     quality_tradeoffs: preview.quality_tradeoffs,
     assumptions: preview.assumptions,
+  };
+}
+
+function buildRecipeProvenanceInput(capture: {
+  sourceKind: CaptureSourceKind;
+  sourceUrl: string | null;
+  attribution: Prisma.JsonValue;
+  confidence: CaptureConfidence;
+  status: string;
+}): RecipeProvenanceCreateOptions {
+  const attribution = capture.attribution as CaptureSourceAttribution;
+  const sourceName =
+    attribution.site ??
+    (attribution.platform && attribution.platform !== 'chef'
+      ? attribution.platform
+      : undefined);
+
+  return {
+    sourceType: capture.sourceKind,
+    sourceUrl: capture.sourceUrl,
+    sourceName,
+    attributionLabel: attribution.attribution_label,
+    reviewStatus:
+      capture.status === 'ready_for_review' ? 'reviewed' : 'needs_review',
+    extractionConfidence: capture.confidence,
   };
 }
 

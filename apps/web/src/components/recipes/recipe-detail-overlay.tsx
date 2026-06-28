@@ -18,6 +18,27 @@ function splitStepCopy(copy: string) {
   };
 }
 
+function formatPlanningLabel(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function recipeTotalMinutes(recipe: BaseRecipe) {
+  if (typeof recipe.planning?.total_time_minutes === "number") {
+    return recipe.planning.total_time_minutes;
+  }
+  if (
+    typeof recipe.planning?.prep_time_minutes === "number" &&
+    typeof recipe.planning?.cook_time_minutes === "number"
+  ) {
+    return (
+      recipe.planning.prep_time_minutes + recipe.planning.cook_time_minutes
+    );
+  }
+  return null;
+}
+
 export function RecipeDetailOverlay({
   recipe,
   onClose,
@@ -47,9 +68,26 @@ export function RecipeDetailOverlay({
 
 function NutritionStrip({ recipe }: { recipe: BaseRecipe }) {
   const nutrition = recipe.nutrition_data ?? {};
+  const totalMinutes = recipeTotalMinutes(recipe);
 
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+      {totalMinutes !== null && (
+        <span className="text-sm text-on-surface-variant">
+          <span className="font-semibold text-on-surface">{totalMinutes}</span>{" "}
+          min
+        </span>
+      )}
+      {recipe.planning?.difficulty && (
+        <span className="text-sm text-on-surface-variant">
+          {formatPlanningLabel(recipe.planning.difficulty)}
+        </span>
+      )}
+      {recipe.planning?.estimated_cost_tier && (
+        <span className="text-sm text-on-surface-variant">
+          {formatPlanningLabel(recipe.planning.estimated_cost_tier)} cost
+        </span>
+      )}
       {nutrition.calories && (
         <span className="text-sm text-on-surface-variant">
           <span className="font-semibold text-on-surface">
@@ -92,7 +130,17 @@ function NutritionStrip({ recipe }: { recipe: BaseRecipe }) {
 
 function MobileNutritionPanel({ recipe }: { recipe: BaseRecipe }) {
   const nutrition = recipe.nutrition_data ?? {};
+  const totalMinutes = recipeTotalMinutes(recipe);
   const metrics = [
+    totalMinutes !== null
+      ? { label: "minutes", value: String(totalMinutes) }
+      : null,
+    recipe.planning?.difficulty
+      ? {
+          label: "difficulty",
+          value: formatPlanningLabel(recipe.planning.difficulty),
+        }
+      : null,
     nutrition.calories
       ? { label: "kcal", value: String(nutrition.calories) }
       : null,

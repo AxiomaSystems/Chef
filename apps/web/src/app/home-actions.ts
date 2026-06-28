@@ -7,7 +7,10 @@ import type {
   IngredientReview,
   MatchedIngredientProduct,
   ProductCandidate,
+  RecipeCostTier,
+  RecipeDifficulty,
   RecipeListPage,
+  RecipeMealType,
   Retailer,
   RetailerProductSearchResponse,
   ShoppingCart,
@@ -77,6 +80,10 @@ export type LoadRecipesPageInput = {
   q?: string;
   cuisine_id?: string;
   tag_id?: string;
+  meal_type?: RecipeMealType;
+  difficulty?: RecipeDifficulty;
+  max_total_time_minutes?: number;
+  estimated_cost_tier?: RecipeCostTier;
   owner?: "public" | "mine" | "saved";
 };
 
@@ -592,6 +599,16 @@ export type CreateRecipePayload = {
   cover_image_url?: string;
   tag_ids?: string[];
   custom_tag_names?: string[];
+  planning?: {
+    meal_types?: RecipeMealType[];
+    difficulty?: RecipeDifficulty;
+    difficulty_reason?: string;
+    prep_time_minutes?: number;
+    cook_time_minutes?: number;
+    total_time_minutes?: number;
+    estimated_cost_tier?: RecipeCostTier;
+    cost_notes?: string[];
+  };
   ingredients: {
     canonical_ingredient: string;
     amount: number;
@@ -744,6 +761,14 @@ export async function loadRecipesPageAction(
   if (input.q?.trim()) params.set("q", input.q.trim());
   if (input.cuisine_id) params.set("cuisine_id", input.cuisine_id);
   if (input.tag_id) params.set("tag_id", input.tag_id);
+  if (input.meal_type) params.set("meal_type", input.meal_type);
+  if (input.difficulty) params.set("difficulty", input.difficulty);
+  if (input.max_total_time_minutes !== undefined) {
+    params.set("max_total_time_minutes", String(input.max_total_time_minutes));
+  }
+  if (input.estimated_cost_tier) {
+    params.set("estimated_cost_tier", input.estimated_cost_tier);
+  }
   if (input.owner) params.set("owner", input.owner);
 
   const response = await callAuthedJson(`/recipes?${params.toString()}`).catch(

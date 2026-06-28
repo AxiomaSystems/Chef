@@ -1,4 +1,11 @@
-import type { DishIngredient, RecipeNutritionData, RecipeStep } from "./recipe";
+import type {
+  DishIngredient,
+  RecipeCostTier,
+  RecipeDifficulty,
+  RecipeMealType,
+  RecipeNutritionData,
+  RecipeStep,
+} from "./recipe";
 
 export type CaptureInputKind = "url" | "text" | "image";
 
@@ -44,7 +51,13 @@ export type CaptureRecipePreview = {
   steps: RecipeStep[];
   tags: string[];
   nutrition_estimate?: RecipeNutritionData | null;
-  estimated_cost_tier?: "low" | "medium" | "high";
+  meal_types?: RecipeMealType[];
+  difficulty?: RecipeDifficulty;
+  difficulty_reason?: string;
+  prep_time_minutes?: number;
+  cook_time_minutes?: number;
+  total_time_minutes?: number;
+  estimated_cost_tier?: RecipeCostTier;
   cost_notes: string[];
   quality_tradeoffs: string[];
   assumptions: string[];

@@ -104,6 +104,86 @@ function resolveSeedTagId(context, slug, ownerUserId, isSystemRecipe) {
   return context.userTagIdsByOwnerAndSlug.get(`${ownerUserId ?? null}:${slug}`);
 }
 
+function inferRecipePlanning(recipe) {
+  const tagSlugs = new Set((recipe.tags ?? []).map(normalizeTagSlug));
+  const searchable = `${recipe.name} ${recipe.description ?? ''}`.toLowerCase();
+  const mealTypes = new Set();
+
+  if (
+    tagSlugs.has('breakfast') ||
+    /\bbreakfast|pancake|toast|oat\b/.test(searchable)
+  ) {
+    mealTypes.add('breakfast');
+  }
+  if (
+    tagSlugs.has('dessert') ||
+    /\bdessert|cake|cookie|sweet\b/.test(searchable)
+  ) {
+    mealTypes.add('dessert');
+  }
+  if (tagSlugs.has('side') || tagSlugs.has('side-dish')) {
+    mealTypes.add('side');
+  }
+  if (tagSlugs.has('snack')) {
+    mealTypes.add('snack');
+  }
+  if (mealTypes.size === 0) {
+    mealTypes.add('lunch');
+    mealTypes.add('dinner');
+  }
+
+  const ingredientCount = recipe.ingredients?.length ?? 0;
+  const stepCount = recipe.steps?.length ?? 0;
+  const prepTimeMinutes =
+    recipe.prepTimeMinutes ?? Math.min(35, 5 + ingredientCount * 2);
+  const cookTimeMinutes =
+    recipe.cookTimeMinutes ??
+    Math.min(75, Math.max(10, stepCount * 8 + (tagSlugs.has('quick') ? 0 : 5)));
+  const totalTimeMinutes =
+    recipe.totalTimeMinutes ?? prepTimeMinutes + cookTimeMinutes;
+  const complexityScore = ingredientCount + stepCount * 2;
+  const difficulty =
+    recipe.difficulty ??
+    (complexityScore <= 13
+      ? 'easy'
+      : complexityScore <= 21
+        ? 'medium'
+        : 'hard');
+  const ingredientsText = (recipe.ingredients ?? [])
+    .map((ingredient) => ingredient.canonicalIngredient)
+    .join(' ')
+    .toLowerCase();
+  const estimatedCostTier =
+    recipe.estimatedCostTier ??
+    (/\bshrimp|salmon|steak|pecan|parmesan|saffron|lamb\b/.test(ingredientsText)
+      ? 'high'
+      : /\bchicken|beef|fish|cheese|nuts?\b/.test(ingredientsText)
+        ? 'medium'
+        : 'low');
+  const costNotes =
+    recipe.costNotes ??
+    (estimatedCostTier === 'high'
+      ? ['Uses one or more premium ingredients relative to the catalog.']
+      : estimatedCostTier === 'medium'
+        ? ['Uses common proteins or dairy with moderate relative cost.']
+        : ['Mostly pantry staples, grains, beans, or vegetables.']);
+
+  return {
+    mealTypes: Array.from(mealTypes),
+    profile: {
+      difficulty,
+      difficultyReason:
+        recipe.difficultyReason ??
+        `${ingredientCount} ingredients and ${stepCount} cooking steps in the seed recipe.`,
+      prepTimeMinutes,
+      cookTimeMinutes,
+      totalTimeMinutes,
+      estimatedCostTier,
+      costNotes,
+    },
+  };
+}
+
 async function ensureSystemTags(prisma, recipes) {
   const uniqueTags = new Map();
   for (const recipe of recipes) {
@@ -307,6 +387,20 @@ async function upsertRecipe(prisma, context, recipe, ownership) {
   const existing = context.existingRecipesByKey.get(
     recipeIdentityKey(recipe, ownership),
   );
+  const planning = inferRecipePlanning(recipe);
+  const provenance = ownership.isSystemRecipe
+    ? {
+        sourceType: 'unknown',
+        sourceName: 'Preppie',
+        attributionLabel: 'Curated by Preppie',
+        reviewStatus: 'trusted',
+      }
+    : {
+        sourceType: 'user_created',
+        sourceName: null,
+        attributionLabel: null,
+        reviewStatus: 'reviewed',
+      };
 
   const data = {
     ownerUserId: ownership.ownerUserId ?? null,
@@ -324,6 +418,30 @@ async function upsertRecipe(prisma, context, recipe, ownership) {
     steps: {
       deleteMany: existing ? {} : undefined,
       create: recipe.steps,
+    },
+    planningProfile: {
+      ...(existing
+        ? {
+            upsert: {
+              create: planning.profile,
+              update: planning.profile,
+            },
+          }
+        : { create: planning.profile }),
+    },
+    mealTypes: {
+      ...(existing ? { deleteMany: {} } : {}),
+      create: planning.mealTypes.map((mealType) => ({ mealType })),
+    },
+    provenanceProfile: {
+      ...(existing
+        ? {
+            upsert: {
+              create: provenance,
+              update: provenance,
+            },
+          }
+        : { create: provenance }),
     },
   };
 

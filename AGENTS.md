@@ -32,6 +32,11 @@ The human operator remains responsible for:
 - ownership boundaries
 - merge readiness
 
+Agents must also follow `CONTRIBUTING.md` for repository workflow conventions,
+including branch naming, commit format, and PR expectations. If these
+instructions conflict with a proposed agent workflow, `CONTRIBUTING.md` wins
+unless the human operator explicitly says otherwise for the current task.
+
 ## What Agents Should Optimize For
 
 Agent work in this repo should optimize for:
@@ -102,6 +107,7 @@ back into `AGENTS.md`.
 
 Useful sources:
 
+- `CONTRIBUTING.md`: branch conventions, semantic commit format, and PR expectations
 - `README.md`: high-level product and repository overview
 - `local-dev-setup.md`: current local startup, env, and reset flow
 - `docs/branching.md`: branch policy and integration expectations
@@ -146,6 +152,11 @@ Agents must not:
 
 An agent should work inside one coherent branch scope.
 
+Agents should follow the branch naming rules in `CONTRIBUTING.md`. Use the
+appropriate individual branch prefix (`piero/*`, `enoch/*`, `gallo/*`, or
+`ahmad/*`) when the owner is known, reserve `spike/*` for experiments, and do
+not default new work to legacy `demo/*` branches.
+
 If the branch is about onboarding backend, the agent should not also introduce:
 
 - unrelated AI changes
@@ -158,6 +169,22 @@ If unrelated work is discovered, the agent should:
 - note it
 - leave it alone
 - or recommend a separate branch
+
+## Commit And PR Behavior
+
+Agents should use the short semantic commit format from `CONTRIBUTING.md`, for
+example `feat(scope): add new behavior`, `fix(scope): repair broken behavior`,
+or `docs(scope): update documentation`.
+
+When preparing PR text, agents should include the required `CONTRIBUTING.md`
+sections:
+
+- what changed
+- risky areas
+- commands run
+- remaining issues
+
+Integration PRs should also list branches or commits integrated.
 
 ## Schema and Migration Rules
 
