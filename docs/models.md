@@ -109,6 +109,8 @@ type BaseRecipe = {
   cover_image_url?: string;
   nutrition_data?: RecipeNutritionData;
   servings: number;
+  planning?: RecipePlanningProfile;
+  provenance?: RecipeProvenanceProfile;
   ingredients: DishIngredient[];
   steps: RecipeStep[];
   tag_ids: string[];
@@ -125,6 +127,59 @@ Important current semantics:
 - `forked_from_recipe_id` is set when a user saves a system recipe into an editable copy
 - `nutrition_data` is optional derived recipe metadata, not the source of truth for ingredients
 - dietary badges should come from expanded `tags` where `kind = dietary_badge`, not from recipe-local booleans
+- `planning` describes how the recipe fits browsing, filtering, and meal planning
+- `provenance` describes where the recipe content came from and how reviewed it is
+- forking does not erase provenance; `forked_from_recipe_id` is product lineage, while `provenance` is content origin
+
+### RecipePlanningProfile
+
+```ts
+type RecipePlanningProfile = {
+  meal_types: RecipeMealType[];
+  difficulty?: "easy" | "medium" | "hard";
+  difficulty_reason?: string;
+  prep_time_minutes?: number;
+  cook_time_minutes?: number;
+  total_time_minutes?: number;
+  estimated_cost_tier?: "low" | "medium" | "high";
+  cost_notes: string[];
+};
+```
+
+Current semantics:
+
+- stored separately from `BaseRecipe` in `RecipePlanningProfile` plus `RecipeMealType`
+- `total_time_minutes` may be explicit; when absent, API responses and filters use `prep_time_minutes + cook_time_minutes` when both exist
+- `estimated_cost_tier` is relative ingredient cost per serving, not live retailer pricing
+- `meal_types` are food moments such as `breakfast`, `lunch`, `dinner`, `snack`, or `dessert`; planning traits such as `meal_prep_friendly` should not be added here
+
+### RecipeProvenanceProfile
+
+```ts
+type RecipeProvenanceProfile = {
+  source_type:
+    | "user_created"
+    | "ai_generated"
+    | "recipe_url"
+    | "social_url"
+    | "pasted_text"
+    | "image"
+    | "unknown";
+  source_url?: string;
+  source_name?: string;
+  attribution_label?: string;
+  review_status: "draft" | "needs_review" | "reviewed" | "trusted";
+  extraction_confidence?: "low" | "medium" | "high";
+};
+```
+
+Current semantics:
+
+- stored one-to-one with `BaseRecipe`
+- `source_type` describes content origin, not whether the recipe is curated
+- `trusted` is server-owned and reserved for system/curated content, not a normal user-create/update input
+- user edits to materially changed trusted recipes downgrade review status to `reviewed`
+- `source_name` is the platform, site, or publication; `attribution_label` is the display byline/creator text
 
 ### Tag
 

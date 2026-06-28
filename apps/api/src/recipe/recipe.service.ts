@@ -7,14 +7,21 @@ import {
   assertMutableRecipeResult,
   assertVisibleRecipe,
 } from './recipe.errors';
-import { RecipeRepository } from './recipe.repository';
+import {
+  RecipeRepository,
+  type RecipeProvenanceCreateOptions,
+} from './recipe.repository';
 
 @Injectable()
 export class RecipeService {
   constructor(private readonly recipeRepository: RecipeRepository) {}
 
-  create(input: CreateRecipeDto, actorUserId?: string): Promise<BaseRecipe> {
-    return this.recipeRepository.create(input, actorUserId);
+  create(
+    input: CreateRecipeDto,
+    actorUserId?: string,
+    options?: { provenance?: RecipeProvenanceCreateOptions },
+  ): Promise<BaseRecipe> {
+    return this.recipeRepository.create(input, actorUserId, options);
   }
 
   findAll(actorUserId?: string): Promise<BaseRecipe[]> {
@@ -28,6 +35,10 @@ export class RecipeService {
       q?: string;
       cuisine_id?: string;
       tag_id?: string;
+      meal_type?: string;
+      difficulty?: string;
+      max_total_time_minutes?: number;
+      estimated_cost_tier?: string;
       owner?: 'public' | 'mine' | 'saved';
     },
     actorUserId?: string,

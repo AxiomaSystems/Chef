@@ -100,6 +100,73 @@ export class AiRecipePreviewDto {
   @IsObject()
   nutrition_estimate?: Record<string, number> | null;
 
+  @ApiPropertyOptional({
+    enum: [
+      'breakfast',
+      'brunch',
+      'lunch',
+      'dinner',
+      'snack',
+      'dessert',
+      'side',
+      'appetizer',
+      'drink',
+    ],
+    isArray: true,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsIn(
+    [
+      'breakfast',
+      'brunch',
+      'lunch',
+      'dinner',
+      'snack',
+      'dessert',
+      'side',
+      'appetizer',
+      'drink',
+    ],
+    { each: true },
+  )
+  meal_types?: Array<
+    | 'breakfast'
+    | 'brunch'
+    | 'lunch'
+    | 'dinner'
+    | 'snack'
+    | 'dessert'
+    | 'side'
+    | 'appetizer'
+    | 'drink'
+  >;
+
+  @ApiPropertyOptional({ enum: ['easy', 'medium', 'hard'] })
+  @IsOptional()
+  @IsIn(['easy', 'medium', 'hard'])
+  difficulty?: 'easy' | 'medium' | 'hard';
+
+  @ApiPropertyOptional({
+    example: 'Short active prep and one straightforward cooking method.',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  difficulty_reason?: string | null;
+
+  @ApiPropertyOptional({ example: 10, nullable: true })
+  @IsOptional()
+  prep_time_minutes?: number | null;
+
+  @ApiPropertyOptional({ example: 20, nullable: true })
+  @IsOptional()
+  cook_time_minutes?: number | null;
+
+  @ApiPropertyOptional({ example: 30, nullable: true })
+  @IsOptional()
+  total_time_minutes?: number | null;
+
   @ApiPropertyOptional({ enum: ['low', 'medium', 'high'] })
   @IsOptional()
   @IsIn(['low', 'medium', 'high'])
@@ -111,7 +178,9 @@ export class AiRecipePreviewDto {
   @IsString({ each: true })
   cost_notes?: string[];
 
-  @ApiPropertyOptional({ example: ['Frozen vegetables trade texture for savings.'] })
+  @ApiPropertyOptional({
+    example: ['Frozen vegetables trade texture for savings.'],
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -123,4 +192,3 @@ export class AiRecipePreviewDto {
   @IsString({ each: true })
   assumptions?: string[];
 }
-

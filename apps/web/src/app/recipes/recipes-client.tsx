@@ -14,7 +14,10 @@ import type {
   BaseRecipe,
   Capture,
   Cuisine,
+  RecipeCostTier,
+  RecipeDifficulty,
   RecipeListPage,
+  RecipeMealType,
   Tag,
 } from "@cart/shared";
 import { AppShell } from "@/components/layout/app-shell";
@@ -68,6 +71,10 @@ type RecipesPageMemory = {
   search: string;
   activeCuisine: string | null;
   activeTag: string | null;
+  activeMealType: RecipeMealType | "";
+  activeDifficulty: RecipeDifficulty | "";
+  activeMaxTime: string;
+  activeCostTier: RecipeCostTier | "";
   selectedRecipeIds: string[];
   scrollY: number;
 };
@@ -77,9 +84,40 @@ const RECIPES_MEMORY_DEFAULT: RecipesPageMemory = {
   search: "",
   activeCuisine: null,
   activeTag: null,
+  activeMealType: "",
+  activeDifficulty: "",
+  activeMaxTime: "",
+  activeCostTier: "",
   selectedRecipeIds: [],
   scrollY: 0,
 };
+
+const MEAL_TYPE_FILTERS: { value: RecipeMealType; label: string }[] = [
+  { value: "breakfast", label: "Breakfast" },
+  { value: "brunch", label: "Brunch" },
+  { value: "lunch", label: "Lunch" },
+  { value: "dinner", label: "Dinner" },
+  { value: "snack", label: "Snack" },
+  { value: "dessert", label: "Dessert" },
+  { value: "side", label: "Side" },
+];
+
+function formatPlanningLabel(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function recipeTimeLabel(recipe: BaseRecipe) {
+  const total = recipe.planning?.total_time_minutes;
+  if (typeof total === "number") return `${total} min`;
+  const prep = recipe.planning?.prep_time_minutes;
+  const cook = recipe.planning?.cook_time_minutes;
+  if (typeof prep === "number" && typeof cook === "number") {
+    return `${prep + cook} min`;
+  }
+  return null;
+}
 
 /* ── component ──────────────────────────────────────────────────── */
 
@@ -151,6 +189,10 @@ export function RecipesClient({
   const search = pageMemory.search;
   const activeCuisine = pageMemory.activeCuisine;
   const activeTag = pageMemory.activeTag;
+  const activeMealType = pageMemory.activeMealType;
+  const activeDifficulty = pageMemory.activeDifficulty;
+  const activeMaxTime = pageMemory.activeMaxTime;
+  const activeCostTier = pageMemory.activeCostTier;
   const activeCuisineId = useMemo(
     () => cuisines.find((cuisine) => cuisine.label === activeCuisine)?.id,
     [activeCuisine, cuisines],
@@ -164,9 +206,24 @@ export function RecipesClient({
       q: search.trim() || undefined,
       cuisine_id: activeCuisineId,
       tag_id: activeTagId,
+      meal_type: activeMealType || undefined,
+      difficulty: activeDifficulty || undefined,
+      max_total_time_minutes: activeMaxTime
+        ? Number.parseInt(activeMaxTime, 10)
+        : undefined,
+      estimated_cost_tier: activeCostTier || undefined,
       owner: tab,
     }),
-    [activeCuisineId, activeTagId, search, tab],
+    [
+      activeCostTier,
+      activeCuisineId,
+      activeDifficulty,
+      activeMaxTime,
+      activeMealType,
+      activeTagId,
+      search,
+      tab,
+    ],
   );
 
   useEffect(() => {
@@ -544,6 +601,67 @@ export function RecipesClient({
               ))}
             </select>
 
+            <select
+              value={activeMealType}
+              onChange={(event) =>
+                setRecipesMemoryValue(
+                  "activeMealType",
+                  event.target.value as RecipeMealType | "",
+                )
+              }
+              className="h-8 rounded-full border border-outline-variant bg-white px-3 text-label-sm text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">Meal</option>
+              {MEAL_TYPE_FILTERS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={activeDifficulty}
+              onChange={(event) =>
+                setRecipesMemoryValue(
+                  "activeDifficulty",
+                  event.target.value as RecipeDifficulty | "",
+                )
+              }
+              className="h-8 rounded-full border border-outline-variant bg-white px-3 text-label-sm text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">Difficulty</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+
+            <select
+              value={activeCostTier}
+              onChange={(event) =>
+                setRecipesMemoryValue(
+                  "activeCostTier",
+                  event.target.value as RecipeCostTier | "",
+                )
+              }
+              className="h-8 rounded-full border border-outline-variant bg-white px-3 text-label-sm text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">Cost</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+
+            <input
+              type="number"
+              min={0}
+              value={activeMaxTime}
+              onChange={(event) =>
+                setRecipesMemoryValue("activeMaxTime", event.target.value)
+              }
+              placeholder="Max min"
+              className="h-8 w-24 rounded-full border border-outline-variant bg-white px-3 text-label-sm text-on-surface-variant placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+
             {activeCuisine && (
               <button
                 onClick={() => setRecipesMemoryValue("activeCuisine", null)}
@@ -640,6 +758,13 @@ export function RecipesClient({
                 const canSave = recipe.is_system_recipe && !isSaved;
                 const canManage = canManageRecipe(recipe);
                 const recipeToOpen = savedRecipe ?? recipe;
+                const timeLabel = recipeTimeLabel(recipe);
+                const difficultyLabel = recipe.planning?.difficulty
+                  ? formatPlanningLabel(recipe.planning.difficulty)
+                  : null;
+                const costLabel = recipe.planning?.estimated_cost_tier
+                  ? `${formatPlanningLabel(recipe.planning.estimated_cost_tier)} cost`
+                  : null;
 
                 return (
                   <div
@@ -777,6 +902,25 @@ export function RecipesClient({
                           </span>
                         )}
                       </p>
+                      {(timeLabel || difficultyLabel || costLabel) && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {timeLabel && (
+                            <span className="rounded-full bg-surface-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
+                              {timeLabel}
+                            </span>
+                          )}
+                          {difficultyLabel && (
+                            <span className="rounded-full bg-surface-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
+                              {difficultyLabel}
+                            </span>
+                          )}
+                          {costLabel && (
+                            <span className="rounded-full bg-surface-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
+                              {costLabel}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

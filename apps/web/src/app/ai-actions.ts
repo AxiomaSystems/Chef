@@ -6,7 +6,10 @@ import type {
   BaseRecipe,
   AiPlanningOptimization,
   KitchenInventoryItem,
+  RecipeCostTier,
+  RecipeDifficulty,
   RecipeListPage,
+  RecipeMealType,
   RecipeNutritionData,
   UserPreferences,
   UserProfileMemory,
@@ -49,7 +52,13 @@ export type AiRecipePreview = {
   steps: AiRecipeStep[];
   tags: string[];
   nutrition_estimate: RecipeNutritionData | null;
-  estimated_cost_tier: "low" | "medium" | "high";
+  meal_types: RecipeMealType[];
+  difficulty: RecipeDifficulty;
+  difficulty_reason: string | null;
+  prep_time_minutes: number | null;
+  cook_time_minutes: number | null;
+  total_time_minutes: number | null;
+  estimated_cost_tier: RecipeCostTier;
   cost_notes: string[];
   quality_tradeoffs: string[];
   assumptions: string[];

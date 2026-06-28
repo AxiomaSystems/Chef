@@ -5,6 +5,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -12,9 +13,22 @@ import {
   Max,
   MaxLength,
   Min,
-  ValidateIf,
   ValidateNested,
 } from 'class-validator';
+
+export const RECIPE_DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
+export const RECIPE_COST_TIERS = ['low', 'medium', 'high'] as const;
+export const RECIPE_MEAL_TYPES = [
+  'breakfast',
+  'brunch',
+  'lunch',
+  'dinner',
+  'snack',
+  'dessert',
+  'side',
+  'appetizer',
+  'drink',
+] as const;
 
 export class CreateRecipeStepDto {
   @ApiProperty({ example: 1 })
@@ -120,6 +134,68 @@ export class RecipeNutritionDataDto {
   sodium_mg?: number;
 }
 
+export class RecipePlanningInputDto {
+  @ApiPropertyOptional({
+    enum: RECIPE_MEAL_TYPES,
+    isArray: true,
+    example: ['dinner'],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @IsIn(RECIPE_MEAL_TYPES, { each: true })
+  meal_types?: Array<(typeof RECIPE_MEAL_TYPES)[number]>;
+
+  @ApiPropertyOptional({ enum: RECIPE_DIFFICULTIES, example: 'easy' })
+  @IsOptional()
+  @IsIn(RECIPE_DIFFICULTIES)
+  difficulty?: (typeof RECIPE_DIFFICULTIES)[number];
+
+  @ApiPropertyOptional({
+    example: 'Mostly pantry prep, one pot, and no tight timing.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  difficulty_reason?: string;
+
+  @ApiPropertyOptional({ example: 15 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(2880)
+  prep_time_minutes?: number;
+
+  @ApiPropertyOptional({ example: 25 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(2880)
+  cook_time_minutes?: number;
+
+  @ApiPropertyOptional({ example: 40 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(2880)
+  total_time_minutes?: number;
+
+  @ApiPropertyOptional({ enum: RECIPE_COST_TIERS, example: 'medium' })
+  @IsOptional()
+  @IsIn(RECIPE_COST_TIERS)
+  estimated_cost_tier?: (typeof RECIPE_COST_TIERS)[number];
+
+  @ApiPropertyOptional({
+    example: ['Uses shrimp, but otherwise mostly pantry staples.'],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @IsString({ each: true })
+  @MaxLength(180, { each: true })
+  cost_notes?: string[];
+}
+
 export class CreateRecipeDto {
   @ApiProperty({ example: 'Arroz con pollo casero' })
   @IsString()
@@ -156,6 +232,12 @@ export class CreateRecipeDto {
   @Min(1)
   @Max(100)
   servings!: number;
+
+  @ApiPropertyOptional({ type: () => RecipePlanningInputDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RecipePlanningInputDto)
+  planning?: RecipePlanningInputDto;
 
   @ApiProperty({ type: () => [CreateDishIngredientDto] })
   @IsArray()

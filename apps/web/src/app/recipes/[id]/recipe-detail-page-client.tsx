@@ -48,6 +48,17 @@ const RecipeCreateModal = dynamic(
 );
 
 function prepMinutes(recipe: BaseRecipe) {
+  if (typeof recipe.planning?.total_time_minutes === "number") {
+    return recipe.planning.total_time_minutes;
+  }
+  if (
+    typeof recipe.planning?.prep_time_minutes === "number" &&
+    typeof recipe.planning?.cook_time_minutes === "number"
+  ) {
+    return (
+      recipe.planning.prep_time_minutes + recipe.planning.cook_time_minutes
+    );
+  }
   return Math.max(20, recipe.steps.length * 7);
 }
 

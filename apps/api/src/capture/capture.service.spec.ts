@@ -261,8 +261,19 @@ describe('CaptureService', () => {
         ingredients: expect.arrayContaining([
           expect.objectContaining({ canonical_ingredient: 'rigatoni' }),
         ]),
+        planning: expect.objectContaining({
+          estimated_cost_tier: 'medium',
+          cost_notes: [],
+        }),
       }),
       'user-1',
+      {
+        provenance: expect.objectContaining({
+          sourceType: 'pasted_text',
+          reviewStatus: 'reviewed',
+          extractionConfidence: 'medium',
+        }),
+      },
     );
     expect(prisma.capture.update).toHaveBeenCalledWith({
       where: { id: 'capture-1' },
