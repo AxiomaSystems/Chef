@@ -610,13 +610,25 @@ export type CreateRecipePayload = {
     cost_notes?: string[];
   };
   ingredients: {
+    client_line_id: string;
     canonical_ingredient: string;
-    amount: number;
-    unit: string;
+    amount?: number;
+    unit?: string;
+    amount_text?: string;
     preparation?: string;
+    substitutions?: string[];
     optional?: boolean;
   }[];
-  steps: { step: number; what_to_do: string }[];
+  steps: {
+    step: number;
+    what_to_do: string;
+    duration_minutes?: number;
+    temperature?: number;
+    temperature_unit?: "F" | "C";
+    timer_label?: string;
+    equipment?: string[];
+    ingredient_client_line_ids?: string[];
+  }[];
   nutrition_data?: {
     calories?: number;
     protein_g?: number;

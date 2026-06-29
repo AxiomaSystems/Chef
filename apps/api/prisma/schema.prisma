@@ -138,6 +138,11 @@ enum RecipeExtractionConfidence {
   high
 }
 
+enum RecipeTemperatureUnit {
+  F
+  C
+}
+
 enum CartStatus {
   active
   archived
@@ -512,19 +517,22 @@ model RecipeProvenanceProfile {
 }
 
 model DishIngredient {
-  id                  String      @id @default(cuid())
+  id                  String                 @id @default(cuid())
   baseRecipeId        String
   ingredientId        String?
   canonicalIngredient String
-  amount              Float
-  unit                String
+  amount              Float?
+  unit                String?
+  amountText          String?
   displayIngredient   String?
   preparation         String?
-  optional            Boolean     @default(false)
+  substitutions       Json                   @default("[]")
+  optional            Boolean                @default(false)
   ingredientGroup     String?
   sortOrder           Int
-  baseRecipe          BaseRecipe  @relation(fields: [baseRecipeId], references: [id], onDelete: Cascade)
-  ingredient          Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
+  baseRecipe          BaseRecipe             @relation(fields: [baseRecipeId], references: [id], onDelete: Cascade)
+  ingredient          Ingredient?            @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
+  stepLinks           RecipeStepIngredient[]
 
   @@unique([baseRecipeId, sortOrder])
   @@index([ingredientId])
@@ -604,13 +612,30 @@ model VisionObservation {
 }
 
 model RecipeStep {
-  id           String     @id @default(cuid())
-  baseRecipeId String
-  stepNumber   Int
-  whatToDo     String
-  baseRecipe   BaseRecipe @relation(fields: [baseRecipeId], references: [id], onDelete: Cascade)
+  id              String                 @id @default(cuid())
+  baseRecipeId    String
+  stepNumber      Int
+  whatToDo        String
+  durationMinutes Int?
+  temperature     Int?
+  temperatureUnit RecipeTemperatureUnit?
+  timerLabel      String?
+  equipment       Json                   @default("[]")
+  baseRecipe      BaseRecipe             @relation(fields: [baseRecipeId], references: [id], onDelete: Cascade)
+  ingredientLinks RecipeStepIngredient[]
 
   @@unique([baseRecipeId, stepNumber])
+}
+
+model RecipeStepIngredient {
+  recipeStepId     String
+  dishIngredientId String
+  recipeStep       RecipeStep      @relation(fields: [recipeStepId], references: [id], onDelete: Cascade)
+  dishIngredient   DishIngredient  @relation(fields: [dishIngredientId], references: [id], onDelete: Cascade)
+
+  @@id([recipeStepId, dishIngredientId])
+  @@index([recipeStepId])
+  @@index([dishIngredientId])
 }
 
 model CartDraft {

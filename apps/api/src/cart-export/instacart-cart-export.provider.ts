@@ -90,6 +90,19 @@ export class InstacartCartExportProvider {
   }
 
   private toLineItem(ingredient: AggregatedIngredient): InstacartLineItem {
+    if (
+      ingredient.requires_quantity_review ||
+      ingredient.total_amount === undefined ||
+      ingredient.total_amount === null ||
+      !ingredient.unit
+    ) {
+      return {
+        name: ingredient.canonical_ingredient,
+        display_text: `${ingredient.canonical_ingredient} - quantity needs review`,
+        line_item_measurements: [],
+      };
+    }
+
     const unit = this.toInstacartUnit(ingredient.unit);
     const quantity = this.toQuantity(ingredient.total_amount);
     const displayText = `${quantity} ${unit} ${ingredient.canonical_ingredient}`;

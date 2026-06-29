@@ -12,8 +12,16 @@ export type RecipeNutritionData = {
 };
 
 export type RecipeStep = {
+  step_id?: string;
   step: number;
   what_to_do: string;
+  duration_minutes?: number;
+  temperature?: number;
+  temperature_unit?: "F" | "C";
+  timer_label?: string;
+  equipment?: string[];
+  ingredient_ids?: string[];
+  ingredient_client_line_ids?: string[];
 };
 
 export type RecipeDifficulty = "easy" | "medium" | "hard";
@@ -69,12 +77,16 @@ export type RecipeProvenanceProfile = {
 };
 
 export type DishIngredient = {
+  recipe_ingredient_id?: string;
+  client_line_id?: string;
   ingredient_id?: string;
   canonical_ingredient: string;
-  amount: number;
-  unit: string;
+  amount?: number;
+  unit?: string;
+  amount_text?: string;
   display_ingredient?: string;
   preparation?: string;
+  substitutions?: string[];
   optional?: boolean;
   group?: string;
 };

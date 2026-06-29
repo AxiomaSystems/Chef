@@ -91,8 +91,8 @@ function stringifyRecipeIngredients(ingredients: BaseRecipe["ingredients"]) {
     .slice(0, 60)
     .map((ingredient) => {
       const parts = [
-        ingredient.amount,
-        ingredient.unit,
+        ingredient.amount_text ?? ingredient.amount,
+        ingredient.amount_text ? null : ingredient.unit,
         ingredient.display_ingredient ?? ingredient.canonical_ingredient,
       ]
         .filter((part) => part !== null && part !== undefined && part !== "")
@@ -484,7 +484,21 @@ export function useHandsFreeVoiceSession({
         }
 
         const stepsText = recipe.steps
-          .map((s) => `Step ${s.step}: ${s.what_to_do}`)
+          .map((s) => {
+            const metadata = [
+              s.duration_minutes ? `${s.duration_minutes} min` : null,
+              s.timer_label ? `timer: ${s.timer_label}` : null,
+              s.temperature && s.temperature_unit
+                ? `${s.temperature}${s.temperature_unit}`
+                : null,
+              s.equipment?.length
+                ? `equipment: ${s.equipment.join(", ")}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join("; ");
+            return `Step ${s.step}: ${s.what_to_do}${metadata ? ` (${metadata})` : ""}`;
+          })
           .join("\n");
         const ingredientsText = stringifyRecipeIngredients(recipe.ingredients);
         const cookingPlan =

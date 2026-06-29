@@ -201,7 +201,9 @@ export function RecipePreparationClient({
     setInventoryChecked(true);
     const candidates = recipe.ingredients.filter(
       (ingredient) =>
-        getIngredientReadiness(ingredient, inventory).status !== "available",
+        getIngredientReadiness(ingredient, inventory).status !== "available" &&
+        ingredient.amount !== undefined &&
+        ingredient.unit !== undefined,
     );
 
     if (candidates.length === 0 || inventory.length === 0) {
@@ -216,8 +218,8 @@ export function RecipePreparationClient({
       ingredients: candidates.map((ingredient) => ({
         canonical_ingredient: ingredient.canonical_ingredient,
         display_ingredient: ingredient.display_ingredient ?? null,
-        amount: ingredient.amount,
-        unit: ingredient.unit,
+        amount: ingredient.amount ?? 0,
+        unit: ingredient.unit ?? "unit",
       })),
       inventory: inventory.map((item) => ({
         id: item.id,
@@ -249,8 +251,8 @@ export function RecipePreparationClient({
         ingredients: recipe.ingredients.map((ingredient) => ({
           canonical_ingredient: ingredient.canonical_ingredient,
           display_ingredient: ingredient.display_ingredient ?? null,
-          amount: ingredient.amount,
-          unit: ingredient.unit,
+          amount: ingredient.amount ?? 0,
+          unit: ingredient.unit ?? "unit",
           preparation: ingredient.preparation ?? null,
         })),
       });
@@ -537,7 +539,10 @@ export function RecipePreparationClient({
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-body-sm text-on-surface">
-                          {ingredient.amount} {ingredient.unit}{" "}
+                          {ingredient.amount_text ??
+                            [ingredient.amount, ingredient.unit]
+                              .filter(Boolean)
+                              .join(" ")}{" "}
                           {ingredient.display_ingredient ??
                             ingredient.canonical_ingredient}
                           {ingredient.preparation

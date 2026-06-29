@@ -555,7 +555,10 @@ export function RecipeCaptureModal({
                         <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                         <span>
                           <strong className="text-on-surface">
-                            {ingredient.amount} {ingredient.unit}
+                            {ingredient.amount_text ??
+                              [ingredient.amount, ingredient.unit]
+                                .filter(Boolean)
+                                .join(" ")}
                           </strong>{" "}
                           {ingredient.display_ingredient ??
                             ingredient.canonical_ingredient}

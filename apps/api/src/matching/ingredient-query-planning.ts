@@ -5,10 +5,7 @@ type IngredientQueryPlan = {
   queries: string[];
 };
 
-const SPECIALTY_INGREDIENTS = [
-  'aji amarillo paste',
-  'aji limo',
-];
+const SPECIALTY_INGREDIENTS = ['aji amarillo paste', 'aji limo'];
 
 const NEAR_EQUIVALENT_QUERY_REWRITES: Array<{
   match: (ingredient: AggregatedIngredient) => boolean;
@@ -17,7 +14,7 @@ const NEAR_EQUIVALENT_QUERY_REWRITES: Array<{
   {
     match: (ingredient) =>
       ingredient.canonical_ingredient.toLowerCase() === 'corn' &&
-      ingredient.unit.toLowerCase() === 'ear',
+      ingredient.unit?.toLowerCase() === 'ear',
     queries: ['corn on the cob', 'sweet corn', 'corn'],
   },
   {
@@ -35,7 +32,16 @@ const NEAR_EQUIVALENT_QUERY_REWRITES: Array<{
 export const buildIngredientQueryPlan = (
   ingredient: AggregatedIngredient,
 ): IngredientQueryPlan => {
-  const normalizedIngredient = ingredient.canonical_ingredient.trim().toLowerCase();
+  const normalizedIngredient = ingredient.canonical_ingredient
+    .trim()
+    .toLowerCase();
+
+  if (ingredient.requires_quantity_review) {
+    return {
+      skip: true,
+      queries: [],
+    };
+  }
 
   if (SPECIALTY_INGREDIENTS.includes(normalizedIngredient)) {
     return {

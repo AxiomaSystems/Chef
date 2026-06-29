@@ -11,10 +11,12 @@ export type AiProviderName = 'mock' | 'openai';
 
 export type AiDishIngredient = {
   canonical_ingredient: string;
-  amount: number;
-  unit: string;
+  amount: number | null;
+  unit: string | null;
+  amount_text: string | null;
   display_ingredient: string | null;
   preparation: string | null;
+  substitutions: string[];
   optional: boolean;
   group: string | null;
 };
@@ -22,6 +24,12 @@ export type AiDishIngredient = {
 export type AiRecipeStep = {
   step: number;
   what_to_do: string;
+  duration_minutes: number | null;
+  temperature: number | null;
+  temperature_unit: 'F' | 'C' | null;
+  timer_label: string | null;
+  equipment: string[];
+  ingredient_client_line_ids: string[];
 };
 
 export type AiRecipePreview = {

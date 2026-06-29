@@ -392,11 +392,12 @@ export class CartService {
         (ingredient) =>
           ingredient.review_action !== 'already_have' &&
           ingredient.review_action !== 'skip' &&
-          (ingredient.remaining_to_buy ?? ingredient.total_amount) > 0,
+          (ingredient.remaining_to_buy ?? ingredient.total_amount ?? 0) > 0,
       )
       .map((ingredient) => ({
         ...ingredient,
-        total_amount: ingredient.remaining_to_buy ?? ingredient.total_amount,
+        total_amount:
+          ingredient.remaining_to_buy ?? ingredient.total_amount ?? null,
       }));
     const searchContext = this.buildRetailerSearchContext(
       input.retailer,
@@ -607,6 +608,19 @@ export class CartService {
     const usedInventoryAmounts = new Map<string, number>();
 
     return overview.map((ingredient) => {
+      if (
+        ingredient.requires_quantity_review ||
+        ingredient.total_amount === undefined ||
+        ingredient.total_amount === null ||
+        !ingredient.unit
+      ) {
+        return {
+          ...ingredient,
+          in_kitchen: false,
+          deduction_possible: false,
+        };
+      }
+
       const matchCandidates = [
         ...(ingredient.ingredient_id
           ? inventoryItems.filter(
@@ -659,6 +673,8 @@ export class CartService {
         };
       }
 
+      const ingredientUnit = ingredient.unit;
+      const ingredientTotalAmount = ingredient.total_amount ?? 0;
       const usableInventory = matchedInventory
         .map((item) => {
           const estimatedAmount = item.estimated_amount;
@@ -670,7 +686,7 @@ export class CartService {
           const availableInNeededUnit = this.convertAmount(
             availableAmount,
             item.unit,
-            ingredient.unit,
+            ingredientUnit,
           );
 
           if (availableInNeededUnit === undefined) return null;
@@ -680,13 +696,13 @@ export class CartService {
             availableInNeededUnit,
             sameUnit:
               this.normalizeUnit(item.unit) ===
-              this.normalizeUnit(ingredient.unit),
+              this.normalizeUnit(ingredientUnit),
           };
         })
         .filter((item): item is NonNullable<typeof item> => Boolean(item))
         .sort((left, right) => Number(right.sameUnit) - Number(left.sameUnit));
 
-      let remainingToBuy = ingredient.total_amount;
+      let remainingToBuy = ingredientTotalAmount;
       let consumedInventoryAmount = 0;
 
       for (const available of usableInventory) {
@@ -761,12 +777,25 @@ export class CartService {
 
       if (review.action === 'adjust') {
         const reviewedAmount =
-          review.adjusted_amount ?? ingredient.total_amount;
+          review.adjusted_amount ?? ingredient.total_amount ?? null;
         const reviewedUnit = review.adjusted_unit?.trim() || ingredient.unit;
+
+        if (reviewedAmount === null || !reviewedUnit) {
+          return {
+            ...ingredient,
+            review_action: review.action,
+            requires_quantity_review: true,
+            total_amount: null,
+            quantity: null,
+            unit: reviewedUnit ?? null,
+            remaining_to_buy: undefined,
+          };
+        }
 
         return {
           ...ingredient,
           total_amount: reviewedAmount,
+          quantity: reviewedAmount,
           unit: reviewedUnit,
           review_action: review.action,
           reviewed_amount: reviewedAmount,
@@ -802,7 +831,9 @@ export class CartService {
           'ingredient_id' | 'canonical_ingredient' | 'unit'
         >,
   ): string {
-    return `${normalizeIngredientKey(item.canonical_ingredient)}::${item.unit
+    return `${normalizeIngredientKey(item.canonical_ingredient)}::${(
+      item.unit ?? 'review'
+    )
       .trim()
       .toLowerCase()}`;
   }
@@ -818,7 +849,7 @@ export class CartService {
           'ingredient_id' | 'canonical_ingredient' | 'unit'
         >,
   ): string[] {
-    const unit = item.unit.trim().toLowerCase();
+    const unit = (item.unit ?? 'review').trim().toLowerCase();
     const keys = item.ingredient_id
       ? [`ingredient:${item.ingredient_id}::${unit}`]
       : [];
@@ -837,7 +868,7 @@ export class CartService {
       const key = [
         item.kind ?? 'ingredient_match',
         normalizeIngredientKey(item.canonical_ingredient),
-        item.needed_unit.trim().toLowerCase(),
+        (item.needed_unit ?? 'review').trim().toLowerCase(),
         item.selected_product?.product_id ?? item.walmart_search_query,
       ].join('::');
       const existing = itemMap.get(key);
@@ -847,7 +878,13 @@ export class CartService {
         continue;
       }
 
-      existing.needed_amount += item.needed_amount;
+      existing.needed_amount =
+        existing.needed_amount !== undefined &&
+        existing.needed_amount !== null &&
+        item.needed_amount !== undefined &&
+        item.needed_amount !== null
+          ? existing.needed_amount + item.needed_amount
+          : (existing.needed_amount ?? item.needed_amount ?? null);
       existing.selected_quantity =
         (existing.selected_quantity ?? 1) + (item.selected_quantity ?? 1);
       if (

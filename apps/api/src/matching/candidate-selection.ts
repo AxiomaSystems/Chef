@@ -47,11 +47,15 @@ const convertCandidateSize = (
   ingredient: AggregatedIngredient,
   candidate: ProductCandidate,
 ): number | null => {
-  if (!candidate.size_value || !candidate.size_unit) {
+  if (!candidate.size_value || !candidate.size_unit || !ingredient.unit) {
     return null;
   }
 
-  return convertUnit(candidate.size_value, candidate.size_unit, ingredient.unit);
+  return convertUnit(
+    candidate.size_value,
+    candidate.size_unit,
+    ingredient.unit,
+  );
 };
 
 const tokenize = (value: string) =>
@@ -112,11 +116,15 @@ const buildSemanticScore = (
 
   if (rule) {
     const positiveMatches =
-      rule.positiveKeywords?.filter((keyword) => haystack.includes(keyword)) ?? [];
+      rule.positiveKeywords?.filter((keyword) => haystack.includes(keyword)) ??
+      [];
     const negativeMatches =
-      rule.negativeKeywords?.filter((keyword) => haystack.includes(keyword)) ?? [];
+      rule.negativeKeywords?.filter((keyword) => haystack.includes(keyword)) ??
+      [];
     const hardRejectMatches =
-      rule.hardRejectKeywords?.filter((keyword) => haystack.includes(keyword)) ?? [];
+      rule.hardRejectKeywords?.filter((keyword) =>
+        haystack.includes(keyword),
+      ) ?? [];
 
     score += positiveMatches.length * 3;
     score -= negativeMatches.length * 6;
@@ -155,37 +163,41 @@ export const pickCandidate = (
     return null;
   }
 
-  return candidates
-    .slice()
-    .map((candidate) => ({
-      product: candidate,
-      convertedSizeValue: convertCandidateSize(ingredient, candidate),
-      semantic: buildSemanticScore(ingredient, candidate),
-    }))
-    .filter(
-      (candidate) =>
-        candidate.semantic.matchedTokenCount > 0 &&
-        candidate.semantic.score >= candidate.semantic.minScore,
-    )
-    .sort((left, right) => {
-      if (right.semantic.score !== left.semantic.score) {
-        return right.semantic.score - left.semantic.score;
-      }
+  return (
+    candidates
+      .slice()
+      .map((candidate) => ({
+        product: candidate,
+        convertedSizeValue: convertCandidateSize(ingredient, candidate),
+        semantic: buildSemanticScore(ingredient, candidate),
+      }))
+      .filter(
+        (candidate) =>
+          candidate.semantic.matchedTokenCount > 0 &&
+          candidate.semantic.score >= candidate.semantic.minScore,
+      )
+      .sort((left, right) => {
+        if (right.semantic.score !== left.semantic.score) {
+          return right.semantic.score - left.semantic.score;
+        }
 
-      const leftConvertible = left.convertedSizeValue !== null ? 0 : 1;
-      const rightConvertible = right.convertedSizeValue !== null ? 0 : 1;
+        const leftConvertible = left.convertedSizeValue !== null ? 0 : 1;
+        const rightConvertible = right.convertedSizeValue !== null ? 0 : 1;
 
-      if (leftConvertible !== rightConvertible) {
-        return leftConvertible - rightConvertible;
-      }
+        if (leftConvertible !== rightConvertible) {
+          return leftConvertible - rightConvertible;
+        }
 
-      const leftUnitPenalty = left.product.size_unit === ingredient.unit ? 0 : 1;
-      const rightUnitPenalty = right.product.size_unit === ingredient.unit ? 0 : 1;
+        const leftUnitPenalty =
+          left.product.size_unit === ingredient.unit ? 0 : 1;
+        const rightUnitPenalty =
+          right.product.size_unit === ingredient.unit ? 0 : 1;
 
-      if (leftUnitPenalty !== rightUnitPenalty) {
-        return leftUnitPenalty - rightUnitPenalty;
-      }
+        if (leftUnitPenalty !== rightUnitPenalty) {
+          return leftUnitPenalty - rightUnitPenalty;
+        }
 
-      return left.product.price - right.product.price;
-    })[0] ?? null;
+        return left.product.price - right.product.price;
+      })[0] ?? null
+  );
 };

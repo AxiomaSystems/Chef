@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import type {
   BaseRecipe,
   Capture,
@@ -279,17 +280,26 @@ function buildRecipeInput(
       cost_notes: preview.cost_notes,
     },
     ingredients: preview.ingredients.map((ingredient) => ({
+      client_line_id: ingredient.client_line_id ?? randomUUID(),
       canonical_ingredient: ingredient.canonical_ingredient,
       amount: ingredient.amount,
       unit: ingredient.unit,
+      amount_text: ingredient.amount_text,
       display_ingredient: ingredient.display_ingredient,
       preparation: ingredient.preparation,
+      substitutions: ingredient.substitutions,
       optional: ingredient.optional,
       group: ingredient.group,
     })),
     steps: preview.steps.map((step) => ({
       step: step.step,
       what_to_do: step.what_to_do,
+      duration_minutes: step.duration_minutes,
+      temperature: step.temperature,
+      temperature_unit: step.temperature_unit,
+      timer_label: step.timer_label,
+      equipment: step.equipment,
+      ingredient_client_line_ids: step.ingredient_client_line_ids,
     })),
   };
 }
@@ -306,17 +316,26 @@ function buildCaptureRecipePreview(
     cover_image_url: result.source_image_url ?? undefined,
     servings: preview.servings,
     ingredients: preview.ingredients.map((ingredient) => ({
+      client_line_id: randomUUID(),
       canonical_ingredient: ingredient.canonical_ingredient,
-      amount: ingredient.amount,
-      unit: ingredient.unit,
+      amount: ingredient.amount ?? undefined,
+      unit: ingredient.unit ?? undefined,
+      amount_text: ingredient.amount_text ?? undefined,
       display_ingredient: ingredient.display_ingredient ?? undefined,
       preparation: ingredient.preparation ?? undefined,
+      substitutions: ingredient.substitutions,
       optional: ingredient.optional,
       group: ingredient.group ?? undefined,
     })),
     steps: preview.steps.map((step) => ({
       step: step.step,
       what_to_do: step.what_to_do,
+      duration_minutes: step.duration_minutes ?? undefined,
+      temperature: step.temperature ?? undefined,
+      temperature_unit: step.temperature_unit ?? undefined,
+      timer_label: step.timer_label ?? undefined,
+      equipment: step.equipment,
+      ingredient_client_line_ids: step.ingredient_client_line_ids,
     })),
     tags: preview.tags,
     nutrition_estimate: preview.nutrition_estimate,

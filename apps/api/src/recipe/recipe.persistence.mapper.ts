@@ -16,8 +16,13 @@ const mapIngredientCreateInput = (
   canonicalIngredient: ingredient.canonical_ingredient,
   amount: ingredient.amount,
   unit: ingredient.unit,
+  amountText: normalizeOptionalString(ingredient.amount_text),
   displayIngredient: ingredient.display_ingredient,
   preparation: ingredient.preparation,
+  substitutions: normalizeStringArray(ingredient.substitutions, 10).slice(
+    0,
+    10,
+  ) as Prisma.InputJsonValue,
   optional: ingredient.optional ?? false,
   ingredientGroup: ingredient.group,
   sortOrder: index,
@@ -26,15 +31,25 @@ const mapIngredientCreateInput = (
 const mapStepCreateInput = (step: CreateRecipeDto['steps'][number]) => ({
   stepNumber: step.step,
   whatToDo: step.what_to_do,
+  durationMinutes: step.duration_minutes,
+  temperature: step.temperature,
+  temperatureUnit: step.temperature_unit,
+  timerLabel: normalizeOptionalString(step.timer_label),
+  equipment: normalizeStringArray(step.equipment, 10) as Prisma.InputJsonValue,
 });
 
-const normalizeStringArray = (values?: string[]) =>
+const normalizeOptionalString = (value?: string | null) => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+const normalizeStringArray = (values?: string[], maxItems = 6) =>
   Array.from(
     new Set(
       (values ?? [])
         .map((value) => value.trim())
         .filter(Boolean)
-        .slice(0, 6),
+        .slice(0, maxItems),
     ),
   );
 

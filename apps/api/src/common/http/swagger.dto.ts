@@ -260,31 +260,61 @@ export class VisionObservationResponseDto {
 }
 
 export class RecipeStepResponseDto {
+  @ApiPropertyOptional({ example: 'step-1' })
+  step_id?: string;
+
   @ApiProperty({ example: 1 })
   step!: number;
 
   @ApiProperty({ example: 'Cook the rice until tender.' })
   what_to_do!: string;
+
+  @ApiPropertyOptional({ example: 10 })
+  duration_minutes?: number;
+
+  @ApiPropertyOptional({ example: 375 })
+  temperature?: number;
+
+  @ApiPropertyOptional({ enum: ['F', 'C'], example: 'F' })
+  temperature_unit?: 'F' | 'C';
+
+  @ApiPropertyOptional({ example: 'Cook rice' })
+  timer_label?: string;
+
+  @ApiPropertyOptional({ example: ['pot'], isArray: true })
+  equipment?: string[];
+
+  @ApiPropertyOptional({ example: ['recipe-ingredient-1'], isArray: true })
+  ingredient_ids?: string[];
 }
 
 export class DishIngredientResponseDto {
+  @ApiPropertyOptional({ example: 'recipe-ingredient-1' })
+  recipe_ingredient_id?: string;
+
   @ApiPropertyOptional({ example: 'ingredient-rice' })
   ingredient_id?: string;
 
   @ApiProperty({ example: 'rice' })
   canonical_ingredient!: string;
 
-  @ApiProperty({ example: 2 })
-  amount!: number;
+  @ApiPropertyOptional({ example: 2, nullable: true })
+  amount?: number | null;
 
-  @ApiProperty({ example: 'cup' })
-  unit!: string;
+  @ApiPropertyOptional({ example: 'cup', nullable: true })
+  unit?: string | null;
+
+  @ApiPropertyOptional({ example: 'to taste' })
+  amount_text?: string;
 
   @ApiPropertyOptional({ example: '2 cups white rice' })
   display_ingredient?: string;
 
   @ApiPropertyOptional({ example: 'rinsed' })
   preparation?: string;
+
+  @ApiPropertyOptional({ example: ['quinoa'], isArray: true })
+  substitutions?: string[];
 
   @ApiPropertyOptional({ example: false })
   optional?: boolean;
@@ -916,22 +946,34 @@ export class AggregatedIngredientSourceResponseDto {
   @ApiProperty({ example: 'Arroz con pollo casero' })
   dish_name!: string;
 
-  @ApiProperty({ example: 2 })
-  amount!: number;
+  @ApiPropertyOptional({ example: 2, nullable: true })
+  amount?: number | null;
 
-  @ApiProperty({ example: 'cup' })
-  unit!: string;
+  @ApiPropertyOptional({ example: 'cup', nullable: true })
+  unit?: string | null;
+
+  @ApiPropertyOptional({ example: 'to taste' })
+  amount_text?: string;
 }
 
 export class AggregatedIngredientResponseDto {
   @ApiProperty({ example: 'rice' })
   canonical_ingredient!: string;
 
-  @ApiProperty({ example: 4 })
-  total_amount!: number;
+  @ApiPropertyOptional({ example: 4, nullable: true })
+  total_amount?: number | null;
 
-  @ApiProperty({ example: 'cup' })
-  unit!: string;
+  @ApiPropertyOptional({ example: 4, nullable: true })
+  quantity?: number | null;
+
+  @ApiPropertyOptional({ example: 'cup', nullable: true })
+  unit?: string | null;
+
+  @ApiPropertyOptional({ example: 'to taste' })
+  amount_text?: string;
+
+  @ApiProperty({ example: false })
+  requires_quantity_review!: boolean;
 
   @ApiProperty({ type: () => [AggregatedIngredientSourceResponseDto] })
   source_dishes!: AggregatedIngredientSourceResponseDto[];
@@ -941,6 +983,9 @@ export class AggregatedIngredientResponseDto {
 
   @ApiPropertyOptional({ example: 'ingredient-rice' })
   ingredient_id?: string;
+
+  @ApiPropertyOptional({ example: 'recipe-ingredient-1' })
+  source_recipe_ingredient_id?: string;
 
   @ApiPropertyOptional({ example: true })
   in_kitchen?: boolean;
@@ -977,11 +1022,20 @@ export class IngredientReviewItemResponseDto {
   @ApiProperty({ example: 'rice' })
   canonical_ingredient!: string;
 
-  @ApiProperty({ example: 2 })
-  total_amount!: number;
+  @ApiPropertyOptional({ example: 2, nullable: true })
+  total_amount?: number | null;
 
-  @ApiProperty({ example: 'cup' })
-  unit!: string;
+  @ApiPropertyOptional({ example: 2, nullable: true })
+  quantity?: number | null;
+
+  @ApiPropertyOptional({ example: 'cup', nullable: true })
+  unit?: string | null;
+
+  @ApiPropertyOptional({ example: false })
+  requires_quantity_review?: boolean;
+
+  @ApiPropertyOptional({ example: 'recipe-ingredient-1' })
+  source_recipe_ingredient_id?: string;
 
   @ApiProperty({ type: () => [AggregatedIngredientSourceResponseDto] })
   source_dishes!: AggregatedIngredientSourceResponseDto[];

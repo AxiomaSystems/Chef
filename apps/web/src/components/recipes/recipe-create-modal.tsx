@@ -18,13 +18,24 @@ import {
 } from "@/app/ai-actions";
 
 type IngredientRow = {
+  client_line_id: string;
   canonical_ingredient: string;
   amount: string;
   unit: string;
+  amount_text: string;
   preparation: string;
+  substitutions: string;
   optional: boolean;
 };
-type StepRow = { what_to_do: string };
+type StepRow = {
+  what_to_do: string;
+  duration_minutes: string;
+  temperature: string;
+  temperature_unit: "" | "F" | "C";
+  timer_label: string;
+  equipment: string;
+  ingredient_client_line_ids: string[];
+};
 
 const UNITS = [
   "cup",
@@ -67,6 +78,21 @@ const COST_TIER_OPTIONS: { value: RecipeCostTier; label: string }[] = [
   { value: "medium", label: "Medium" },
   { value: "high", label: "High" },
 ];
+
+function createClientLineId() {
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `line-${Date.now()}-${Math.random()}`
+  );
+}
+
+function ingredientQuantityText(ingredient: {
+  amount?: number | null;
+  unit?: string | null;
+  amount_text?: string | null;
+}) {
+  if (ingredient.amount_text) return ingredient.amount_text;
+  return [ingredient.amount, ingredient.unit].filter(Boolean).join(" ");
+}
 
 function normalizeTagName(name: string) {
   return name.trim().replace(/\s+/g, " ");
@@ -242,27 +268,39 @@ export function RecipeCreateModal({
   );
   const [ingredients, setIngredients] = useState<IngredientRow[]>(
     initialRecipe?.ingredients.map((ingredient) => ({
+      client_line_id: createClientLineId(),
       canonical_ingredient: ingredient.canonical_ingredient,
-      amount: String(ingredient.amount),
-      unit: ingredient.unit,
+      amount: ingredient.amount !== undefined ? String(ingredient.amount) : "",
+      unit: ingredient.unit ?? "cup",
+      amount_text: ingredient.amount_text ?? "",
       preparation: ingredient.preparation ?? "",
+      substitutions: (ingredient.substitutions ?? []).join(", "),
       optional: !!ingredient.optional,
     })) ??
       (initialDraft?.ingredients.length
         ? initialDraft.ingredients.map((ingredient) => ({
+            client_line_id: ingredient.client_line_id ?? createClientLineId(),
             canonical_ingredient:
               ingredient.display_ingredient ?? ingredient.canonical_ingredient,
-            amount: String(ingredient.amount),
+            amount:
+              ingredient.amount !== undefined && ingredient.amount !== null
+                ? String(ingredient.amount)
+                : "",
             unit: ingredient.unit || "cup",
+            amount_text: ingredient.amount_text ?? "",
             preparation: ingredient.preparation ?? "",
+            substitutions: (ingredient.substitutions ?? []).join(", "),
             optional: !!ingredient.optional,
           }))
         : [
             {
+              client_line_id: createClientLineId(),
               canonical_ingredient: "",
               amount: "",
               unit: "cup",
+              amount_text: "",
               preparation: "",
+              substitutions: "",
               optional: false,
             },
           ]),
@@ -270,12 +308,42 @@ export function RecipeCreateModal({
   const [steps, setSteps] = useState<StepRow[]>(
     initialRecipe?.steps.map((step) => ({
       what_to_do: step.what_to_do,
+      duration_minutes:
+        step.duration_minutes !== undefined
+          ? String(step.duration_minutes)
+          : "",
+      temperature:
+        step.temperature !== undefined ? String(step.temperature) : "",
+      temperature_unit: step.temperature_unit ?? "",
+      timer_label: step.timer_label ?? "",
+      equipment: (step.equipment ?? []).join(", "),
+      ingredient_client_line_ids: [],
     })) ??
       (initialDraft?.steps.length
         ? initialDraft.steps.map((step) => ({
             what_to_do: step.what_to_do,
+            duration_minutes:
+              step.duration_minutes !== undefined
+                ? String(step.duration_minutes)
+                : "",
+            temperature:
+              step.temperature !== undefined ? String(step.temperature) : "",
+            temperature_unit: step.temperature_unit ?? "",
+            timer_label: step.timer_label ?? "",
+            equipment: (step.equipment ?? []).join(", "),
+            ingredient_client_line_ids: step.ingredient_client_line_ids ?? [],
           }))
-        : [{ what_to_do: "" }]),
+        : [
+            {
+              what_to_do: "",
+              duration_minutes: "",
+              temperature: "",
+              temperature_unit: "",
+              timer_label: "",
+              equipment: "",
+              ingredient_client_line_ids: [],
+            },
+          ]),
   );
   const [calories, setCalories] = useState(
     nutritionValue(initialRecipe?.nutrition_data, "calories") ||
@@ -371,7 +439,10 @@ export function RecipeCreateModal({
   function isLikelyEmptyRecipeDraft() {
     const hasDescription = description.trim().length > 0;
     const hasRealIngredients = ingredients.some(
-      (row) => row.canonical_ingredient.trim() || row.amount.trim(),
+      (row) =>
+        row.canonical_ingredient.trim() ||
+        row.amount.trim() ||
+        row.amount_text.trim(),
     );
     const hasRealSteps = steps.some((row) => row.what_to_do.trim());
     const hasNutrition = calories || proteinG || carbsG || fatG;
@@ -697,18 +768,27 @@ export function RecipeCreateModal({
     setIngredients(
       recipe.ingredients.length > 0
         ? recipe.ingredients.map((ingredient) => ({
+            client_line_id: createClientLineId(),
             canonical_ingredient: ingredient.canonical_ingredient,
-            amount: String(ingredient.amount),
+            amount:
+              ingredient.amount !== undefined && ingredient.amount !== null
+                ? String(ingredient.amount)
+                : "",
             unit: ingredient.unit || "cup",
+            amount_text: ingredient.amount_text ?? "",
             preparation: ingredient.preparation ?? "",
+            substitutions: (ingredient.substitutions ?? []).join(", "),
             optional: !!ingredient.optional,
           }))
         : [
             {
+              client_line_id: createClientLineId(),
               canonical_ingredient: "",
               amount: "",
               unit: "cup",
+              amount_text: "",
               preparation: "",
+              substitutions: "",
               optional: false,
             },
           ],
@@ -717,8 +797,31 @@ export function RecipeCreateModal({
       recipe.steps.length > 0
         ? recipe.steps.map((step) => ({
             what_to_do: step.what_to_do,
+            duration_minutes:
+              step.duration_minutes !== undefined &&
+              step.duration_minutes !== null
+                ? String(step.duration_minutes)
+                : "",
+            temperature:
+              step.temperature !== undefined && step.temperature !== null
+                ? String(step.temperature)
+                : "",
+            temperature_unit: step.temperature_unit ?? "",
+            timer_label: step.timer_label ?? "",
+            equipment: (step.equipment ?? []).join(", "),
+            ingredient_client_line_ids: [],
           }))
-        : [{ what_to_do: "" }],
+        : [
+            {
+              what_to_do: "",
+              duration_minutes: "",
+              temperature: "",
+              temperature_unit: "",
+              timer_label: "",
+              equipment: "",
+              ingredient_client_line_ids: [],
+            },
+          ],
     );
     setSelectedTagIds((prev) =>
       Array.from(new Set([...prev, ...findTagIdsFromNames(recipe.tags ?? [])])),
@@ -858,10 +961,13 @@ export function RecipeCreateModal({
     setIngredients((prev) => [
       ...prev,
       {
+        client_line_id: createClientLineId(),
         canonical_ingredient: "",
         amount: "",
         unit: "cup",
+        amount_text: "",
         preparation: "",
+        substitutions: "",
         optional: false,
       },
     ]);
@@ -871,14 +977,29 @@ export function RecipeCreateModal({
     setIngredients((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function updateStep(i: number, val: string) {
+  function updateStep<K extends keyof StepRow>(
+    i: number,
+    key: K,
+    val: StepRow[K],
+  ) {
     setSteps((prev) =>
-      prev.map((row, idx) => (idx === i ? { what_to_do: val } : row)),
+      prev.map((row, idx) => (idx === i ? { ...row, [key]: val } : row)),
     );
   }
 
   function addStep() {
-    setSteps((prev) => [...prev, { what_to_do: "" }]);
+    setSteps((prev) => [
+      ...prev,
+      {
+        what_to_do: "",
+        duration_minutes: "",
+        temperature: "",
+        temperature_unit: "",
+        timer_label: "",
+        equipment: "",
+        ingredient_client_line_ids: [],
+      },
+    ]);
   }
 
   function removeStep(i: number) {
@@ -924,9 +1045,11 @@ export function RecipeCreateModal({
 
     const normalizedServingCount = getSubmitServings();
 
-    const validIngredients = ingredients.filter(
-      (row) => row.canonical_ingredient.trim() && row.amount && row.unit,
-    );
+    const validIngredients = ingredients.filter((row) => {
+      const hasMeasured = row.amount.trim() && row.unit.trim();
+      const hasAmountText = row.amount_text.trim();
+      return row.canonical_ingredient.trim() && (hasMeasured || hasAmountText);
+    });
     if (validIngredients.length === 0) {
       setError("Add at least one ingredient.");
       return;
@@ -975,15 +1098,39 @@ export function RecipeCreateModal({
             }
           : undefined,
       ingredients: validIngredients.map((row) => ({
+        client_line_id: row.client_line_id,
         canonical_ingredient: row.canonical_ingredient.trim(),
-        amount: parseFloat(row.amount),
-        unit: row.unit,
+        amount: row.amount.trim() ? parseFloat(row.amount) : undefined,
+        unit: row.amount.trim() ? row.unit : undefined,
+        amount_text: row.amount_text.trim() || undefined,
         preparation: row.preparation.trim() || undefined,
+        substitutions: row.substitutions
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean)
+          .slice(0, 10),
         optional: row.optional || undefined,
       })),
       steps: validSteps.map((step, index) => ({
         step: index + 1,
         what_to_do: step.what_to_do.trim(),
+        duration_minutes: optionalPositiveInt(step.duration_minutes),
+        temperature: optionalPositiveInt(step.temperature),
+        temperature_unit: step.temperature
+          ? step.temperature_unit || undefined
+          : undefined,
+        timer_label: step.timer_label.trim() || undefined,
+        equipment: step.equipment
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean)
+          .slice(0, 10),
+        ingredient_client_line_ids: step.ingredient_client_line_ids.filter(
+          (id) =>
+            validIngredients.some(
+              (ingredient) => ingredient.client_line_id === id,
+            ),
+        ),
       })),
       nutrition_data:
         calories || proteinG || carbsG || fatG
@@ -1507,58 +1654,99 @@ export function RecipeCreateModal({
             <div className="space-y-2">
               {ingredients.map((row, i) => (
                 <div
-                  key={i}
-                  className={
-                    isPage
-                      ? "grid grid-cols-[minmax(0,1fr)_4.8rem_5.8rem_2.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_5.5rem_7rem_2.5rem]"
-                      : "flex items-start gap-2"
-                  }
+                  key={row.client_line_id}
+                  className="rounded-xl border border-outline-variant/40 bg-white p-3"
                 >
-                  <input
-                    value={row.canonical_ingredient}
-                    onChange={(event) =>
-                      updateIngredient(
-                        i,
-                        "canonical_ingredient",
-                        event.target.value,
-                      )
+                  <div
+                    className={
+                      isPage
+                        ? "grid grid-cols-[minmax(0,1fr)_4.8rem_5.8rem_2.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_5.5rem_7rem_2.5rem]"
+                        : "flex items-start gap-2"
                     }
-                    placeholder="Ingredient"
-                    className="flex-1 rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.25}
-                    value={row.amount}
-                    onChange={(event) =>
-                      updateIngredient(i, "amount", event.target.value)
-                    }
-                    placeholder="Qty"
-                    className="w-full rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-20"
-                  />
-                  <select
-                    value={row.unit}
-                    onChange={(event) =>
-                      updateIngredient(i, "unit", event.target.value)
-                    }
-                    className="w-full rounded-xl border border-outline-variant/50 bg-white px-2 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-28"
                   >
-                    {UNITS.map((unit) => (
-                      <option key={unit} value={unit}>
-                        {unit}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => removeIngredient(i)}
-                    disabled={ingredients.length === 1}
-                    className="flex h-10 w-full items-center justify-center rounded-xl text-outline transition-colors hover:bg-error-container/30 hover:text-error disabled:opacity-30 sm:h-9 sm:w-9"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">
-                      delete
-                    </span>
-                  </button>
+                    <input
+                      value={row.canonical_ingredient}
+                      onChange={(event) =>
+                        updateIngredient(
+                          i,
+                          "canonical_ingredient",
+                          event.target.value,
+                        )
+                      }
+                      placeholder="Ingredient"
+                      className="flex-1 rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.25}
+                      value={row.amount}
+                      onChange={(event) =>
+                        updateIngredient(i, "amount", event.target.value)
+                      }
+                      placeholder="Qty"
+                      className="w-full rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-20"
+                    />
+                    <select
+                      value={row.unit}
+                      onChange={(event) =>
+                        updateIngredient(i, "unit", event.target.value)
+                      }
+                      className="w-full rounded-xl border border-outline-variant/50 bg-white px-2 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 sm:w-28"
+                    >
+                      {UNITS.map((unit) => (
+                        <option key={unit} value={unit}>
+                          {unit}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => removeIngredient(i)}
+                      disabled={ingredients.length === 1}
+                      className="flex h-10 w-full items-center justify-center rounded-xl text-outline transition-colors hover:bg-error-container/30 hover:text-error disabled:opacity-30 sm:h-9 sm:w-9"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        delete
+                      </span>
+                    </button>
+                  </div>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                    <input
+                      value={row.amount_text}
+                      onChange={(event) =>
+                        updateIngredient(i, "amount_text", event.target.value)
+                      }
+                      placeholder="Amount text: to taste"
+                      className="rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                    <input
+                      value={row.preparation}
+                      onChange={(event) =>
+                        updateIngredient(i, "preparation", event.target.value)
+                      }
+                      placeholder="Prep: diced, rinsed"
+                      className="rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                    <input
+                      value={row.substitutions}
+                      onChange={(event) =>
+                        updateIngredient(i, "substitutions", event.target.value)
+                      }
+                      placeholder="Substitutions"
+                      className="rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                    <label className="flex items-center gap-2 rounded-xl border border-outline-variant/50 px-3 text-label-sm text-on-surface-variant">
+                      <input
+                        type="checkbox"
+                        checked={row.optional}
+                        onChange={(event) =>
+                          updateIngredient(i, "optional", event.target.checked)
+                        }
+                      />
+                      Optional
+                    </label>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1590,13 +1778,110 @@ export function RecipeCreateModal({
                   <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-fixed-dim text-label-sm font-bold text-on-primary-fixed">
                     {i + 1}
                   </div>
-                  <textarea
-                    value={row.what_to_do}
-                    onChange={(event) => updateStep(i, event.target.value)}
-                    placeholder={`Describe step ${i + 1}...`}
-                    rows={2}
-                    className="flex-1 resize-none rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
+                  <div className="flex-1 space-y-2">
+                    <textarea
+                      value={row.what_to_do}
+                      onChange={(event) =>
+                        updateStep(i, "what_to_do", event.target.value)
+                      }
+                      placeholder={`Describe step ${i + 1}...`}
+                      rows={2}
+                      className="w-full resize-none rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                    <div className="grid gap-2 sm:grid-cols-[5rem_5rem_4.5rem_1fr]">
+                      <input
+                        type="number"
+                        min={1}
+                        value={row.duration_minutes}
+                        onChange={(event) =>
+                          updateStep(i, "duration_minutes", event.target.value)
+                        }
+                        placeholder="Min"
+                        className="rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        value={row.temperature}
+                        onChange={(event) =>
+                          updateStep(i, "temperature", event.target.value)
+                        }
+                        placeholder="Temp"
+                        className="rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                      <select
+                        value={row.temperature_unit}
+                        onChange={(event) =>
+                          updateStep(
+                            i,
+                            "temperature_unit",
+                            event.target.value as "" | "F" | "C",
+                          )
+                        }
+                        className="rounded-xl border border-outline-variant/50 bg-white px-2 py-2 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      >
+                        <option value="">Unit</option>
+                        <option value="F">F</option>
+                        <option value="C">C</option>
+                      </select>
+                      <input
+                        value={row.timer_label}
+                        onChange={(event) =>
+                          updateStep(i, "timer_label", event.target.value)
+                        }
+                        placeholder="Timer label"
+                        className="rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+                    <input
+                      value={row.equipment}
+                      onChange={(event) =>
+                        updateStep(i, "equipment", event.target.value)
+                      }
+                      placeholder="Equipment: skillet, oven"
+                      className="w-full rounded-xl border border-outline-variant/50 bg-white px-3 py-2 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {ingredients
+                        .filter((ingredient) =>
+                          ingredient.canonical_ingredient.trim(),
+                        )
+                        .map((ingredient) => {
+                          const selected =
+                            row.ingredient_client_line_ids.includes(
+                              ingredient.client_line_id,
+                            );
+                          return (
+                            <button
+                              key={ingredient.client_line_id}
+                              type="button"
+                              onClick={() =>
+                                updateStep(
+                                  i,
+                                  "ingredient_client_line_ids",
+                                  selected
+                                    ? row.ingredient_client_line_ids.filter(
+                                        (id) =>
+                                          id !== ingredient.client_line_id,
+                                      )
+                                    : [
+                                        ...row.ingredient_client_line_ids,
+                                        ingredient.client_line_id,
+                                      ],
+                                )
+                              }
+                              className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                                selected
+                                  ? "bg-primary text-on-primary"
+                                  : "bg-surface-container text-on-surface-variant"
+                              }`}
+                            >
+                              {ingredient.canonical_ingredient}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </div>
                   <button
                     onClick={() => removeStep(i)}
                     disabled={steps.length === 1}

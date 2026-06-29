@@ -87,7 +87,10 @@ const toDish = (recipe: BaseRecipe, servings: number): Dish => {
     steps: recipe.steps,
     ingredients: recipe.ingredients.map((ingredient) => ({
       ...ingredient,
-      amount: ingredient.amount * scaleFactor,
+      amount:
+        ingredient.amount !== undefined && ingredient.amount !== null
+          ? ingredient.amount * scaleFactor
+          : undefined,
     })),
   };
 };
