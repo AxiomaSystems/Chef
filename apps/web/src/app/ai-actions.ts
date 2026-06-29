@@ -90,6 +90,10 @@ type MealStyle =
 
 type BudgetMode = "minimize_cost" | "balanced" | "premium";
 
+const AI_LIST_ITEM_MAX_LENGTH = 120;
+const AI_NOTES_MAX_LENGTH = 4000;
+const AI_MEAL_PROMPT_MAX_LENGTH = 2000;
+
 type GenerateMealsActionInput = {
   mealPrompt: string;
   servingsPerMeal?: number;
@@ -375,7 +379,7 @@ function buildGenerateMealsRequest(
 ) {
   const preferences = context.preferences;
   const profileMemory = context.profileMemory;
-  const inventory = uniqueStrings([
+  const inventory = boundedUniqueStrings([
     ...(input.inventory ?? []),
     ...context.inventory.map(formatInventoryItemForPrompt),
     ...(profileMemory?.pantry_staples.map(
@@ -385,11 +389,11 @@ function buildGenerateMealsRequest(
   const mealStyle =
     input.mealStyle ?? mealStyleFromContext(preferences, inventory.length > 0);
   const budgetMode = input.budgetMode ?? budgetModeFromContext(preferences);
-  const dietaryPreferences = uniqueStrings([
+  const dietaryPreferences = boundedUniqueStrings([
     ...(input.dietaryPreferences ?? []),
     ...(preferences?.preferred_tags.map((tag) => tag.name) ?? []),
   ]);
-  const allergies = uniqueStrings([
+  const allergies = boundedUniqueStrings([
     ...(input.allergies ?? []),
     ...(preferences?.preferred_tags
       .filter(isAllergyTag)
@@ -403,7 +407,7 @@ function buildGenerateMealsRequest(
       )
       .map((rule) => rule.label) ?? []),
   ]);
-  const dislikedIngredients = uniqueStrings([
+  const dislikedIngredients = boundedUniqueStrings([
     ...(input.dislikedIngredients ?? []),
     ...(preferences?.disliked_ingredients?.map(formatEnumLabel) ?? []),
     ...(profileMemory?.food_rules
@@ -415,24 +419,27 @@ function buildGenerateMealsRequest(
       )
       .map((rule) => rule.label) ?? []),
   ]);
-  const qualityGoals = uniqueStrings([
+  const qualityGoals = boundedUniqueStrings([
     ...(input.qualityGoals ?? []),
     ...(preferences?.goal_priorities?.map(qualityGoalFromLegacyGoal) ?? []),
     ...(profileMemory?.goals
       .filter((goal) => goal.active)
       .map((goal) => qualityGoalFromProfileGoal(goal.goal)) ?? []),
   ]);
-  const notes = uniqueStrings([
-    input.notes,
-    mealGenerationContextNote(preferences, profileMemory),
-  ]).join(" ");
+  const notes = limitText(
+    uniqueStrings([
+      input.notes,
+      mealGenerationContextNote(preferences, profileMemory),
+    ]).join(" "),
+    AI_NOTES_MAX_LENGTH,
+  );
   const aiPlanningOptimization =
     input.aiPlanningOptimization ??
     preferences?.ai_planning_optimization ??
     "cost_reduction";
 
   return {
-    meal_prompt: input.mealPrompt.trim(),
+    meal_prompt: limitText(input.mealPrompt.trim(), AI_MEAL_PROMPT_MAX_LENGTH),
     servings_per_meal: input.servingsPerMeal ?? 4,
     meals_needed: input.mealsNeeded ?? 1,
     meal_style: mealStyle,
@@ -452,6 +459,20 @@ function buildGenerateMealsRequest(
 }
 
 function uniqueStrings(values: Array<string | undefined | null>) {
+  return collectUniqueStrings(values);
+}
+
+function boundedUniqueStrings(
+  values: Array<string | undefined | null>,
+  maxLength = AI_LIST_ITEM_MAX_LENGTH,
+) {
+  return collectUniqueStrings(values, maxLength);
+}
+
+function collectUniqueStrings(
+  values: Array<string | undefined | null>,
+  maxLength?: number,
+) {
   const seen = new Set<string>();
   const result: string[] = [];
 
@@ -459,14 +480,22 @@ function uniqueStrings(values: Array<string | undefined | null>) {
     const normalized = value?.trim().replace(/\s+/g, " ");
     if (!normalized) continue;
 
-    const key = normalized.toLowerCase();
+    const bounded = maxLength ? limitText(normalized, maxLength) : normalized;
+    const key = bounded.toLowerCase();
     if (seen.has(key)) continue;
 
     seen.add(key);
-    result.push(normalized);
+    result.push(bounded);
   }
 
   return result;
+}
+
+function limitText(value: string, maxLength: number) {
+  if (value.length <= maxLength) return value;
+  if (maxLength <= 3) return value.slice(0, maxLength);
+
+  return `${value.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
 function formatInventoryItemForPrompt(item: KitchenInventoryItem) {
