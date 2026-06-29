@@ -537,6 +537,10 @@ export class MealPlanService {
       const scale = getRecipeScale(event, event.recipe);
 
       for (const ingredient of event.recipe.ingredients) {
+        if (ingredient.amount === undefined || !ingredient.unit) {
+          continue;
+        }
+
         const key = `${ingredient.canonical_ingredient}::${ingredient.unit}`;
         const existing = groceryMap.get(key);
         const amount = ingredient.amount * scale;

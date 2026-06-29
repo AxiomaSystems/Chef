@@ -13,6 +13,7 @@ import type {
 } from '@cart/shared';
 import type {
   DishIngredient as PrismaDishIngredient,
+  RecipeStepIngredient as PrismaRecipeStepIngredient,
   RecipeMealType as PrismaRecipeMealType,
   RecipePlanningProfile as PrismaRecipePlanningProfile,
   RecipeProvenanceProfile as PrismaRecipeProvenanceProfile,
@@ -33,19 +34,33 @@ const MEAL_TYPE_ORDER: RecipeMealType[] = [
 ];
 
 const mapIngredient = (ingredient: PrismaDishIngredient): DishIngredient => ({
+  recipe_ingredient_id: ingredient.id,
   ingredient_id: ingredient.ingredientId ?? undefined,
   canonical_ingredient: ingredient.canonicalIngredient,
-  amount: ingredient.amount,
-  unit: ingredient.unit,
+  amount: ingredient.amount ?? undefined,
+  unit: ingredient.unit ?? undefined,
+  amount_text: ingredient.amountText ?? undefined,
   display_ingredient: ingredient.displayIngredient ?? undefined,
   preparation: ingredient.preparation ?? undefined,
+  substitutions: jsonStringArray(ingredient.substitutions),
   optional: ingredient.optional || undefined,
   group: ingredient.ingredientGroup ?? undefined,
 });
 
-const mapStep = (step: PrismaRecipeStep): RecipeStep => ({
+const mapStep = (
+  step: PrismaRecipeStep & { ingredientLinks?: PrismaRecipeStepIngredient[] },
+): RecipeStep => ({
+  step_id: step.id,
   step: step.stepNumber,
   what_to_do: step.whatToDo,
+  duration_minutes: step.durationMinutes ?? undefined,
+  temperature: step.temperature ?? undefined,
+  temperature_unit: step.temperatureUnit ?? undefined,
+  timer_label: step.timerLabel ?? undefined,
+  equipment: jsonStringArray(step.equipment),
+  ingredient_ids: (step.ingredientLinks ?? []).map(
+    (link) => link.dishIngredientId,
+  ),
 });
 
 const jsonStringArray = (value: unknown): string[] => {

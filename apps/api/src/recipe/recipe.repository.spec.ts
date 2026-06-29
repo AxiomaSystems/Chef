@@ -6,6 +6,7 @@ import { IngredientsService } from '../ingredients/ingredients.service';
 describe('RecipeRepository visibility', () => {
   let repository: RecipeRepository;
   let prisma: {
+    $transaction: jest.Mock;
     baseRecipe: {
       findMany: jest.Mock;
       findFirst: jest.Mock;
@@ -24,6 +25,7 @@ describe('RecipeRepository visibility', () => {
 
   beforeEach(() => {
     prisma = {
+      $transaction: jest.fn(async (callback) => callback(prisma)),
       baseRecipe: {
         findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn().mockResolvedValue(null),

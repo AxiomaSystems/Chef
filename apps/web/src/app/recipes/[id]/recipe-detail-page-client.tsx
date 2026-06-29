@@ -150,7 +150,9 @@ export function RecipeDetailPageClient({
     setInventoryChecked(true);
     const candidates = currentRecipe.ingredients.filter(
       (ingredient) =>
-        getIngredientReadiness(ingredient, inventory).status !== "available",
+        getIngredientReadiness(ingredient, inventory).status !== "available" &&
+        ingredient.amount !== undefined &&
+        ingredient.unit !== undefined,
     );
 
     if (candidates.length === 0 || inventory.length === 0) {
@@ -165,8 +167,8 @@ export function RecipeDetailPageClient({
       ingredients: candidates.map((ingredient) => ({
         canonical_ingredient: ingredient.canonical_ingredient,
         display_ingredient: ingredient.display_ingredient ?? null,
-        amount: ingredient.amount,
-        unit: ingredient.unit,
+        amount: ingredient.amount ?? 0,
+        unit: ingredient.unit ?? "unit",
       })),
       inventory: inventory.map((item) => ({
         id: item.id,
@@ -570,7 +572,8 @@ function IngredientPlainRow({ ingredient }: { ingredient: DishIngredient }) {
         {ingredient.preparation ? `, ${ingredient.preparation}` : ""}
       </span>
       <span className="shrink-0 text-body-sm text-outline">
-        {ingredient.amount} {ingredient.unit}
+        {ingredient.amount_text ??
+          [ingredient.amount, ingredient.unit].filter(Boolean).join(" ")}
       </span>
     </div>
   );
@@ -663,7 +666,8 @@ function IngredientReadinessRow({
         </span>
       </span>
       <span className="shrink-0 text-body-sm text-outline">
-        {ingredient.amount} {ingredient.unit}
+        {ingredient.amount_text ??
+          [ingredient.amount, ingredient.unit].filter(Boolean).join(" ")}
       </span>
     </div>
   );

@@ -26,7 +26,11 @@ function formatDate(iso: string) {
 }
 
 function formatIngredientAmount(ingredient: AggregatedIngredient) {
-  return `${ingredient.total_amount} ${ingredient.unit} ${ingredient.canonical_ingredient}`;
+  if (ingredient.requires_quantity_review) {
+    return `Review quantity for ${ingredient.canonical_ingredient}`;
+  }
+
+  return `${ingredient.total_amount ?? ""} ${ingredient.unit ?? ""} ${ingredient.canonical_ingredient}`;
 }
 
 function getDietaryBadges(tags?: Tag[]) {

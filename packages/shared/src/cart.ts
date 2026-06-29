@@ -56,8 +56,11 @@ export type IngredientReviewAction = "buy" | "already_have" | "skip" | "adjust";
 export type IngredientReviewItem = {
   ingredient_id?: string;
   canonical_ingredient: string;
-  total_amount: number;
-  unit: string;
+  total_amount?: number | null;
+  quantity?: number | null;
+  unit?: string | null;
+  requires_quantity_review?: boolean;
+  source_recipe_ingredient_id?: string;
   source_dishes: AggregatedIngredientSource[];
   action: IngredientReviewAction;
   adjusted_amount?: number;
@@ -74,7 +77,7 @@ export type IngredientReview = {
 export type UpdateIngredientReviewItemRequest = {
   ingredient_id?: string;
   canonical_ingredient: string;
-  unit: string;
+  unit?: string | null;
   action: IngredientReviewAction;
   adjusted_amount?: number;
   adjusted_unit?: string;

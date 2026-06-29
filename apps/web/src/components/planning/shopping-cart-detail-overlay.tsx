@@ -564,7 +564,9 @@ export function ShoppingCartDetailOverlay({
                         {ing.canonical_ingredient}
                       </span>
                       <span className="text-outline">
-                        {ing.total_amount} {ing.unit}
+                        {ing.requires_quantity_review
+                          ? "Quantity needed: review"
+                          : `${ing.total_amount ?? ""} ${ing.unit ?? ""}`}
                       </span>
                     </div>
                   ))}
