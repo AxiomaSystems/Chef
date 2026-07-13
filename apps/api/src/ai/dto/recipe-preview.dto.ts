@@ -8,6 +8,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -18,14 +19,22 @@ export class AiDishIngredientDto {
   @IsString()
   canonical_ingredient!: string;
 
-  @ApiProperty({ example: 1.25 })
+  @ApiPropertyOptional({ example: 1.25, nullable: true })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  amount!: number;
+  amount?: number | null;
 
-  @ApiProperty({ example: 'lb' })
+  @ApiPropertyOptional({ example: 'lb', nullable: true })
+  @IsOptional()
   @IsString()
-  unit!: string;
+  unit?: string | null;
+
+  @ApiPropertyOptional({ example: 'to taste', nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  amount_text?: string | null;
 
   @ApiPropertyOptional({ example: 'boneless skinless chicken breast' })
   @IsOptional()
@@ -36,6 +45,12 @@ export class AiDishIngredientDto {
   @IsOptional()
   @IsString()
   preparation?: string | null;
+
+  @ApiPropertyOptional({ example: ['tofu'], isArray: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  substitutions?: string[];
 
   @ApiPropertyOptional({ example: false })
   @IsOptional()
@@ -57,6 +72,36 @@ export class AiRecipeStepDto {
   @ApiProperty({ example: 'Cook the rice according to package directions.' })
   @IsString()
   what_to_do!: string;
+
+  @ApiPropertyOptional({ example: 10, nullable: true })
+  @IsOptional()
+  duration_minutes?: number | null;
+
+  @ApiPropertyOptional({ example: 375, nullable: true })
+  @IsOptional()
+  temperature?: number | null;
+
+  @ApiPropertyOptional({ enum: ['F', 'C'], nullable: true })
+  @IsOptional()
+  @IsIn(['F', 'C'])
+  temperature_unit?: 'F' | 'C' | null;
+
+  @ApiPropertyOptional({ example: 'Bake vegetables', nullable: true })
+  @IsOptional()
+  @IsString()
+  timer_label?: string | null;
+
+  @ApiPropertyOptional({ example: ['sheet pan'], isArray: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  equipment?: string[];
+
+  @ApiPropertyOptional({ example: [], isArray: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  ingredient_client_line_ids?: string[];
 }
 
 export class AiRecipePreviewDto {

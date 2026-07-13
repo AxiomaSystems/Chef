@@ -2,17 +2,22 @@ import type { Dish } from "./recipe";
 
 export type AggregatedIngredientSource = {
   dish_name: string;
-  amount: number;
-  unit: string;
+  amount?: number | null;
+  unit?: string | null;
+  amount_text?: string;
 };
 
 export type AggregatedIngredient = {
   canonical_ingredient: string;
-  total_amount: number;
-  unit: string;
+  total_amount?: number | null;
+  quantity?: number | null;
+  unit?: string | null;
+  amount_text?: string;
+  requires_quantity_review: boolean;
   source_dishes: AggregatedIngredientSource[];
   purchase_unit_hint?: string;
   ingredient_id?: string;
+  source_recipe_ingredient_id?: string;
   in_kitchen?: boolean;
   inventory_amount?: number;
   inventory_unit?: string;

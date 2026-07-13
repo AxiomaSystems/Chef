@@ -5,6 +5,7 @@ import type {
   RecipeMealType as PrismaRecipeMealType,
   RecipePlanningProfile as PrismaRecipePlanningProfile,
   RecipeProvenanceProfile as PrismaRecipeProvenanceProfile,
+  RecipeStepIngredient as PrismaRecipeStepIngredient,
   RecipeTag as PrismaRecipeTag,
   RecipeStep as PrismaRecipeStep,
   Tag as PrismaTag,
@@ -21,5 +22,9 @@ export type BaseRecipeWithRelations = PrismaBaseRecipe & {
       tag: PrismaTag;
     }
   >;
-  steps: PrismaRecipeStep[];
+  steps: Array<
+    PrismaRecipeStep & {
+      ingredientLinks: PrismaRecipeStepIngredient[];
+    }
+  >;
 };

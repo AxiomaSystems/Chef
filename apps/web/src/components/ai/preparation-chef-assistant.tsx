@@ -59,7 +59,9 @@ export function PreparationChefAssistant({
         name: ingredient.display_ingredient ?? ingredient.canonical_ingredient,
         amount: ingredient.amount,
         unit: ingredient.unit,
+        amount_text: ingredient.amount_text ?? null,
         preparation: ingredient.preparation ?? null,
+        substitutions: ingredient.substitutions ?? [],
         optional: ingredient.optional ?? false,
       })),
     [recipe.ingredients],
@@ -68,7 +70,14 @@ export function PreparationChefAssistant({
     () =>
       recipe.steps.map((step) => ({
         step: step.step,
+        step_id: step.step_id ?? null,
         instruction: step.what_to_do,
+        duration_minutes: step.duration_minutes ?? null,
+        temperature: step.temperature ?? null,
+        temperature_unit: step.temperature_unit ?? null,
+        timer_label: step.timer_label ?? null,
+        equipment: step.equipment ?? [],
+        linked_ingredient_ids: step.ingredient_ids ?? [],
       })),
     [recipe.steps],
   );

@@ -30,17 +30,23 @@ type IngredientNeed = {
 function ingredientKey(
   ingredient: Pick<
     DishIngredient,
-    "ingredient_id" | "canonical_ingredient" | "unit"
+    "recipe_ingredient_id" | "ingredient_id" | "canonical_ingredient" | "unit"
   >,
 ) {
-  const unit = ingredient.unit.trim().toLowerCase();
+  if (ingredient.recipe_ingredient_id) {
+    return `recipe-ingredient:${ingredient.recipe_ingredient_id}`;
+  }
+  const unit = (ingredient.unit ?? "review").trim().toLowerCase();
   if (ingredient.ingredient_id)
     return `ingredient:${ingredient.ingredient_id}::${unit}`;
   return `name:${normalizeIngredientKey(ingredient.canonical_ingredient)}::${unit}`;
 }
 
 function aggregateKey(ingredient: AggregatedIngredient) {
-  const unit = ingredient.unit.trim().toLowerCase();
+  if (ingredient.source_recipe_ingredient_id) {
+    return `recipe-ingredient:${ingredient.source_recipe_ingredient_id}`;
+  }
+  const unit = (ingredient.unit ?? "review").trim().toLowerCase();
   if (ingredient.ingredient_id)
     return `ingredient:${ingredient.ingredient_id}::${unit}`;
   return `name:${normalizeIngredientKey(ingredient.canonical_ingredient)}::${unit}`;
@@ -63,8 +69,8 @@ function buildDishNeeds(
       aggregateKey(ingredient),
       Math.max(
         0,
-        ingredient.total_amount -
-          (ingredient.remaining_to_buy ?? ingredient.total_amount),
+        (ingredient.total_amount ?? 0) -
+          (ingredient.remaining_to_buy ?? ingredient.total_amount ?? 0),
       ),
     ]),
   );
@@ -77,17 +83,18 @@ function buildDishNeeds(
         const aggregate = aggregateByKey.get(key);
         const coveredAvailable = coveredRemaining.get(key) ?? 0;
         const crossedOff = crossedOffRows.has(rowId);
+        const measuredAmount = ingredient.amount ?? 0;
         const coveredAmount = inventoryChecked
-          ? Math.min(ingredient.amount, coveredAvailable)
+          ? Math.min(measuredAmount, coveredAvailable)
           : 0;
         const crossedOffAmount = crossedOff
-          ? Math.max(0, ingredient.amount - coveredAmount)
+          ? Math.max(0, measuredAmount - coveredAmount)
           : 0;
         const amountToBuy = inventoryChecked
-          ? Math.max(0, ingredient.amount - coveredAmount - crossedOffAmount)
+          ? Math.max(0, measuredAmount - coveredAmount - crossedOffAmount)
           : crossedOff
             ? 0
-            : ingredient.amount;
+            : measuredAmount;
 
         if (inventoryChecked) {
           coveredRemaining.set(
@@ -167,20 +174,24 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
     [dishNeeds],
   );
   const totalToBuy = currentCart.overview.reduce((total, ingredient) => {
+    if (ingredient.requires_quantity_review) return total;
     const key = aggregateKey(ingredient);
     const manualCovered = manualCoveredByAggregate.get(key) ?? 0;
-    const remaining = ingredient.remaining_to_buy ?? ingredient.total_amount;
+    const remaining =
+      ingredient.remaining_to_buy ?? ingredient.total_amount ?? 0;
     return total + Math.max(0, remaining - manualCovered);
   }, 0);
   const coveredCount = currentCart.overview.filter(
     (ingredient) =>
-      (ingredient.remaining_to_buy ?? ingredient.total_amount) <= 0,
+      !ingredient.requires_quantity_review &&
+      (ingredient.remaining_to_buy ?? ingredient.total_amount ?? 0) <= 0,
   ).length;
   const partialCount = currentCart.overview.filter(
     (ingredient) =>
-      (ingredient.remaining_to_buy ?? ingredient.total_amount) > 0 &&
-      (ingredient.remaining_to_buy ?? ingredient.total_amount) <
-        ingredient.total_amount,
+      !ingredient.requires_quantity_review &&
+      (ingredient.remaining_to_buy ?? ingredient.total_amount ?? 0) > 0 &&
+      (ingredient.remaining_to_buy ?? ingredient.total_amount ?? 0) <
+        (ingredient.total_amount ?? 0),
   ).length;
 
   function handleCreateShoppingCart() {
@@ -192,25 +203,31 @@ export function CartDetailClient({ cart }: { cart: Cart }) {
         (ingredient) => {
           const manualCovered =
             manualCoveredByAggregate.get(aggregateKey(ingredient)) ?? 0;
-          const adjustedAmount = Math.max(
-            0,
-            ingredient.total_amount - manualCovered,
-          );
+          const adjustedAmount = ingredient.requires_quantity_review
+            ? null
+            : Math.max(0, (ingredient.total_amount ?? 0) - manualCovered);
 
           return {
             ingredient_id: ingredient.ingredient_id,
             canonical_ingredient: ingredient.canonical_ingredient,
             total_amount: ingredient.total_amount,
+            quantity: ingredient.quantity,
             unit: ingredient.unit,
+            requires_quantity_review: ingredient.requires_quantity_review,
+            source_recipe_ingredient_id: ingredient.source_recipe_ingredient_id,
             source_dishes: ingredient.source_dishes,
             action:
-              manualCovered <= 0
+              ingredient.requires_quantity_review || manualCovered <= 0
                 ? "buy"
                 : adjustedAmount === 0
                   ? "already_have"
                   : "adjust",
-            adjusted_amount: manualCovered > 0 ? adjustedAmount : undefined,
-            adjusted_unit: manualCovered > 0 ? ingredient.unit : undefined,
+            adjusted_amount:
+              manualCovered > 0 && adjustedAmount !== null
+                ? adjustedAmount
+                : undefined,
+            adjusted_unit:
+              manualCovered > 0 ? (ingredient.unit ?? undefined) : undefined,
           };
         },
       );
@@ -600,7 +617,7 @@ function EditRecipeInCartDialog({
               ingredient.canonical_ingredient.trim() ||
               displayName.toLowerCase(),
             display_ingredient: displayName || undefined,
-            unit: ingredient.unit.trim() || "unit",
+            unit: ingredient.unit?.trim() || "unit",
             amount: Math.max(0, Number(ingredient.amount) || 0),
             preparation: ingredient.preparation?.trim() || undefined,
           };
@@ -730,16 +747,18 @@ function EditRecipeInCartDialog({
                       type="number"
                       min={0}
                       step="0.01"
-                      value={ingredient.amount}
+                      value={ingredient.amount ?? ""}
                       onChange={(event) =>
                         updateIngredient(index, {
-                          amount: Number(event.target.value),
+                          amount: event.target.value
+                            ? Number(event.target.value)
+                            : undefined,
                         })
                       }
                       className="min-h-10 rounded-full border border-[#c0dedf] bg-white px-3 text-body-sm font-semibold text-[#132326] outline-none focus:border-[#f4790d]"
                     />
                     <input
-                      value={ingredient.unit}
+                      value={ingredient.unit ?? ""}
                       onChange={(event) =>
                         updateIngredient(index, { unit: event.target.value })
                       }
@@ -864,20 +883,22 @@ function IngredientRow({
             icon: "shopping_cart",
             label: "In cart",
             className: "border-[#f0b4a8] text-[#b24028]",
-            detail: `${formatAmount(item.amountToBuy)} ${ingredient.unit}`,
+            detail: ingredient.amount_text
+              ? "Quantity needed: review"
+              : `${formatAmount(item.amountToBuy)} ${ingredient.unit ?? ""}`,
           }
         : item.amountToBuy > 0
           ? {
               icon: "contrast",
               label: "Partially covered",
               className: "border-[#f4d47c] text-[#9a6900]",
-              detail: `${formatAmount(item.coveredAmount)} covered, ${formatAmount(item.amountToBuy)} ${ingredient.unit} to buy`,
+              detail: `${formatAmount(item.coveredAmount)} covered, ${formatAmount(item.amountToBuy)} ${ingredient.unit ?? ""} to buy`,
             }
           : {
               icon: "check_circle",
               label: "Covered",
               className: "border-[#b9e3d2] text-[#256f5c]",
-              detail: `${formatAmount(item.coveredAmount)} ${ingredient.unit} in inventory`,
+              detail: `${formatAmount(item.coveredAmount)} ${ingredient.unit ?? ""} in inventory`,
             };
 
   return (
@@ -906,7 +927,8 @@ function IngredientRow({
         ) : null}
       </div>
       <span className="shrink-0 text-body-sm text-[#5f8689]">
-        {formatAmount(ingredient.amount)} {ingredient.unit}
+        {ingredient.amount_text ??
+          [ingredient.amount, ingredient.unit].filter(Boolean).join(" ")}
       </span>
     </button>
   );

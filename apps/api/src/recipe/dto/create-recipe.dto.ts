@@ -10,6 +10,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -40,24 +41,82 @@ export class CreateRecipeStepDto {
   @IsString()
   @MaxLength(1000)
   what_to_do!: string;
+
+  @ApiPropertyOptional({ example: 8 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(2880)
+  duration_minutes?: number;
+
+  @ApiPropertyOptional({ example: 375 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  temperature?: number;
+
+  @ApiPropertyOptional({ enum: ['F', 'C'], example: 'F' })
+  @IsOptional()
+  @IsIn(['F', 'C'])
+  temperature_unit?: 'F' | 'C';
+
+  @ApiPropertyOptional({ example: 'Simmer sauce' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  timer_label?: string;
+
+  @ApiPropertyOptional({ example: ['large skillet'], isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  equipment?: string[];
+
+  @ApiPropertyOptional({
+    example: ['d8d2bd4f-10c7-4f78-91c5-2dbb070ab425'],
+    isArray: true,
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(80)
+  @IsUUID('4', { each: true })
+  ingredient_client_line_ids?: string[];
 }
 
 export class CreateDishIngredientDto {
+  @ApiPropertyOptional({
+    example: 'd8d2bd4f-10c7-4f78-91c5-2dbb070ab425',
+  })
+  @IsOptional()
+  @IsUUID('4')
+  client_line_id?: string;
+
   @ApiProperty({ example: 'rice' })
   @IsString()
   @MaxLength(120)
   canonical_ingredient!: string;
 
-  @ApiProperty({ example: 2 })
+  @ApiPropertyOptional({ example: 2 })
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(10000)
-  amount!: number;
+  amount?: number;
 
-  @ApiProperty({ example: 'cup' })
+  @ApiPropertyOptional({ example: 'cup' })
+  @IsOptional()
   @IsString()
   @MaxLength(32)
-  unit!: string;
+  unit?: string;
+
+  @ApiPropertyOptional({ example: 'to taste' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  amount_text?: string;
 
   @ApiPropertyOptional({ example: '2 cups white rice' })
   @IsOptional()
@@ -70,6 +129,14 @@ export class CreateDishIngredientDto {
   @IsString()
   @MaxLength(120)
   preparation?: string;
+
+  @ApiPropertyOptional({ example: ['lime juice'], isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(120, { each: true })
+  substitutions?: string[];
 
   @ApiPropertyOptional({ example: false })
   @IsOptional()

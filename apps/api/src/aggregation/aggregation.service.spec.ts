@@ -35,13 +35,28 @@ describe('AggregationService', () => {
 
     expect(result.overview).toEqual([
       {
+        ingredient_id: undefined,
+        source_recipe_ingredient_id: undefined,
         canonical_ingredient: 'rice',
         total_amount: 3,
+        quantity: 3,
         unit: 'cup',
+        amount_text: undefined,
         purchase_unit_hint: 'cup',
+        requires_quantity_review: false,
         source_dishes: [
-          { dish_name: 'Dish A', amount: 1, unit: 'cup' },
-          { dish_name: 'Dish B', amount: 2, unit: 'cup' },
+          {
+            dish_name: 'Dish A',
+            amount: 1,
+            unit: 'cup',
+            amount_text: undefined,
+          },
+          {
+            dish_name: 'Dish B',
+            amount: 2,
+            unit: 'cup',
+            amount_text: undefined,
+          },
         ],
       },
     ]);
@@ -145,6 +160,37 @@ describe('AggregationService', () => {
     expect(result.overview.map((item) => item.unit).sort()).toEqual([
       'cup',
       'ml',
+    ]);
+  });
+
+  it('keeps unmeasured ingredients as reviewable cart lines', () => {
+    const result = service.compute([
+      {
+        name: 'Dish A',
+        ingredients: [
+          {
+            recipe_ingredient_id: 'dish-ingredient-salt',
+            canonical_ingredient: 'salt',
+            amount: null,
+            unit: null,
+            amount_text: 'to taste',
+          },
+        ],
+        steps: [],
+      },
+    ]);
+
+    expect(result.overview).toEqual([
+      expect.objectContaining({
+        source_recipe_ingredient_id: 'dish-ingredient-salt',
+        canonical_ingredient: 'salt',
+        total_amount: null,
+        quantity: null,
+        unit: null,
+        amount_text: 'to taste',
+        purchase_unit_hint: undefined,
+        requires_quantity_review: true,
+      }),
     ]);
   });
 });

@@ -22,6 +22,7 @@ import {
   buildHomeRecipeRecommendations,
   type RecipeRecommendationProfile,
 } from './recipe.recommendations';
+import type { BaseRecipeWithRelations } from './recipe.persistence.types';
 
 const RECIPE_INCLUDE = {
   cuisine: true,
@@ -34,7 +35,11 @@ const RECIPE_INCLUDE = {
       tag: true,
     },
   },
-  steps: true,
+  steps: {
+    include: {
+      ingredientLinks: true,
+    },
+  },
 } satisfies Prisma.BaseRecipeInclude;
 
 const MATERIAL_RECIPE_UPDATE_FIELDS: Array<keyof UpdateRecipeDto> = [
@@ -161,6 +166,7 @@ export class RecipeRepository {
     actorUserId?: string,
     options?: { provenance?: RecipeProvenanceCreateOptions },
   ): Promise<BaseRecipe> {
+    validateRecipeExecutionInput(input);
     const actor = await this.resolveActorUser(actorUserId);
     const tagIds = await this.validateTagIdsForActor(actor.id, input.tag_ids);
     const cuisineId = await this.validateCuisineId(input.cuisine_id);
@@ -168,32 +174,41 @@ export class RecipeRepository {
       input.ingredients,
     );
 
-    const recipe = await this.prisma.baseRecipe.create({
-      data: {
-        ...buildCreateRecipeData(
-          { ...input, cuisine_id: cuisineId },
-          actor.id,
-          ingredientIdsByIndex,
-        ),
-        recipeTags: {
-          create: tagIds.map((tagId) => ({
-            tag: {
-              connect: { id: tagId },
+    const recipe = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.baseRecipe.create({
+        data: {
+          ...buildCreateRecipeData(
+            { ...input, cuisine_id: cuisineId },
+            actor.id,
+            ingredientIdsByIndex,
+          ),
+          recipeTags: {
+            create: tagIds.map((tagId) => ({
+              tag: {
+                connect: { id: tagId },
+              },
+            })),
+          },
+          provenanceProfile: {
+            create: {
+              sourceType: options?.provenance?.sourceType ?? 'user_created',
+              sourceUrl: options?.provenance?.sourceUrl,
+              sourceName: options?.provenance?.sourceName,
+              attributionLabel: options?.provenance?.attributionLabel,
+              reviewStatus: options?.provenance?.reviewStatus ?? 'reviewed',
+              extractionConfidence: options?.provenance?.extractionConfidence,
             },
-          })),
-        },
-        provenanceProfile: {
-          create: {
-            sourceType: options?.provenance?.sourceType ?? 'user_created',
-            sourceUrl: options?.provenance?.sourceUrl,
-            sourceName: options?.provenance?.sourceName,
-            attributionLabel: options?.provenance?.attributionLabel,
-            reviewStatus: options?.provenance?.reviewStatus ?? 'reviewed',
-            extractionConfidence: options?.provenance?.extractionConfidence,
           },
         },
-      },
-      include: RECIPE_INCLUDE,
+        select: { id: true },
+      });
+
+      await createStepIngredientLinks(tx, created.id, input);
+
+      return tx.baseRecipe.findUniqueOrThrow({
+        where: { id: created.id },
+        include: RECIPE_INCLUDE,
+      });
     });
 
     return mapBaseRecipe(recipe);
@@ -419,6 +434,7 @@ export class RecipeRepository {
     input: UpdateRecipeDto,
     actorUserId?: string,
   ): Promise<BaseRecipe | null> {
+    validateRecipeExecutionInput(input);
     const actor = await this.resolveActorUser(actorUserId);
     const existing = await this.prisma.baseRecipe.findFirst({
       where: buildOwnedMutableRecipeWhere(id, actor.id),
@@ -441,40 +457,51 @@ export class RecipeRepository {
       input.ingredients,
     );
 
-    const recipe = await this.prisma.baseRecipe.update({
-      where: { id },
-      data: {
-        ...buildUpdateRecipeData(
-          {
-            ...input,
-            ...(cuisineId !== undefined ? { cuisine_id: cuisineId } : {}),
-          },
-          ingredientIdsByIndex,
-        ),
-        ...(existing.provenanceProfile?.reviewStatus === 'trusted' &&
-        hasMaterialRecipeUpdate(input)
-          ? {
-              provenanceProfile: {
-                update: {
-                  reviewStatus: 'reviewed',
-                },
-              },
-            }
-          : {}),
-        ...(tagIds !== null
-          ? {
-              recipeTags: {
-                deleteMany: {},
-                create: tagIds.map((tagId) => ({
-                  tag: {
-                    connect: { id: tagId },
+    const recipe = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.baseRecipe.update({
+        where: { id },
+        data: {
+          ...buildUpdateRecipeData(
+            {
+              ...input,
+              ...(cuisineId !== undefined ? { cuisine_id: cuisineId } : {}),
+            },
+            ingredientIdsByIndex,
+          ),
+          ...(existing.provenanceProfile?.reviewStatus === 'trusted' &&
+          hasMaterialRecipeUpdate(input)
+            ? {
+                provenanceProfile: {
+                  update: {
+                    reviewStatus: 'reviewed',
                   },
-                })),
-              },
-            }
-          : {}),
-      },
-      include: RECIPE_INCLUDE,
+                },
+              }
+            : {}),
+          ...(tagIds !== null
+            ? {
+                recipeTags: {
+                  deleteMany: {},
+                  create: tagIds.map((tagId) => ({
+                    tag: {
+                      connect: { id: tagId },
+                    },
+                  })),
+                },
+              }
+            : {}),
+        },
+        select: { id: true },
+      });
+
+      if (input.steps) {
+        await createStepIngredientLinks(tx, updated.id, input);
+      }
+
+      return tx.baseRecipe.findUniqueOrThrow({
+        where: { id: updated.id },
+        include: RECIPE_INCLUDE,
+      });
     });
 
     return mapBaseRecipe(recipe);
@@ -505,93 +532,110 @@ export class RecipeRepository {
     }
 
     try {
-      const savedRecipe = await this.prisma.baseRecipe.create({
-        data: {
-          ownerUserId: actor.id,
-          forkedFromRecipeId: sourceRecipe.id,
-          cuisineId: sourceRecipe.cuisineId,
-          isSystemRecipe: false,
-          name: sourceRecipe.name.endsWith(' - You')
-            ? sourceRecipe.name
-            : `${sourceRecipe.name} - You`,
-          description: sourceRecipe.description,
-          coverImageUrl: sourceRecipe.coverImageUrl,
-          servings: sourceRecipe.servings,
-          recipeTags: {
-            create: (sourceRecipe.recipeTags ?? []).map((recipeTag) => ({
-              tag: {
-                connect: {
-                  id: recipeTag.tagId,
-                },
-              },
-            })),
-          },
-          ...(sourceRecipe.planningProfile
-            ? {
-                planningProfile: {
-                  create: {
-                    difficulty: sourceRecipe.planningProfile.difficulty,
-                    difficultyReason:
-                      sourceRecipe.planningProfile.difficultyReason,
-                    prepTimeMinutes:
-                      sourceRecipe.planningProfile.prepTimeMinutes,
-                    cookTimeMinutes:
-                      sourceRecipe.planningProfile.cookTimeMinutes,
-                    totalTimeMinutes:
-                      sourceRecipe.planningProfile.totalTimeMinutes,
-                    estimatedCostTier:
-                      sourceRecipe.planningProfile.estimatedCostTier,
-                    costNotes: sourceRecipe.planningProfile
-                      .costNotes as Prisma.InputJsonValue,
+      const savedRecipe = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.baseRecipe.create({
+          data: {
+            ownerUserId: actor.id,
+            forkedFromRecipeId: sourceRecipe.id,
+            cuisineId: sourceRecipe.cuisineId,
+            isSystemRecipe: false,
+            name: sourceRecipe.name.endsWith(' - You')
+              ? sourceRecipe.name
+              : `${sourceRecipe.name} - You`,
+            description: sourceRecipe.description,
+            coverImageUrl: sourceRecipe.coverImageUrl,
+            servings: sourceRecipe.servings,
+            recipeTags: {
+              create: (sourceRecipe.recipeTags ?? []).map((recipeTag) => ({
+                tag: {
+                  connect: {
+                    id: recipeTag.tagId,
                   },
                 },
-              }
-            : {}),
-          mealTypes: {
-            create: (sourceRecipe.mealTypes ?? []).map((mealType) => ({
-              mealType: mealType.mealType,
-            })),
-          },
-          provenanceProfile: {
-            create: sourceRecipe.provenanceProfile
+              })),
+            },
+            ...(sourceRecipe.planningProfile
               ? {
-                  sourceType: sourceRecipe.provenanceProfile.sourceType,
-                  sourceUrl: sourceRecipe.provenanceProfile.sourceUrl,
-                  sourceName: sourceRecipe.provenanceProfile.sourceName,
-                  attributionLabel:
-                    sourceRecipe.provenanceProfile.attributionLabel,
-                  reviewStatus: sourceRecipe.provenanceProfile.reviewStatus,
-                  extractionConfidence:
-                    sourceRecipe.provenanceProfile.extractionConfidence,
+                  planningProfile: {
+                    create: {
+                      difficulty: sourceRecipe.planningProfile.difficulty,
+                      difficultyReason:
+                        sourceRecipe.planningProfile.difficultyReason,
+                      prepTimeMinutes:
+                        sourceRecipe.planningProfile.prepTimeMinutes,
+                      cookTimeMinutes:
+                        sourceRecipe.planningProfile.cookTimeMinutes,
+                      totalTimeMinutes:
+                        sourceRecipe.planningProfile.totalTimeMinutes,
+                      estimatedCostTier:
+                        sourceRecipe.planningProfile.estimatedCostTier,
+                      costNotes: sourceRecipe.planningProfile
+                        .costNotes as Prisma.InputJsonValue,
+                    },
+                  },
                 }
-              : {
-                  sourceType: 'unknown',
-                  reviewStatus: sourceRecipe.isSystemRecipe
-                    ? 'trusted'
-                    : 'reviewed',
-                },
+              : {}),
+            mealTypes: {
+              create: (sourceRecipe.mealTypes ?? []).map((mealType) => ({
+                mealType: mealType.mealType,
+              })),
+            },
+            provenanceProfile: {
+              create: sourceRecipe.provenanceProfile
+                ? {
+                    sourceType: sourceRecipe.provenanceProfile.sourceType,
+                    sourceUrl: sourceRecipe.provenanceProfile.sourceUrl,
+                    sourceName: sourceRecipe.provenanceProfile.sourceName,
+                    attributionLabel:
+                      sourceRecipe.provenanceProfile.attributionLabel,
+                    reviewStatus: sourceRecipe.provenanceProfile.reviewStatus,
+                    extractionConfidence:
+                      sourceRecipe.provenanceProfile.extractionConfidence,
+                  }
+                : {
+                    sourceType: 'unknown',
+                    reviewStatus: sourceRecipe.isSystemRecipe
+                      ? 'trusted'
+                      : 'reviewed',
+                  },
+            },
+            ingredients: {
+              create: sourceRecipe.ingredients.map((ingredient) => ({
+                ingredientId: ingredient.ingredientId,
+                canonicalIngredient: ingredient.canonicalIngredient,
+                amount: ingredient.amount,
+                unit: ingredient.unit,
+                amountText: ingredient.amountText,
+                displayIngredient: ingredient.displayIngredient,
+                preparation: ingredient.preparation,
+                substitutions:
+                  ingredient.substitutions as Prisma.InputJsonValue,
+                optional: ingredient.optional,
+                ingredientGroup: ingredient.ingredientGroup,
+                sortOrder: ingredient.sortOrder,
+              })),
+            },
+            steps: {
+              create: sourceRecipe.steps.map((step) => ({
+                stepNumber: step.stepNumber,
+                whatToDo: step.whatToDo,
+                durationMinutes: step.durationMinutes,
+                temperature: step.temperature,
+                temperatureUnit: step.temperatureUnit,
+                timerLabel: step.timerLabel,
+                equipment: step.equipment as Prisma.InputJsonValue,
+              })),
+            },
           },
-          ingredients: {
-            create: sourceRecipe.ingredients.map((ingredient) => ({
-              ingredientId: ingredient.ingredientId,
-              canonicalIngredient: ingredient.canonicalIngredient,
-              amount: ingredient.amount,
-              unit: ingredient.unit,
-              displayIngredient: ingredient.displayIngredient,
-              preparation: ingredient.preparation,
-              optional: ingredient.optional,
-              ingredientGroup: ingredient.ingredientGroup,
-              sortOrder: ingredient.sortOrder,
-            })),
-          },
-          steps: {
-            create: sourceRecipe.steps.map((step) => ({
-              stepNumber: step.stepNumber,
-              whatToDo: step.whatToDo,
-            })),
-          },
-        },
-        include: RECIPE_INCLUDE,
+          select: { id: true },
+        });
+
+        await copyStepIngredientLinks(tx, sourceRecipe, created.id);
+
+        return tx.baseRecipe.findUniqueOrThrow({
+          where: { id: created.id },
+          include: RECIPE_INCLUDE,
+        });
       });
 
       return { recipe: mapBaseRecipe(savedRecipe), created: true };
@@ -668,6 +712,221 @@ function jsonStringArray(value: unknown): string[] {
   return value
     .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
     .filter(Boolean);
+}
+
+type RecipeExecutionInput = {
+  ingredients?: CreateRecipeDto['ingredients'];
+  steps?: CreateRecipeDto['steps'];
+};
+
+function validateRecipeExecutionInput(input: RecipeExecutionInput) {
+  if (input.ingredients) {
+    const clientLineIds = new Set<string>();
+
+    for (const ingredient of input.ingredients) {
+      const hasMeasuredQuantity =
+        ingredient.amount !== undefined &&
+        ingredient.unit !== undefined &&
+        ingredient.unit.trim().length > 0;
+      const hasAmountText = Boolean(ingredient.amount_text?.trim());
+
+      if (!hasMeasuredQuantity && !hasAmountText) {
+        throw new BadRequestException(
+          'Each ingredient must include amount + unit or amount_text',
+        );
+      }
+
+      if (
+        (ingredient.amount === undefined) !==
+        (ingredient.unit === undefined || ingredient.unit.trim().length === 0)
+      ) {
+        throw new BadRequestException(
+          'Measured ingredients must include both amount and unit',
+        );
+      }
+
+      if (!ingredient.client_line_id) {
+        throw new BadRequestException(
+          'Each ingredient must include a client_line_id',
+        );
+      }
+
+      if (clientLineIds.has(ingredient.client_line_id)) {
+        throw new BadRequestException(
+          'Ingredient client_line_id values must be unique',
+        );
+      }
+
+      clientLineIds.add(ingredient.client_line_id);
+    }
+  }
+
+  if (input.steps) {
+    for (const step of input.steps) {
+      if (
+        (step.temperature === undefined) !==
+        (step.temperature_unit === undefined)
+      ) {
+        throw new BadRequestException(
+          'temperature and temperature_unit must be provided together',
+        );
+      }
+
+      if (
+        step.ingredient_client_line_ids &&
+        step.ingredient_client_line_ids.length >
+          (input.ingredients?.length ?? 0)
+      ) {
+        throw new BadRequestException(
+          'ingredient_client_line_ids cannot exceed the ingredient count',
+        );
+      }
+    }
+  }
+}
+
+async function createStepIngredientLinks(
+  tx: Prisma.TransactionClient,
+  recipeId: string,
+  input: RecipeExecutionInput,
+) {
+  const requestedLinks = (input.steps ?? []).flatMap((step) =>
+    step.ingredient_client_line_ids?.length
+      ? step.ingredient_client_line_ids.map((clientLineId) => ({
+          stepNumber: step.step,
+          clientLineId,
+        }))
+      : [],
+  );
+
+  if (requestedLinks.length === 0) {
+    return;
+  }
+
+  if (!input.ingredients) {
+    throw new BadRequestException(
+      'Step ingredient links require the ingredients payload',
+    );
+  }
+
+  const persistedIngredients = await tx.dishIngredient.findMany({
+    where: { baseRecipeId: recipeId },
+    select: { id: true, sortOrder: true },
+  });
+  const persistedSteps = await tx.recipeStep.findMany({
+    where: { baseRecipeId: recipeId },
+    select: { id: true, stepNumber: true },
+  });
+
+  const ingredientIdsByClientLineId = new Map<string, string>();
+  input.ingredients.forEach((ingredient, index) => {
+    const persisted = persistedIngredients.find(
+      (entry) => entry.sortOrder === index,
+    );
+
+    if (ingredient.client_line_id && persisted) {
+      ingredientIdsByClientLineId.set(ingredient.client_line_id, persisted.id);
+    }
+  });
+
+  const stepIdsByNumber = new Map(
+    persistedSteps.map((step) => [step.stepNumber, step.id]),
+  );
+  const uniqueLinks = new Map<
+    string,
+    { recipeStepId: string; dishIngredientId: string }
+  >();
+
+  for (const link of requestedLinks) {
+    const recipeStepId = stepIdsByNumber.get(link.stepNumber);
+    const dishIngredientId = ingredientIdsByClientLineId.get(link.clientLineId);
+
+    if (!recipeStepId || !dishIngredientId) {
+      throw new BadRequestException(
+        'Step ingredient links must reference ingredients in the same recipe payload',
+      );
+    }
+
+    uniqueLinks.set(`${recipeStepId}:${dishIngredientId}`, {
+      recipeStepId,
+      dishIngredientId,
+    });
+  }
+
+  if (uniqueLinks.size === 0) {
+    return;
+  }
+
+  await tx.recipeStepIngredient.createMany({
+    data: Array.from(uniqueLinks.values()),
+    skipDuplicates: true,
+  });
+}
+
+async function copyStepIngredientLinks(
+  tx: Prisma.TransactionClient,
+  sourceRecipe: BaseRecipeWithRelations,
+  targetRecipeId: string,
+) {
+  const requestedLinks = sourceRecipe.steps.flatMap((step) =>
+    step.ingredientLinks.map((link) => ({
+      sourceStepNumber: step.stepNumber,
+      sourceDishIngredientId: link.dishIngredientId,
+    })),
+  );
+
+  if (requestedLinks.length === 0) {
+    return;
+  }
+
+  const targetIngredients = await tx.dishIngredient.findMany({
+    where: { baseRecipeId: targetRecipeId },
+    select: { id: true, sortOrder: true },
+  });
+  const targetSteps = await tx.recipeStep.findMany({
+    where: { baseRecipeId: targetRecipeId },
+    select: { id: true, stepNumber: true },
+  });
+
+  const sourceSortOrderByIngredientId = new Map(
+    sourceRecipe.ingredients.map((ingredient) => [
+      ingredient.id,
+      ingredient.sortOrder,
+    ]),
+  );
+  const targetIngredientIdBySortOrder = new Map(
+    targetIngredients.map((ingredient) => [
+      ingredient.sortOrder,
+      ingredient.id,
+    ]),
+  );
+  const targetStepIdByNumber = new Map(
+    targetSteps.map((step) => [step.stepNumber, step.id]),
+  );
+
+  const links = requestedLinks.flatMap((link) => {
+    const sortOrder = sourceSortOrderByIngredientId.get(
+      link.sourceDishIngredientId,
+    );
+    const recipeStepId = targetStepIdByNumber.get(link.sourceStepNumber);
+    const dishIngredientId =
+      sortOrder === undefined
+        ? undefined
+        : targetIngredientIdBySortOrder.get(sortOrder);
+
+    return recipeStepId && dishIngredientId
+      ? [{ recipeStepId, dishIngredientId }]
+      : [];
+  });
+
+  if (links.length === 0) {
+    return;
+  }
+
+  await tx.recipeStepIngredient.createMany({
+    data: links,
+    skipDuplicates: true,
+  });
 }
 
 function buildRecipeListTaxonomyFilters(input: {

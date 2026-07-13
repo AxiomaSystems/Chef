@@ -44,8 +44,9 @@ export type MatchedIngredientProduct = {
   kind?: "ingredient_match" | "manual_item";
   canonical_ingredient: string;
   manual_label?: string;
-  needed_amount: number;
-  needed_unit: string;
+  needed_amount?: number | null;
+  needed_unit?: string | null;
+  requires_quantity_review?: boolean;
   matched_amount?: number;
   matched_unit?: string;
   purchase_unit_hint?: string;

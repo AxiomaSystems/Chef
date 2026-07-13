@@ -87,11 +87,13 @@ describe('Launch cart flow (e2e)', () => {
         servings: 4,
         ingredients: [
           {
+            client_line_id: '11111111-1111-4111-8111-111111111111',
             canonical_ingredient: 'rice',
             amount: 2,
             unit: 'cup',
           },
           {
+            client_line_id: '22222222-2222-4222-8222-222222222222',
             canonical_ingredient: 'chicken thigh',
             amount: 800,
             unit: 'g',
@@ -101,6 +103,10 @@ describe('Launch cart flow (e2e)', () => {
           {
             step: 1,
             what_to_do: 'Cook the rice and chicken.',
+            ingredient_client_line_ids: [
+              '11111111-1111-4111-8111-111111111111',
+              '22222222-2222-4222-8222-222222222222',
+            ],
           },
         ],
       })

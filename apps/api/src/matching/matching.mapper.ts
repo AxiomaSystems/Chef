@@ -8,8 +8,9 @@ export const mapMissingIngredientMatch = (
   ingredient: AggregatedIngredient,
 ): MatchedIngredientProduct => ({
   canonical_ingredient: ingredient.canonical_ingredient,
-  needed_amount: ingredient.total_amount,
-  needed_unit: ingredient.unit,
+  needed_amount: ingredient.total_amount ?? null,
+  needed_unit: ingredient.unit ?? null,
+  requires_quantity_review: ingredient.requires_quantity_review || undefined,
   purchase_unit_hint: ingredient.purchase_unit_hint,
   walmart_search_query: ingredient.canonical_ingredient,
   selected_product: null,
@@ -33,10 +34,11 @@ export const mapMatchedIngredientProduct = (
 
   return {
     canonical_ingredient: ingredient.canonical_ingredient,
-    needed_amount: ingredient.total_amount,
-    needed_unit: ingredient.unit,
+    needed_amount: ingredient.total_amount ?? null,
+    needed_unit: ingredient.unit ?? null,
+    requires_quantity_review: ingredient.requires_quantity_review || undefined,
     matched_amount: selectedMatch.convertedSizeValue ?? undefined,
-    matched_unit: ingredient.unit,
+    matched_unit: ingredient.unit ?? undefined,
     purchase_unit_hint: ingredient.purchase_unit_hint,
     walmart_search_query: ingredient.canonical_ingredient,
     selected_product: selectedMatch.product,

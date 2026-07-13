@@ -26,10 +26,11 @@ export class UpdateIngredientReviewItemDto {
   @MaxLength(120)
   canonical_ingredient!: string;
 
-  @ApiProperty({ example: 'cup' })
+  @ApiPropertyOptional({ example: 'cup' })
+  @IsOptional()
   @IsString()
   @MaxLength(32)
-  unit!: string;
+  unit?: string | null;
 
   @ApiProperty({ enum: ['buy', 'already_have', 'skip', 'adjust'] })
   @IsIn(['buy', 'already_have', 'skip', 'adjust'])

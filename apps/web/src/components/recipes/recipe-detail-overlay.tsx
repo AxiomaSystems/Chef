@@ -297,7 +297,8 @@ function IngredientsSection({ recipe }: { recipe: BaseRecipe }) {
             </div>
 
             <span className="shrink-0 rounded-full bg-[#fff8ef] px-2.5 py-1 text-[11px] text-outline sm:text-label-sm">
-              {ingredient.amount} {ingredient.unit}
+              {ingredient.amount_text ??
+                [ingredient.amount, ingredient.unit].filter(Boolean).join(" ")}
             </span>
           </div>
         ))}
