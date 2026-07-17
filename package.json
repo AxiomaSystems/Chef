@@ -23,15 +23,19 @@
     "api:setup": "docker compose -f infra/docker/docker-compose.yml up -d && pnpm --filter api prisma:generate && pnpm --dir apps/api exec prisma migrate deploy && pnpm --filter api db:seed",
     "api:reset": "docker compose -f infra/docker/docker-compose.yml up -d && pnpm --dir apps/api exec prisma migrate reset --force",
     "api:up": "docker compose -f infra/docker/docker-compose.yml up -d && pnpm dev:api",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
+    "build": "pnpm --filter @cart/shared build && pnpm --filter api build && pnpm --filter web build",
+    "lint": "pnpm --filter api lint && pnpm --filter web lint && pnpm --filter mobile lint",
+    "lint:baseline": "pnpm --filter api lint:baseline",
+    "lint:fix": "pnpm --filter api lint:fix && pnpm --filter web lint:fix && pnpm --filter mobile lint:fix",
     "elevenlabs:diff": "node scripts/sync-elevenlabs-agent.mjs --dry-run",
     "elevenlabs:sync": "node scripts/sync-elevenlabs-agent.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "postman:test": "pnpm --filter api postman:test",
-    "test": "pnpm -r test",
-    "typecheck": "pnpm -r exec tsc --noEmit"
+    "test": "pnpm --filter api test:ci && pnpm --filter vision-lab test",
+    "test:e2e": "pnpm --filter api test:e2e:ci",
+    "typecheck": "pnpm --filter @cart/shared typecheck && pnpm --filter api typecheck && pnpm --filter web typecheck && pnpm --filter mobile typecheck",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,md,css,yml,yaml}": [

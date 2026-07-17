@@ -7,6 +7,7 @@
     "checkpoints": "..\\..\\.venv\\Scripts\\python.exe check_checkpoints.py",
     "setup": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\setup.ps1",
     "setup:live": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\setup.ps1 -Live",
-    "streamlit": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\run_streamlit.ps1"
+    "streamlit": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\run_streamlit.ps1",
+    "test": "python tests_smoke.py && python tests_resolver.py && python tests_summary.py && python tests_tracking.py"
   }
 }

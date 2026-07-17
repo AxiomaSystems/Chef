@@ -15,15 +15,15 @@ Root commands will select packages by capability instead of recursively executin
 | `pnpm typecheck` | `@cart/shared`, `api`, `web`, `mobile` | Type-check TypeScript packages; never invoke TypeScript in `vision-lab`. |
 | `pnpm lint` | `api`, `web`, `mobile` | Run the canonical lint check without applying fixes. |
 | `pnpm lint:fix` | `api`, `web`, `mobile` | Apply explicitly requested lint fixes; never called by verification. |
-| `pnpm format:check` | repository files | Check formatting without writing changes. |
-| `pnpm verify` | build, test, typecheck, lint, and format check participants | Standard pre-PR verification; excludes `lint:fix` and `test:e2e`. |
+| `pnpm format:check` | repository files | Audit legacy formatting without writing changes; kept outside standard verification. |
+| `pnpm verify` | build, test, typecheck, and lint participants | Standard pre-PR verification; excludes formatting debt, `lint:fix`, and `test:e2e`. |
 | `pnpm test:e2e` | `api` | Run database-backed API E2E tests separately from standard verification. |
 
 Packages without an applicable check will be omitted rather than given placeholder or no-op scripts. `pnpm test:e2e` will document its local Postgres, migration, seed, and test-environment prerequisites and remain outside `pnpm verify`. Provider-dependent and slow tests also remain separate from the standard local verification path.
 
 ## Package scripts and CI
 
-- The API will make `lint` non-mutating, move fix behavior to explicit `lint:fix`, and expose deterministic CI unit-test semantics.
+- The API will make `lint` non-mutating, move fix behavior to explicit `lint:fix`, baseline existing violations through reviewed ESLint bulk suppressions, and expose deterministic CI unit-test semantics.
 - Web and mobile will expose explicit type-check and lint-check scripts.
 - Shared contracts will use build/type-check validation and will no longer contain a failing test placeholder.
 - Vision will expose one package script for its four existing fast smoke tests; no TypeScript script will be added.
@@ -42,8 +42,9 @@ The completed change must run, from the repository root:
 2. `pnpm test`
 3. `pnpm typecheck`
 4. `pnpm lint`
-5. `pnpm format:check`
-6. `pnpm verify`
+5. `pnpm verify`
+
+`pnpm format:check` will also be executed and reported, but existing repository-wide formatting debt will not make the standard pre-PR gate permanently red.
 
 Before and after these commands, the implementation will capture `git status --short` in the issue worktree and confirm validation introduced no tracked source or configuration changes. All validation runs only in `C:\Users\akuma\repos\cart-generator-issue-84`. The original worktree's existing `apps/web/public/manifest.json` and `apps/web/public/site.webmanifest` changes will be compared before and after and preserved unchanged.
 

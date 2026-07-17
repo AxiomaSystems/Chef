@@ -20,16 +20,10 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: Run vision smoke test
-        run: python apps/vision-lab/tests_smoke.py
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
-      - name: Run vision resolver smoke test
-        run: python apps/vision-lab/tests_resolver.py
-
-      - name: Run vision summary smoke test
-        run: python apps/vision-lab/tests_summary.py
-
-      - name: Run vision tracking smoke test
-        run: python apps/vision-lab/tests_tracking.py
+      - name: Run vision smoke tests
+        run: pnpm --filter vision-lab test
