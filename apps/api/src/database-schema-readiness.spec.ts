@@ -46,7 +46,7 @@ describe('database schema readiness', () => {
   it('derives the expected version from the latest repository migration', () => {
     expect(
       getExpectedMigrationVersion([resolve(__dirname, '../prisma/migrations')]),
-    ).toBe(current);
+    ).toBe(futureExpand);
   });
 
   it('hashes every packaged migration and preserves checksum parity', () => {
@@ -55,7 +55,7 @@ describe('database schema readiness', () => {
     ]);
 
     expect(packaged.length).toBeGreaterThan(1);
-    expect(packaged.at(-1)?.name).toBe(current);
+    expect(packaged.at(-1)?.name).toBe(futureExpand);
     expect(packaged.at(-1)?.checksum).toMatch(/^[a-f0-9]{64}$/);
     expect(
       evaluateSchemaCompatibility({
@@ -65,7 +65,7 @@ describe('database schema readiness', () => {
           finished: true,
           rolledBack: false,
         })),
-        minimumCompatible: current,
+        minimumCompatible: futureExpand,
       }),
     ).toBe('ready');
   });
@@ -76,7 +76,7 @@ describe('database schema readiness', () => {
     expect(
       evaluateSchemaCompatibility({
         ...history,
-        minimumCompatible: current,
+        minimumCompatible: futureExpand,
         knownFingerprints: KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
       }),
     ).toBe('ready');
@@ -95,7 +95,7 @@ describe('database schema readiness', () => {
           finished: true,
           rolledBack: false,
         })),
-        minimumCompatible: current,
+        minimumCompatible: futureExpand,
         knownFingerprints: KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
       }),
     ).toBe('ready');

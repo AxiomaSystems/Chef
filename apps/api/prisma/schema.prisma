@@ -9,6 +9,12 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model DatabaseReleaseCompatibility {
+  id                  Int      @id
+  minimumApiMigration String
+  updatedAt           DateTime @updatedAt
+}
+
 enum UserRole {
   admin
   user

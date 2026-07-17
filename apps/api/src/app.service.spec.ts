@@ -24,6 +24,8 @@ import type { PrismaService } from './prisma/prisma.service';
 describe('AppService', () => {
   const queryRaw = jest.fn();
   const expectedMigration = '20260628120000_add_recipe_execution_metadata';
+  const compatibilityMigration =
+    '20260717170000_add_database_release_compatibility';
   const checksum = 'a'.repeat(64);
   const mockGetKnownActiveProductionMigrationFingerprints = jest.mocked(
     getKnownActiveProductionMigrationFingerprints,
@@ -124,7 +126,7 @@ describe('AppService', () => {
     });
   });
 
-  it('reports ready for the exact known active production history', async () => {
+  it('reports the new API ready with the compatibility migration applied', async () => {
     const history = knownProductionMigrationRows();
     mockGetKnownActiveProductionMigrationFingerprints.mockReturnValueOnce(
       KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
@@ -133,7 +135,10 @@ describe('AppService', () => {
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
       .mockResolvedValueOnce(history.rows)
-      .mockResolvedValueOnce([{ relation_name: null }]);
+      .mockResolvedValueOnce([
+        { relation_name: '"DatabaseReleaseCompatibility"' },
+      ])
+      .mockResolvedValueOnce([{ minimumApiMigration: expectedMigration }]);
 
     const readiness = await service.getReadiness();
 
@@ -143,8 +148,8 @@ describe('AppService', () => {
         status: 'ready',
         schema: {
           status: 'ready',
-          expected: expectedMigration,
-          applied: expectedMigration,
+          expected: compatibilityMigration,
+          applied: compatibilityMigration,
           minimum_compatible: expectedMigration,
         },
       },
@@ -303,7 +308,6 @@ describe('AppService', () => {
   });
 
   it('keeps a previous API ready against a compatible database-ahead history', async () => {
-    const futureMigration = '20260717170000_add_database_release_compatibility';
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
       .mockResolvedValueOnce([
@@ -314,7 +318,7 @@ describe('AppService', () => {
           rolled_back_at: null,
         },
         {
-          migration_name: futureMigration,
+          migration_name: compatibilityMigration,
           checksum: 'b'.repeat(64),
           finished_at: new Date(),
           rolled_back_at: null,
@@ -334,8 +338,46 @@ describe('AppService', () => {
         schema: {
           status: 'ahead_compatible',
           expected: expectedMigration,
-          applied: futureMigration,
+          applied: compatibilityMigration,
           minimum_compatible: expectedMigration,
+        },
+      },
+    });
+  });
+
+  it('rejects a previous API after the compatibility floor is raised', async () => {
+    queryRaw
+      .mockResolvedValueOnce([{ '?column?': 1 }])
+      .mockResolvedValueOnce([
+        {
+          migration_name: expectedMigration,
+          checksum,
+          finished_at: new Date(),
+          rolled_back_at: null,
+        },
+        {
+          migration_name: compatibilityMigration,
+          checksum: 'b'.repeat(64),
+          finished_at: new Date(),
+          rolled_back_at: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        { relation_name: '"DatabaseReleaseCompatibility"' },
+      ])
+      .mockResolvedValueOnce([{ minimumApiMigration: compatibilityMigration }]);
+
+    const readiness = await service.getReadiness();
+
+    expect(readiness).toMatchObject({
+      status: 'not_ready',
+      database: {
+        status: 'not_ready',
+        schema: {
+          status: 'incompatible',
+          expected: expectedMigration,
+          applied: compatibilityMigration,
+          minimum_compatible: compatibilityMigration,
         },
       },
     });

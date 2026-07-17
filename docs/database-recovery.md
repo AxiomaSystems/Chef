@@ -72,14 +72,19 @@ checksums; inspecting only the latest successful row is insufficient.
 
 Introducing compatibility metadata requires two separate releases:
 
-1. **Phase A — reader first:** deploy the compatibility-aware API with no
-   compatibility-table migration. While the table is absent, readiness uses
-   that API's packaged expected migration as the minimum compatible migration.
-2. Smoke Phase A in the hosted environment and confirm its revision, complete
-   migration history/checksums, and normal critical reads and writes.
-3. **Phase B — table second:** only a later release may add and initialize the
-   compatibility table. The already-serving Phase A API detects the table,
-   reads its declared minimum, and accepts the compatible database-ahead state.
+1. **Phase A — reader first (complete):** main revision `4a5ffcc` deployed the
+   compatibility-aware API with no compatibility-table migration. While the
+   table is absent, readiness uses that API's packaged expected migration as
+   the minimum compatible migration.
+2. Phase A was smoked successfully in the hosted environment before Phase B;
+   its revision, migration history/checksums, readiness, and critical reads and
+   writes were verified.
+3. **Phase B — table second:** migration
+   `20260717170000_add_database_release_compatibility` adds the singleton table
+   and declares `20260628120000_add_recipe_execution_metadata` as the minimum
+   compatible API migration. The already-serving Phase A API can detect this
+   floor and accept the compatible database-ahead state during rollout or an
+   application rollback.
 
 The compatibility-table migration must never ship in the same release that
 first teaches the API to read it. Otherwise pre-deploy can advance the database
