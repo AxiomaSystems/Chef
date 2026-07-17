@@ -20,8 +20,9 @@ the private beta, the database recovery objectives are:
 - Production remains on Supabase Free as its primary PostgreSQL database.
 - The existing production Railway PostgreSQL service is the independent
   recovery destination. It is not part of the normal application request path.
-- A daily Railway cron job creates a logical dump of production and restores it
-  into a newly named database on the recovery PostgreSQL service.
+- A nightly Railway cron job creates a logical dump of production and restores
+  it into a newly named database on the recovery PostgreSQL service. A second
+  12-hour safety run preserves recovery margin if the nightly run fails.
 - The previous verified recovery database remains available until the new copy
   passes validation. A failed refresh must never destroy the last known-good
   copy.
@@ -104,14 +105,13 @@ it.
 
 ## Backup refresh contract
 
-The backup job runs every 12 hours so one failed attempt can be retried before
-the 24-hour RPO expires. It uses a single-job advisory lock and one bounded
-retry within 30 minutes; overlapping runs exit without changing either the
-source or last verified recovery copy. The backup owner is alerted when the
-last verified copy reaches 18 hours, escalation begins at 23 hours, and a copy
-older than 24 hours is declared an RPO breach. During a breach, destructive
-migrations and data-changing releases are paused until a fresh copy is
-verified.
+The primary backup runs nightly, with a scheduled safety run 12 hours later.
+Each scheduled run has one bounded retry within 30 minutes. A single-job
+advisory lock makes overlapping runs exit without changing either the source or
+last verified recovery copy. The backup owner is alerted when the last verified
+copy reaches 18 hours, escalation begins at 23 hours, and a copy older than 24
+hours is declared an RPO breach. During a breach, destructive migrations and
+data-changing releases are paused until a fresh copy is verified.
 
 Each run must:
 
@@ -135,10 +135,13 @@ Each run must:
    volume snapshots, and record every deletion without row data or secrets.
 
 The job exits non-zero on dump, restore, or validation failure. A failed partial
-restore is quarantined, never marked verified, and removed after diagnostic
-metadata is captured and the last verified copy is confirmed. Capacity checks
-must reserve space for the current verified copy, the incoming restore, and
-one previous verified copy. The job must not modify the Supabase source.
+restore is quarantined and never marked verified. The named backup-maintenance
+automation identity may remove it only under the same audited, pre-approved
+retention policy, after diagnostic metadata is captured and the last verified
+copy is confirmed. Any cleanup outside that policy requires operator approval.
+Capacity checks must reserve space for the current verified copy, the incoming
+restore, and one previous verified copy. The job must not modify the Supabase
+source.
 
 The source credential is least-privilege and read-only where PostgreSQL dump
 requirements allow. The recovery credential may create and restore isolated
@@ -195,8 +198,11 @@ Railway-scoped secrets.
 ## Full recovery cutover
 
 1. Declare the incident, stop non-essential writes, and start the RTO clock.
-2. Select the newest verified Railway recovery database within the RPO and
-   create fresh, scoped runtime and migration credentials.
+2. Select the newest verified Railway recovery database and create fresh,
+   scoped runtime and migration credentials. Prefer a copy within the RPO. If
+   none exists, the incident owner may approve the newest stale verified copy,
+   record the RPO breach and expected data-loss window, and continue toward the
+   RTO rather than leaving recovery without an executable path.
 3. Point the production API database variables to the recovery database and
    deploy the known-compatible API revision. Do not reuse the backup-job
    credential.
