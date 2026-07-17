@@ -28,6 +28,7 @@ const VOICE_CAPABILITY_KEYS = [
   "textToSpeech",
 ];
 const MIGRATION_VERSION_PATTERN = /^\d{14}_[a-z0-9_]+$/;
+const HOSTED_REVISION_PATTERN = /^[a-f0-9]{40}$/i;
 const ENVIRONMENT_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 
 function configuredDeploymentUrl(env, key) {
@@ -175,16 +176,37 @@ function assertApiDatabase(database) {
 
   const schema = database.schema;
   if (
-    !hasExactKeys(schema, ["status", "expected", "applied"]) ||
-    schema.status !== "ready" ||
+    !hasExactKeys(schema, [
+      "status",
+      "expected",
+      "applied",
+      "minimum_compatible",
+    ]) ||
+    !new Set(["ready", "ahead_compatible"]).has(schema.status) ||
     typeof schema.expected !== "string" ||
     typeof schema.applied !== "string" ||
+    typeof schema.minimum_compatible !== "string" ||
     !MIGRATION_VERSION_PATTERN.test(schema.expected) ||
-    schema.applied !== schema.expected
+    !MIGRATION_VERSION_PATTERN.test(schema.applied) ||
+    !MIGRATION_VERSION_PATTERN.test(schema.minimum_compatible) ||
+    (schema.status === "ready" && schema.applied !== schema.expected) ||
+    (schema.status === "ahead_compatible" &&
+      schema.applied <= schema.expected) ||
+    schema.expected < schema.minimum_compatible
   ) {
     throw new Error(
       "[READINESS] API database schema must be ready and current.",
     );
+  }
+}
+
+function assertApiRelease(release) {
+  if (
+    !hasExactKeys(release, ["revision"]) ||
+    typeof release.revision !== "string" ||
+    !HOSTED_REVISION_PATTERN.test(release.revision)
+  ) {
+    throw new Error("[READINESS] API release revision is invalid.");
   }
 }
 
@@ -295,6 +317,8 @@ export function assertFeatureReadinessPayloads(
   if (apiReadiness.service !== "api") {
     throw new Error("[READINESS] API service must be api.");
   }
+
+  assertApiRelease(apiReadiness.release);
 
   if (apiReadiness.environment !== expectedEnvironment) {
     throw new Error(

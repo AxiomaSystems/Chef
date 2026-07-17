@@ -12,7 +12,7 @@ import { AppModule } from './../src/app.module';
 import { configureApp, REQUEST_ID_HEADER } from './../src/app.setup';
 import { AuthTokenService } from './../src/auth/auth-token.service';
 import { CartService } from './../src/cart/cart.service';
-import { getExpectedMigrationVersion } from './../src/database-schema-readiness';
+import { getPackagedMigrations } from './../src/database-schema-readiness';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { RecipeService } from './../src/recipe/recipe.service';
 import { RetailersService } from './../src/retailers/retailers.service';
@@ -138,11 +138,30 @@ describe('AppController (e2e)', () => {
     prismaServiceMock = {
       $connect: jest.fn(),
       enableShutdownHooks: jest.fn(),
-      $queryRaw: jest.fn(async (query: TemplateStringsArray) =>
-        query.join(' ').includes('_prisma_migrations')
-          ? [{ migration_name: getExpectedMigrationVersion() }]
-          : [{ '?column?': 1 }],
-      ),
+      $queryRaw: jest.fn(async (query: TemplateStringsArray) => {
+        const sql = query.join(' ');
+        const packaged = getPackagedMigrations();
+
+        if (sql.includes('_prisma_migrations')) {
+          return packaged.map((migration) => ({
+            migration_name: migration.name,
+            checksum: migration.checksum,
+            finished_at: new Date(),
+            rolled_back_at: null,
+          }));
+        }
+
+        if (sql.includes('DatabaseReleaseCompatibility')) {
+          return [
+            {
+              minimumApiMigration:
+                '20260628120000_add_recipe_execution_metadata',
+            },
+          ];
+        }
+
+        return [{ '?column?': 1 }];
+      }),
       user: {
         findUnique: jest.fn(
           async ({ where }: { where: { id?: string; email?: string } }) => ({
@@ -205,11 +224,14 @@ describe('AppController (e2e)', () => {
         expect(response.body.status).toBe('ready');
         expect(response.body.service).toBe('api');
         expect(response.body.environment).toBe('local');
+        expect(response.body.release).toEqual({ revision: 'unknown' });
         expect(response.body.database.status).toBe('ready');
+        const expected = getPackagedMigrations().at(-1)?.name;
         expect(response.body.database.schema).toMatchObject({
           status: 'ready',
-          expected: getExpectedMigrationVersion(),
-          applied: getExpectedMigrationVersion(),
+          expected,
+          applied: expected,
+          minimum_compatible: '20260628120000_add_recipe_execution_metadata',
         });
         expect(response.body.providers).toBeDefined();
         expect(response.body.providers.walmart).toEqual({

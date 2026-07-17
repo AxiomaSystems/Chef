@@ -8,20 +8,19 @@ jest.mock('./database-schema-readiness', () => {
 
   return {
     ...actual,
-    getExpectedMigrationVersion: jest.fn(),
+    getPackagedMigrations: jest.fn(),
   };
 });
 
 import { AppService } from './app.service';
-import { getExpectedMigrationVersion } from './database-schema-readiness';
+import { getPackagedMigrations } from './database-schema-readiness';
 import type { PrismaService } from './prisma/prisma.service';
 
 describe('AppService', () => {
   const queryRaw = jest.fn();
   const expectedMigration = '20260628120000_add_recipe_execution_metadata';
-  const mockGetExpectedMigrationVersion = jest.mocked(
-    getExpectedMigrationVersion,
-  );
+  const checksum = 'a'.repeat(64);
+  const mockGetPackagedMigrations = jest.mocked(getPackagedMigrations);
   const service = new AppService({
     $queryRaw: queryRaw,
   } as unknown as PrismaService);
@@ -29,13 +28,16 @@ describe('AppService', () => {
 
   beforeEach(() => {
     queryRaw.mockReset();
-    mockGetExpectedMigrationVersion.mockReset();
-    mockGetExpectedMigrationVersion.mockReturnValue(expectedMigration);
+    mockGetPackagedMigrations.mockReset();
+    mockGetPackagedMigrations.mockReturnValue([
+      { name: expectedMigration, checksum },
+    ]);
     process.env = {
       ...environment,
       CHEF_LLM_PROVIDER: 'openai',
       OPENAI_API_KEY: 'test-openai-key',
       VISION_API_BASE_URL: 'https://vision.example.com',
+      RAILWAY_GIT_COMMIT_SHA: '1'.repeat(40),
     };
   });
 
@@ -46,18 +48,28 @@ describe('AppService', () => {
   it('adds AI and Vision configuration to a ready database response', async () => {
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
-      .mockResolvedValueOnce([{ migration_name: expectedMigration }]);
+      .mockResolvedValueOnce([
+        {
+          migration_name: expectedMigration,
+          checksum,
+          finished_at: new Date(),
+          rolled_back_at: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ minimumApiMigration: expectedMigration }]);
 
     const readiness = await service.getReadiness();
 
     expect(readiness).toMatchObject({
       status: 'ready',
+      release: { revision: '1'.repeat(40) },
       database: {
         status: 'ready',
         schema: {
           status: 'ready',
           expected: expectedMigration,
           applied: expectedMigration,
+          minimum_compatible: expectedMigration,
         },
       },
       features: {
@@ -91,6 +103,7 @@ describe('AppService', () => {
           status: 'unavailable',
           expected: expectedMigration,
           applied: null,
+          minimum_compatible: null,
         },
       },
       features: {
@@ -105,43 +118,59 @@ describe('AppService', () => {
     expect(readiness.providers).toEqual(expect.any(Object));
   });
 
-  it('reports a schema mismatch as not ready without exposing SQL errors', async () => {
+  it('reports a database-behind schema as not ready', async () => {
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
-      .mockResolvedValueOnce([
-        { migration_name: '20260627124500_backfill_recipe_profiles' },
-      ]);
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ minimumApiMigration: expectedMigration }]);
 
     const readiness = await service.getReadiness();
 
     expect(readiness).toMatchObject({
       status: 'not_ready',
       database: {
-        status: 'ready',
+        status: 'not_ready',
         schema: {
-          status: 'mismatch',
+          status: 'behind',
           expected: expectedMigration,
-          applied: '20260627124500_backfill_recipe_profiles',
+          applied: null,
+          minimum_compatible: expectedMigration,
         },
       },
     });
   });
 
-  it('reports a missing applied migration as a schema mismatch', async () => {
+  it('keeps a previous API ready against a compatible database-ahead history', async () => {
+    const futureMigration = '20260717170000_add_database_release_compatibility';
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([
+        {
+          migration_name: expectedMigration,
+          checksum,
+          finished_at: new Date(),
+          rolled_back_at: null,
+        },
+        {
+          migration_name: futureMigration,
+          checksum: 'b'.repeat(64),
+          finished_at: new Date(),
+          rolled_back_at: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ minimumApiMigration: expectedMigration }]);
 
     const readiness = await service.getReadiness();
 
     expect(readiness).toMatchObject({
-      status: 'not_ready',
+      status: 'ready',
       database: {
         status: 'ready',
         schema: {
-          status: 'mismatch',
+          status: 'ahead_compatible',
           expected: expectedMigration,
-          applied: null,
+          applied: futureMigration,
+          minimum_compatible: expectedMigration,
         },
       },
     });
@@ -149,7 +178,7 @@ describe('AppService', () => {
 
   it('fails closed when the packaged migration directory is unavailable', async () => {
     queryRaw.mockResolvedValueOnce([{ '?column?': 1 }]);
-    mockGetExpectedMigrationVersion.mockImplementationOnce(() => {
+    mockGetPackagedMigrations.mockImplementationOnce(() => {
       throw new Error('migration files unavailable');
     });
 
@@ -158,11 +187,12 @@ describe('AppService', () => {
     expect(readiness).toMatchObject({
       status: 'not_ready',
       database: {
-        status: 'ready',
+        status: 'not_ready',
         schema: {
           status: 'unavailable',
           expected: null,
           applied: null,
+          minimum_compatible: null,
         },
       },
     });
@@ -179,11 +209,12 @@ describe('AppService', () => {
     expect(readiness).toMatchObject({
       status: 'not_ready',
       database: {
-        status: 'ready',
+        status: 'not_ready',
         schema: {
           status: 'unavailable',
           expected: expectedMigration,
           applied: null,
+          minimum_compatible: null,
         },
       },
     });

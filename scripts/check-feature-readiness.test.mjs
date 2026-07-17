@@ -14,17 +14,20 @@ const readinessEnvironment = {
 };
 
 const schemaVersion = "20260628120000_add_recipe_execution_metadata";
+const revision = "1".repeat(40);
 
 const readyApi = {
   status: "ready",
   service: "api",
   environment: "staging",
+  release: { revision },
   database: {
     status: "ready",
     schema: {
       status: "ready",
       expected: schemaVersion,
       applied: schemaVersion,
+      minimum_compatible: schemaVersion,
     },
   },
   features: {
@@ -109,6 +112,26 @@ test("accepts a strict staging readiness contract", async () => {
 test("accepts production AI and configured providers only in production mode", () => {
   assert.doesNotThrow(() =>
     assertFeatureReadinessPayloads(productionApi, productionWeb, "production"),
+  );
+});
+
+test("accepts a compatible database-ahead schema signal", () => {
+  assert.doesNotThrow(() =>
+    assertFeatureReadinessPayloads(
+      {
+        ...readyApi,
+        database: {
+          status: "ready",
+          schema: {
+            ...readyApi.database.schema,
+            status: "ahead_compatible",
+            applied: "20260717170000_add_database_release_compatibility",
+          },
+        },
+      },
+      readyWeb,
+      "staging",
+    ),
   );
 });
 
@@ -268,6 +291,7 @@ test("requires a safe, current database schema signal", () => {
         status: "ready",
         expected: schemaVersion,
         applied: "20260627124500_backfill_recipe_profiles",
+        minimum_compatible: schemaVersion,
       },
     },
     {
@@ -276,6 +300,7 @@ test("requires a safe, current database schema signal", () => {
         status: "ready",
         expected: "unsafe schema value",
         applied: "unsafe schema value",
+        minimum_compatible: "unsafe schema value",
       },
     },
   ]) {
@@ -287,6 +312,28 @@ test("requires a safe, current database schema signal", () => {
           "staging",
         ),
       /API database schema must be ready and current/,
+    );
+  }
+});
+
+test("requires a safe hosted release revision and compatibility floor", () => {
+  for (const apiReadiness of [
+    { ...readyApi, release: undefined },
+    { ...readyApi, release: { revision: "short" } },
+    {
+      ...readyApi,
+      database: {
+        status: "ready",
+        schema: {
+          ...readyApi.database.schema,
+          minimum_compatible: "unsafe schema value",
+        },
+      },
+    },
+  ]) {
+    assert.throws(
+      () => assertFeatureReadinessPayloads(apiReadiness, readyWeb, "staging"),
+      /API (release revision|database schema)/,
     );
   }
 });
@@ -546,6 +593,7 @@ test("rejects invalid readiness without logging raw payload values", () => {
               status: "ready",
               expected: secretLikeValue,
               applied: secretLikeValue,
+              minimum_compatible: secretLikeValue,
             },
           },
         },

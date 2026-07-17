@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { Retailer } from '@cart/shared';
 import {
-  getExpectedMigrationVersion,
+  type AppliedMigration,
+  evaluateSchemaCompatibility,
+  getPackagedMigrations,
   isMigrationVersionName,
+  type SchemaCompatibilityStatus,
 } from './database-schema-readiness';
 import { getApiFeatureReadiness } from './environment-readiness';
 import { getProviderReadiness } from './providers/provider-readiness';
@@ -26,13 +29,18 @@ export class AppService {
   async getReadiness() {
     const providerStatuses = this.getProviderStatuses();
     const features = getApiFeatureReadiness(process.env);
-    let expectedMigration: string | null = null;
+    const revision =
+      process.env.RAILWAY_GIT_COMMIT_SHA ??
+      process.env.GIT_COMMIT_SHA ??
+      'unknown';
+    let packagedMigrations: ReturnType<typeof getPackagedMigrations> = [];
 
     try {
-      expectedMigration = getExpectedMigrationVersion();
+      packagedMigrations = getPackagedMigrations();
     } catch {
       // Schema readiness fails closed below without exposing filesystem details.
     }
+    const expectedMigration = packagedMigrations.at(-1)?.name ?? null;
 
     try {
       await this.prisma.$queryRaw`SELECT 1`;
@@ -43,83 +51,142 @@ export class AppService {
         schemaStatus: 'unavailable',
         expectedMigration,
         appliedMigration: null,
+        minimumCompatible: null,
         providerStatuses,
         features,
+        revision,
       });
     }
 
     if (!expectedMigration) {
       return this.readinessResponse({
         status: 'not_ready',
-        databaseStatus: 'ready',
+        databaseStatus: 'not_ready',
         schemaStatus: 'unavailable',
         expectedMigration: null,
         appliedMigration: null,
+        minimumCompatible: null,
         providerStatuses,
         features,
+        revision,
       });
     }
 
-    let appliedMigration: string | null;
+    let appliedMigrations: AppliedMigration[];
 
     try {
       const migrations = await this.prisma.$queryRaw<
-        Array<{ migration_name: unknown }>
+        Array<{
+          migration_name: unknown;
+          checksum: unknown;
+          finished_at: unknown;
+          rolled_back_at: unknown;
+        }>
       >`
-        SELECT migration_name
+        SELECT migration_name, checksum, finished_at, rolled_back_at
         FROM "_prisma_migrations"
-        WHERE finished_at IS NOT NULL
-          AND rolled_back_at IS NULL
-        ORDER BY finished_at DESC, id DESC
-        LIMIT 1
+        ORDER BY started_at ASC, id ASC
       `;
-      appliedMigration = isMigrationVersionName(migrations[0]?.migration_name)
-        ? migrations[0].migration_name
-        : null;
+      appliedMigrations = migrations.map((migration) => ({
+        name:
+          typeof migration.migration_name === 'string'
+            ? migration.migration_name
+            : '',
+        checksum:
+          typeof migration.checksum === 'string' ? migration.checksum : '',
+        finished: migration.finished_at != null,
+        rolledBack: migration.rolled_back_at != null,
+      }));
     } catch {
       return this.readinessResponse({
         status: 'not_ready',
-        databaseStatus: 'ready',
+        databaseStatus: 'not_ready',
         schemaStatus: 'unavailable',
         expectedMigration,
         appliedMigration: null,
+        minimumCompatible: null,
         providerStatuses,
         features,
+        revision,
       });
     }
 
-    const schemaStatus =
-      appliedMigration === expectedMigration ? 'ready' : 'mismatch';
+    const appliedMigration =
+      [...appliedMigrations]
+        .reverse()
+        .find(
+          (migration) =>
+            migration.finished &&
+            !migration.rolledBack &&
+            isMigrationVersionName(migration.name),
+        )?.name ?? null;
+
+    let minimumCompatible: string | null = null;
+    try {
+      const compatibility = await this.prisma.$queryRaw<
+        Array<{ minimumApiMigration: unknown }>
+      >`
+        SELECT "minimumApiMigration"
+        FROM "DatabaseReleaseCompatibility"
+        WHERE id = 1
+        LIMIT 1
+      `;
+      minimumCompatible = isMigrationVersionName(
+        compatibility[0]?.minimumApiMigration,
+      )
+        ? compatibility[0].minimumApiMigration
+        : null;
+    } catch {
+      // Missing or inaccessible compatibility metadata fails closed below.
+    }
+
+    const schemaStatus = minimumCompatible
+      ? evaluateSchemaCompatibility({
+          packaged: packagedMigrations,
+          applied: appliedMigrations,
+          minimumCompatible,
+        })
+      : 'unavailable';
+    const schemaReady =
+      schemaStatus === 'ready' || schemaStatus === 'ahead_compatible';
 
     return this.readinessResponse({
-      status: schemaStatus === 'ready' ? 'ready' : 'not_ready',
-      databaseStatus: 'ready',
+      status: schemaReady ? 'ready' : 'not_ready',
+      databaseStatus: schemaReady ? 'ready' : 'not_ready',
       schemaStatus,
       expectedMigration,
       appliedMigration,
+      minimumCompatible,
       providerStatuses,
       features,
+      revision,
     });
   }
 
   private readinessResponse(input: {
     status: 'ready' | 'not_ready';
     databaseStatus: 'ready' | 'not_ready';
-    schemaStatus: 'ready' | 'mismatch' | 'unavailable';
+    schemaStatus: SchemaCompatibilityStatus | 'unavailable';
     expectedMigration: string | null;
     appliedMigration: string | null;
+    minimumCompatible: string | null;
     providerStatuses: ReturnType<AppService['getProviderStatuses']>;
     features: ReturnType<typeof getApiFeatureReadiness>;
+    revision: string;
   }) {
     return {
       status: input.status,
       service: 'api',
+      release: {
+        revision: input.revision,
+      },
       database: {
         status: input.databaseStatus,
         schema: {
           status: input.schemaStatus,
           expected: input.expectedMigration,
           applied: input.appliedMigration,
+          minimum_compatible: input.minimumCompatible,
         },
       },
       providers: input.providerStatuses,
