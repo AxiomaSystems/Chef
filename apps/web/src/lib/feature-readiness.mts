@@ -26,22 +26,25 @@ function isConfigured(value: string | undefined) {
   return Boolean(value?.trim());
 }
 
-function isProduction(env: NodeJS.ProcessEnv) {
-  return (
-    env.NODE_ENV?.trim().toLowerCase() === "production" ||
-    env.VERCEL_ENV?.trim().toLowerCase() === "production"
-  );
-}
-
-function getEnvironmentName(env: NodeJS.ProcessEnv) {
+function getHostedEnvironmentName(env: NodeJS.ProcessEnv) {
   const vercelEnvironment = env.VERCEL_ENV?.trim().toLowerCase();
   if (vercelEnvironment) return vercelEnvironment;
 
   const deploymentEnvironment =
     env.DEPLOYMENT_ENVIRONMENT?.trim().toLowerCase();
-  if (deploymentEnvironment) return deploymentEnvironment;
+  if (deploymentEnvironment && deploymentEnvironment !== "local") {
+    return deploymentEnvironment;
+  }
 
-  return env.NODE_ENV?.trim().toLowerCase() || "local";
+  return env.VERCEL === "1" ? "vercel" : undefined;
+}
+
+function isHostedDeployment(env: NodeJS.ProcessEnv) {
+  return getHostedEnvironmentName(env) !== undefined;
+}
+
+function getEnvironmentName(env: NodeJS.ProcessEnv) {
+  return getHostedEnvironmentName(env) ?? "local";
 }
 
 function isIpv4Loopback(hostname: string) {
@@ -86,7 +89,7 @@ function isIpv6Loopback(hostname: string) {
   return isIpv6Loopback || isIpv4MappedLoopback;
 }
 
-function isProductionApiUrlSafe(apiBaseUrl: string) {
+function isHostedApiUrlSafe(apiBaseUrl: string) {
   const url = new URL(apiBaseUrl);
   const hostname = url.hostname.toLowerCase().replace(/\.+$/, "");
   const isLocalhost =
@@ -105,8 +108,8 @@ function getApiReadiness(env: NodeJS.ProcessEnv): WebCapabilityReadiness {
 
     return {
       status:
-        isProduction(env) &&
-        (!isConfigured(env.API_BASE_URL) || !isProductionApiUrlSafe(apiBaseUrl))
+        isHostedDeployment(env) &&
+        (!isConfigured(env.API_BASE_URL) || !isHostedApiUrlSafe(apiBaseUrl))
           ? "misconfigured"
           : "ready",
       environment: ["API_BASE_URL"],
@@ -175,8 +178,8 @@ export function validateWebEnvironment(env: NodeJS.ProcessEnv = process.env) {
   const errors: string[] = [];
   let apiBaseUrl: string | undefined;
 
-  if (isProduction(env) && !isConfigured(env.API_BASE_URL)) {
-    errors.push("[ENV] API_BASE_URL is required in production.");
+  if (isHostedDeployment(env) && !isConfigured(env.API_BASE_URL)) {
+    errors.push("[ENV] API_BASE_URL is required in hosted deployments.");
   }
 
   try {
@@ -187,13 +190,18 @@ export function validateWebEnvironment(env: NodeJS.ProcessEnv = process.env) {
     );
   }
 
-  if (isProduction(env) && apiBaseUrl && !isProductionApiUrlSafe(apiBaseUrl)) {
+  if (
+    isHostedDeployment(env) &&
+    isConfigured(env.API_BASE_URL) &&
+    apiBaseUrl &&
+    !isHostedApiUrlSafe(apiBaseUrl)
+  ) {
     errors.push(
-      "[ENV] API_BASE_URL must use HTTPS and must not target localhost in production.",
+      "[ENV] API_BASE_URL must use HTTPS and must not target loopback addresses in hosted deployments.",
     );
   }
 
-  if (isProduction(env)) {
+  if (isHostedDeployment(env)) {
     const { voice } = getWebFeatureReadiness(env);
 
     if (voice.capabilities.conversationalAgent.status === "misconfigured") {

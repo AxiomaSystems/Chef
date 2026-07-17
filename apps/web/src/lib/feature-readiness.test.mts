@@ -5,16 +5,30 @@ import {
   validateWebEnvironment,
 } from "./feature-readiness.mts";
 
-test("requires an explicit API URL for production", () => {
+test("allows a local optimized build to use the local API fallback", () => {
+  const environment = { NODE_ENV: "production" as const };
+
+  assert.doesNotThrow(() => validateWebEnvironment(environment));
+  assert.equal(getWebFeatureReadiness(environment).environment.name, "local");
+  assert.equal(getWebFeatureReadiness(environment).api.status, "ready");
+});
+
+test("requires an explicit API URL for an explicitly identified production", () => {
   assert.throws(
-    () => validateWebEnvironment({ NODE_ENV: "production" }),
-    /API_BASE_URL is required in production/,
+    () =>
+      validateWebEnvironment({
+        NODE_ENV: "production",
+        DEPLOYMENT_ENVIRONMENT: "production",
+      }),
+    /API_BASE_URL is required/,
   );
 });
 
 test("rejects an HTTP API URL for production", () => {
   const environment = {
     NODE_ENV: "production" as const,
+    VERCEL: "1",
+    VERCEL_ENV: "production",
     API_BASE_URL: "http://api.example.com/api/v1",
   };
 
@@ -31,6 +45,8 @@ for (const apiBaseUrl of [
   test(`rejects production loopback API URL ${apiBaseUrl}`, () => {
     const environment = {
       NODE_ENV: "production" as const,
+      VERCEL: "1",
+      VERCEL_ENV: "production",
       API_BASE_URL: apiBaseUrl,
     };
 
@@ -74,6 +90,32 @@ test("reports a complete conversational ElevenLabs bundle as ready", () => {
   });
 });
 
+test("validates enabled voice bundles in Vercel Preview", () => {
+  assert.throws(
+    () =>
+      validateWebEnvironment({
+        NODE_ENV: "production",
+        VERCEL: "1",
+        VERCEL_ENV: "preview",
+        API_BASE_URL: "https://api-staging.example.com/api/v1",
+        PRODUCTION_API_BASE_URL: "https://api.example.com/api/v1",
+        ELEVENLABS_AGENT_ID: "server-agent-id",
+      }),
+    /NEXT_PUBLIC_ELEVENLABS_AGENT_ID/,
+  );
+});
+
+test("requires an API URL in an explicitly identified staging deployment", () => {
+  assert.throws(
+    () =>
+      validateWebEnvironment({
+        NODE_ENV: "production",
+        DEPLOYMENT_ENVIRONMENT: "staging",
+      }),
+    /API_BASE_URL is required/,
+  );
+});
+
 test("reports partial conversational voice configuration as misconfigured", () => {
   const readiness = getWebFeatureReadiness({
     NODE_ENV: "test",
@@ -91,6 +133,7 @@ test("reports partial conversational voice configuration as misconfigured", () =
     () =>
       validateWebEnvironment({
         NODE_ENV: "production",
+        DEPLOYMENT_ENVIRONMENT: "production",
         API_BASE_URL: "https://api.example.com/api/v1",
         ELEVENLABS_AGENT_ID: "server-agent-id",
       }),
@@ -117,6 +160,7 @@ test("allows production builds with no optional voice configuration", () => {
   assert.doesNotThrow(() =>
     validateWebEnvironment({
       NODE_ENV: "production",
+      DEPLOYMENT_ENVIRONMENT: "production",
       API_BASE_URL: "https://api.example.com/api/v1",
     }),
   );
@@ -137,6 +181,7 @@ test("enables TTS only when a voice ID accompanies the API key", () => {
 test("reports a voice ID without an API key as misconfigured", () => {
   const environment = {
     NODE_ENV: "production" as const,
+    DEPLOYMENT_ENVIRONMENT: "production",
     API_BASE_URL: "https://api.example.com/api/v1",
     ELEVENLABS_VOICE_ID: "voice-id",
   };
