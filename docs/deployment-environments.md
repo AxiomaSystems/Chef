@@ -63,3 +63,14 @@ Before enabling Preview traffic:
 
 The endpoint smoke is non-destructive. It checks HTTPS, distinct origins,
 service health, and the API environment identity; it does not inspect secrets.
+
+## Boundary with production readiness
+
+This environment contract owns isolation: distinct origins, services,
+databases, credentials, reset/seed safeguards, and Preview smoke evidence.
+
+Issue #93 owns feature readiness within those isolated environments, including
+the required production AI/provider mode, credential completeness, Swagger and
+seed policy, customer-facing CORS, and feature-by-feature readiness signals.
+Its release validation should consume this topology and smoke path rather than
+define a second environment model.
