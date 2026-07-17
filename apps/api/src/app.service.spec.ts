@@ -83,6 +83,38 @@ describe('AppService', () => {
     return { packaged, rows };
   }
 
+  function phaseAReleaseAgainstPhaseBDatabase() {
+    const allPackaged = actualGetPackagedMigrations();
+    const phaseBMigration = allPackaged.find(
+      (migration) => migration.name === compatibilityMigration,
+    );
+    if (!phaseBMigration) {
+      throw new Error('Phase B compatibility migration is not packaged.');
+    }
+
+    const packaged = allPackaged.filter(
+      (migration) => migration.name !== compatibilityMigration,
+    );
+    const appliedByName = new Map(
+      packaged.map((migration) => [migration.name, migration.checksum]),
+    );
+    for (const migration of KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1) {
+      appliedByName.set(migration.name, migration.checksum);
+    }
+    appliedByName.set(phaseBMigration.name, phaseBMigration.checksum);
+
+    const rows = [...appliedByName.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, migrationChecksum]) => ({
+        migration_name: name,
+        checksum: migrationChecksum,
+        finished_at: new Date(),
+        rolled_back_at: null,
+      }));
+
+    return { packaged, rows, phaseBMigration };
+  }
+
   it('uses the packaged expectation when the compatibility table is absent', async () => {
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
@@ -308,22 +340,20 @@ describe('AppService', () => {
   });
 
   it('keeps a previous API ready against a compatible database-ahead history', async () => {
+    const history = phaseAReleaseAgainstPhaseBDatabase();
+    expect(history.packaged.length).toBeGreaterThan(1);
+    expect(history.packaged.at(-1)?.name).toBe(expectedMigration);
+    expect(history.rows.at(-1)).toMatchObject({
+      migration_name: compatibilityMigration,
+      checksum: history.phaseBMigration.checksum,
+    });
+    mockGetKnownActiveProductionMigrationFingerprints.mockReturnValueOnce(
+      KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+    );
+    mockGetPackagedMigrations.mockReturnValueOnce(history.packaged);
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
-      .mockResolvedValueOnce([
-        {
-          migration_name: expectedMigration,
-          checksum,
-          finished_at: new Date(),
-          rolled_back_at: null,
-        },
-        {
-          migration_name: compatibilityMigration,
-          checksum: 'b'.repeat(64),
-          finished_at: new Date(),
-          rolled_back_at: null,
-        },
-      ])
+      .mockResolvedValueOnce(history.rows)
       .mockResolvedValueOnce([
         { relation_name: '"DatabaseReleaseCompatibility"' },
       ])
@@ -346,22 +376,20 @@ describe('AppService', () => {
   });
 
   it('rejects a previous API after the compatibility floor is raised', async () => {
+    const history = phaseAReleaseAgainstPhaseBDatabase();
+    expect(history.packaged.length).toBeGreaterThan(1);
+    expect(history.packaged.at(-1)?.name).toBe(expectedMigration);
+    expect(history.rows.at(-1)).toMatchObject({
+      migration_name: compatibilityMigration,
+      checksum: history.phaseBMigration.checksum,
+    });
+    mockGetKnownActiveProductionMigrationFingerprints.mockReturnValueOnce(
+      KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+    );
+    mockGetPackagedMigrations.mockReturnValueOnce(history.packaged);
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
-      .mockResolvedValueOnce([
-        {
-          migration_name: expectedMigration,
-          checksum,
-          finished_at: new Date(),
-          rolled_back_at: null,
-        },
-        {
-          migration_name: compatibilityMigration,
-          checksum: 'b'.repeat(64),
-          finished_at: new Date(),
-          rolled_back_at: null,
-        },
-      ])
+      .mockResolvedValueOnce(history.rows)
       .mockResolvedValueOnce([
         { relation_name: '"DatabaseReleaseCompatibility"' },
       ])

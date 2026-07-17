@@ -76,9 +76,12 @@ Introducing compatibility metadata requires two separate releases:
    compatibility-aware API with no compatibility-table migration. While the
    table is absent, readiness uses that API's packaged expected migration as
    the minimum compatible migration.
-2. Phase A was smoked successfully in the hosted environment before Phase B;
-   its revision, migration history/checksums, readiness, and critical reads and
-   writes were verified.
+2. Verified hosted evidence before Phase B is limited to the successful API
+   deployment from main revision `4a5ffcc`, successful production and staging
+   Vision deployments after correcting their config paths, a healthy direct
+   Vision `/health` response, and a passing production read-only readiness
+   smoke. Critical application reads and writes remain required release-gate
+   checks; they are not recorded as complete here.
 3. **Phase B — table second:** migration
    `20260717170000_add_database_release_compatibility` adds the singleton table
    and declares `20260628120000_add_recipe_execution_metadata` as the minimum
