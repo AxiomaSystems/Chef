@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { validateDeploymentIsolation } from './deployment-environment';
+import { validateApiEnvironment } from './environment-readiness';
 
 function getMissingOrEmptyKeys(keys: string[]) {
   return keys.filter((key) => {
@@ -145,4 +146,5 @@ process.env.DIRECT_URL =
 
 validateCriticalEnv();
 validateDeploymentIsolation();
+validateApiEnvironment(process.env);
 warnProviderEnvMisconfigurations();

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Retailer } from '@cart/shared';
+import { getApiFeatureReadiness } from './environment-readiness';
 import { getProviderReadiness } from './providers/provider-readiness';
 import { PrismaService } from './prisma/prisma.service';
 
@@ -20,6 +21,7 @@ export class AppService {
 
   async getReadiness() {
     const providerStatuses = this.getProviderStatuses();
+    const features = getApiFeatureReadiness(process.env);
 
     try {
       await this.prisma.$queryRawUnsafe('SELECT 1');
@@ -31,6 +33,7 @@ export class AppService {
           status: 'ready',
         },
         providers: providerStatuses,
+        features,
       } as const;
     } catch {
       return {
@@ -40,6 +43,7 @@ export class AppService {
           status: 'not_ready',
         },
         providers: providerStatuses,
+        features,
       } as const;
     }
   }

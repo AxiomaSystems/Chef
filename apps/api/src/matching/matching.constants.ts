@@ -11,7 +11,7 @@ export const WALMART_API_BASE_URL =
     : 'https://sandbox.walmartapis.com';
 
 export const KROGER_USE_REAL_PROVIDER =
-  process.env.KROGER_USE_REAL_PROVIDER !== 'false';
+  process.env.KROGER_USE_REAL_PROVIDER === 'true';
 
 export const KROGER_CLIENT_ID = process.env.KROGER_CLIENT_ID;
 export const KROGER_CLIENT_SECRET = process.env.KROGER_CLIENT_SECRET;
