@@ -88,6 +88,42 @@ describe('AppService', () => {
     });
   });
 
+  it('rejects database-ahead history when the compatibility table is absent', async () => {
+    const futureMigration = '20260717170000_add_database_release_compatibility';
+    queryRaw
+      .mockResolvedValueOnce([{ '?column?': 1 }])
+      .mockResolvedValueOnce([
+        {
+          migration_name: expectedMigration,
+          checksum,
+          finished_at: new Date(),
+          rolled_back_at: null,
+        },
+        {
+          migration_name: futureMigration,
+          checksum: 'b'.repeat(64),
+          finished_at: new Date(),
+          rolled_back_at: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ relation_name: null }]);
+
+    const readiness = await service.getReadiness();
+
+    expect(readiness).toMatchObject({
+      status: 'not_ready',
+      database: {
+        status: 'not_ready',
+        schema: {
+          status: 'incompatible',
+          expected: expectedMigration,
+          applied: futureMigration,
+          minimum_compatible: expectedMigration,
+        },
+      },
+    });
+  });
+
   it('keeps feature configuration when the database is unavailable', async () => {
     queryRaw.mockRejectedValueOnce(new Error('database unavailable'));
     process.env.CHEF_LLM_PROVIDER = 'mock';

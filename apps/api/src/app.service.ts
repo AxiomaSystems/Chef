@@ -122,6 +122,7 @@ export class AppService {
         )?.name ?? null;
 
     let minimumCompatible: string | null = null;
+    let hasDeclaredCompatibilityFloor = false;
     try {
       const tableLookup = await this.prisma.$queryRaw<
         Array<{ relation_name: unknown }>
@@ -141,23 +142,28 @@ export class AppService {
           WHERE id = 1
           LIMIT 1
         `;
-        minimumCompatible = isMigrationVersionName(
-          compatibility[0]?.minimumApiMigration,
-        )
-          ? compatibility[0].minimumApiMigration
-          : null;
+        const declaredMinimum = compatibility[0]?.minimumApiMigration;
+        if (isMigrationVersionName(declaredMinimum)) {
+          minimumCompatible = declaredMinimum;
+          hasDeclaredCompatibilityFloor = true;
+        }
       }
     } catch {
       // Missing or inaccessible compatibility metadata fails closed below.
     }
 
-    const schemaStatus = minimumCompatible
+    const evaluatedSchemaStatus = minimumCompatible
       ? evaluateSchemaCompatibility({
           packaged: packagedMigrations,
           applied: appliedMigrations,
           minimumCompatible,
         })
       : 'unavailable';
+    const schemaStatus =
+      evaluatedSchemaStatus === 'ahead_compatible' &&
+      !hasDeclaredCompatibilityFloor
+        ? 'incompatible'
+        : evaluatedSchemaStatus;
     const schemaReady =
       schemaStatus === 'ready' || schemaStatus === 'ahead_compatible';
 
