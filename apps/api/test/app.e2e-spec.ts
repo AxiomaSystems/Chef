@@ -188,6 +188,7 @@ describe('AppController (e2e)', () => {
     await request(app.getHttpServer()).get('/health').expect(200).expect({
       status: 'ok',
       service: 'api',
+      environment: 'local',
     });
   });
 
@@ -200,6 +201,7 @@ describe('AppController (e2e)', () => {
       .expect((response) => {
         expect(response.body.status).toBe('ready');
         expect(response.body.service).toBe('api');
+        expect(response.body.environment).toBe('local');
         expect(response.body.database.status).toBe('ready');
         expect(response.body.providers).toBeDefined();
         expect(response.body.providers.walmart).toEqual({
@@ -222,6 +224,7 @@ describe('AppController (e2e)', () => {
             : response.body;
 
         expect(payload.status).toBe('not_ready');
+        expect(payload.environment).toBe('local');
         expect(payload.database.status).toBe('not_ready');
       });
   });

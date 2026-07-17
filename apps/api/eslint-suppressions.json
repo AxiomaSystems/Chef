@@ -91,11 +91,6 @@
       "count": 1
     }
   },
-  "src/env.ts": {
-    "prettier/prettier": {
-      "count": 2
-    }
-  },
   "src/ingredients/ingredients.service.spec.ts": {
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 6
@@ -253,7 +248,7 @@
       "count": 1
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 12
+      "count": 14
     },
     "@typescript-eslint/require-await": {
       "count": 2

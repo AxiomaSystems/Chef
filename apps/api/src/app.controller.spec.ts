@@ -28,4 +28,18 @@ describe('AppController', () => {
       expect(appController.getHello()).toBe('Preppie API');
     });
   });
+
+  describe('health', () => {
+    it('reports the deployment environment', () => {
+      process.env.DEPLOYMENT_ENVIRONMENT = 'staging';
+
+      expect(appController.getHealth()).toEqual({
+        status: 'ok',
+        service: 'api',
+        environment: 'staging',
+      });
+
+      delete process.env.DEPLOYMENT_ENVIRONMENT;
+    });
+  });
 });
