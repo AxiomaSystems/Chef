@@ -12,36 +12,96 @@ const readinessEnvironment = {
   READINESS_ENVIRONMENT: "staging",
 };
 
+const schemaVersion = "20260628120000_add_recipe_execution_metadata";
+
 const readyApi = {
   status: "ready",
   service: "api",
   environment: "staging",
-  database: { status: "ready" },
+  database: {
+    status: "ready",
+    schema: {
+      status: "ready",
+      expected: schemaVersion,
+      applied: schemaVersion,
+    },
+  },
   features: {
     ai: { status: "disabled" },
-    vision: { status: "degraded" },
+    vision: {
+      status: "ready",
+      readiness_scope: "configuration",
+      runtime_status: "not_checked",
+    },
   },
   providers: {
-    instacart: { status: "configured" },
-    kroger: { status: "disabled" },
-    walmart: { status: "partner_required" },
+    instacart: {
+      status: "disabled",
+      is_available: false,
+      mode: "development",
+    },
+    kroger: {
+      status: "disabled",
+      is_available: false,
+      mode: "production",
+    },
+    walmart: {
+      status: "partner_required",
+      is_available: false,
+      mode: "sandbox",
+    },
   },
 };
 
 const readyWeb = {
   environment: { name: "staging" },
-  api: { status: "ready" },
+  api: { status: "ready", environment: ["API_BASE_URL"] },
   voice: {
     status: "disabled",
     capabilities: {
-      conversationalAgent: { status: "disabled" },
-      speechToText: { status: "disabled" },
-      textToSpeech: { status: "disabled" },
+      conversationalAgent: {
+        status: "disabled",
+        environment: [
+          "ELEVENLABS_AGENT_ID",
+          "NEXT_PUBLIC_ELEVENLABS_AGENT_ID",
+          "ELEVENLABS_API_KEY",
+        ],
+      },
+      speechToText: {
+        status: "disabled",
+        environment: ["ELEVENLABS_API_KEY"],
+      },
+      textToSpeech: {
+        status: "disabled",
+        environment: ["ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID"],
+      },
     },
   },
 };
 
-test("accepts HTTPS deployment targets with ready required services and optional disabled or degraded capabilities", async () => {
+const productionApi = {
+  ...readyApi,
+  environment: "production",
+  features: {
+    ...readyApi.features,
+    ai: { status: "ready" },
+  },
+  providers: {
+    ...readyApi.providers,
+    instacart: {
+      status: "configured",
+      is_available: true,
+      mode: "production",
+    },
+  },
+};
+
+const productionWeb = {
+  ...readyWeb,
+  environment: { name: "production" },
+};
+
+test("accepts a strict staging readiness contract", async () => {
   const requestedUrls = [];
   const fetchImpl = async (url) => {
     requestedUrls.push(url);
@@ -60,6 +120,12 @@ test("accepts HTTPS deployment targets with ready required services and optional
     "https://api-staging.example.com/ready",
     "https://preview.example.com/api/readiness",
   ]);
+});
+
+test("accepts production AI and configured providers only in production mode", () => {
+  assert.doesNotThrow(() =>
+    assertFeatureReadinessPayloads(productionApi, productionWeb, "production"),
+  );
 });
 
 test("uses redirect error mode and does not expose a redirect failure payload", async () => {
@@ -192,7 +258,7 @@ test("requires the API and web service contracts", () => {
     () =>
       assertFeatureReadinessPayloads(
         readyApi,
-        { ...readyWeb, api: { status: "degraded" } },
+        { ...readyWeb, api: { ...readyWeb.api, status: "degraded" } },
         "staging",
       ),
     /web API capability must be ready/,
@@ -202,6 +268,178 @@ test("requires the API and web service contracts", () => {
       assertFeatureReadinessPayloads(
         readyApi,
         { ...readyWeb, voice: { status: "disabled" } },
+        "staging",
+      ),
+    /web voice capability schema is invalid/,
+  );
+});
+
+test("requires a safe, current database schema signal", () => {
+  for (const database of [
+    { status: "ready" },
+    { status: "ready", schema: {} },
+    {
+      status: "ready",
+      schema: {
+        status: "ready",
+        expected: schemaVersion,
+        applied: "20260627124500_backfill_recipe_profiles",
+      },
+    },
+    {
+      status: "ready",
+      schema: {
+        status: "ready",
+        expected: "unsafe schema value",
+        applied: "unsafe schema value",
+      },
+    },
+  ]) {
+    assert.throws(
+      () =>
+        assertFeatureReadinessPayloads(
+          { ...readyApi, database },
+          readyWeb,
+          "staging",
+        ),
+      /API database schema must be ready and current/,
+    );
+  }
+});
+
+test("requires exact AI and Vision configuration signals per environment", () => {
+  for (const features of [
+    {},
+    { vision: readyApi.features.vision },
+    { ...readyApi.features, unexpected: { status: "ready" } },
+    {
+      ...readyApi.features,
+      vision: { status: "ready" },
+    },
+  ]) {
+    assert.throws(
+      () =>
+        assertFeatureReadinessPayloads(
+          { ...readyApi, features },
+          readyWeb,
+          "staging",
+        ),
+      /API feature readiness schema is invalid/,
+    );
+  }
+
+  assert.throws(
+    () =>
+      assertFeatureReadinessPayloads(
+        {
+          ...productionApi,
+          features: {
+            ...productionApi.features,
+            ai: { status: "disabled" },
+          },
+        },
+        productionWeb,
+        "production",
+      ),
+    /production AI must be ready/,
+  );
+  assert.throws(
+    () =>
+      assertFeatureReadinessPayloads(
+        {
+          ...readyApi,
+          features: {
+            ...readyApi.features,
+            ai: { status: "ready" },
+          },
+        },
+        readyWeb,
+        "staging",
+      ),
+    /staging AI must be disabled/,
+  );
+  assert.throws(
+    () =>
+      assertFeatureReadinessPayloads(
+        {
+          ...readyApi,
+          features: {
+            ...readyApi.features,
+            vision: {
+              ...readyApi.features.vision,
+              status: "disabled",
+            },
+          },
+        },
+        readyWeb,
+        "staging",
+      ),
+    /Vision configuration readiness is invalid/,
+  );
+});
+
+test("requires exact web capability keys and known optional statuses", () => {
+  assert.doesNotThrow(() =>
+    assertFeatureReadinessPayloads(
+      readyApi,
+      {
+        ...readyWeb,
+        voice: {
+          ...readyWeb.voice,
+          status: "degraded",
+          capabilities: {
+            ...readyWeb.voice.capabilities,
+            textToSpeech: {
+              ...readyWeb.voice.capabilities.textToSpeech,
+              status: "degraded",
+            },
+          },
+        },
+      },
+      "staging",
+    ),
+  );
+  assert.throws(
+    () =>
+      assertFeatureReadinessPayloads(
+        readyApi,
+        {
+          ...readyWeb,
+          voice: {
+            ...readyWeb.voice,
+            capabilities: {},
+          },
+        },
+        "staging",
+      ),
+    /web voice capability schema is invalid/,
+  );
+  assert.throws(
+    () =>
+      assertFeatureReadinessPayloads(
+        readyApi,
+        {
+          ...readyWeb,
+          voice: {
+            ...readyWeb.voice,
+            capabilities: {
+              ...readyWeb.voice.capabilities,
+              unexpected: { status: "ready", environment: ["SAFE_NAME"] },
+            },
+          },
+        },
+        "staging",
+      ),
+    /web voice capability schema is invalid/,
+  );
+  assert.throws(
+    () =>
+      assertFeatureReadinessPayloads(
+        readyApi,
+        {
+          ...readyWeb,
+          voice: { ...readyWeb.voice, status: "unknown" },
+        },
         "staging",
       ),
     /web voice capability schema is invalid/,
@@ -221,7 +459,109 @@ test("rejects providers enabled without credentials while allowing optional prov
             ...readyApi.providers,
             kroger: {
               status: "missing_credentials",
-              diagnostic: "do-not-log-this-provider-value",
+              is_available: false,
+              mode: "production",
+            },
+          },
+        },
+        readyWeb,
+        "staging",
+      ),
+    /provider is enabled without required credentials/,
+  );
+});
+
+test("requires exact provider signals and forbids configured providers in staging", () => {
+  for (const providers of [
+    {},
+    { ...readyApi.providers, kroger: {} },
+    {
+      ...readyApi.providers,
+      kroger: { status: "disabled", mode: "production" },
+    },
+    {
+      ...readyApi.providers,
+      unexpected: {
+        status: "disabled",
+        is_available: false,
+        mode: "sandbox",
+      },
+    },
+  ]) {
+    assert.throws(
+      () =>
+        assertFeatureReadinessPayloads(
+          { ...readyApi, providers },
+          readyWeb,
+          "staging",
+        ),
+      /API provider readiness schema is invalid/,
+    );
+  }
+
+  assert.throws(
+    () =>
+      assertFeatureReadinessPayloads(
+        {
+          ...readyApi,
+          providers: {
+            ...readyApi.providers,
+            instacart: {
+              status: "configured",
+              is_available: true,
+              mode: "production",
+            },
+          },
+        },
+        readyWeb,
+        "staging",
+      ),
+    /staging providers must not be configured/,
+  );
+  for (const provider of [
+    {
+      status: "configured",
+      is_available: true,
+      mode: "development",
+    },
+    {
+      status: "configured",
+      is_available: false,
+      mode: "production",
+    },
+  ]) {
+    assert.throws(
+      () =>
+        assertFeatureReadinessPayloads(
+          {
+            ...productionApi,
+            providers: {
+              ...productionApi.providers,
+              instacart: provider,
+            },
+          },
+          productionWeb,
+          "production",
+        ),
+      /configured providers require production mode and availability/,
+    );
+  }
+});
+
+test("rejects invalid readiness without logging raw payload values", () => {
+  const secretLikeValue = "do-not-log-this-value";
+
+  assert.throws(
+    () =>
+      assertFeatureReadinessPayloads(
+        {
+          ...readyApi,
+          database: {
+            status: "ready",
+            schema: {
+              status: "ready",
+              expected: secretLikeValue,
+              applied: secretLikeValue,
             },
           },
         },
@@ -230,29 +570,7 @@ test("rejects providers enabled without credentials while allowing optional prov
       ),
     (error) =>
       error instanceof Error &&
-      /provider is enabled without required credentials/.test(error.message) &&
-      !error.message.includes("do-not-log-this-provider-value"),
-  );
-});
-
-test("rejects any misconfigured feature without logging its raw payload", () => {
-  const secretLikeValue = "do-not-log-this-value";
-
-  assert.throws(
-    () =>
-      assertFeatureReadinessPayloads(
-        {
-          ...readyApi,
-          features: {
-            ai: { status: "misconfigured", diagnostic: secretLikeValue },
-          },
-        },
-        readyWeb,
-        "staging",
-      ),
-    (error) =>
-      error instanceof Error &&
-      /misconfigured feature/.test(error.message) &&
+      /API database schema must be ready and current/.test(error.message) &&
       !error.message.includes(secretLikeValue),
   );
 });

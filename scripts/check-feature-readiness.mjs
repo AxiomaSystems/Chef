@@ -8,16 +8,23 @@ const REQUIRED_DEPLOYMENT_URL_KEYS = [
 ];
 const DEPLOYMENT_ENVIRONMENTS = new Set(["staging", "production"]);
 const OPTIONAL_CAPABILITY_STATUSES = new Set(["ready", "disabled", "degraded"]);
-const OPTIONAL_PROVIDER_STATUSES = new Set([
+const API_FEATURE_STATUSES = new Set(["ready", "disabled", "misconfigured"]);
+const PROVIDER_STATUSES = new Set([
   "configured",
   "disabled",
   "partner_required",
+  "missing_credentials",
 ]);
+const PROVIDER_MODES = new Set(["production", "development", "sandbox"]);
+const API_FEATURE_KEYS = ["ai", "vision"];
+const PROVIDER_KEYS = ["instacart", "kroger", "walmart"];
 const VOICE_CAPABILITY_KEYS = [
   "conversationalAgent",
   "speechToText",
   "textToSpeech",
 ];
+const MIGRATION_VERSION_PATTERN = /^\d{14}_[a-z0-9_]+$/;
+const ENVIRONMENT_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 
 function configuredDeploymentUrl(env, key) {
   const value = env[key]?.trim();
@@ -84,34 +91,33 @@ function assertRecord(value, label) {
   }
 }
 
-function hasMisconfiguredStatus(value) {
-  if (Array.isArray(value)) {
-    return value.some(hasMisconfiguredStatus);
-  }
+function hasExactKeys(value, expectedKeys) {
+  if (!isRecord(value)) return false;
 
-  if (!isRecord(value)) {
-    return false;
-  }
+  const actualKeys = Object.keys(value).sort();
+  const sortedExpectedKeys = [...expectedKeys].sort();
 
-  if (value.status === "misconfigured") {
-    return true;
-  }
-
-  return Object.values(value).some(hasMisconfiguredStatus);
+  return (
+    actualKeys.length === sortedExpectedKeys.length &&
+    actualKeys.every((key, index) => key === sortedExpectedKeys[index])
+  );
 }
 
-function assertNoMisconfiguredFeatures(features, label) {
-  assertRecord(features, `${label} feature`);
-
-  if (hasMisconfiguredStatus(features)) {
-    throw new Error(`[READINESS] ${label} reported a misconfigured feature.`);
-  }
+function hasSafeEnvironmentNames(value) {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(
+      (name) => typeof name === "string" && ENVIRONMENT_NAME_PATTERN.test(name),
+    )
+  );
 }
 
-function assertOptionalCapability(capability, label) {
+function assertWebCapability(capability, label) {
   if (
-    !isRecord(capability) ||
-    !OPTIONAL_CAPABILITY_STATUSES.has(capability.status)
+    !hasExactKeys(capability, ["status", "environment"]) ||
+    !OPTIONAL_CAPABILITY_STATUSES.has(capability.status) ||
+    !hasSafeEnvironmentNames(capability.environment)
   ) {
     throw new Error(`[READINESS] ${label} schema is invalid.`);
   }
@@ -119,39 +125,116 @@ function assertOptionalCapability(capability, label) {
 
 function assertWebReadinessSchema(webReadiness) {
   if (
-    !isRecord(webReadiness.environment) ||
+    !hasExactKeys(webReadiness.environment, ["name"]) ||
     typeof webReadiness.environment.name !== "string"
   ) {
     throw new Error("[READINESS] web environment schema is invalid.");
   }
 
-  if (!isRecord(webReadiness.api) || webReadiness.api.status !== "ready") {
+  if (!hasExactKeys(webReadiness.api, ["status", "environment"])) {
+    throw new Error("[READINESS] web API capability schema is invalid.");
+  }
+
+  if (
+    webReadiness.api.status !== "ready" ||
+    !hasSafeEnvironmentNames(webReadiness.api.environment)
+  ) {
     throw new Error("[READINESS] web API capability must be ready.");
   }
 
   if (
-    !isRecord(webReadiness.voice) ||
-    !isRecord(webReadiness.voice.capabilities)
+    !hasExactKeys(webReadiness.voice, ["status", "capabilities"]) ||
+    !OPTIONAL_CAPABILITY_STATUSES.has(webReadiness.voice.status) ||
+    !hasExactKeys(webReadiness.voice.capabilities, VOICE_CAPABILITY_KEYS)
   ) {
     throw new Error("[READINESS] web voice capability schema is invalid.");
   }
 
-  assertOptionalCapability(webReadiness.voice, "web voice capability");
-
   for (const key of VOICE_CAPABILITY_KEYS) {
-    assertOptionalCapability(
+    assertWebCapability(
       webReadiness.voice.capabilities[key],
       "web voice capability",
     );
   }
 }
 
-function assertApiProviders(providers) {
-  assertRecord(providers, "API provider");
+function assertApiDatabase(database) {
+  if (!isRecord(database) || database.status !== "ready") {
+    throw new Error("[READINESS] API database must be ready.");
+  }
 
-  for (const provider of Object.values(providers)) {
-    if (!isRecord(provider)) {
-      throw new Error("[READINESS] API provider schema is invalid.");
+  if (!hasExactKeys(database, ["status", "schema"])) {
+    throw new Error(
+      "[READINESS] API database schema must be ready and current.",
+    );
+  }
+
+  const schema = database.schema;
+  if (
+    !hasExactKeys(schema, ["status", "expected", "applied"]) ||
+    schema.status !== "ready" ||
+    typeof schema.expected !== "string" ||
+    typeof schema.applied !== "string" ||
+    !MIGRATION_VERSION_PATTERN.test(schema.expected) ||
+    schema.applied !== schema.expected
+  ) {
+    throw new Error(
+      "[READINESS] API database schema must be ready and current.",
+    );
+  }
+}
+
+function assertApiFeatures(features, expectedEnvironment) {
+  if (!hasExactKeys(features, API_FEATURE_KEYS)) {
+    throw new Error("[READINESS] API feature readiness schema is invalid.");
+  }
+
+  if (
+    !hasExactKeys(features.ai, ["status"]) ||
+    !API_FEATURE_STATUSES.has(features.ai.status) ||
+    !hasExactKeys(features.vision, [
+      "status",
+      "readiness_scope",
+      "runtime_status",
+    ]) ||
+    !API_FEATURE_STATUSES.has(features.vision.status)
+  ) {
+    throw new Error("[READINESS] API feature readiness schema is invalid.");
+  }
+
+  if (expectedEnvironment === "production" && features.ai.status !== "ready") {
+    throw new Error("[READINESS] production AI must be ready.");
+  }
+
+  if (expectedEnvironment === "staging" && features.ai.status !== "disabled") {
+    throw new Error("[READINESS] staging AI must be disabled.");
+  }
+
+  if (
+    features.vision.status !== "ready" ||
+    features.vision.readiness_scope !== "configuration" ||
+    features.vision.runtime_status !== "not_checked"
+  ) {
+    throw new Error(
+      "[READINESS] API Vision configuration readiness is invalid.",
+    );
+  }
+}
+
+function assertApiProviders(providers, expectedEnvironment) {
+  if (!hasExactKeys(providers, PROVIDER_KEYS)) {
+    throw new Error("[READINESS] API provider readiness schema is invalid.");
+  }
+
+  for (const key of PROVIDER_KEYS) {
+    const provider = providers[key];
+    if (
+      !hasExactKeys(provider, ["status", "is_available", "mode"]) ||
+      !PROVIDER_STATUSES.has(provider.status) ||
+      typeof provider.is_available !== "boolean" ||
+      !PROVIDER_MODES.has(provider.mode)
+    ) {
+      throw new Error("[READINESS] API provider readiness schema is invalid.");
     }
 
     if (provider.status === "missing_credentials") {
@@ -160,8 +243,24 @@ function assertApiProviders(providers) {
       );
     }
 
-    if (!OPTIONAL_PROVIDER_STATUSES.has(provider.status)) {
-      throw new Error("[READINESS] API provider schema is invalid.");
+    if (provider.status === "configured") {
+      if (expectedEnvironment === "staging") {
+        throw new Error(
+          "[READINESS] staging providers must not be configured.",
+        );
+      }
+
+      if (provider.mode !== "production" || provider.is_available !== true) {
+        throw new Error(
+          "[READINESS] configured providers require production mode and availability.",
+        );
+      }
+
+      continue;
+    }
+
+    if (provider.is_available !== false) {
+      throw new Error("[READINESS] API provider readiness schema is invalid.");
     }
   }
 }
@@ -205,20 +304,14 @@ export function assertFeatureReadinessPayloads(
     );
   }
 
-  if (
-    !isRecord(apiReadiness.database) ||
-    apiReadiness.database.status !== "ready"
-  ) {
-    throw new Error("[READINESS] API database must be ready.");
-  }
+  assertApiDatabase(apiReadiness.database);
 
   if (apiReadiness.status !== "ready") {
     throw new Error("[READINESS] API readiness status must be ready.");
   }
 
-  assertNoMisconfiguredFeatures(apiReadiness.features, "API");
-  assertNoMisconfiguredFeatures(webReadiness, "web");
-  assertApiProviders(apiReadiness.providers);
+  assertApiFeatures(apiReadiness.features, expectedEnvironment);
+  assertApiProviders(apiReadiness.providers, expectedEnvironment);
 }
 
 async function fetchReadiness(url, label, fetchImpl) {
