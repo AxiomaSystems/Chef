@@ -111,6 +111,34 @@ describe('API environment readiness', () => {
   });
 
   it.each([
+    'https://127.0.0.2:8000',
+    'https://[::ffff:127.0.0.1]:8000',
+    'https://localhost.:8000',
+  ])('rejects production loopback Vision URL %s', (visionApiBaseUrl) => {
+    expect(() =>
+      validateApiEnvironment({
+        ...productionEnvironment(),
+        VISION_API_BASE_URL: visionApiBaseUrl,
+      }),
+    ).toThrow('VISION_API_BASE_URL must not use localhost in production');
+  });
+
+  it.each([
+    'https://127.0.0.2:3000',
+    'https://[::ffff:127.0.0.1]:3000',
+    'https://localhost.:3000',
+  ])('rejects production loopback CORS origin %s', (corsOrigin) => {
+    expect(() =>
+      validateApiEnvironment({
+        ...productionEnvironment(),
+        API_CORS_ORIGINS: corsOrigin,
+      }),
+    ).toThrow(
+      'API_CORS_ORIGINS must not contain localhost origins in production',
+    );
+  });
+
+  it.each([
     [
       'a real AI provider',
       { CHEF_LLM_PROVIDER: 'openai' },

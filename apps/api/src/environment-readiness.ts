@@ -11,8 +11,6 @@ export type ApiFeatureReadiness = {
   vision: ApiFeature;
 };
 
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
-
 const RETAILER_CREDENTIALS = [
   {
     flag: 'KROGER_USE_REAL_PROVIDER',
@@ -47,8 +45,58 @@ function parseHttpUrl(value: string | undefined) {
   }
 }
 
+function isIpv4Loopback(hostname: string) {
+  const octets = hostname.split('.');
+
+  return (
+    octets.length === 4 &&
+    octets.every((octet) => /^\d{1,3}$/.test(octet)) &&
+    Number(octets[0]) === 127
+  );
+}
+
+function parseIpv6Segments(hostname: string) {
+  const address = hostname.slice(1, -1);
+  const [left, right] = address.split('::');
+  const leftSegments = left ? left.split(':') : [];
+  const rightSegments = right ? right.split(':') : [];
+  const omittedSegments = 8 - leftSegments.length - rightSegments.length;
+  const segments = [
+    ...leftSegments,
+    ...Array.from({ length: omittedSegments }, () => '0'),
+    ...rightSegments,
+  ].map((segment) => Number.parseInt(segment, 16));
+
+  return segments.length === 8 && segments.every(Number.isInteger)
+    ? segments
+    : null;
+}
+
+function isIpv6Loopback(hostname: string) {
+  const segments = parseIpv6Segments(hostname);
+
+  if (!segments) return false;
+
+  const isIpv6LoopbackAddress =
+    segments.slice(0, 7).every((segment) => segment === 0) && segments[7] === 1;
+  const isIpv4MappedLoopback =
+    segments.slice(0, 5).every((segment) => segment === 0) &&
+    segments[5] === 0xffff &&
+    segments[6] >> 8 === 127;
+
+  return isIpv6LoopbackAddress || isIpv4MappedLoopback;
+}
+
 function isLocalUrl(url: URL) {
-  return LOCAL_HOSTS.has(url.hostname.toLowerCase());
+  const hostname = url.hostname.toLowerCase().replace(/\.+$/, '');
+
+  return (
+    hostname === 'localhost' ||
+    isIpv4Loopback(hostname) ||
+    (hostname.startsWith('[') &&
+      hostname.endsWith(']') &&
+      isIpv6Loopback(hostname))
+  );
 }
 
 function validateProductionEnvironment(
