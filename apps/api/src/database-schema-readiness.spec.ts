@@ -26,10 +26,8 @@ describe('database schema readiness', () => {
     ]);
 
     expect(packaged.length).toBeGreaterThan(1);
-    expect(packaged.at(-1)).toMatchObject({
-      name: current,
-      checksum: expect.stringMatching(/^[a-f0-9]{64}$/),
-    });
+    expect(packaged.at(-1)?.name).toBe(current);
+    expect(packaged.at(-1)?.checksum).toMatch(/^[a-f0-9]{64}$/);
     expect(
       evaluateSchemaCompatibility({
         packaged,

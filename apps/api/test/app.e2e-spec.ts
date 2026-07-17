@@ -219,7 +219,8 @@ describe('AppController (e2e)', () => {
         expect(response.body.status).toBe('ready');
         expect(response.body.service).toBe('api');
         expect(response.body.environment).toBe('local');
-        expect(response.body.release).toEqual({ revision: 'unknown' });
+        const body: unknown = response.body;
+        expect(body).toMatchObject({ release: { revision: 'unknown' } });
         expect(response.body.database.status).toBe('ready');
         const expected = getPackagedMigrations().at(-1)?.name;
         expect(response.body.database.schema).toMatchObject({
