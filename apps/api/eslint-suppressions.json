@@ -145,11 +145,6 @@
       "count": 1
     }
   },
-  "src/providers/provider-readiness.ts": {
-    "prettier/prettier": {
-      "count": 4
-    }
-  },
   "src/recipe/dto/update-recipe.dto.ts": {
     "@typescript-eslint/no-unsafe-return": {
       "count": 3
