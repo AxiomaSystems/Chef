@@ -290,6 +290,19 @@ describe('database schema readiness', () => {
     ).toBe('failed');
   });
 
+  it('rejects duplicate finished active rows for the same migration fingerprint', () => {
+    expect(
+      evaluateSchemaCompatibility({
+        packaged: [{ name: current, checksum }],
+        applied: [
+          { name: current, checksum, finished: true, rolledBack: false },
+          { name: current, checksum, finished: true, rolledBack: false },
+        ],
+        minimumCompatible: current,
+      }),
+    ).toBe('divergent');
+  });
+
   it('reports checksum divergence across the complete packaged history', () => {
     expect(
       evaluateSchemaCompatibility({
