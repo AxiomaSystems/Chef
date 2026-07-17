@@ -30,10 +30,10 @@ jobs:
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/cart_generator_ci?schema=public
       AUTH_JWT_SECRET: ci-jwt-secret
       AUTH_ACCESS_TOKEN_EXPIRES_IN: 15m
-      AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS: '30'
-      KROGER_USE_REAL_PROVIDER: 'false'
-      INSTACART_USE_REAL_PROVIDER: 'false'
-      WALMART_USE_REAL_PROVIDER: 'false'
+      AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS: "30"
+      KROGER_USE_REAL_PROVIDER: "false"
+      INSTACART_USE_REAL_PROVIDER: "false"
+      WALMART_USE_REAL_PROVIDER: "false"
 
     steps:
       - name: Checkout
@@ -57,6 +57,15 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter api prisma:generate
 
+      - name: Lint API
+        run: pnpm --filter api lint
+
+      - name: Type-check shared package
+        run: pnpm --filter @cart/shared typecheck
+
+      - name: Type-check API
+        run: pnpm --filter api typecheck
+
       - name: Apply Prisma migrations
         run: pnpm --dir apps/api exec prisma migrate deploy
 
@@ -67,7 +76,7 @@ jobs:
         run: pnpm --filter api build
 
       - name: Run API unit tests
-        run: pnpm --filter api exec jest --runInBand
+        run: pnpm --filter api test:ci
 
       - name: Run API e2e tests
         run: pnpm --filter api test:e2e:ci
