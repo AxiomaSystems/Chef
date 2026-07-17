@@ -37,6 +37,7 @@ function knownProductionHistory() {
 describe('database schema readiness', () => {
   const previous = '20260627124500_backfill_recipe_profiles';
   const current = '20260628120000_add_recipe_execution_metadata';
+  const optionalLegacy = '20260628000000_optional_legacy_history';
   const futureExpand = '20260717170000_add_database_release_compatibility';
   const checksum = 'a'.repeat(64);
   const previousChecksum = 'b'.repeat(64);
@@ -77,6 +78,53 @@ describe('database schema readiness', () => {
         ...history,
         minimumCompatible: current,
         knownFingerprints: KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+      }),
+    ).toBe('ready');
+  });
+
+  it('accepts clean packaged history when the production ledger is provided', () => {
+    const packaged = getPackagedMigrations([
+      resolve(__dirname, '../prisma/migrations'),
+    ]);
+
+    expect(
+      evaluateSchemaCompatibility({
+        packaged,
+        applied: packaged.map((migration) => ({
+          ...migration,
+          finished: true,
+          rolledBack: false,
+        })),
+        minimumCompatible: current,
+        knownFingerprints: KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+      }),
+    ).toBe('ready');
+  });
+
+  it('accepts an optional ledger-only row in its exact ordered position', () => {
+    expect(
+      evaluateSchemaCompatibility({
+        packaged: [
+          { name: previous, checksum: previousChecksum },
+          { name: current, checksum },
+        ],
+        applied: [
+          {
+            name: previous,
+            checksum: previousChecksum,
+            finished: true,
+            rolledBack: false,
+          },
+          {
+            name: optionalLegacy,
+            checksum: futureChecksum,
+            finished: true,
+            rolledBack: false,
+          },
+          { name: current, checksum, finished: true, rolledBack: false },
+        ],
+        minimumCompatible: current,
+        knownFingerprints: [{ name: optionalLegacy, checksum: futureChecksum }],
       }),
     ).toBe('ready');
   });
@@ -122,12 +170,12 @@ describe('database schema readiness', () => {
         applied: [
           ...history.applied,
           {
-            name: '20260701000000_unrecorded_history',
+            name: '20260628000000_unrecorded_history',
             checksum: 'f'.repeat(64),
             finished: true,
             rolledBack: false,
           },
-        ],
+        ].sort((left, right) => left.name.localeCompare(right.name)),
         minimumCompatible: current,
         knownFingerprints: KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
       }),
@@ -171,7 +219,42 @@ describe('database schema readiness', () => {
     ).toBe('behind');
   });
 
-  it('rejects an unrecorded database-ahead migration', () => {
+  it('distinguishes a missing required suffix from a required interior gap', () => {
+    const first = '20260627120000_first';
+    const middle = '20260627130000_middle';
+    const last = '20260627140000_last';
+    const packaged = [
+      { name: first, checksum: previousChecksum },
+      { name: middle, checksum },
+      { name: last, checksum: futureChecksum },
+    ];
+    const applied = (name: string, migrationChecksum: string) => ({
+      name,
+      checksum: migrationChecksum,
+      finished: true,
+      rolledBack: false,
+    });
+
+    expect(
+      evaluateSchemaCompatibility({
+        packaged,
+        applied: [applied(first, previousChecksum)],
+        minimumCompatible: first,
+      }),
+    ).toBe('behind');
+    expect(
+      evaluateSchemaCompatibility({
+        packaged,
+        applied: [
+          applied(first, previousChecksum),
+          applied(last, futureChecksum),
+        ],
+        minimumCompatible: first,
+      }),
+    ).toBe('divergent');
+  });
+
+  it('accepts a strictly newer compatible database-ahead suffix', () => {
     expect(
       evaluateSchemaCompatibility({
         packaged: [{ name: current, checksum }],
@@ -186,7 +269,7 @@ describe('database schema readiness', () => {
         ],
         minimumCompatible: current,
       }),
-    ).toBe('divergent');
+    ).toBe('ahead_compatible');
   });
 
   it('fails when migration history contains an unfinished active attempt', () => {

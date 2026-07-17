@@ -149,7 +149,11 @@ export function evaluateSchemaCompatibility(input: {
     new Set(knownFingerprints.map((migration) => migration.name)).size !==
       knownFingerprints.length ||
     new Set(activeApplied.map((migration) => migration.name)).size !==
-      activeApplied.length
+      activeApplied.length ||
+    activeApplied.some(
+      (migration, index) =>
+        index > 0 && activeApplied[index - 1].name >= migration.name,
+    )
   ) {
     return 'divergent';
   }
@@ -172,29 +176,45 @@ export function evaluateSchemaCompatibility(input: {
     checksums.add(migration.checksum);
     acceptedChecksums.set(migration.name, checksums);
   }
-  const expectedHistory = [...acceptedChecksums.keys()].sort((left, right) =>
-    left.localeCompare(right),
-  );
+  const packagedNames = new Set(packaged.map((migration) => migration.name));
+  const expectedHistory = [...acceptedChecksums.keys()]
+    .sort((left, right) => left.localeCompare(right))
+    .map((name) => ({ name, required: packagedNames.has(name) }));
 
-  const commonLength = Math.min(expectedHistory.length, activeApplied.length);
-  for (let index = 0; index < commonLength; index += 1) {
-    const expectedName = expectedHistory[index];
-    const appliedMigration = activeApplied[index];
+  let appliedIndex = 0;
+  for (const expectedMigration of expectedHistory) {
+    const appliedMigration = activeApplied[appliedIndex];
+    if (!appliedMigration) {
+      if (expectedMigration.required) {
+        return 'behind';
+      }
+      continue;
+    }
+    if (appliedMigration.name > expectedMigration.name) {
+      if (expectedMigration.required) {
+        return 'divergent';
+      }
+      continue;
+    }
     if (
-      expectedName !== appliedMigration.name ||
-      !acceptedChecksums.get(expectedName)?.has(appliedMigration.checksum)
+      appliedMigration.name < expectedMigration.name ||
+      !acceptedChecksums
+        .get(expectedMigration.name)
+        ?.has(appliedMigration.checksum)
     ) {
       return 'divergent';
     }
+    appliedIndex += 1;
   }
 
-  if (activeApplied.length < expectedHistory.length) {
-    return 'behind';
-  }
-  if (activeApplied.length === expectedHistory.length) {
+  if (appliedIndex === activeApplied.length) {
     return 'ready';
   }
-  return 'divergent';
+  return activeApplied
+    .slice(appliedIndex)
+    .every((migration) => migration.name > expected)
+    ? 'ahead_compatible'
+    : 'divergent';
 }
 
 export function getKnownActiveProductionMigrationFingerprints(): readonly MigrationFingerprint[] {

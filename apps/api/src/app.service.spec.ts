@@ -159,15 +159,19 @@ describe('AppService', () => {
     mockGetPackagedMigrations.mockReturnValueOnce(history.packaged);
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
-      .mockResolvedValueOnce([
-        ...history.rows,
-        {
-          migration_name: '20260701000000_unrecorded_history',
-          checksum: 'f'.repeat(64),
-          finished_at: new Date(),
-          rolled_back_at: null,
-        },
-      ])
+      .mockResolvedValueOnce(
+        [
+          ...history.rows,
+          {
+            migration_name: '20260628000000_unrecorded_history',
+            checksum: 'f'.repeat(64),
+            finished_at: new Date(),
+            rolled_back_at: null,
+          },
+        ].sort((left, right) =>
+          left.migration_name.localeCompare(right.migration_name),
+        ),
+      )
       .mockResolvedValueOnce([{ relation_name: null }]);
 
     const readiness = await service.getReadiness();
@@ -237,7 +241,7 @@ describe('AppService', () => {
       database: {
         status: 'not_ready',
         schema: {
-          status: 'divergent',
+          status: 'incompatible',
           expected: expectedMigration,
           applied: futureMigration,
           minimum_compatible: expectedMigration,
@@ -298,7 +302,7 @@ describe('AppService', () => {
     });
   });
 
-  it('rejects an unrecorded migration even with a declared compatibility floor', async () => {
+  it('keeps a previous API ready against a compatible database-ahead history', async () => {
     const futureMigration = '20260717170000_add_database_release_compatibility';
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
@@ -324,11 +328,11 @@ describe('AppService', () => {
     const readiness = await service.getReadiness();
 
     expect(readiness).toMatchObject({
-      status: 'not_ready',
+      status: 'ready',
       database: {
-        status: 'not_ready',
+        status: 'ready',
         schema: {
-          status: 'divergent',
+          status: 'ahead_compatible',
           expected: expectedMigration,
           applied: futureMigration,
           minimum_compatible: expectedMigration,
