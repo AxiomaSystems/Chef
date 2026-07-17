@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveApiBaseUrl } from "./runtime-env.mts";
+import { resolveApiBaseUrl } from "./runtime-env.ts";
 
 test("uses localhost only outside a deployed environment", () => {
   assert.equal(resolveApiBaseUrl({}), "http://localhost:3001/api/v1");

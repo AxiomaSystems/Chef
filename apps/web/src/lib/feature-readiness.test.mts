@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   getWebFeatureReadiness,
   validateWebEnvironment,
-} from "./feature-readiness.mts";
+} from "./feature-readiness.ts";
 
 test("allows a local optimized build to use the local API fallback", () => {
   const environment = { NODE_ENV: "production" as const };

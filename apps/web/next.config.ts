@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import { loadEnvConfig } from "@next/env";
 import { resolve } from "node:path";
-import { validateWebEnvironment } from "./src/lib/feature-readiness.mts";
+import { validateWebEnvironment } from "./src/lib/feature-readiness.ts";
 
 loadEnvConfig(resolve(__dirname, "../.."));
 validateWebEnvironment(process.env);
@@ -14,6 +14,9 @@ const publicEnv = Object.fromEntries(
 );
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: resolve(__dirname, "../.."),
+  },
   reactCompiler: true,
   env: publicEnv,
   experimental: {

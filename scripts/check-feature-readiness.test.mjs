@@ -5,7 +5,7 @@ import {
   assertFeatureReadinessPayloads,
   runFeatureReadinessSmoke,
 } from "./check-feature-readiness.mjs";
-import { getWebFeatureReadiness } from "../apps/web/src/lib/feature-readiness.mts";
+import { getWebFeatureReadiness } from "../apps/web/src/lib/feature-readiness.ts";
 
 const readinessEnvironment = {
   READINESS_WEB_BASE_URL: "https://preview.example.com",

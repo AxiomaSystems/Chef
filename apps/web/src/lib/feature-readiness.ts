@@ -1,4 +1,4 @@
-import { resolveApiBaseUrl } from "./runtime-env.mts";
+import { resolveApiBaseUrl } from "./runtime-env.ts";
 
 export type WebFeatureStatus = "ready" | "disabled" | "misconfigured";
 

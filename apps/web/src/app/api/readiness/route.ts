@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getWebFeatureReadiness } from "@/lib/feature-readiness.mts";
+import { getWebFeatureReadiness } from "@/lib/feature-readiness.ts";
 
 export const dynamic = "force-dynamic";
 
