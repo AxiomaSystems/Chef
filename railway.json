@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "preDeployCommand": "pnpm --dir apps/api exec prisma migrate deploy",
+    "healthcheckPath": "/ready",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}

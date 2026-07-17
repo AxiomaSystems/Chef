@@ -22,4 +22,4 @@ RUN mkdir -p apps/api/dist/generated \
   && cp -R apps/api/generated/prisma apps/api/dist/generated/prisma \
   && cp -R apps/api/generated/prisma apps/api/dist/apps/api/generated/prisma
 
-CMD ["sh", "-c", "node scripts/assert-safe-startup-seed.mjs && pnpm --dir apps/api exec prisma migrate deploy && if [ \"$RUN_DB_SEED_ON_STARTUP\" = \"true\" ]; then pnpm --filter api db:seed; fi && pnpm --filter api start"]
+CMD ["sh", "-c", "node scripts/assert-safe-startup-seed.mjs && if [ \"$RUN_DB_SEED_ON_STARTUP\" = \"true\" ]; then pnpm --filter api db:seed; fi && pnpm --filter api start"]
