@@ -4,8 +4,9 @@ export type AuthTokens = {
   expires_in: string;
 };
 
-export const API_BASE_URL =
-  process.env.API_BASE_URL ?? "http://localhost:3001/api/v1";
+import { resolveApiBaseUrl } from "./runtime-env.mts";
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export const ACCESS_TOKEN_COOKIE = "cg_access_token";
 export const REFRESH_TOKEN_COOKIE = "cg_refresh_token";

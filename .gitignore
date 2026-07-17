@@ -78,3 +78,4 @@ apps/vision-lab/data/segmentation_dataset_previews/
 apps/vision-lab/data/datasets/
 apps/vision-lab/data/previews/
 apps/vision-lab/reports/
+.vercel

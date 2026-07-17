@@ -1,6 +1,7 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AppService } from './app.service';
+import { getDeploymentEnvironment } from './deployment-environment';
 
 @ApiTags('system')
 @Controller()
@@ -18,7 +19,10 @@ export class AppController {
   @ApiOperation({ summary: 'Liveness probe for API process' })
   @ApiOkResponse({ description: 'API process is alive' })
   getHealth() {
-    return this.appService.getHealth();
+    return {
+      ...this.appService.getHealth(),
+      environment: getDeploymentEnvironment(),
+    };
   }
 
   @Get('ready')
@@ -29,11 +33,15 @@ export class AppController {
   @ApiOkResponse({ description: 'API is ready to serve traffic' })
   async getReady() {
     const readiness = await this.appService.getReadiness();
+    const identifiedReadiness = {
+      ...readiness,
+      environment: getDeploymentEnvironment(),
+    };
 
     if (readiness.status !== 'ready') {
-      throw new ServiceUnavailableException(readiness);
+      throw new ServiceUnavailableException(identifiedReadiness);
     }
 
-    return readiness;
+    return identifiedReadiness;
   }
 }

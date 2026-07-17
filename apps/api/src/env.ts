@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { validateDeploymentIsolation } from './deployment-environment';
 
 function getMissingOrEmptyKeys(keys: string[]) {
   return keys.filter((key) => {
@@ -30,7 +31,8 @@ function validateCriticalEnv() {
 function warnProviderEnvMisconfigurations() {
   if (
     process.env.KROGER_USE_REAL_PROVIDER === 'true' &&
-    getMissingOrEmptyKeys(['KROGER_CLIENT_ID', 'KROGER_CLIENT_SECRET']).length > 0
+    getMissingOrEmptyKeys(['KROGER_CLIENT_ID', 'KROGER_CLIENT_SECRET']).length >
+      0
   ) {
     console.warn(
       '[ENV] KROGER_USE_REAL_PROVIDER=true but Kroger credentials are missing. Provider will not work until credentials are set.',
@@ -48,7 +50,8 @@ function warnProviderEnvMisconfigurations() {
 
   if (
     process.env.WALMART_USE_REAL_PROVIDER === 'true' &&
-    getMissingOrEmptyKeys(['WALMART_CLIENT_ID', 'WALMART_CLIENT_SECRET']).length > 0
+    getMissingOrEmptyKeys(['WALMART_CLIENT_ID', 'WALMART_CLIENT_SECRET'])
+      .length > 0
   ) {
     console.warn(
       '[ENV] WALMART_USE_REAL_PROVIDER=true but Walmart credentials are missing. Provider will not work until credentials are set.',
@@ -141,4 +144,5 @@ process.env.DIRECT_URL =
   process.env.DATABASE_URL;
 
 validateCriticalEnv();
+validateDeploymentIsolation();
 warnProviderEnvMisconfigurations();
