@@ -48,6 +48,15 @@ separate `api` and `vision` services. Staging must set:
 - `PRODUCTION_VISION_API_BASE_URL` to the production Vision URL;
 - `RUN_DB_SEED_ON_STARTUP=false`.
 
+Set each Railway service's **Config File** path exactly as follows:
+
+- API: `/railway.json`
+- Vision: `/railway.vision.json`
+
+These paths are absolute within the repository and do not follow Railway's
+**Root Directory** automatically. The Vision service root directory remains
+`apps/vision-lab`, so its `Dockerfile` path resolves within that service root.
+
 If staging intentionally needs seed data, an operator runs
 `pnpm --filter api db:seed` once from a session explicitly scoped to the staging
 database. One-off seeding never uses `RUN_DB_SEED_ON_STARTUP=true`.
