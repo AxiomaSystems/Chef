@@ -145,7 +145,9 @@ Expected classifier path pattern:
 - Railway/API should keep custom start command empty and use the Dockerfile `CMD`.
 - Railway/API should use `/ready` as the healthcheck path.
 - Railway/API should enable Wait for CI before automatic production deploys.
-- Railway/API should set `RUN_DB_SEED_ON_STARTUP=true` only for demo/staging environments that intentionally need seed data on boot.
+- Railway/API must keep `RUN_DB_SEED_ON_STARTUP=false` in both hosted staging and production.
+- Intentional staging seeding is a one-off operator action: use `pnpm --filter api db:seed` only from a session explicitly scoped to the staging database; never enable the startup flag.
+- Local setup may continue to seed the local Docker database through `pnpm setup` or `pnpm api:setup`; this hosted restriction does not remove the local development seed step.
 - Vercel/Web needs `API_BASE_URL` pointed at the deployed API `/api/v1` base URL.
 - Vercel/Web production source is branch `main`, root directory `apps/web`.
 - The production frontend domain is `chef.postigo.sh`; do not assign that domain to the Railway API service.

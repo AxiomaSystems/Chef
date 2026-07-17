@@ -12,6 +12,7 @@ import { AppModule } from './../src/app.module';
 import { configureApp, REQUEST_ID_HEADER } from './../src/app.setup';
 import { AuthTokenService } from './../src/auth/auth-token.service';
 import { CartService } from './../src/cart/cart.service';
+import { getExpectedMigrationVersion } from './../src/database-schema-readiness';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { RecipeService } from './../src/recipe/recipe.service';
 import { RetailersService } from './../src/retailers/retailers.service';
@@ -25,7 +26,7 @@ describe('AppController (e2e)', () => {
   let prismaServiceMock: {
     $connect: jest.Mock;
     enableShutdownHooks: jest.Mock;
-    $queryRawUnsafe: jest.Mock;
+    $queryRaw: jest.Mock;
     user: {
       findUnique: jest.Mock;
     };
@@ -137,7 +138,11 @@ describe('AppController (e2e)', () => {
     prismaServiceMock = {
       $connect: jest.fn(),
       enableShutdownHooks: jest.fn(),
-      $queryRawUnsafe: jest.fn(async () => [{ '?column?': 1 }]),
+      $queryRaw: jest.fn(async (query: TemplateStringsArray) =>
+        query.join(' ').includes('_prisma_migrations')
+          ? [{ migration_name: getExpectedMigrationVersion() }]
+          : [{ '?column?': 1 }],
+      ),
       user: {
         findUnique: jest.fn(
           async ({ where }: { where: { id?: string; email?: string } }) => ({
@@ -193,8 +198,6 @@ describe('AppController (e2e)', () => {
   });
 
   it('GET /ready returns readiness status when database is reachable', async () => {
-    prismaServiceMock.$queryRawUnsafe.mockResolvedValue([{ '?column?': 1 }]);
-
     await request(app.getHttpServer())
       .get('/ready')
       .expect(200)
@@ -203,16 +206,22 @@ describe('AppController (e2e)', () => {
         expect(response.body.service).toBe('api');
         expect(response.body.environment).toBe('local');
         expect(response.body.database.status).toBe('ready');
+        expect(response.body.database.schema).toMatchObject({
+          status: 'ready',
+          expected: getExpectedMigrationVersion(),
+          applied: getExpectedMigrationVersion(),
+        });
         expect(response.body.providers).toBeDefined();
         expect(response.body.providers.walmart).toEqual({
           status: 'partner_required',
           is_available: false,
+          mode: 'sandbox',
         });
       });
   });
 
   it('GET /ready returns 503 when database is not reachable', async () => {
-    prismaServiceMock.$queryRawUnsafe.mockRejectedValue(new Error('db down'));
+    prismaServiceMock.$queryRaw.mockRejectedValue(new Error('db down'));
 
     await request(app.getHttpServer())
       .get('/ready')

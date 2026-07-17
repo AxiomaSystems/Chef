@@ -4,7 +4,7 @@ export type AuthTokens = {
   expires_in: string;
 };
 
-import { resolveApiBaseUrl } from "./runtime-env.mts";
+import { resolveApiBaseUrl } from "./runtime-env.ts";
 
 export const API_BASE_URL = resolveApiBaseUrl();
 
