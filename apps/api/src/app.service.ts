@@ -3,6 +3,7 @@ import type { Retailer } from '@cart/shared';
 import {
   type AppliedMigration,
   evaluateSchemaCompatibility,
+  getKnownActiveProductionMigrationFingerprints,
   getPackagedMigrations,
   isMigrationVersionName,
   type SchemaCompatibilityStatus,
@@ -157,6 +158,7 @@ export class AppService {
           packaged: packagedMigrations,
           applied: appliedMigrations,
           minimumCompatible,
+          knownFingerprints: getKnownActiveProductionMigrationFingerprints(),
         })
       : 'unavailable';
     const schemaStatus =

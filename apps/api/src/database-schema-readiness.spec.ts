@@ -1,10 +1,38 @@
 import { join, resolve } from 'node:path';
+import { KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1 } from './database-migration-fingerprint-ledger.v1';
 import {
   evaluateSchemaCompatibility,
   getExpectedMigrationVersion,
   getMigrationDirectoryCandidates,
   getPackagedMigrations,
 } from './database-schema-readiness';
+
+function knownProductionHistory() {
+  const packaged = getPackagedMigrations([
+    resolve(__dirname, '../prisma/migrations'),
+  ]);
+  const packagedByName = new Map(
+    packaged.map((migration) => [migration.name, migration.checksum]),
+  );
+  const knownByName = new Map(
+    KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1.map((migration) => [
+      migration.name,
+      migration.checksum,
+    ]),
+  );
+
+  return {
+    packaged,
+    applied: [...new Set([...packagedByName.keys(), ...knownByName.keys()])]
+      .sort((left, right) => left.localeCompare(right))
+      .map((name) => ({
+        name,
+        checksum: knownByName.get(name) ?? packagedByName.get(name) ?? '',
+        finished: true,
+        rolledBack: false,
+      })),
+  };
+}
 
 describe('database schema readiness', () => {
   const previous = '20260627124500_backfill_recipe_profiles';
@@ -41,6 +69,88 @@ describe('database schema readiness', () => {
     ).toBe('ready');
   });
 
+  it('accepts the exact known active production history', () => {
+    const history = knownProductionHistory();
+
+    expect(
+      evaluateSchemaCompatibility({
+        ...history,
+        minimumCompatible: current,
+        knownFingerprints: KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+      }),
+    ).toBe('ready');
+  });
+
+  it('keeps the versioned ledger limited to verified packaged drift and the database-only migration', () => {
+    const packaged = getPackagedMigrations([
+      resolve(__dirname, '../prisma/migrations'),
+    ]);
+    const packagedByName = new Map(
+      packaged.map((migration) => [migration.name, migration.checksum]),
+    );
+    const databaseOnly =
+      KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1.filter(
+        (migration) => !packagedByName.has(migration.name),
+      );
+    const packagedDrift =
+      KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1.filter((migration) =>
+        packagedByName.has(migration.name),
+      );
+
+    expect(databaseOnly).toEqual([
+      {
+        name: '20260515120000_active_shopping_cart_lifecycle',
+        checksum:
+          'c2aa36b6852d3553973ba35743da7fcf05cc8f810de86dcd1b1a1b2c6a288e96',
+      },
+    ]);
+    expect(packagedDrift).toHaveLength(11);
+    expect(
+      packagedDrift.every(
+        (migration) =>
+          packagedByName.get(migration.name) !== migration.checksum,
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects an unrecorded migration name in otherwise known history', () => {
+    const history = knownProductionHistory();
+
+    expect(
+      evaluateSchemaCompatibility({
+        ...history,
+        applied: [
+          ...history.applied,
+          {
+            name: '20260701000000_unrecorded_history',
+            checksum: 'f'.repeat(64),
+            finished: true,
+            rolledBack: false,
+          },
+        ],
+        minimumCompatible: current,
+        knownFingerprints: KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+      }),
+    ).toBe('divergent');
+  });
+
+  it('rejects an altered checksum for a recorded production migration', () => {
+    const history = knownProductionHistory();
+
+    expect(
+      evaluateSchemaCompatibility({
+        ...history,
+        applied: history.applied.map((migration) =>
+          migration.name === '20260515120000_active_shopping_cart_lifecycle'
+            ? { ...migration, checksum: 'f'.repeat(64) }
+            : migration,
+        ),
+        minimumCompatible: current,
+        knownFingerprints: KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+      }),
+    ).toBe('divergent');
+  });
+
   it('reports a database that is behind packaged history', () => {
     expect(
       evaluateSchemaCompatibility({
@@ -61,7 +171,7 @@ describe('database schema readiness', () => {
     ).toBe('behind');
   });
 
-  it('accepts a compatible database-ahead history', () => {
+  it('rejects an unrecorded database-ahead migration', () => {
     expect(
       evaluateSchemaCompatibility({
         packaged: [{ name: current, checksum }],
@@ -76,7 +186,7 @@ describe('database schema readiness', () => {
         ],
         minimumCompatible: current,
       }),
-    ).toBe('ahead_compatible');
+    ).toBe('divergent');
   });
 
   it('fails when migration history contains an unfinished active attempt', () => {

@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import {
+  KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+  type MigrationFingerprint,
+} from './database-migration-fingerprint-ledger.v1';
 
 const MIGRATION_VERSION_PATTERN = /^\d{14}_[a-z0-9_]+$/;
 const MIGRATION_CHECKSUM_PATTERN = /^[a-f0-9]{64}$/;
@@ -73,7 +77,8 @@ export function getPackagedMigrations(
         .map((entry) => {
           const sql = readFileSync(
             resolve(candidate, entry.name, 'migration.sql'),
-          );
+            'utf8',
+          ).replace(/\r\n?/g, '\n');
           return {
             name: entry.name,
             checksum: createHash('sha256').update(sql).digest('hex'),
@@ -107,13 +112,15 @@ export function evaluateSchemaCompatibility(input: {
   packaged: PackagedMigration[];
   applied: AppliedMigration[];
   minimumCompatible: string;
+  knownFingerprints?: readonly MigrationFingerprint[];
 }): SchemaCompatibilityStatus {
   const packaged = [...input.packaged].sort((left, right) =>
     left.name.localeCompare(right.name),
   );
-  const activeApplied = input.applied
-    .filter((migration) => !migration.rolledBack)
-    .sort((left, right) => left.name.localeCompare(right.name));
+  const knownFingerprints = [...(input.knownFingerprints ?? [])];
+  const activeApplied = input.applied.filter(
+    (migration) => !migration.rolledBack,
+  );
 
   if (activeApplied.some((migration) => !migration.finished)) {
     return 'failed';
@@ -127,6 +134,11 @@ export function evaluateSchemaCompatibility(input: {
         !isMigrationVersionName(migration.name) ||
         !MIGRATION_CHECKSUM_PATTERN.test(migration.checksum),
     ) ||
+    knownFingerprints.some(
+      (migration) =>
+        !isMigrationVersionName(migration.name) ||
+        !MIGRATION_CHECKSUM_PATTERN.test(migration.checksum),
+    ) ||
     activeApplied.some(
       (migration) =>
         !isMigrationVersionName(migration.name) ||
@@ -134,6 +146,8 @@ export function evaluateSchemaCompatibility(input: {
     ) ||
     new Set(packaged.map((migration) => migration.name)).size !==
       packaged.length ||
+    new Set(knownFingerprints.map((migration) => migration.name)).size !==
+      knownFingerprints.length ||
     new Set(activeApplied.map((migration) => migration.name)).size !==
       activeApplied.length
   ) {
@@ -148,28 +162,41 @@ export function evaluateSchemaCompatibility(input: {
     return 'incompatible';
   }
 
-  const commonLength = Math.min(packaged.length, activeApplied.length);
+  const acceptedChecksums = new Map<string, Set<string>>();
+  for (const migration of packaged) {
+    acceptedChecksums.set(migration.name, new Set([migration.checksum]));
+  }
+  for (const migration of knownFingerprints) {
+    const checksums =
+      acceptedChecksums.get(migration.name) ?? new Set<string>();
+    checksums.add(migration.checksum);
+    acceptedChecksums.set(migration.name, checksums);
+  }
+  const expectedHistory = [...acceptedChecksums.keys()].sort((left, right) =>
+    left.localeCompare(right),
+  );
+
+  const commonLength = Math.min(expectedHistory.length, activeApplied.length);
   for (let index = 0; index < commonLength; index += 1) {
-    const expectedMigration = packaged[index];
+    const expectedName = expectedHistory[index];
     const appliedMigration = activeApplied[index];
     if (
-      expectedMigration.name !== appliedMigration.name ||
-      expectedMigration.checksum !== appliedMigration.checksum
+      expectedName !== appliedMigration.name ||
+      !acceptedChecksums.get(expectedName)?.has(appliedMigration.checksum)
     ) {
       return 'divergent';
     }
   }
 
-  if (activeApplied.length < packaged.length) {
+  if (activeApplied.length < expectedHistory.length) {
     return 'behind';
   }
-  if (activeApplied.length === packaged.length) {
+  if (activeApplied.length === expectedHistory.length) {
     return 'ready';
   }
+  return 'divergent';
+}
 
-  return activeApplied
-    .slice(packaged.length)
-    .every((migration) => migration.name > expected)
-    ? 'ahead_compatible'
-    : 'divergent';
+export function getKnownActiveProductionMigrationFingerprints(): readonly MigrationFingerprint[] {
+  return KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1;
 }
