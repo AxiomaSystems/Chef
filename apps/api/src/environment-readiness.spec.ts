@@ -104,6 +104,25 @@ describe('API environment readiness', () => {
       { WALMART_USE_REAL_PROVIDER: 'true' },
       'WALMART_CLIENT_ID and WALMART_CLIENT_SECRET are required when WALMART_USE_REAL_PROVIDER=true',
     ],
+    [
+      'Instacart enabled outside its production mode',
+      {
+        INSTACART_USE_REAL_PROVIDER: 'true',
+        INSTACART_API_KEY: 'test-instacart-key',
+        INSTACART_ENV: 'development',
+      },
+      'INSTACART_ENV must be production when INSTACART_USE_REAL_PROVIDER=true in production',
+    ],
+    [
+      'Walmart enabled outside its production mode',
+      {
+        WALMART_USE_REAL_PROVIDER: 'true',
+        WALMART_CLIENT_ID: 'test-walmart-id',
+        WALMART_CLIENT_SECRET: 'test-walmart-secret',
+        WALMART_ENV: 'sandbox',
+      },
+      'WALMART_ENV must be production when WALMART_USE_REAL_PROVIDER=true in production',
+    ],
   ])('rejects production with %s', (_scenario, overrides, expectedMessage) => {
     expect(() =>
       validateApiEnvironment({ ...productionEnvironment(), ...overrides }),
@@ -135,6 +154,28 @@ describe('API environment readiness', () => {
       }),
     ).toThrow(
       'API_CORS_ORIGINS must not contain localhost origins in production',
+    );
+  });
+
+  it.each([
+    'https://user:password@app.example.com',
+    'https://app.example.com/',
+    'https://app.example.com:443',
+    'https://app.example.com/api',
+    'https://app.example.com/%2e',
+    'https://app.example.com/%2e%2e/admin',
+    'https://app.example.com?preview=true',
+    'https://app.example.com?',
+    'https://app.example.com#fragment',
+    'https://app.example.com#',
+  ])('rejects non-origin production CORS value %s', (corsOrigin) => {
+    expect(() =>
+      validateApiEnvironment({
+        ...productionEnvironment(),
+        API_CORS_ORIGINS: corsOrigin,
+      }),
+    ).toThrow(
+      'API_CORS_ORIGINS must contain origins without credentials, paths, queries, or fragments in production',
     );
   });
 
@@ -189,7 +230,11 @@ describe('API environment readiness', () => {
       }),
     ).toEqual({
       ai: { status: 'ready' },
-      vision: { status: 'ready' },
+      vision: {
+        status: 'ready',
+        readiness_scope: 'configuration',
+        runtime_status: 'not_checked',
+      },
     });
   });
 
@@ -201,7 +246,21 @@ describe('API environment readiness', () => {
       }),
     ).toEqual({
       ai: { status: 'disabled' },
-      vision: { status: 'misconfigured' },
+      vision: {
+        status: 'misconfigured',
+        readiness_scope: 'configuration',
+        runtime_status: 'not_checked',
+      },
+    });
+  });
+
+  it('reports a missing Vision URL as configuration-scoped disabled', () => {
+    expect(
+      getApiFeatureReadiness({ CHEF_LLM_PROVIDER: 'mock' }).vision,
+    ).toEqual({
+      status: 'disabled',
+      readiness_scope: 'configuration',
+      runtime_status: 'not_checked',
     });
   });
 });

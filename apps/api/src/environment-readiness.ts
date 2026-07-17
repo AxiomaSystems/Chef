@@ -6,9 +6,14 @@ type ApiFeature = {
   status: ApiFeatureStatus;
 };
 
+type VisionFeature = ApiFeature & {
+  readiness_scope: 'configuration';
+  runtime_status: 'not_checked';
+};
+
 export type ApiFeatureReadiness = {
   ai: ApiFeature;
-  vision: ApiFeature;
+  vision: VisionFeature;
 };
 
 const RETAILER_CREDENTIALS = [
@@ -129,6 +134,7 @@ function validateProductionEnvironment(
   }
 
   validateProductionCorsOrigins(env, errors);
+  validateProductionRetailerModes(env, errors);
   requireFalse(env, 'API_ENABLE_DOCS', 'production', errors);
   requireFalse(env, 'RUN_DB_SEED_ON_STARTUP', 'production', errors);
 }
@@ -167,6 +173,35 @@ function validateProductionCorsOrigins(
   if (validOrigins.some(isLocalUrl)) {
     errors.push(
       'API_CORS_ORIGINS must not contain localhost origins in production.',
+    );
+  }
+
+  if (validOrigins.some((url, index) => origins[index] !== url.origin)) {
+    errors.push(
+      'API_CORS_ORIGINS must contain origins without credentials, paths, queries, or fragments in production.',
+    );
+  }
+}
+
+function validateProductionRetailerModes(
+  env: NodeJS.ProcessEnv,
+  errors: string[],
+) {
+  if (
+    env.INSTACART_USE_REAL_PROVIDER === 'true' &&
+    env.INSTACART_ENV !== 'production'
+  ) {
+    errors.push(
+      'INSTACART_ENV must be production when INSTACART_USE_REAL_PROVIDER=true in production.',
+    );
+  }
+
+  if (
+    env.WALMART_USE_REAL_PROVIDER === 'true' &&
+    env.WALMART_ENV !== 'production'
+  ) {
+    errors.push(
+      'WALMART_ENV must be production when WALMART_USE_REAL_PROVIDER=true in production.',
     );
   }
 }
@@ -255,12 +290,20 @@ function getAiFeatureReadiness(env: NodeJS.ProcessEnv): ApiFeature {
   return { status: 'ready' };
 }
 
-function getVisionFeatureReadiness(env: NodeJS.ProcessEnv): ApiFeature {
+function getVisionFeatureReadiness(env: NodeJS.ProcessEnv): VisionFeature {
   if (!hasValue(env, 'VISION_API_BASE_URL')) {
-    return { status: 'disabled' };
+    return visionFeature('disabled');
   }
 
+  return visionFeature(
+    parseHttpUrl(env.VISION_API_BASE_URL) ? 'ready' : 'misconfigured',
+  );
+}
+
+function visionFeature(status: ApiFeatureStatus): VisionFeature {
   return {
-    status: parseHttpUrl(env.VISION_API_BASE_URL) ? 'ready' : 'misconfigured',
+    status,
+    readiness_scope: 'configuration',
+    runtime_status: 'not_checked',
   };
 }
