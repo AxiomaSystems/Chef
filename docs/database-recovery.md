@@ -68,6 +68,23 @@ contract migration raises it only after old application revisions have been
 retired. Readiness also verifies the relevant `_prisma_migrations` history and
 checksums; inspecting only the latest successful row is insufficient.
 
+### Mandatory two-release compatibility transition
+
+Introducing compatibility metadata requires two separate releases:
+
+1. **Phase A — reader first:** deploy the compatibility-aware API with no
+   compatibility-table migration. While the table is absent, readiness uses
+   that API's packaged expected migration as the minimum compatible migration.
+2. Smoke Phase A in the hosted environment and confirm its revision, complete
+   migration history/checksums, and normal critical reads and writes.
+3. **Phase B — table second:** only a later release may add and initialize the
+   compatibility table. The already-serving Phase A API detects the table,
+   reads its declared minimum, and accepts the compatible database-ahead state.
+
+The compatibility-table migration must never ship in the same release that
+first teaches the API to read it. Otherwise pre-deploy can advance the database
+while the previous serving API still rejects database-ahead history.
+
 ## Expand-and-contract policy
 
 Normal releases use backward-compatible, roll-forward migrations:

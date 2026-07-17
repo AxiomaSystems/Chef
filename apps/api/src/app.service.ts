@@ -123,19 +123,30 @@ export class AppService {
 
     let minimumCompatible: string | null = null;
     try {
-      const compatibility = await this.prisma.$queryRaw<
-        Array<{ minimumApiMigration: unknown }>
+      const tableLookup = await this.prisma.$queryRaw<
+        Array<{ relation_name: unknown }>
       >`
-        SELECT "minimumApiMigration"
-        FROM "DatabaseReleaseCompatibility"
-        WHERE id = 1
-        LIMIT 1
+        SELECT to_regclass('"DatabaseReleaseCompatibility"')::text AS relation_name
       `;
-      minimumCompatible = isMigrationVersionName(
-        compatibility[0]?.minimumApiMigration,
-      )
-        ? compatibility[0].minimumApiMigration
-        : null;
+      const relationName = tableLookup[0]?.relation_name;
+
+      if (relationName === null) {
+        minimumCompatible = expectedMigration;
+      } else if (typeof relationName === 'string' && relationName.length > 0) {
+        const compatibility = await this.prisma.$queryRaw<
+          Array<{ minimumApiMigration: unknown }>
+        >`
+          SELECT "minimumApiMigration"
+          FROM "DatabaseReleaseCompatibility"
+          WHERE id = 1
+          LIMIT 1
+        `;
+        minimumCompatible = isMigrationVersionName(
+          compatibility[0]?.minimumApiMigration,
+        )
+          ? compatibility[0].minimumApiMigration
+          : null;
+      }
     } catch {
       // Missing or inaccessible compatibility metadata fails closed below.
     }

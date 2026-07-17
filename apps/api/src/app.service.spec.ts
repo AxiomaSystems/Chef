@@ -45,7 +45,7 @@ describe('AppService', () => {
     process.env = environment;
   });
 
-  it('adds AI and Vision configuration to a ready database response', async () => {
+  it('uses the packaged expectation when the compatibility table is absent', async () => {
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
       .mockResolvedValueOnce([
@@ -56,7 +56,7 @@ describe('AppService', () => {
           rolled_back_at: null,
         },
       ])
-      .mockResolvedValueOnce([{ minimumApiMigration: expectedMigration }]);
+      .mockResolvedValueOnce([{ relation_name: null }]);
 
     const readiness = await service.getReadiness();
 
@@ -122,7 +122,7 @@ describe('AppService', () => {
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ minimumApiMigration: expectedMigration }]);
+      .mockResolvedValueOnce([{ relation_name: null }]);
 
     const readiness = await service.getReadiness();
 
@@ -158,6 +158,9 @@ describe('AppService', () => {
           rolled_back_at: null,
         },
       ])
+      .mockResolvedValueOnce([
+        { relation_name: '"DatabaseReleaseCompatibility"' },
+      ])
       .mockResolvedValueOnce([{ minimumApiMigration: expectedMigration }]);
 
     const readiness = await service.getReadiness();
@@ -171,6 +174,73 @@ describe('AppService', () => {
           expected: expectedMigration,
           applied: futureMigration,
           minimum_compatible: expectedMigration,
+        },
+      },
+    });
+  });
+
+  it('fails closed when compatibility table detection fails', async () => {
+    queryRaw
+      .mockResolvedValueOnce([{ '?column?': 1 }])
+      .mockResolvedValueOnce([
+        {
+          migration_name: expectedMigration,
+          checksum,
+          finished_at: new Date(),
+          rolled_back_at: null,
+        },
+      ])
+      .mockRejectedValueOnce(new Error('sensitive table lookup failure'));
+
+    const readiness = await service.getReadiness();
+
+    expect(JSON.stringify(readiness)).not.toContain(
+      'sensitive table lookup failure',
+    );
+    expect(readiness).toMatchObject({
+      status: 'not_ready',
+      database: {
+        status: 'not_ready',
+        schema: {
+          status: 'unavailable',
+          expected: expectedMigration,
+          applied: expectedMigration,
+          minimum_compatible: null,
+        },
+      },
+    });
+  });
+
+  it('fails closed when present compatibility metadata cannot be read', async () => {
+    queryRaw
+      .mockResolvedValueOnce([{ '?column?': 1 }])
+      .mockResolvedValueOnce([
+        {
+          migration_name: expectedMigration,
+          checksum,
+          finished_at: new Date(),
+          rolled_back_at: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        { relation_name: '"DatabaseReleaseCompatibility"' },
+      ])
+      .mockRejectedValueOnce(new Error('sensitive metadata read failure'));
+
+    const readiness = await service.getReadiness();
+
+    expect(JSON.stringify(readiness)).not.toContain(
+      'sensitive metadata read failure',
+    );
+    expect(readiness).toMatchObject({
+      status: 'not_ready',
+      database: {
+        status: 'not_ready',
+        schema: {
+          status: 'unavailable',
+          expected: expectedMigration,
+          applied: expectedMigration,
+          minimum_compatible: null,
         },
       },
     });

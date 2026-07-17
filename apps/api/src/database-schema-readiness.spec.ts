@@ -17,7 +17,7 @@ describe('database schema readiness', () => {
   it('derives the expected version from the latest repository migration', () => {
     expect(
       getExpectedMigrationVersion([resolve(__dirname, '../prisma/migrations')]),
-    ).toBe(futureExpand);
+    ).toBe(current);
   });
 
   it('hashes every packaged migration and preserves checksum parity', () => {
@@ -27,7 +27,7 @@ describe('database schema readiness', () => {
 
     expect(packaged.length).toBeGreaterThan(1);
     expect(packaged.at(-1)).toMatchObject({
-      name: futureExpand,
+      name: current,
       checksum: expect.stringMatching(/^[a-f0-9]{64}$/),
     });
     expect(

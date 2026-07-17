@@ -151,13 +151,8 @@ describe('AppController (e2e)', () => {
           }));
         }
 
-        if (sql.includes('DatabaseReleaseCompatibility')) {
-          return [
-            {
-              minimumApiMigration:
-                '20260628120000_add_recipe_execution_metadata',
-            },
-          ];
+        if (sql.includes('to_regclass')) {
+          return [{ relation_name: null }];
         }
 
         return [{ '?column?': 1 }];
