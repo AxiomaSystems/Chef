@@ -91,11 +91,6 @@
       "count": 1
     }
   },
-  "src/env.ts": {
-    "prettier/prettier": {
-      "count": 2
-    }
-  },
   "src/ingredients/ingredients.service.spec.ts": {
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 6
