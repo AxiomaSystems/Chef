@@ -2,17 +2,41 @@
 
 ## Branches
 
-- `main`: stable production branch. Branch from it by default.
-- `piero/*`, `enoch/*`, `gallo/*`, `ahmad/*`: individual work branches.
+- `main`: stable shared baseline, production trunk, and default base for new work.
+- `piero/*`, `enoch/*`, `gallo/*`, `ahmad/*`: short-lived individual work branches.
 - `spike/*`: experiments or research that may not merge.
-- `staging/*` or `integration/*`: temporary integration branches only when the team explicitly needs one.
-- `demo/*`: legacy/demo snapshots. Do not use as a default base for new work.
+- `staging/*` or `integration/*`: temporary integration branches created only for an explicit multi-branch exercise or release rehearsal.
+- `dev` and `demo/*`: legacy branches. Do not use them as normal bases or merge targets.
+
+Create feature, fix, documentation, and hotfix branches from an up-to-date
+`main`. Keep them focused and short-lived, then return them through a pull
+request targeting `main`.
+
+When a temporary integration branch is genuinely needed, record all of the
+following in its integration PR or tracking issue:
+
+- its purpose and owner
+- the participating branches or commits
+- the checks or rehearsal it must complete
+- its exit condition
+- when it will be merged or discarded and retired
+
+Temporary integration branches do not replace `main` and must not become a
+second permanent trunk.
+
+## Deployments
 
 Production deploys come from `main`:
 
 - Vercel deploys the web app from `main`.
 - Railway deploys the API from `main` after CI succeeds.
-- PRs and feature branches may have previews, but they are not production truth.
+- PRs and feature branches may have preview deployments, but previews are not
+  production truth and do not promote a branch to production.
+
+Hotfixes follow the same model: branch from the current production state on
+`main`, make the smallest safe change, run the relevant checks, and return the
+fix to `main` through a focused PR. An emergency must not create a second
+permanent production branch.
 
 ## Commit format
 
@@ -34,6 +58,43 @@ Examples:
 - `docs(env): centralize local setup guide`
 - `chore(repo): tighten ignored local artifacts`
 
+The allowed commit types are `feat`, `fix`, `chore`, `docs`, `refactor`,
+`test`, and `ci`. Scopes are optional; when used, keep them short, lowercase,
+and meaningful to the affected package or area.
+
+Commitlint enforces this convention:
+
+- locally, the Husky `commit-msg` hook checks each new commit
+- in pull requests, GitHub Actions checks every commit between the PR base and head
+- on pushes to `main`, GitHub Actions checks the pushed commit
+
+Run Commitlint manually without changing files:
+
+```powershell
+pnpm commitlint --from origin/main --to HEAD --verbose
+```
+
+The repository currently permits merge, rebase, and squash strategies, so each
+commit in a PR must satisfy the convention. If squash-only merging becomes the
+repository policy later, the PR title must be validated because it becomes the
+final commit title.
+
+## Merge safeguards
+
+Before merging into `main`:
+
+- update the branch against current `main` and resolve conflicts intentionally
+- run `pnpm verify` from the repository root
+- run additional package, database, or end-to-end checks when the change requires them
+- confirm required GitHub status checks pass
+- include contract and documentation updates when behavior changed
+- remove unrelated or environment-specific changes from the PR
+
+`pnpm verify` is non-mutating and covers the package participation documented
+in the root `package.json`. It does not include API end-to-end tests; use
+`pnpm test:e2e` when that path is relevant. `vision-lab` runs its Python-owned
+checks and is not part of TypeScript validation.
+
 ## PR expectations
 
 Every PR should include:
@@ -44,6 +105,11 @@ Every PR should include:
 - remaining issues
 
 Integration PRs should also list branches or commits integrated.
+
+Repository administrators should configure branch protection for `main` to
+require the baseline CI checks, Commitlint, and an up-to-date reviewable branch
+before merge. GitHub repository settings remain the enforcement source for
+those protections.
 
 ## Verification commands
 
