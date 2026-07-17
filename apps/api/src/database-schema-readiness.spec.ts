@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path';
+import { KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1 } from './database-migration-fingerprint-ledger.v1';
 import {
   evaluateSchemaCompatibility,
   getExpectedMigrationVersion,
@@ -6,9 +7,37 @@ import {
   getPackagedMigrations,
 } from './database-schema-readiness';
 
+function knownProductionHistory() {
+  const packaged = getPackagedMigrations([
+    resolve(__dirname, '../prisma/migrations'),
+  ]);
+  const packagedByName = new Map(
+    packaged.map((migration) => [migration.name, migration.checksum]),
+  );
+  const knownByName = new Map(
+    KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1.map((migration) => [
+      migration.name,
+      migration.checksum,
+    ]),
+  );
+
+  return {
+    packaged,
+    applied: [...new Set([...packagedByName.keys(), ...knownByName.keys()])]
+      .sort((left, right) => left.localeCompare(right))
+      .map((name) => ({
+        name,
+        checksum: knownByName.get(name) ?? packagedByName.get(name) ?? '',
+        finished: true,
+        rolledBack: false,
+      })),
+  };
+}
+
 describe('database schema readiness', () => {
   const previous = '20260627124500_backfill_recipe_profiles';
   const current = '20260628120000_add_recipe_execution_metadata';
+  const optionalLegacy = '20260628000000_optional_legacy_history';
   const futureExpand = '20260717170000_add_database_release_compatibility';
   const checksum = 'a'.repeat(64);
   const previousChecksum = 'b'.repeat(64);
@@ -41,6 +70,135 @@ describe('database schema readiness', () => {
     ).toBe('ready');
   });
 
+  it('accepts the exact known active production history', () => {
+    const history = knownProductionHistory();
+
+    expect(
+      evaluateSchemaCompatibility({
+        ...history,
+        minimumCompatible: current,
+        knownFingerprints: KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+      }),
+    ).toBe('ready');
+  });
+
+  it('accepts clean packaged history when the production ledger is provided', () => {
+    const packaged = getPackagedMigrations([
+      resolve(__dirname, '../prisma/migrations'),
+    ]);
+
+    expect(
+      evaluateSchemaCompatibility({
+        packaged,
+        applied: packaged.map((migration) => ({
+          ...migration,
+          finished: true,
+          rolledBack: false,
+        })),
+        minimumCompatible: current,
+        knownFingerprints: KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+      }),
+    ).toBe('ready');
+  });
+
+  it('accepts an optional ledger-only row in its exact ordered position', () => {
+    expect(
+      evaluateSchemaCompatibility({
+        packaged: [
+          { name: previous, checksum: previousChecksum },
+          { name: current, checksum },
+        ],
+        applied: [
+          {
+            name: previous,
+            checksum: previousChecksum,
+            finished: true,
+            rolledBack: false,
+          },
+          {
+            name: optionalLegacy,
+            checksum: futureChecksum,
+            finished: true,
+            rolledBack: false,
+          },
+          { name: current, checksum, finished: true, rolledBack: false },
+        ],
+        minimumCompatible: current,
+        knownFingerprints: [{ name: optionalLegacy, checksum: futureChecksum }],
+      }),
+    ).toBe('ready');
+  });
+
+  it('keeps the versioned ledger limited to verified packaged drift and the database-only migration', () => {
+    const packaged = getPackagedMigrations([
+      resolve(__dirname, '../prisma/migrations'),
+    ]);
+    const packagedByName = new Map(
+      packaged.map((migration) => [migration.name, migration.checksum]),
+    );
+    const databaseOnly =
+      KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1.filter(
+        (migration) => !packagedByName.has(migration.name),
+      );
+    const packagedDrift =
+      KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1.filter((migration) =>
+        packagedByName.has(migration.name),
+      );
+
+    expect(databaseOnly).toEqual([
+      {
+        name: '20260515120000_active_shopping_cart_lifecycle',
+        checksum:
+          'c2aa36b6852d3553973ba35743da7fcf05cc8f810de86dcd1b1a1b2c6a288e96',
+      },
+    ]);
+    expect(packagedDrift).toHaveLength(11);
+    expect(
+      packagedDrift.every(
+        (migration) =>
+          packagedByName.get(migration.name) !== migration.checksum,
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects an unrecorded migration name in otherwise known history', () => {
+    const history = knownProductionHistory();
+
+    expect(
+      evaluateSchemaCompatibility({
+        ...history,
+        applied: [
+          ...history.applied,
+          {
+            name: '20260628000000_unrecorded_history',
+            checksum: 'f'.repeat(64),
+            finished: true,
+            rolledBack: false,
+          },
+        ].sort((left, right) => left.name.localeCompare(right.name)),
+        minimumCompatible: current,
+        knownFingerprints: KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+      }),
+    ).toBe('divergent');
+  });
+
+  it('rejects an altered checksum for a recorded production migration', () => {
+    const history = knownProductionHistory();
+
+    expect(
+      evaluateSchemaCompatibility({
+        ...history,
+        applied: history.applied.map((migration) =>
+          migration.name === '20260515120000_active_shopping_cart_lifecycle'
+            ? { ...migration, checksum: 'f'.repeat(64) }
+            : migration,
+        ),
+        minimumCompatible: current,
+        knownFingerprints: KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+      }),
+    ).toBe('divergent');
+  });
+
   it('reports a database that is behind packaged history', () => {
     expect(
       evaluateSchemaCompatibility({
@@ -61,7 +219,42 @@ describe('database schema readiness', () => {
     ).toBe('behind');
   });
 
-  it('accepts a compatible database-ahead history', () => {
+  it('distinguishes a missing required suffix from a required interior gap', () => {
+    const first = '20260627120000_first';
+    const middle = '20260627130000_middle';
+    const last = '20260627140000_last';
+    const packaged = [
+      { name: first, checksum: previousChecksum },
+      { name: middle, checksum },
+      { name: last, checksum: futureChecksum },
+    ];
+    const applied = (name: string, migrationChecksum: string) => ({
+      name,
+      checksum: migrationChecksum,
+      finished: true,
+      rolledBack: false,
+    });
+
+    expect(
+      evaluateSchemaCompatibility({
+        packaged,
+        applied: [applied(first, previousChecksum)],
+        minimumCompatible: first,
+      }),
+    ).toBe('behind');
+    expect(
+      evaluateSchemaCompatibility({
+        packaged,
+        applied: [
+          applied(first, previousChecksum),
+          applied(last, futureChecksum),
+        ],
+        minimumCompatible: first,
+      }),
+    ).toBe('divergent');
+  });
+
+  it('accepts a strictly newer compatible database-ahead suffix', () => {
     expect(
       evaluateSchemaCompatibility({
         packaged: [{ name: current, checksum }],
@@ -95,6 +288,19 @@ describe('database schema readiness', () => {
         minimumCompatible: current,
       }),
     ).toBe('failed');
+  });
+
+  it('rejects duplicate finished active rows for the same migration fingerprint', () => {
+    expect(
+      evaluateSchemaCompatibility({
+        packaged: [{ name: current, checksum }],
+        applied: [
+          { name: current, checksum, finished: true, rolledBack: false },
+          { name: current, checksum, finished: true, rolledBack: false },
+        ],
+        minimumCompatible: current,
+      }),
+    ).toBe('divergent');
   });
 
   it('reports checksum divergence across the complete packaged history', () => {

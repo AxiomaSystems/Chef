@@ -8,19 +8,30 @@ jest.mock('./database-schema-readiness', () => {
 
   return {
     ...actual,
+    getKnownActiveProductionMigrationFingerprints: jest.fn(),
     getPackagedMigrations: jest.fn(),
   };
 });
 
 import { AppService } from './app.service';
-import { getPackagedMigrations } from './database-schema-readiness';
+import { KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1 } from './database-migration-fingerprint-ledger.v1';
+import {
+  getKnownActiveProductionMigrationFingerprints,
+  getPackagedMigrations,
+} from './database-schema-readiness';
 import type { PrismaService } from './prisma/prisma.service';
 
 describe('AppService', () => {
   const queryRaw = jest.fn();
   const expectedMigration = '20260628120000_add_recipe_execution_metadata';
   const checksum = 'a'.repeat(64);
+  const mockGetKnownActiveProductionMigrationFingerprints = jest.mocked(
+    getKnownActiveProductionMigrationFingerprints,
+  );
   const mockGetPackagedMigrations = jest.mocked(getPackagedMigrations);
+  const actualGetPackagedMigrations = jest.requireActual<
+    typeof import('./database-schema-readiness')
+  >('./database-schema-readiness').getPackagedMigrations;
   const service = new AppService({
     $queryRaw: queryRaw,
   } as unknown as PrismaService);
@@ -28,6 +39,8 @@ describe('AppService', () => {
 
   beforeEach(() => {
     queryRaw.mockReset();
+    mockGetKnownActiveProductionMigrationFingerprints.mockReset();
+    mockGetKnownActiveProductionMigrationFingerprints.mockReturnValue([]);
     mockGetPackagedMigrations.mockReset();
     mockGetPackagedMigrations.mockReturnValue([
       { name: expectedMigration, checksum },
@@ -44,6 +57,29 @@ describe('AppService', () => {
   afterAll(() => {
     process.env = environment;
   });
+
+  function knownProductionMigrationRows() {
+    const packaged = actualGetPackagedMigrations();
+    const packagedByName = new Map(
+      packaged.map((migration) => [migration.name, migration.checksum]),
+    );
+    const knownByName = new Map(
+      KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1.map((migration) => [
+        migration.name,
+        migration.checksum,
+      ]),
+    );
+    const rows = [...new Set([...packagedByName.keys(), ...knownByName.keys()])]
+      .sort((left, right) => left.localeCompare(right))
+      .map((name) => ({
+        migration_name: name,
+        checksum: knownByName.get(name) ?? packagedByName.get(name) ?? '',
+        finished_at: new Date(),
+        rolled_back_at: null,
+      }));
+
+    return { packaged, rows };
+  }
 
   it('uses the packaged expectation when the compatibility table is absent', async () => {
     queryRaw
@@ -85,6 +121,96 @@ describe('AppService', () => {
       kroger: { mode: 'production' },
       instacart: { mode: 'development' },
       walmart: { mode: 'sandbox' },
+    });
+  });
+
+  it('reports ready for the exact known active production history', async () => {
+    const history = knownProductionMigrationRows();
+    mockGetKnownActiveProductionMigrationFingerprints.mockReturnValueOnce(
+      KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+    );
+    mockGetPackagedMigrations.mockReturnValueOnce(history.packaged);
+    queryRaw
+      .mockResolvedValueOnce([{ '?column?': 1 }])
+      .mockResolvedValueOnce(history.rows)
+      .mockResolvedValueOnce([{ relation_name: null }]);
+
+    const readiness = await service.getReadiness();
+
+    expect(readiness).toMatchObject({
+      status: 'ready',
+      database: {
+        status: 'ready',
+        schema: {
+          status: 'ready',
+          expected: expectedMigration,
+          applied: expectedMigration,
+          minimum_compatible: expectedMigration,
+        },
+      },
+    });
+  });
+
+  it('rejects an unrecorded name added to the known production history', async () => {
+    const history = knownProductionMigrationRows();
+    mockGetKnownActiveProductionMigrationFingerprints.mockReturnValueOnce(
+      KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+    );
+    mockGetPackagedMigrations.mockReturnValueOnce(history.packaged);
+    queryRaw
+      .mockResolvedValueOnce([{ '?column?': 1 }])
+      .mockResolvedValueOnce(
+        [
+          ...history.rows,
+          {
+            migration_name: '20260628000000_unrecorded_history',
+            checksum: 'f'.repeat(64),
+            finished_at: new Date(),
+            rolled_back_at: null,
+          },
+        ].sort((left, right) =>
+          left.migration_name.localeCompare(right.migration_name),
+        ),
+      )
+      .mockResolvedValueOnce([{ relation_name: null }]);
+
+    const readiness = await service.getReadiness();
+
+    expect(readiness).toMatchObject({
+      status: 'not_ready',
+      database: {
+        status: 'not_ready',
+        schema: { status: 'divergent' },
+      },
+    });
+  });
+
+  it('rejects an altered checksum in the known production history', async () => {
+    const history = knownProductionMigrationRows();
+    mockGetKnownActiveProductionMigrationFingerprints.mockReturnValueOnce(
+      KNOWN_ACTIVE_PRODUCTION_MIGRATION_FINGERPRINTS_V1,
+    );
+    mockGetPackagedMigrations.mockReturnValueOnce(history.packaged);
+    queryRaw
+      .mockResolvedValueOnce([{ '?column?': 1 }])
+      .mockResolvedValueOnce(
+        history.rows.map((migration) =>
+          migration.migration_name ===
+          '20260515120000_active_shopping_cart_lifecycle'
+            ? { ...migration, checksum: 'f'.repeat(64) }
+            : migration,
+        ),
+      )
+      .mockResolvedValueOnce([{ relation_name: null }]);
+
+    const readiness = await service.getReadiness();
+
+    expect(readiness).toMatchObject({
+      status: 'not_ready',
+      database: {
+        status: 'not_ready',
+        schema: { status: 'divergent' },
+      },
     });
   });
 
