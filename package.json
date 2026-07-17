@@ -24,6 +24,7 @@
     "api:reset": "docker compose -f infra/docker/docker-compose.yml up -d && pnpm --dir apps/api exec prisma migrate reset --force",
     "api:up": "docker compose -f infra/docker/docker-compose.yml up -d && pnpm dev:api",
     "build": "pnpm --filter @cart/shared build && pnpm --filter api build && pnpm --filter web build",
+    "commitlint": "commitlint",
     "lint": "pnpm --filter api lint && pnpm --filter web lint && pnpm --filter mobile lint",
     "lint:baseline": "pnpm --filter api lint:baseline",
     "lint:fix": "pnpm --filter api lint:fix && pnpm --filter web lint:fix && pnpm --filter mobile lint:fix",
@@ -61,6 +62,8 @@
   "license": "ISC",
   "packageManager": "pnpm@11.1.2",
   "devDependencies": {
+    "@commitlint/cli": "^21.2.1",
+    "@commitlint/config-conventional": "^21.2.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.2",
     "prettier": "^3.8.1"
