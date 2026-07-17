@@ -7,6 +7,10 @@ const REQUIRED_DEPLOYMENT_URL_KEYS = [
   "READINESS_API_BASE_URL",
 ];
 const DEPLOYMENT_ENVIRONMENTS = new Set(["staging", "production"]);
+const WEB_ENVIRONMENT_BY_DEPLOYMENT = {
+  staging: "preview",
+  production: "production",
+};
 const OPTIONAL_CAPABILITY_STATUSES = new Set(["ready", "disabled", "degraded"]);
 const API_FEATURE_STATUSES = new Set(["ready", "disabled", "misconfigured"]);
 const PROVIDER_STATUSES = new Set([
@@ -298,9 +302,12 @@ export function assertFeatureReadinessPayloads(
     );
   }
 
-  if (webReadiness.environment.name !== expectedEnvironment) {
+  if (
+    webReadiness.environment.name !==
+    WEB_ENVIRONMENT_BY_DEPLOYMENT[expectedEnvironment]
+  ) {
     throw new Error(
-      "[READINESS] web environment must match READINESS_ENVIRONMENT.",
+      "[READINESS] web environment must match the Vercel target mapped from READINESS_ENVIRONMENT.",
     );
   }
 

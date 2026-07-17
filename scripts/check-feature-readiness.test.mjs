@@ -5,6 +5,7 @@ import {
   assertFeatureReadinessPayloads,
   runFeatureReadinessSmoke,
 } from "./check-feature-readiness.mjs";
+import { getWebFeatureReadiness } from "../apps/web/src/lib/feature-readiness.mts";
 
 const readinessEnvironment = {
   READINESS_WEB_BASE_URL: "https://preview.example.com",
@@ -53,31 +54,12 @@ const readyApi = {
   },
 };
 
-const readyWeb = {
-  environment: { name: "staging" },
-  api: { status: "ready", environment: ["API_BASE_URL"] },
-  voice: {
-    status: "disabled",
-    capabilities: {
-      conversationalAgent: {
-        status: "disabled",
-        environment: [
-          "ELEVENLABS_AGENT_ID",
-          "NEXT_PUBLIC_ELEVENLABS_AGENT_ID",
-          "ELEVENLABS_API_KEY",
-        ],
-      },
-      speechToText: {
-        status: "disabled",
-        environment: ["ELEVENLABS_API_KEY"],
-      },
-      textToSpeech: {
-        status: "disabled",
-        environment: ["ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID"],
-      },
-    },
-  },
-};
+const readyWeb = getWebFeatureReadiness({
+  VERCEL: "1",
+  VERCEL_ENV: "preview",
+  API_BASE_URL: "https://api-staging.example.com/api/v1",
+  PRODUCTION_API_BASE_URL: "https://api.example.com/api/v1",
+});
 
 const productionApi = {
   ...readyApi,
@@ -96,12 +78,14 @@ const productionApi = {
   },
 };
 
-const productionWeb = {
-  ...readyWeb,
-  environment: { name: "production" },
-};
+const productionWeb = getWebFeatureReadiness({
+  VERCEL: "1",
+  VERCEL_ENV: "production",
+  API_BASE_URL: "https://api.example.com/api/v1",
+});
 
 test("accepts a strict staging readiness contract", async () => {
+  assert.equal(readyWeb.environment.name, "preview");
   const requestedUrls = [];
   const fetchImpl = async (url) => {
     requestedUrls.push(url);
@@ -224,7 +208,7 @@ test("rejects environment identity mismatches from either service", () => {
         { ...readyWeb, environment: { name: "production" } },
         "staging",
       ),
-    /web environment must match READINESS_ENVIRONMENT/,
+    /web environment must match the Vercel target mapped from READINESS_ENVIRONMENT/,
   );
 });
 
