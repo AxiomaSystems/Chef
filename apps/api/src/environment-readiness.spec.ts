@@ -16,6 +16,17 @@ const productionEnvironment = (): NodeJS.ProcessEnv => ({
   WALMART_USE_REAL_PROVIDER: 'false',
 });
 
+const stagingEnvironment = (): NodeJS.ProcessEnv => ({
+  DEPLOYMENT_ENVIRONMENT: 'staging',
+  CHEF_LLM_PROVIDER: 'mock',
+  API_CORS_ORIGINS: 'https://staging.example.com',
+  API_ENABLE_DOCS: 'false',
+  RUN_DB_SEED_ON_STARTUP: 'false',
+  KROGER_USE_REAL_PROVIDER: 'false',
+  INSTACART_USE_REAL_PROVIDER: 'false',
+  WALMART_USE_REAL_PROVIDER: 'false',
+});
+
 describe('API environment readiness', () => {
   it('accepts a complete production profile', () => {
     expect(() => validateApiEnvironment(productionEnvironment())).not.toThrow();
@@ -212,14 +223,61 @@ describe('API environment readiness', () => {
     ],
   ])('rejects staging with %s', (_scenario, overrides, expectedMessage) => {
     expect(() =>
-      validateApiEnvironment({
-        ...productionEnvironment(),
-        DEPLOYMENT_ENVIRONMENT: 'staging',
-        CHEF_LLM_PROVIDER: 'mock',
-        ...overrides,
-      }),
+      validateApiEnvironment({ ...stagingEnvironment(), ...overrides }),
     ).toThrow(expectedMessage);
   });
+
+  it('accepts a complete staging profile', () => {
+    expect(() => validateApiEnvironment(stagingEnvironment())).not.toThrow();
+  });
+
+  it.each([
+    [
+      'a missing origin',
+      undefined,
+      'API_CORS_ORIGINS must contain at least one origin in staging',
+    ],
+    [
+      'an invalid URL',
+      'not-a-url',
+      'API_CORS_ORIGINS must contain valid HTTP(S) origins in staging',
+    ],
+    [
+      'a non-HTTPS origin',
+      'http://staging.example.com',
+      'API_CORS_ORIGINS must contain only HTTPS origins in staging',
+    ],
+    [
+      'a loopback origin',
+      'https://127.0.0.2:3000',
+      'API_CORS_ORIGINS must not contain localhost origins in staging',
+    ],
+    [
+      'a trailing slash',
+      'https://staging.example.com/',
+      'API_CORS_ORIGINS must contain origins without credentials, paths, queries, or fragments in staging',
+    ],
+    [
+      'a path',
+      'https://staging.example.com/api',
+      'API_CORS_ORIGINS must contain origins without credentials, paths, queries, or fragments in staging',
+    ],
+    [
+      'a default port',
+      'https://staging.example.com:443',
+      'API_CORS_ORIGINS must contain origins without credentials, paths, queries, or fragments in staging',
+    ],
+  ])(
+    'rejects staging CORS with %s',
+    (_scenario, corsOrigins, expectedMessage) => {
+      expect(() =>
+        validateApiEnvironment({
+          ...stagingEnvironment(),
+          API_CORS_ORIGINS: corsOrigins,
+        }),
+      ).toThrow(expectedMessage);
+    },
+  );
 
   it('reports AI and Vision feature configuration without exposing values', () => {
     expect(

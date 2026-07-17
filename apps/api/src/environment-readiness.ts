@@ -133,14 +133,15 @@ function validateProductionEnvironment(
     }
   }
 
-  validateProductionCorsOrigins(env, errors);
+  validateHostedCorsOrigins(env, 'production', errors);
   validateProductionRetailerModes(env, errors);
   requireFalse(env, 'API_ENABLE_DOCS', 'production', errors);
   requireFalse(env, 'RUN_DB_SEED_ON_STARTUP', 'production', errors);
 }
 
-function validateProductionCorsOrigins(
+function validateHostedCorsOrigins(
   env: NodeJS.ProcessEnv,
+  environment: 'production' | 'staging',
   errors: string[],
 ) {
   const origins = (env.API_CORS_ORIGINS ?? '')
@@ -150,7 +151,7 @@ function validateProductionCorsOrigins(
 
   if (origins.length === 0) {
     errors.push(
-      'API_CORS_ORIGINS must contain at least one origin in production.',
+      `API_CORS_ORIGINS must contain at least one origin in ${environment}.`,
     );
     return;
   }
@@ -158,7 +159,7 @@ function validateProductionCorsOrigins(
   const parsedOrigins = origins.map(parseHttpUrl);
   if (parsedOrigins.some((origin) => !origin)) {
     errors.push(
-      'API_CORS_ORIGINS must contain valid HTTP(S) origins in production.',
+      `API_CORS_ORIGINS must contain valid HTTP(S) origins in ${environment}.`,
     );
     return;
   }
@@ -166,19 +167,19 @@ function validateProductionCorsOrigins(
   const validOrigins = parsedOrigins as URL[];
   if (validOrigins.some((origin) => origin.protocol !== 'https:')) {
     errors.push(
-      'API_CORS_ORIGINS must contain only HTTPS origins in production.',
+      `API_CORS_ORIGINS must contain only HTTPS origins in ${environment}.`,
     );
   }
 
   if (validOrigins.some(isLocalUrl)) {
     errors.push(
-      'API_CORS_ORIGINS must not contain localhost origins in production.',
+      `API_CORS_ORIGINS must not contain localhost origins in ${environment}.`,
     );
   }
 
   if (validOrigins.some((url, index) => origins[index] !== url.origin)) {
     errors.push(
-      'API_CORS_ORIGINS must contain origins without credentials, paths, queries, or fragments in production.',
+      `API_CORS_ORIGINS must contain origins without credentials, paths, queries, or fragments in ${environment}.`,
     );
   }
 }
@@ -215,6 +216,7 @@ function validateStagingEnvironment(env: NodeJS.ProcessEnv, errors: string[]) {
     requireFalse(env, flag, 'staging', errors);
   }
 
+  validateHostedCorsOrigins(env, 'staging', errors);
   requireFalse(env, 'API_ENABLE_DOCS', 'staging', errors);
   requireFalse(env, 'RUN_DB_SEED_ON_STARTUP', 'staging', errors);
 }
