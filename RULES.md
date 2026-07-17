@@ -1,8 +1,12 @@
 # RULES
 
-This file defines the working rules for contributing to Chef.
+This file defines the working rules for contributing to Preppie.
 
 These rules apply to all contributors, whether work is written directly by a human or with AI assistance.
+
+`CONTRIBUTING.md` is the canonical contribution policy. If this file and
+`CONTRIBUTING.md` disagree, follow `CONTRIBUTING.md` and fix the stale guidance
+in a focused documentation change.
 
 ## Purpose
 
@@ -20,23 +24,34 @@ The goal of these rules is to prevent:
 
 ### Main branch roles
 
-- `main` is the long-term stable branch
-- `demo/2` is the current shared integration branch
-- personal work should happen in named branches off the current integration branch
+- `main` is the stable shared baseline, default base, pull request target, and only production trunk
+- normal work happens in short-lived branches created from an up-to-date `main`
+- `dev` and `demo/*` are legacy branches, not normal bases or merge targets
+- `staging/*` and `integration/*` are temporary coordination branches only when the team explicitly needs a multi-branch integration exercise or release rehearsal
+
+Temporary coordination branches must follow the ownership, participating
+inputs, exit condition, and retirement rules in `CONTRIBUTING.md`. They do not
+replace `main` and must not become permanent integration branches.
 
 ### Branch naming
 
-Use one of these formats:
+Individual work uses the contributor prefixes defined in `CONTRIBUTING.md`:
 
-- `<person>/<topic>`
+- `piero/<topic>`
+- `enoch/<topic>`
+- `gallo/<topic>`
+- `ahmad/<topic>`
 - `spike/<topic>`
-- `fix/<topic>`
+
+Use `staging/<purpose>` or `integration/<purpose>` only for the temporary
+coordination cases described above. Fixes and hotfixes use the responsible
+contributor's prefix rather than a standalone `fix/*` branch.
 
 Examples:
 
 - `piero/onboarding-profile`
 - `enoch/onboarding-ui`
-- `galo/ai-rate-limits`
+- `gallo/ai-rate-limits`
 - `spike/vision-lab`
 
 Do not create new branches with names like:
@@ -45,6 +60,13 @@ Do not create new branches with names like:
 - `demo/3`
 - `ft-something`
 - vague names that do not communicate ownership or scope
+
+### Deployments and hotfixes
+
+- Vercel branch and pull request deployments are previews for validation, not production truth
+- production web and API deployments originate from `main`
+- hotfixes branch from the current production state on `main` and return to `main` through a focused pull request
+- an emergency does not create a second permanent production or integration branch
 
 ## Scope Discipline
 
@@ -133,6 +155,17 @@ Do not let the frontend and backend invent separate versions of the same contrac
 
 Before asking for merge, the contributor should run the smallest relevant validation set for the change.
 
+The standard non-mutating repository gate is:
+
+```powershell
+pnpm verify
+```
+
+Run additional database-backed, provider-dependent, end-to-end, or manual
+checks when the change requires them. `CONTRIBUTING.md` documents package
+participation and setup prerequisites. If something was not tested, say so
+clearly.
+
 Examples:
 
 - backend contract change:
@@ -146,8 +179,6 @@ Examples:
 - frontend UI change:
   - `pnpm --filter web build`
   - route-level manual verification when needed
-
-If something was not tested, say so clearly.
 
 ## Documentation Expectations
 
@@ -179,16 +210,22 @@ A good branch should answer:
 - how it was verified
 - what is intentionally not included
 
-## Integration Rule
+Use the semantic commit types and scope guidance in `CONTRIBUTING.md`.
+Commitlint checks messages locally and in GitHub Actions; required repository
+status checks must pass before merge.
 
-The integration branch is not a dumping ground.
+## Merge Readiness
 
-Before merging into `dev`, ask:
+`main` is not a dumping ground.
+
+Before merging a pull request into `main`, ask:
 
 - is the scope coherent?
 - does it overlap active work from someone else?
 - is it verified?
 - is it documented if the contract changed?
+- is the branch updated against current `main` with conflicts resolved intentionally?
+- did `pnpm verify`, Commitlint, and all other required status checks pass?
 
 If the answer to any of those is no, do not merge yet.
 
