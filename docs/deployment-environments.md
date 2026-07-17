@@ -64,6 +64,33 @@ Before enabling Preview traffic:
 The endpoint smoke is non-destructive. It checks HTTPS, distinct origins,
 service health, and the API environment identity; it does not inspect secrets.
 
+## Feature readiness smoke
+
+Run the separate, read-only feature smoke only against a deployed staging or
+production web/API pair. It checks HTTPS targets, both deployment identities,
+the API database state, and every reported feature status. `ready` is required
+for the API and database. Optional capabilities may report `disabled` or
+`degraded`; any `misconfigured` capability fails the smoke.
+
+```powershell
+$env:READINESS_WEB_BASE_URL = "https://actual-deployed-web-host"
+$env:READINESS_API_BASE_URL = "https://actual-deployed-api-host"
+$env:READINESS_ENVIRONMENT = "staging"
+pnpm smoke:readiness
+```
+
+`READINESS_API_BASE_URL` is the API deployment origin because `/ready` is a
+root probe, not a versioned consumer API route. Staging must use the Preview
+web and staging API and report `staging`; production must use the canonical web
+and API origins and report `production`. Both base URLs must be clean HTTPS
+origins: no credentials, query, hash, or path other than `/`. The command
+rejects redirects and emits only the checked environment and outcome; it never
+prints response bodies, secret values, or raw readiness payloads.
+
+Issue #77 owns the deployed CI wiring and retention of Preview/staging smoke
+evidence. This repository command is its reusable check: it does not create a
+deployment, mutate platform variables, or turn a Preview into production.
+
 ## Boundary with production readiness
 
 This environment contract owns isolation: distinct origins, services,
