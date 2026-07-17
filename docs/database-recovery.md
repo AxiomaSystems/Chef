@@ -49,14 +49,23 @@ The release order is:
 4. Run `prisma migrate deploy` as the API pre-deploy command.
 5. Stop the deployment if the migration command fails.
 6. Start the new API only after migrations succeed.
-7. Require `/ready` to report the packaged and applied migration versions as
-   equal and expose the deployed source revision.
+7. Require `/ready` to expose the deployed source revision, packaged migration,
+   applied migration, and database-declared minimum compatible API migration.
+   It fails for a database that is behind, divergent, failed, or explicitly
+   incompatible. A previous API may remain ready when the database is ahead
+   only when every intervening change is classified as backward-compatible.
 8. Deploy or promote the compatible web release.
 
 Moving migrations out of container startup prevents every replica from trying
 to apply them. If two releases overlap, Prisma's migration lock may cause one
 pre-deploy command to fail; a failed release must be investigated or retried,
 not bypassed by applying SQL manually.
+
+A repo-owned compatibility metadata row records the minimum packaged migration
+an API must support. Expand migrations leave that floor unchanged. The final
+contract migration raises it only after old application revisions have been
+retired. Readiness also verifies the relevant `_prisma_migrations` history and
+checksums; inspecting only the latest successful row is insufficient.
 
 ## Expand-and-contract policy
 
@@ -83,30 +92,92 @@ the previous application revision still requires.
 | Destructive or high lock risk | drop/rename, type rewrite, large table rewrite, irreversible data change | staged expand-and-contract plan, fresh verified recovery copy, restore owner present, explicit approval; never a one-release shortcut |
 
 Critical query/index changes require representative `EXPLAIN (ANALYZE,
-BUFFERS)` evidence, table and index sizes, and a lock-safe execution plan.
-Indexes are not removed from static schema inspection alone; production usage
-and query-plan evidence are required.
+BUFFERS)` evidence, table and index sizes, dependency checks, rollback DDL, and
+a lock-safe execution plan. Production analysis must not execute mutating or
+unbounded statements. Index removal additionally requires at least seven days
+of production usage statistics, the statistics-reset timestamp, and query plans
+showing the replacement access path. Static schema inspection alone is never
+sufficient. Performance migrations default to a five-second `lock_timeout`;
+the reviewed plan must set a bounded `statement_timeout` appropriate to the
+measured operation and use concurrent/index-safe DDL where PostgreSQL supports
+it.
 
 ## Backup refresh contract
 
-The backup job must:
+The backup job runs every 12 hours so one failed attempt can be retried before
+the 24-hour RPO expires. It uses a single-job advisory lock and one bounded
+retry within 30 minutes; overlapping runs exit without changing either the
+source or last verified recovery copy. The backup owner is alerted when the
+last verified copy reaches 18 hours, escalation begins at 23 hours, and a copy
+older than 24 hours is declared an RPO breach. During a breach, destructive
+migrations and data-changing releases are paused until a fresh copy is
+verified.
+
+Each run must:
 
 1. use deployment-scoped secrets for the Supabase source and Railway recovery
    destination;
-2. create a custom-format logical dump without logging connection strings or
-   row data;
+2. use PostgreSQL tooling at least as new as the Supabase source and create a
+   custom-format dump of the app-owned `public` schema with ownership and ACLs
+   omitted; managed Supabase schemas, roles, and provider metadata are excluded;
 3. restore into a new date-and-run-specific database;
-4. validate connectivity, the latest successful Prisma migration, required
-   tables, and bounded row-count invariants;
-5. mark the new database as verified only after all checks pass;
-6. retain the previous verified database until the replacement is verified;
-7. emit metadata only: timestamps, migration version, duration, database size,
+4. preflight required extensions against the Railway PostgreSQL version and
+   provision only supported app dependencies;
+5. validate connectivity, all relevant Prisma migration names/checksums and
+   failure state, required tables, bounded row-count invariants, and a
+   read-only application-level Prisma query;
+6. mark the new database as verified only after all checks pass;
+7. retain the previous verified database until the replacement is verified;
+8. emit metadata only: timestamps, migration version, duration, database size,
    and pass/fail status;
-8. delete expired logical copies only after a newer verified copy and volume
-   snapshot exist.
+9. delete expired logical copies only under the pre-approved retention policy:
+   keep at least two verified logical copies and six days of daily Railway
+   volume snapshots, and record every deletion without row data or secrets.
 
-The job must exit non-zero on dump, restore, or validation failure so a missed
-24-hour recovery point is visible. It must not modify the Supabase source.
+The job exits non-zero on dump, restore, or validation failure. A failed partial
+restore is quarantined, never marked verified, and removed after diagnostic
+metadata is captured and the last verified copy is confirmed. Capacity checks
+must reserve space for the current verified copy, the incoming restore, and
+one previous verified copy. The job must not modify the Supabase source.
+
+The source credential is least-privilege and read-only where PostgreSQL dump
+requirements allow. The recovery credential may create and restore isolated
+databases but is not an application runtime credential. Both remain
+Railway-scoped secrets.
+
+## Failed migration runbook
+
+1. Railway stops the candidate release when the pre-deploy command fails; keep
+   the previous API serving and pause later database releases.
+2. The database owner inspects the failed `_prisma_migrations` row, logs, and
+   actual database objects without editing the migration history first.
+3. If no SQL took effect, or all partial changes were explicitly reversed and
+   verified, the owner may use `prisma migrate resolve --rolled-back <name>`
+   after approval and retry the unchanged reviewed migration.
+4. If SQL partially took effect, create and review an idempotent forward repair
+   or explicit reversal before resolving the row. Never mark a partial
+   migration applied merely to unblock deploys.
+5. `prisma migrate resolve --applied <name>` is allowed only when the complete
+   committed SQL is already present, its checksum and objects were verified,
+   and the database owner and release approver record the exception.
+6. After repair, verify migration history/checksums, API readiness, critical
+   reads and writes, and the web smoke path before resuming releases.
+
+## Application rollback runbook
+
+1. Identify whether the release applied no migration, a compatible expand
+   migration, or a contract/incompatible migration.
+2. Roll back the web first when it depends on the candidate API behavior.
+3. For no-schema or compatible-expand releases, deploy the previous API image;
+   compatibility-aware readiness must pass against the database-ahead state.
+4. Do not downgrade the database. If the compatibility floor was raised, the
+   previous API is intentionally ineligible and the response is a forward-fix
+   API release.
+5. Verify release revision, schema compatibility, API readiness, authentication,
+   one critical read/write flow, and production web smoke before declaring the
+   rollback complete.
+6. Record the operator, approver, revisions, migration state, timestamps, and
+   outcome without secrets or user data.
 
 ## Recovery boundaries
 
@@ -121,6 +192,28 @@ The job must exit non-zero on dump, restore, or validation failure so a missed
   database for controlled copy-back or a full recovery cutover, depending on
   scope.
 
+## Full recovery cutover
+
+1. Declare the incident, stop non-essential writes, and start the RTO clock.
+2. Select the newest verified Railway recovery database within the RPO and
+   create fresh, scoped runtime and migration credentials.
+3. Point the production API database variables to the recovery database and
+   deploy the known-compatible API revision. Do not reuse the backup-job
+   credential.
+4. Verify migration compatibility, `/ready`, authentication, critical reads and
+   writes, and the production web smoke before reopening writes.
+5. Measure RTO through a usable API and web experience, not merely completion
+   of `pg_restore`.
+6. If cutover validation fails and the source remains safe, revert the API
+   variables to the source and redeploy. Otherwise keep writes stopped and
+   continue the reviewed forward repair.
+
+A restore rehearsal uses a separate Railway database and temporary API target
+with provider calls and user communications disabled. It cannot overwrite or
+impair production, staging, or the last verified recovery copy. Access is
+limited to the rehearsal operators. Cleanup occurs only after evidence and
+rollback-of-cutover checks are complete.
+
 ## Verification design
 
 Repository tests cover release metadata, the migration command boundary, and
@@ -129,7 +222,8 @@ must additionally record:
 
 - production and staging backup schedule configuration and owner;
 - one successful production-to-isolated-Railway restore rehearsal;
-- measured dump, restore, validation, and total recovery duration;
+- measured dump, restore, validation, credential/config cutover, API deploy,
+  readiness, web smoke, and incident-to-usable-service duration;
 - the source and restored migration versions;
 - confirmation that the evidence contains no secrets or user row data;
 - a failed-migration rehearsal and an application rollback rehearsal against
