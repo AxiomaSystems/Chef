@@ -80,7 +80,7 @@ Introducing compatibility metadata requires two separate releases:
    as the minimum compatible migration.
 2. On 2026-07-17, the production read-only readiness smoke against the public
    API and web origins returned `[READINESS] production API and web report ready
-   required services.` Critical application read/write smoke remains pending
+required services.` Critical application read/write smoke remains pending
    and must complete before any destructive or cutover operation.
 3. **Phase B — table second:** migration
    `20260717170000_add_database_release_compatibility` adds the singleton table
@@ -172,6 +172,19 @@ The source credential is least-privilege and read-only where PostgreSQL dump
 requirements allow. The recovery credential may create and restore isolated
 databases but is not an application runtime credential. Both remain
 Railway-scoped secrets.
+
+## Backup worker implementation
+
+`apps/database-backup` is a JavaScript-only cron worker. It reads only
+`SOURCE_DATABASE_URL`, `RECOVERY_ADMIN_DATABASE_URL`, and optional
+`BACKUP_RUN_ID`. `railway.backup.json` uses `Dockerfile.database-backup` with
+no web healthcheck or restart loop.
+
+The worker uses a PostgreSQL advisory lock, passes credentials to the dump and
+restore clients through process environment only, and records metadata-only
+verification in the recovery admin database. It retains the two newest
+verified recovery databases only after migration, table, and row-count checks
+pass; failed attempts cannot remove a previous verified copy.
 
 ## Failed migration runbook
 
