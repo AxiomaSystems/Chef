@@ -126,14 +126,14 @@ provider credentials.
 
 The root commands select packages by capability instead of running every tool in every workspace:
 
-| Command             | Packages                                      | Behavior                                                                                    |
-| ------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `pnpm build`        | `@cart/shared`, `api`, `web`                  | Builds shared contracts and the production web/API applications.                            |
-| `pnpm test`         | `api`, `database-backup`, `vision-lab`        | Runs API unit tests, backup-worker unit tests, and the four fast Python vision smoke tests. |
-| `pnpm typecheck`    | `@cart/shared`, `api`, `web`, `mobile`        | Checks TypeScript packages; `vision-lab` is intentionally excluded.                         |
-| `pnpm lint`         | `api`, `web`, `mobile`                        | Checks lint rules without modifying files.                                                  |
-| `pnpm format:check` | repository                                    | Audits legacy repository formatting without modifying files; it is not part of `verify`.    |
-| `pnpm verify`       | build, test, typecheck, and lint participants | Runs lint, typecheck, unit/smoke tests, and build in order.                                 |
+| Command             | Packages                                      | Behavior                                                                                                               |
+| ------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `pnpm build`        | `@cart/shared`, `api`, `web`                  | Builds shared contracts and the production web/API applications.                                                       |
+| `pnpm test`         | `api`, `database-backup`, `vision-lab`        | Runs API unit tests, backup-worker unit tests, and the four fast Python vision smoke tests.                            |
+| `pnpm typecheck`    | `@cart/shared`, `api`, `web`, `mobile`        | Checks TypeScript packages; Python-only `vision-lab` and JavaScript-only `database-backup` are intentionally excluded. |
+| `pnpm lint`         | `api`, `web`, `mobile`                        | Checks lint rules without modifying files.                                                                             |
+| `pnpm format:check` | repository                                    | Audits legacy repository formatting without modifying files; it is not part of `verify`.                               |
+| `pnpm verify`       | build, test, typecheck, and lint participants | Runs lint, typecheck, unit/smoke tests, and build in order.                                                            |
 
 Automatic changes are always opt-in: use `pnpm lint:fix` for ESLint fixes or
 `pnpm format` for Prettier formatting. Neither command is part of `pnpm verify`.

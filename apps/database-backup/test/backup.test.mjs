@@ -58,18 +58,18 @@ test("configuration converts URLs into client configuration without returning co
     BACKUP_RUN_ID: "nightly_01",
   });
 
-  assert.deepEqual(config.source, {
-    host: "source.example",
-    port: 5432,
-    database: "source_db",
-    user: "source_user",
-    password: "source_secret",
-    ssl: { rejectUnauthorized: false },
-  });
+  assert.deepEqual(
+    { host: config.source.host, port: config.source.port, database: config.source.database, user: config.source.user, password: config.source.password, ssl: config.source.ssl, sslMode: config.source.sslMode },
+    { host: "source.example", port: 5432, database: "source_db", user: "source_user", password: "source_secret", ssl: { rejectUnauthorized: false }, sslMode: "require" },
+  );
   assert.equal(JSON.stringify(config).includes(sourceUrl), false);
   assert.throws(() => loadBackupConfiguration({ SOURCE_DATABASE_URL: sourceUrl }));
   assert.throws(() => loadBackupConfiguration({
     SOURCE_DATABASE_URL: "https://example.test/not-postgres",
+    RECOVERY_ADMIN_DATABASE_URL: recoveryUrl,
+  }));
+  assert.throws(() => loadBackupConfiguration({
+    SOURCE_DATABASE_URL: "postgresql://source_user:source_secret@source.example/source_db?sslmode=bogus",
     RECOVERY_ADMIN_DATABASE_URL: recoveryUrl,
   }));
 });
@@ -124,7 +124,7 @@ function createSuccessfulDependencies(events) {
       if (sql.includes("pg_try_advisory_lock")) return { rows: [{ acquired: true }] };
       if (sql.includes("pg_database_size")) return { rows: [{ size: "8192" }] };
       if (sql.includes("FROM preppie_backup_recovery_metadata") && sql.includes("status = 'verified'")) {
-        return { rows: [] };
+        return { rows: [{ databaseName: "preppie_recovery_previous", status: "verified", verifiedAt: "2026-07-16T00:00:00.000Z" }] };
       }
       return { rows: [] };
     },
@@ -133,6 +133,8 @@ function createSuccessfulDependencies(events) {
     async connect() { events.push("source.connect"); },
     async end() { events.push("source.end"); },
     async query(sql) {
+      events.push({ sql });
+      if (sql.includes("pg_export_snapshot")) return { rows: [{ snapshot_id: "00000001-00000001-1" }] };
       if (sql.includes("_prisma_migrations")) return { rows: migrations };
       if (sql.includes("information_schema.tables")) return { rows: validation.sourceTables.map((table_name) => ({ table_name })) };
       return { rows: Object.entries(validation.sourceCounts).map(([table, count]) => ({ table, count })) };
@@ -178,6 +180,14 @@ test("orchestration holds the bigint advisory lock, verifies once, logs only met
   assert.equal(typeof lock.params[0], "string");
   assert.equal(events.filter((event) => event.command === "pg_dump").length, 1);
   assert.equal(events.filter((event) => event.command === "pg_restore").length, 1);
+  const dump = events.find((event) => event.command === "pg_dump");
+  const restore = events.find((event) => event.command === "pg_restore");
+  assert.ok(dump.args.some((argument) => argument.startsWith("--snapshot=")));
+  assert.deepEqual(restore.args.slice(0, 3), ["--exit-on-error", "--no-owner", "--no-acl"]);
+  assert.equal(restore.args.some((argument) => argument === "--file"), false);
+  assert.match(restore.args.at(-1), /\.dump$/);
+  assert.equal(dump.env.PGSSLMODE, "require");
+  assert.ok(events.some((event) => event.sql?.includes("pg_export_snapshot")));
   assert.ok(events.some((event) => event.cleanup === "/tmp/preppie-backup-test"));
   assert.ok(events.some((event) => event.sql?.includes("pg_advisory_unlock")));
   for (const event of events.filter((event) => event.log)) {
@@ -203,5 +213,37 @@ test("orchestration retries at most once and preserves prior verified copies aft
   assert.equal(result.status, "verified");
   assert.equal(events.filter((event) => event.command === "pg_restore").length, 2);
   assert.equal(events.some((event) => event.sql?.startsWith('DROP DATABASE "preppie_recovery_old"')), false);
-  assert.equal(events.filter((event) => event.sql?.startsWith("DROP DATABASE")).length, 1);
+  assert.equal(events.filter((event) => event.sql?.startsWith("DROP DATABASE")).length, 0);
+  assert.ok(events.some((event) => event.sql?.includes("status = 'quarantined'")));
+});
+
+test("both failed attempts are quarantined without dropping either target", async () => {
+  const events = [];
+  const dependencies = createSuccessfulDependencies(events);
+  dependencies.runCommand = async (command, args, options) => {
+    events.push({ command, args, env: options.env });
+    throw new Error("dump failed");
+  };
+  await assert.rejects(() => runBackupWorker({
+    env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl, BACKUP_RUN_ID: "nightly_01" },
+    dependencies,
+  }), /could not be verified/);
+  assert.equal(events.filter((event) => event.command === "pg_dump").length, 2);
+  assert.equal(events.filter((event) => event.sql?.includes("status = 'quarantined'")).length, 2);
+  assert.equal(events.filter((event) => event.sql?.startsWith("DROP DATABASE")).length, 0);
+});
+
+test("lock contention exits without creating a recovery database", async () => {
+  const events = [];
+  const admin = {
+    async connect() { events.push("connect"); },
+    async end() { events.push("end"); },
+    async query(sql) { events.push({ sql }); return { rows: [{ acquired: false }] }; },
+  };
+  await assert.rejects(() => runBackupWorker({
+    env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl },
+    dependencies: { createClient: () => admin, now: () => new Date(), randomSuffix: () => "safe", log() {} },
+  }), /already running/);
+  assert.equal(events.some((event) => event.sql?.startsWith("CREATE DATABASE")), false);
+  assert.ok(events.includes("end"));
 });

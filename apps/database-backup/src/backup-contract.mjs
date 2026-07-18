@@ -78,19 +78,32 @@ function postgresqlClientConfig(urlValue, label) {
     fail(`${label} is missing required PostgreSQL connection details.`);
   }
 
+  const sslMode = url.searchParams.get("sslmode");
+  if (!new Set(["disable", "require", "no-verify", "verify-ca", "verify-full"]).has(sslMode)) {
+    fail(`${label} must declare a supported sslmode.`);
+  }
+  if (["verify-ca", "verify-full"].includes(sslMode)) {
+    fail(`${label} uses certificate verification that requires an unsupported CA configuration.`);
+  }
+  if (url.searchParams.has("sslrootcert")) {
+    fail(`${label} cannot load sslrootcert from a URL.`);
+  }
   const config = {
     host: url.hostname,
     port: url.port ? Number.parseInt(url.port, 10) : 5432,
     database,
     user,
     password,
+    sslMode,
+    connectionTimeoutMillis: 10_000,
+    query_timeout: 30_000,
+    statement_timeout: 30_000,
   };
   if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) {
     fail(`${label} contains an invalid port.`);
   }
 
-  const sslMode = url.searchParams.get("sslmode");
-  if (sslMode && sslMode !== "disable") {
+  if (sslMode !== "disable") {
     config.ssl = { rejectUnauthorized: false };
   }
 
@@ -125,7 +138,7 @@ export function postgresChildEnvironment(config, baseEnvironment = process.env) 
     PGPASSWORD: config.password,
   };
   if (baseEnvironment.PATH) environment.PATH = baseEnvironment.PATH;
-  if (config.ssl) environment.PGSSLMODE = "require";
+  environment.PGSSLMODE = config.sslMode;
   return environment;
 }
 

@@ -184,7 +184,8 @@ The worker uses a PostgreSQL advisory lock, passes credentials to the dump and
 restore clients through process environment only, and records metadata-only
 verification in the recovery admin database. It retains the two newest
 verified recovery databases only after migration, table, and row-count checks
-pass; failed attempts cannot remove a previous verified copy.
+pass; failed attempts are quarantined for operator cleanup in Task 3 and cannot
+remove a previous verified copy.
 
 ## Failed migration runbook
 

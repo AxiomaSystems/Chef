@@ -15,10 +15,18 @@ export function createRuntimeDependencies() {
       await new Promise((resolve, reject) => {
         const child = spawn(command, args, { env: options.env, stdio: ["ignore", "ignore", "pipe"] });
         let stderr = "";
+        let timedOut = false;
+        const timer = setTimeout(() => {
+          timedOut = true;
+          child.kill("SIGTERM");
+          setTimeout(() => child.kill("SIGKILL"), 5_000).unref();
+        }, options.timeoutMs ?? 30 * 60_000);
         child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
-        child.once("error", reject);
+        child.once("error", (error) => { clearTimeout(timer); reject(error); });
         child.once("close", (code) => {
-          if (code === 0) resolve();
+          clearTimeout(timer);
+          if (!timedOut && code === 0) resolve();
+          else if (timedOut) reject(new Error(`${command} timed out`));
           else reject(new Error(`${command} failed (${code ?? "unknown"}): ${redactUrlLikeContent(stderr)}`));
         });
       });
