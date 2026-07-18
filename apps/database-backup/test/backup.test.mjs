@@ -311,3 +311,55 @@ test("verification metadata requires the pending transition before declaring suc
   }), /could not be verified/);
   assert.equal(events.some((event) => event.log?.status === "verified"), false);
 });
+
+test("a database creation failure records failed_not_created instead of a quarantine", async () => {
+  const events = [];
+  const dependencies = createSuccessfulDependencies(events);
+  const originalQuery = dependencies.admin.query.bind(dependencies.admin);
+  dependencies.admin.query = async (sql, params) => {
+    if (sql.startsWith("CREATE DATABASE")) throw new Error("create failed");
+    return originalQuery(sql, params);
+  };
+  await assert.rejects(() => runBackupWorker({ env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl }, dependencies }));
+  assert.ok(events.some((event) => event.sql?.includes("failed_not_created")));
+  assert.equal(events.some((event) => event.sql?.includes("status = 'quarantined'")), false);
+});
+
+test("retention confirms deleting before dropping and records deleted", async () => {
+  const events = [];
+  const dependencies = createSuccessfulDependencies(events);
+  const originalQuery = dependencies.admin.query.bind(dependencies.admin);
+  dependencies.admin.query = async (sql, params) => {
+    if (sql.includes("FROM preppie_backup_recovery_metadata") && sql.includes("status = 'verified'")) {
+      return { rows: [
+        { databaseName: "preppie_recovery_new", status: "verified", verifiedAt: "2026-07-17T00:00:00.000Z" },
+        { databaseName: "preppie_recovery_mid", status: "verified", verifiedAt: "2026-07-16T00:00:00.000Z" },
+        { databaseName: "preppie_recovery_old", status: "verified", verifiedAt: "2026-07-15T00:00:00.000Z" },
+      ] };
+    }
+    return originalQuery(sql, params);
+  };
+  await runBackupWorker({ env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl }, dependencies });
+  const deleting = events.findIndex((event) => event.sql?.includes("status = 'deleting'"));
+  const drop = events.findIndex((event) => event.sql?.startsWith('DROP DATABASE "preppie_recovery_old"'));
+  const deleted = events.findIndex((event) => event.sql?.includes("status = 'deleted'"));
+  assert.ok(deleting >= 0 && deleting < drop && drop < deleted);
+});
+
+test("unconfirmed retention transition over-retains and warns without drop", async () => {
+  const events = [];
+  const dependencies = createSuccessfulDependencies(events);
+  const originalQuery = dependencies.admin.query.bind(dependencies.admin);
+  dependencies.admin.query = async (sql, params) => {
+    if (sql.includes("FROM preppie_backup_recovery_metadata") && sql.includes("status = 'verified'")) return { rows: [
+      { databaseName: "preppie_recovery_new", status: "verified", verifiedAt: "2026-07-17T00:00:00.000Z" },
+      { databaseName: "preppie_recovery_mid", status: "verified", verifiedAt: "2026-07-16T00:00:00.000Z" },
+      { databaseName: "preppie_recovery_old", status: "verified", verifiedAt: "2026-07-15T00:00:00.000Z" },
+    ] };
+    if (sql.includes("status = 'deleting'")) return { rows: [], rowCount: 0 };
+    return originalQuery(sql, params);
+  };
+  await runBackupWorker({ env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl }, dependencies });
+  assert.equal(events.some((event) => event.sql?.startsWith("DROP DATABASE")), false);
+  assert.ok(events.some((event) => event.log?.warning === "retention_deferred"));
+});

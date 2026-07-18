@@ -49,6 +49,10 @@ async function quarantine(admin, databaseName, durationMs) {
   const result = await admin.query("UPDATE preppie_backup_recovery_metadata SET status = 'quarantined', completed_at = NOW(), duration_ms = $2, quarantined_at = NOW(), error_category = 'attempt_failed' WHERE database_name = $1 AND status = 'pending' RETURNING database_name", [databaseName, String(durationMs)]);
   if (result.rowCount !== 1 && result.rows?.length !== 1) throw new Error("Quarantine metadata transition was not confirmed.");
 }
+async function markNotCreated(admin, databaseName, durationMs) {
+  const result = await admin.query("UPDATE preppie_backup_recovery_metadata SET status = 'failed_not_created', completed_at = NOW(), duration_ms = $2, error_category = 'create_database_failed' WHERE database_name = $1 AND status = 'pending' RETURNING database_name", [databaseName, String(durationMs)]);
+  if (result.rowCount !== 1 && result.rows?.length !== 1) throw new Error("Failed-not-created metadata transition was not confirmed.");
+}
 async function retention(admin, dependencies, runId) {
   try {
     const rows = await admin.query(`SELECT database_name AS "databaseName", status, verified_at AS "verifiedAt" FROM preppie_backup_recovery_metadata WHERE status = 'verified'`);
@@ -72,7 +76,7 @@ async function sourceSnapshot(source) {
 async function oneAttempt({ config, runId, attempt, admin, dependencies, deadlineAt }) {
   const started = dependencies.now();
   const databaseName = createRecoveryDatabaseName({ runId: config.runId ?? runId, now: started, attempt, randomSuffix: dependencies.randomSuffix() });
-  let source; let restored; let directory; let sourceTransaction = false; let verified = false; let created = false; let primaryError;
+  let source; let restored; let directory; let sourceTransaction = false; let verified = false; let created = false; let metadataInserted = false; let primaryError;
   const attemptDeadline = Math.min(deadlineAt, started.getTime() + ATTEMPT_RESERVE_MS);
   const remaining = () => {
     const budget = attemptDeadline - dependencies.now().getTime();
@@ -82,6 +86,7 @@ async function oneAttempt({ config, runId, attempt, admin, dependencies, deadlin
   try {
     remaining();
     await admin.query("INSERT INTO preppie_backup_recovery_metadata (database_name, run_id, attempt, status, started_at) VALUES ($1, $2, $3, 'pending', NOW())", [databaseName, runId, attempt]);
+    metadataInserted = true;
     await admin.query(`CREATE DATABASE ${quoteRecoveryIdentifier(databaseName)}`);
     created = true;
     directory = await dependencies.createTempDirectory();
@@ -115,6 +120,13 @@ async function oneAttempt({ config, runId, attempt, admin, dependencies, deadlin
         log(dependencies, { event: "backup_attempt_failed", status: "quarantined", runId, databaseName, attempt, durationMs, errorCategory: "attempt_failed" });
       } catch {
         log(dependencies, { event: "backup_quarantine_warning", status: "failed", runId, databaseName, attempt, warning: "quarantine_failed" });
+      }
+    } else if (!verified && metadataInserted) {
+      try {
+        await markNotCreated(admin, databaseName, durationMs);
+        log(dependencies, { event: "backup_attempt_failed", status: "failed_not_created", runId, databaseName, attempt, durationMs, errorCategory: "create_database_failed" });
+      } catch {
+        log(dependencies, { event: "backup_failed_not_created_warning", status: "failed", runId, databaseName, attempt, warning: "failed_not_created_transition_failed" });
       }
     }
     throw error;
