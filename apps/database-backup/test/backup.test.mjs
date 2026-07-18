@@ -155,6 +155,7 @@ function createSuccessfulDependencies(events) {
     },
   };
   return {
+    admin,
     createClient(config) {
       if (config.host === "recovery.example" && config.database === "recovery_admin") return admin;
       if (config.host === "source.example") return source;
@@ -194,7 +195,7 @@ test("orchestration holds the bigint advisory lock, verifies once, logs only met
   assert.equal(restore.args.length, 4);
   assert.match(restore.args.at(-1), /\.dump$/);
   assert.equal(dump.env.PGSSLMODE, "require");
-  assert.equal(dump.timeoutMs, 30 * 60_000);
+  assert.equal(dump.timeoutMs, 15 * 60_000);
   assert.deepEqual(Object.keys(dump.env).sort(), ["PATH", "PGDATABASE", "PGHOST", "PGPASSWORD", "PGPORT", "PGSSLMODE", "PGUSER"].sort());
   assert.ok(events.some((event) => event.sql?.includes("pg_export_snapshot")));
   assert.ok(events.some((event) => event.cleanup === "/tmp/preppie-backup-test"));
@@ -256,4 +257,57 @@ test("lock contention exits without creating a recovery database", async () => {
   }), /already running/);
   assert.equal(events.some((event) => event.sql?.startsWith("CREATE DATABASE")), false);
   assert.ok(events.includes("end"));
+});
+
+test("a successful retry surfaces unlock or admin-close cleanup failures, not stale attempt errors", async () => {
+  const events = [];
+  const dependencies = createSuccessfulDependencies(events);
+  let restores = 0;
+  dependencies.runCommand = async (command, args, options) => {
+    events.push({ command, args, env: options.env, timeoutMs: options.timeoutMs });
+    if (command === "pg_restore" && restores++ === 0) throw new Error("first attempt failed");
+  };
+  const originalQuery = dependencies.admin.query.bind(dependencies.admin);
+  dependencies.admin.query = async (sql, params) => {
+    if (sql.includes("pg_advisory_unlock")) throw new Error("unlock failed");
+    return originalQuery(sql, params);
+  };
+  await assert.rejects(() => runBackupWorker({
+    env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl, BACKUP_RUN_ID: "nightly_01" }, dependencies,
+  }), /unlock failed/);
+  assert.equal(events.filter((event) => event.command === "pg_restore").length, 2);
+});
+
+test("deadline exhaustion prevents an attempt before recovery side effects", async () => {
+  const events = [];
+  const dependencies = createSuccessfulDependencies(events);
+  const times = ["2026-07-17T00:00:00.000Z", "2026-07-17T00:00:00.000Z", "2026-07-17T00:30:00.000Z"];
+  dependencies.now = () => new Date(times.shift() ?? "2026-07-17T00:30:00.000Z");
+  await assert.rejects(() => runBackupWorker({
+    env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl }, dependencies,
+  }), /deadline exceeded/);
+  assert.equal(events.some((event) => event.sql?.startsWith("CREATE DATABASE")), false);
+});
+
+test("logger failures are best effort and do not replace verified or primary outcomes", async () => {
+  const dependencies = createSuccessfulDependencies([]);
+  dependencies.log = () => { throw new Error("logger failed"); };
+  const result = await runBackupWorker({
+    env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl, BACKUP_RUN_ID: "nightly_01" }, dependencies,
+  });
+  assert.equal(result.status, "verified");
+});
+
+test("verification metadata requires the pending transition before declaring success", async () => {
+  const events = [];
+  const dependencies = createSuccessfulDependencies(events);
+  const originalQuery = dependencies.admin.query.bind(dependencies.admin);
+  dependencies.admin.query = async (sql, params) => {
+    if (sql.includes("status = 'verified'") && sql.includes("RETURNING database_name")) return { rows: [], rowCount: 0 };
+    return originalQuery(sql, params);
+  };
+  await assert.rejects(() => runBackupWorker({
+    env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl, BACKUP_RUN_ID: "nightly_01" }, dependencies,
+  }), /could not be verified/);
+  assert.equal(events.some((event) => event.log?.status === "verified"), false);
 });

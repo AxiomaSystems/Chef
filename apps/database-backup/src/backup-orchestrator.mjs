@@ -17,8 +17,14 @@ const MIGRATIONS = `SELECT migration_name, checksum, finished_at, rolled_back_at
 const TABLES = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'";
 const COUNTS = `SELECT 'User' AS table, count(*)::text AS count FROM public."User" UNION ALL SELECT 'Recipe', count(*)::text FROM public."Recipe" UNION ALL SELECT 'ShoppingCart', count(*)::text FROM public."ShoppingCart"`;
 const RUN_DEADLINE_MS = 30 * 60_000;
+const ATTEMPT_RESERVE_MS = 15 * 60_000;
 
-function log(dependencies, values) { dependencies.log(Object.fromEntries(Object.entries(values).filter(([key]) => LOG_FIELDS.has(key)))); }
+function log(dependencies, values) {
+  try {
+    const result = dependencies.log(Object.fromEntries(Object.entries(values).filter(([key]) => LOG_FIELDS.has(key))));
+    if (result?.catch) result.catch(() => {});
+  } catch {}
+}
 async function sequentialCleanup(tasks, primaryError, dependencies, context) {
   let cleanupError;
   for (const task of tasks) {
@@ -67,12 +73,14 @@ async function oneAttempt({ config, runId, attempt, admin, dependencies, deadlin
   const started = dependencies.now();
   const databaseName = createRecoveryDatabaseName({ runId: config.runId ?? runId, now: started, attempt, randomSuffix: dependencies.randomSuffix() });
   let source; let restored; let directory; let sourceTransaction = false; let verified = false; let created = false; let primaryError;
+  const attemptDeadline = Math.min(deadlineAt, started.getTime() + ATTEMPT_RESERVE_MS);
   const remaining = () => {
-    const budget = deadlineAt - dependencies.now().getTime();
+    const budget = attemptDeadline - dependencies.now().getTime();
     if (budget <= 0) throw new Error("Backup retry deadline exceeded.");
     return budget;
   };
   try {
+    remaining();
     await admin.query("INSERT INTO preppie_backup_recovery_metadata (database_name, run_id, attempt, status, started_at) VALUES ($1, $2, $3, 'pending', NOW())", [databaseName, runId, attempt]);
     await admin.query(`CREATE DATABASE ${quoteRecoveryIdentifier(databaseName)}`);
     created = true;
@@ -92,7 +100,8 @@ async function oneAttempt({ config, runId, attempt, admin, dependencies, deadlin
     const size = await admin.query("SELECT pg_database_size($1::text)::text AS size", [databaseName]);
     const databaseSizeBytes = normalizedCount(size.rows[0]?.size, "database size");
     const durationMs = Math.max(0, dependencies.now().getTime() - started.getTime());
-    await admin.query("UPDATE preppie_backup_recovery_metadata SET status = 'verified', completed_at = NOW(), duration_ms = $2, migration_count = $3, table_counts = $4::jsonb, database_size_bytes = $5, verified_at = NOW() WHERE database_name = $1", [databaseName, String(durationMs), migrationCount, JSON.stringify(tableCounts), databaseSizeBytes]);
+    const verifiedTransition = await admin.query("UPDATE preppie_backup_recovery_metadata SET status = 'verified', completed_at = NOW(), duration_ms = $2, migration_count = $3, table_counts = $4::jsonb, database_size_bytes = $5, verified_at = NOW() WHERE database_name = $1 AND status = 'pending' RETURNING database_name", [databaseName, String(durationMs), migrationCount, JSON.stringify(tableCounts), databaseSizeBytes]);
+    if (verifiedTransition.rowCount !== 1 && verifiedTransition.rows?.length !== 1) throw new Error("Verification metadata transition was not confirmed.");
     verified = true;
     log(dependencies, { event: "backup_verified", status: "verified", runId, databaseName, attempt, durationMs, migrationCount, tableCounts, databaseSizeBytes });
     await retention(admin, dependencies, runId);
@@ -129,7 +138,10 @@ export async function runBackupWorker({ env = process.env, dependencies = create
     locked = lock.rows[0]?.acquired === true;
     if (!locked) throw new Error("A backup job is already running.");
     await metadataTable(admin);
-    for (let attempt = 1; attempt <= 2; attempt += 1) { try { return await oneAttempt({ config, runId, attempt, admin, dependencies: runtime, deadlineAt }); } catch (error) { primaryError = error; } }
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      if (runtime.now().getTime() >= deadlineAt) throw new Error("Backup retry deadline exceeded.");
+      try { return await oneAttempt({ config, runId, attempt, admin, dependencies: runtime, deadlineAt }); } catch {}
+    }
     throw new Error("Backup could not be verified after two attempts.");
   } catch (error) {
     primaryError = error;
