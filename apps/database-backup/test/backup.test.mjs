@@ -69,6 +69,10 @@ test("configuration converts URLs into client configuration without returning co
     RECOVERY_ADMIN_DATABASE_URL: recoveryUrl,
   }));
   assert.throws(() => loadBackupConfiguration({
+    SOURCE_DATABASE_URL: "postgresql://source_user:source_secret@source.example/source_db?sslmode=no-verify",
+    RECOVERY_ADMIN_DATABASE_URL: recoveryUrl,
+  }));
+  assert.throws(() => loadBackupConfiguration({
     SOURCE_DATABASE_URL: "postgresql://source_user:source_secret@source.example/source_db?sslmode=bogus",
     RECOVERY_ADMIN_DATABASE_URL: recoveryUrl,
   }));
@@ -123,6 +127,7 @@ function createSuccessfulDependencies(events) {
       events.push({ sql, params });
       if (sql.includes("pg_try_advisory_lock")) return { rows: [{ acquired: true }] };
       if (sql.includes("pg_database_size")) return { rows: [{ size: "8192" }] };
+      if (sql.includes("RETURNING database_name")) return { rows: [{ database_name: "ok" }], rowCount: 1 };
       if (sql.includes("FROM preppie_backup_recovery_metadata") && sql.includes("status = 'verified'")) {
         return { rows: [{ databaseName: "preppie_recovery_previous", status: "verified", verifiedAt: "2026-07-16T00:00:00.000Z" }] };
       }
@@ -156,7 +161,7 @@ function createSuccessfulDependencies(events) {
       return restored;
     },
     async runCommand(command, args, options) {
-      events.push({ command, args, env: options.env });
+      events.push({ command, args, env: options.env, timeoutMs: options.timeoutMs });
     },
     async createTempDirectory() { return "/tmp/preppie-backup-test"; },
     async removeTempDirectory(path) { events.push({ cleanup: path }); },
@@ -182,11 +187,15 @@ test("orchestration holds the bigint advisory lock, verifies once, logs only met
   assert.equal(events.filter((event) => event.command === "pg_restore").length, 1);
   const dump = events.find((event) => event.command === "pg_dump");
   const restore = events.find((event) => event.command === "pg_restore");
-  assert.ok(dump.args.some((argument) => argument.startsWith("--snapshot=")));
+  assert.deepEqual(dump.args.slice(0, 4), ["--format=custom", "--schema=public", "--no-owner", "--no-acl"]);
+  assert.match(dump.args[4], /^--snapshot=/);
+  assert.equal(dump.args[5], "--file");
   assert.deepEqual(restore.args.slice(0, 3), ["--exit-on-error", "--no-owner", "--no-acl"]);
-  assert.equal(restore.args.some((argument) => argument === "--file"), false);
+  assert.equal(restore.args.length, 4);
   assert.match(restore.args.at(-1), /\.dump$/);
   assert.equal(dump.env.PGSSLMODE, "require");
+  assert.equal(dump.timeoutMs, 30 * 60_000);
+  assert.deepEqual(Object.keys(dump.env).sort(), ["PATH", "PGDATABASE", "PGHOST", "PGPASSWORD", "PGPORT", "PGSSLMODE", "PGUSER"].sort());
   assert.ok(events.some((event) => event.sql?.includes("pg_export_snapshot")));
   assert.ok(events.some((event) => event.cleanup === "/tmp/preppie-backup-test"));
   assert.ok(events.some((event) => event.sql?.includes("pg_advisory_unlock")));
@@ -201,7 +210,7 @@ test("orchestration retries at most once and preserves prior verified copies aft
   const dependencies = createSuccessfulDependencies(events);
   let restores = 0;
   dependencies.runCommand = async (command, args, options) => {
-    events.push({ command, args, env: options.env });
+    events.push({ command, args, env: options.env, timeoutMs: options.timeoutMs });
     if (command === "pg_restore" && restores++ === 0) throw new Error(`restore ${sourceUrl}`);
   };
 
@@ -212,6 +221,7 @@ test("orchestration retries at most once and preserves prior verified copies aft
 
   assert.equal(result.status, "verified");
   assert.equal(events.filter((event) => event.command === "pg_restore").length, 2);
+  assert.ok(events.filter((event) => event.command).every((event) => event.timeoutMs <= 30 * 60_000));
   assert.equal(events.some((event) => event.sql?.startsWith('DROP DATABASE "preppie_recovery_old"')), false);
   assert.equal(events.filter((event) => event.sql?.startsWith("DROP DATABASE")).length, 0);
   assert.ok(events.some((event) => event.sql?.includes("status = 'quarantined'")));
@@ -221,7 +231,7 @@ test("both failed attempts are quarantined without dropping either target", asyn
   const events = [];
   const dependencies = createSuccessfulDependencies(events);
   dependencies.runCommand = async (command, args, options) => {
-    events.push({ command, args, env: options.env });
+    events.push({ command, args, env: options.env, timeoutMs: options.timeoutMs });
     throw new Error("dump failed");
   };
   await assert.rejects(() => runBackupWorker({

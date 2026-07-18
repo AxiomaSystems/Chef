@@ -131,7 +131,8 @@ it.
 ## Backup refresh contract
 
 The primary backup runs nightly, with a scheduled safety run 12 hours later.
-Each scheduled run has one bounded retry within 30 minutes. A single-job
+Each scheduled run, including its one bounded retry, has a shared 30-minute
+deadline. A single-job
 advisory lock makes overlapping runs exit without changing either the source or
 last verified recovery copy. The backup owner is alerted when the last verified
 copy reaches 18 hours, escalation begins at 23 hours, and a copy older than 24

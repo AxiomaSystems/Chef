@@ -79,7 +79,7 @@ function postgresqlClientConfig(urlValue, label) {
   }
 
   const sslMode = url.searchParams.get("sslmode");
-  if (!new Set(["disable", "require", "no-verify", "verify-ca", "verify-full"]).has(sslMode)) {
+  if (!new Set(["disable", "require", "verify-ca", "verify-full"]).has(sslMode)) {
     fail(`${label} must declare a supported sslmode.`);
   }
   if (["verify-ca", "verify-full"].includes(sslMode)) {
