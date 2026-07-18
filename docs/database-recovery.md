@@ -73,17 +73,16 @@ checksums; inspecting only the latest successful row is insufficient.
 Introducing compatibility metadata requires two separate releases:
 
 1. **Phase A — reader first (complete):** Railway production API deployment
-`a452bdd6-67a8-40f3-938d-68ebe967885b` deployed main revision
-`4a5ffccc2df33cd510b2f25d37347c6f42a23f65` with status `SUCCESS`. That
-compatibility-aware API contains no compatibility-table migration. While
-the table is absent, readiness uses the API's packaged expected migration
-as the minimum compatible migration.
-<!-- prettier-ignore -->
-2. On 2026-07-17, the production read-only readiness smoke against the public
-   API and web origins returned `[READINESS] production API and web report ready<br>
-   <!-- prettier-ignore -->
-   required services.` Critical application read/write smoke remains pending and
-   must complete before any destructive or cutover operation.
+   `a452bdd6-67a8-40f3-938d-68ebe967885b` deployed main revision
+   `4a5ffccc2df33cd510b2f25d37347c6f42a23f65` with status `SUCCESS`. That
+   compatibility-aware API contains no compatibility-table migration. While the
+   table is absent, readiness uses the API's packaged expected migration as the
+   minimum compatible migration.
+2. On 2026-07-17, the production read-only readiness smoke against the public API
+   and web origins returned
+   `[READINESS] production API and web report ready required services.` Critical
+   application read/write smoke remains pending and must complete before any
+   destructive or cutover operation.
 3. **Phase B — table second:** migration
    `20260717170000_add_database_release_compatibility` adds the singleton table
    and declares `20260628120000_add_recipe_execution_metadata` as the minimum
