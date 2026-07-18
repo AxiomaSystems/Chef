@@ -156,6 +156,8 @@ function createSuccessfulDependencies(events) {
   };
   return {
     admin,
+    source,
+    restored,
     createClient(config) {
       if (config.host === "recovery.example" && config.database === "recovery_admin") return admin;
       if (config.host === "source.example") return source;
@@ -188,15 +190,15 @@ test("orchestration holds the bigint advisory lock, verifies once, logs only met
   assert.equal(events.filter((event) => event.command === "pg_restore").length, 1);
   const dump = events.find((event) => event.command === "pg_dump");
   const restore = events.find((event) => event.command === "pg_restore");
-  assert.deepEqual(dump.args.slice(0, 4), ["--format=custom", "--schema=public", "--no-owner", "--no-acl"]);
-  assert.match(dump.args[4], /^--snapshot=/);
-  assert.equal(dump.args[5], "--file");
-  assert.deepEqual(restore.args.slice(0, 3), ["--exit-on-error", "--no-owner", "--no-acl"]);
-  assert.equal(restore.args.length, 4);
+  const dumpPath = `/tmp/preppie-backup-test/${result.databaseName}.dump`;
+  assert.deepEqual(dump.args, ["--format=custom", "--schema=public", "--no-owner", "--no-acl", "--snapshot=00000001-00000001-1", "--file", dumpPath]);
+  assert.deepEqual(restore.args, ["--exit-on-error", "--no-owner", "--no-acl", dumpPath]);
   assert.match(restore.args.at(-1), /\.dump$/);
   assert.equal(dump.env.PGSSLMODE, "require");
   assert.equal(dump.timeoutMs, 15 * 60_000);
   assert.deepEqual(Object.keys(dump.env).sort(), ["PATH", "PGDATABASE", "PGHOST", "PGPASSWORD", "PGPORT", "PGSSLMODE", "PGUSER"].sort());
+  assert.deepEqual({ ...dump.env, PATH: "<path>" }, { PATH: "<path>", PGHOST: "source.example", PGPORT: "5432", PGDATABASE: "source_db", PGUSER: "source_user", PGPASSWORD: "source_secret", PGSSLMODE: "require" });
+  assert.deepEqual({ ...restore.env, PATH: "<path>" }, { PATH: "<path>", PGHOST: "recovery.example", PGPORT: "5432", PGDATABASE: result.databaseName, PGUSER: "recovery_user", PGPASSWORD: "recovery_secret", PGSSLMODE: "require" });
   assert.ok(events.some((event) => event.sql?.includes("pg_export_snapshot")));
   assert.ok(events.some((event) => event.cleanup === "/tmp/preppie-backup-test"));
   assert.ok(events.some((event) => event.sql?.includes("pg_advisory_unlock")));
@@ -362,4 +364,85 @@ test("unconfirmed retention transition over-retains and warns without drop", asy
   await runBackupWorker({ env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl }, dependencies });
   assert.equal(events.some((event) => event.sql?.startsWith("DROP DATABASE")), false);
   assert.ok(events.some((event) => event.log?.warning === "retention_deferred"));
+});
+
+test("unlock failure still ends admin, and successful work surfaces admin end failure", async () => {
+  const unlockEvents = [];
+  const unlockDependencies = createSuccessfulDependencies(unlockEvents);
+  const unlockQuery = unlockDependencies.admin.query.bind(unlockDependencies.admin);
+  unlockDependencies.admin.query = async (sql, params) => {
+    if (sql.includes("pg_advisory_unlock")) throw new Error("unlock failed");
+    return unlockQuery(sql, params);
+  };
+  await assert.rejects(() => runBackupWorker({ env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl }, dependencies: unlockDependencies }), /unlock failed/);
+  assert.ok(unlockEvents.includes("admin.end"));
+
+  const endEvents = [];
+  const endDependencies = createSuccessfulDependencies(endEvents);
+  endDependencies.admin.end = async () => { endEvents.push("admin.end"); throw new Error("admin end failed"); };
+  await assert.rejects(() => runBackupWorker({ env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl }, dependencies: endDependencies }), /admin end failed/);
+  assert.ok(endEvents.some((event) => event.sql?.includes("pg_advisory_unlock")));
+});
+
+test("primary failure preserves ordered source cleanup despite synchronous cleanup errors", async () => {
+  const events = [];
+  const dependencies = createSuccessfulDependencies(events);
+  dependencies.runCommand = async () => { throw new Error("primary dump failure"); };
+  dependencies.source.end = () => { events.push("source.end.sync"); throw new Error("source end failed"); };
+  dependencies.removeTempDirectory = () => { events.push("temp.remove.sync"); throw new Error("temp failed"); };
+  await assert.rejects(() => runBackupWorker({ env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl }, dependencies }), /could not be verified/);
+  const rollback = events.findIndex((event) => event.sql === "ROLLBACK");
+  const end = events.indexOf("source.end.sync");
+  assert.ok(rollback >= 0 && rollback < end);
+  assert.ok(events.includes("temp.remove.sync"));
+  assert.ok(events.some((event) => event.log?.warning === "attempt_cleanup_failed"));
+});
+
+test("retention failures preserve verified success and auditable deleting state", async () => {
+  for (const mode of ["query", "drop", "deleted"]) {
+    const events = [];
+    const dependencies = createSuccessfulDependencies(events);
+    const original = dependencies.admin.query.bind(dependencies.admin);
+    dependencies.admin.query = async (sql, params) => {
+      if (sql.includes("FROM preppie_backup_recovery_metadata") && sql.includes("status = 'verified'")) {
+        if (mode === "query") throw new Error("retention query failed");
+        return { rows: [
+          { databaseName: "preppie_recovery_new", status: "verified", verifiedAt: "2026-07-17T00:00:00.000Z" },
+          { databaseName: "preppie_recovery_mid", status: "verified", verifiedAt: "2026-07-16T00:00:00.000Z" },
+          { databaseName: "preppie_recovery_old", status: "verified", verifiedAt: "2026-07-15T00:00:00.000Z" },
+        ] };
+      }
+      if (mode === "drop" && sql.startsWith("DROP DATABASE")) throw new Error("drop failed");
+      if (mode === "deleted" && sql.includes("status = 'deleted'")) throw new Error("deleted update failed");
+      return original(sql, params);
+    };
+    const result = await runBackupWorker({ env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl }, dependencies });
+    assert.equal(result.status, "verified");
+    assert.ok(events.some((event) => event.log?.warning === "retention_deferred"));
+    if (mode === "query") assert.equal(events.some((event) => event.sql?.startsWith("DROP DATABASE")), false);
+    if (mode !== "query") assert.ok(events.some((event) => event.sql?.includes("status = 'deleting'")));
+    if (mode === "drop") assert.equal(events.some((event) => event.sql?.includes("status = 'deleted'")), false);
+  }
+});
+
+test("quarantine and failed-not-created transition failures emit only accurate warnings", async () => {
+  const quarantineEvents = [];
+  const quarantineDependencies = createSuccessfulDependencies(quarantineEvents);
+  quarantineDependencies.runCommand = async () => { throw new Error("dump failed"); };
+  const qQuery = quarantineDependencies.admin.query.bind(quarantineDependencies.admin);
+  quarantineDependencies.admin.query = async (sql, params) => sql.includes("status = 'quarantined'") ? { rows: [], rowCount: 0 } : qQuery(sql, params);
+  await assert.rejects(() => runBackupWorker({ env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl }, dependencies: quarantineDependencies }));
+  assert.ok(quarantineEvents.some((event) => event.log?.warning === "quarantine_failed"));
+  assert.equal(quarantineEvents.some((event) => event.log?.status === "quarantined"), false);
+
+  const createEvents = [];
+  const createDependencies = createSuccessfulDependencies(createEvents);
+  const cQuery = createDependencies.admin.query.bind(createDependencies.admin);
+  createDependencies.admin.query = async (sql, params) => {
+    if (sql.startsWith("CREATE DATABASE")) throw new Error("create failed");
+    if (sql.includes("failed_not_created")) throw new Error("transition failed");
+    return cQuery(sql, params);
+  };
+  await assert.rejects(() => runBackupWorker({ env: { SOURCE_DATABASE_URL: sourceUrl, RECOVERY_ADMIN_DATABASE_URL: recoveryUrl }, dependencies: createDependencies }));
+  assert.ok(createEvents.some((event) => event.log?.warning === "failed_not_created_transition_failed"));
 });
