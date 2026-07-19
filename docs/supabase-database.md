@@ -79,8 +79,9 @@ does not rely on Free-plan managed backups or point-in-time recovery: official
 Supabase guidance assigns Free projects responsibility for their own exports,
 while managed daily backup retention is provided on paid plans. Preppie's
 compensating recovery path is the twice-daily logical restore into isolated
-Railway PostgreSQL plus Railway volume snapshots described in
-`docs/database-recovery.md`.
+Railway PostgreSQL described in `docs/database-recovery.md`. Railway native
+volume backups/PITR also require a paid plan and are not active under the
+current plan, so they are not counted toward the recovery guarantee.
 
 All production changes remain repo-owned Prisma migrations. Local Docker
 PostgreSQL stays available for isolated development and synthetic rehearsal;

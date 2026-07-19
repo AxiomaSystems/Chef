@@ -1,6 +1,6 @@
 # Database release and recovery
 
-Status: approved design for issue #94. Last reviewed: 2026-07-17.
+Status: implemented beta recovery baseline for issue #94. Last reviewed: 2026-07-19.
 
 ## Objectives
 
@@ -26,15 +26,17 @@ the private beta, the database recovery objectives are:
 - The previous verified recovery database remains available until the new copy
   passes validation. A failed refresh must never destroy the last known-good
   copy.
-- Railway volume backups add daily snapshot retention around the restored
-  recovery databases.
-- Staging continues to use its isolated Railway PostgreSQL service and receives
-  its own Railway volume backup schedule. Production data is never restored
-  into staging.
+- Railway volume backups and point-in-time recovery are not enabled: the
+  Railway dashboard requires the Pro plan for both, while this project must
+  remain on its current non-Pro plan. The verified twice-daily logical copy
+  is the compensating control; this plan limitation is reviewed whenever the
+  recovery requirements or Railway plan changes.
+- Staging continues to use its isolated Railway PostgreSQL service. Production
+  data is never restored into staging.
 
 This design does not provide point-in-time recovery. Supabase Free does not
 include automated backups or PITR, so the accepted beta recovery point is the
-last successful daily logical copy.
+last successful twice-daily logical copy.
 
 ## Release flow
 
@@ -159,8 +161,9 @@ Each run must:
 8. emit metadata only: timestamps, migration version, duration, database size,
    and pass/fail status;
 9. delete expired logical copies only under the pre-approved retention policy:
-   keep at least two verified logical copies and six days of daily Railway
-   volume snapshots, and record every deletion without row data or secrets.
+   keep at least two verified logical copies and record every deletion without
+   row data or secrets. No snapshot-retention claim may be made while native
+   Railway backups remain unavailable on the current plan.
 
 The job exits non-zero on dump, restore, or validation failure. A failed partial
 restore is quarantined and never marked verified. The named backup-maintenance
@@ -174,20 +177,24 @@ source.
 The source credential is least-privilege and read-only where PostgreSQL dump
 requirements allow. The recovery credential may create and restore isolated
 databases but is not an application runtime credential. Both remain
-Railway-scoped secrets.
+Railway-scoped service references. The production backup owner is Piero
+Postigo; the operator performing a destructive recovery action and its approver
+must still be named in the incident record.
 
 ## Backup worker implementation
 
 `apps/database-backup` is a JavaScript-only cron worker. It reads only
 `SOURCE_DATABASE_URL`, `RECOVERY_ADMIN_DATABASE_URL`, and optional
-`BACKUP_RUN_ID`. `railway.backup.json` uses `Dockerfile.database-backup` with
-no web healthcheck or restart loop.
+`BACKUP_RUN_ID`. The production variables reference the API's Supabase direct
+URL and the recovery PostgreSQL service; both append `sslmode=require` without
+copying credential values. `railway.backup.json` uses
+`Dockerfile.database-backup` with no web healthcheck or restart loop.
 
 The worker uses a PostgreSQL advisory lock, passes credentials to the dump and
 restore clients through process environment only, and records metadata-only
 verification in the recovery admin database. It retains the two newest
 verified recovery databases only after migration, table, and row-count checks
-pass; failed attempts are quarantined for operator cleanup in Task 3 and cannot
+pass; failed attempts are quarantined for guarded operator cleanup and cannot
 remove a previous verified copy.
 
 The dump contains the app-owned `public` schema plus the required `pg_trgm`
@@ -311,9 +318,22 @@ and the complete run took 4,478 ms. The target and retry target were deleted by
 the exact rehearsal guard after evidence capture. No hosted database, user row,
 credential value, or application runtime target was accessed or changed.
 
-Hosted production-to-isolated-Railway restore, failed-migration, application
-rollback, cutover, rollback-of-cutover, schedule, and snapshot evidence remain
-pending Task 4. Local evidence does not satisfy those platform acceptance gates.
+The 2026-07-19 hosted rehearsal restored production into the isolated Railway
+recovery service without changing the production API target. It verified 67
+active Prisma migrations through
+`20260628120000_add_recipe_execution_metadata`, matched critical counts for
+`User` (40), `BaseRecipe` (158), and `ShoppingCart` (30), and measured a
+27,443,727-byte database. Backup/restore took 134,954 ms, guarded cleanup took
+4,408 ms, and the full rehearsal took 144,004 ms. The exact rehearsal guard
+deleted the temporary database after metadata-only evidence was captured.
+
+Railway production service `database-backup` is sourced from the dedicated
+branch using `/railway.backup.json`. Deployment
+`9385f3c5-3b12-4ee1-8128-e1fc2158f9d9` built commit `ad7948a` with status
+`SUCCESS`, Dockerfile `Dockerfile.database-backup`, restart policy `NEVER`, and
+cron `0 2,14 * * *`. Native snapshots/PITR were explicitly checked and remain
+unavailable on the current plan; they are an accepted limitation, not verified
+backup coverage.
 
 ## Verification design
 
@@ -321,7 +341,7 @@ Repository tests cover release metadata, the migration command boundary, and
 backup validation logic without contacting hosted databases. Deployment proof
 must additionally record:
 
-- production and staging backup schedule configuration and owner;
+- production backup schedule configuration and owner;
 - one successful production-to-isolated-Railway restore rehearsal;
 - measured dump, restore, validation, credential/config cutover, API deploy,
   readiness, web smoke, and incident-to-usable-service duration;
@@ -330,5 +350,8 @@ must additionally record:
 - a failed-migration rehearsal and an application rollback rehearsal against
   isolated infrastructure.
 
-The implementation remains incomplete until the hosted restore rehearsals and
-platform backup schedules are verified in Task 4.
+The hosted restore and production schedule are verified. Application rollback,
+failed-migration, deletion, provider-outage, cutover, and rollback-of-cutover
+procedures are actionable runbooks; executing them is reserved for an incident
+or separately approved isolated exercise. Native Railway snapshots/PITR remain
+unavailable under the accepted plan constraint.

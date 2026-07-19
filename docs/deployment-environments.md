@@ -108,10 +108,12 @@ This evidence proves the deployed topology and isolation checkpoint. A later
 source revision still needs its own feature-readiness smoke after deployment.
 
 Database recovery uses a separate Railway PostgreSQL destination and never the
-staging database. The guarded local rehearsal is recorded in
-`docs/database-recovery.md`; hosted backup-service, schedule, snapshot, and
-production-to-isolated-recovery evidence remain pending and must not be inferred
-from the deployment isolation checkpoint above.
+staging database. The production `database-backup` service runs from
+`/railway.backup.json` at `0 2,14 * * *`, using service-variable references for
+the source and recovery connections. Its hosted production-to-isolated restore
+and guarded cleanup evidence is recorded in `docs/database-recovery.md`.
+Railway native backups/PITR were checked but require the Pro plan, so neither
+production nor staging claims snapshot coverage on the current plan.
 
 ## Feature readiness smoke
 
