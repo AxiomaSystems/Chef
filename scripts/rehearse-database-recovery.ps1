@@ -71,12 +71,59 @@ function Test-IsolatedReadinessOrigin {
   }
 }
 
+function Write-RehearsalEvidence {
+  param(
+    [string]$CurrentStatus,
+    $Resolution,
+    [string]$VerifiedDatabaseName,
+    $Verification,
+    [DateTimeOffset]$Started,
+    [DateTimeOffset]$Finished,
+    $Durations
+  )
+
+  $evidence = [ordered]@{
+    status = $CurrentStatus
+    startedAt = $Started.ToString("o")
+    finishedAt = $Finished.ToString("o")
+    stageDurationsMs = $Durations
+  }
+  if ($null -ne $Resolution) {
+    $evidence.runId = $Resolution.runId
+    $evidence.databaseName = $VerifiedDatabaseName
+  }
+  if ($null -ne $Verification) {
+    $evidence.sourceLatestMigration = $Verification.sourceLatestMigration
+    $evidence.restoredLatestMigration = $Verification.restoredLatestMigration
+    $evidence.migrationCount = $Verification.migrationCount
+    $evidence.databaseSizeBytes = $Verification.databaseSizeBytes
+    $evidence.tableCounts = $Verification.tableCounts
+  }
+
+  $evidenceJson = $evidence | ConvertTo-Json -Depth 5
+  if ($null -ne $Resolution) {
+    [Environment]::SetEnvironmentVariable("REHEARSAL_EVIDENCE_JSON", $evidenceJson, "Process")
+    $evidence = Invoke-RehearsalHelper -Arguments @("evidence-env")
+    $evidenceJson = $evidence | ConvertTo-Json -Depth 5
+  }
+  $evidenceDirectory = Split-Path -Parent $EvidencePath
+  if (-not [string]::IsNullOrWhiteSpace($evidenceDirectory)) {
+    New-Item -ItemType Directory -Force -Path $evidenceDirectory | Out-Null
+  }
+  [IO.File]::WriteAllText(
+    [IO.Path]::GetFullPath($EvidencePath),
+    $evidenceJson,
+    [Text.UTF8Encoding]::new($false)
+  )
+  return $evidenceJson
+}
+
 $startedAt = [DateTimeOffset]::UtcNow
 $totalTimer = [Diagnostics.Stopwatch]::StartNew()
 $stageDurations = [ordered]@{}
 $status = "failed"
 $resolved = $null
-$actualDatabaseName = $RecoveryDatabaseName
+$actualDatabaseName = $null
 $inspection = $null
 $previousSource = [Environment]::GetEnvironmentVariable("SOURCE_DATABASE_URL", "Process")
 $previousRecovery = [Environment]::GetEnvironmentVariable("RECOVERY_ADMIN_DATABASE_URL", "Process")
@@ -141,54 +188,32 @@ try {
     $stageDurations.webReadiness = [int64]$webTimer.ElapsedMilliseconds
   }
 
-  if ($Cleanup) {
-    $cleanupTimer = [Diagnostics.Stopwatch]::StartNew()
-    foreach ($candidate in @($resolved.databaseName, $resolved.retryDatabaseName)) {
-      [void](Invoke-RehearsalHelper -Arguments @("cleanup", $RecoveryDatabaseName, $candidate) -InContainer)
-    }
-    $cleanupTimer.Stop()
-    $stageDurations.cleanup = [int64]$cleanupTimer.ElapsedMilliseconds
-  }
   $status = "passed"
 }
 finally {
   $totalTimer.Stop()
   $stageDurations.total = [int64]$totalTimer.ElapsedMilliseconds
-  [Environment]::SetEnvironmentVariable("SOURCE_DATABASE_URL", $previousSource, "Process")
-  [Environment]::SetEnvironmentVariable("RECOVERY_ADMIN_DATABASE_URL", $previousRecovery, "Process")
-  [Environment]::SetEnvironmentVariable("BACKUP_RUN_ID", $previousRunId, "Process")
+  try {
+    $finishedAt = [DateTimeOffset]::UtcNow
+    $evidenceJson = Write-RehearsalEvidence -CurrentStatus $status -Resolution $resolved -VerifiedDatabaseName $actualDatabaseName -Verification $inspection -Started $startedAt -Finished $finishedAt -Durations $stageDurations
 
-  $finishedAt = [DateTimeOffset]::UtcNow
-  $evidence = [ordered]@{
-    status = $status
-    runId = if ($null -ne $resolved) { $resolved.runId } else { $null }
-    databaseName = $actualDatabaseName
-    startedAt = $startedAt.ToString("o")
-    finishedAt = $finishedAt.ToString("o")
-    stageDurationsMs = $stageDurations
-  }
-  if ($null -ne $inspection) {
-    $evidence.sourceLatestMigration = $inspection.sourceLatestMigration
-    $evidence.restoredLatestMigration = $inspection.restoredLatestMigration
-    $evidence.migrationCount = $inspection.migrationCount
-    $evidence.databaseSizeBytes = $inspection.databaseSizeBytes
-    $evidence.tableCounts = $inspection.tableCounts
-  }
-  $evidenceDirectory = Split-Path -Parent $EvidencePath
-  if (-not [string]::IsNullOrWhiteSpace($evidenceDirectory)) {
-    New-Item -ItemType Directory -Force -Path $evidenceDirectory | Out-Null
-  }
-  $evidenceJson = $evidence | ConvertTo-Json -Depth 5
-  if ($null -ne $resolved) {
-    try {
-      [Environment]::SetEnvironmentVariable("REHEARSAL_EVIDENCE_JSON", $evidenceJson, "Process")
-      $evidence = Invoke-RehearsalHelper -Arguments @("evidence-env")
-      $evidenceJson = $evidence | ConvertTo-Json -Depth 5
-    }
-    finally {
-      [Environment]::SetEnvironmentVariable("REHEARSAL_EVIDENCE_JSON", $previousEvidence, "Process")
+    if ($status -eq "passed" -and $Cleanup -and $null -ne $resolved) {
+      $cleanupTimer = [Diagnostics.Stopwatch]::StartNew()
+      foreach ($candidate in @($resolved.databaseName, $resolved.retryDatabaseName)) {
+        [void](Invoke-RehearsalHelper -Arguments @("cleanup", $RecoveryDatabaseName, $candidate) -InContainer)
+      }
+      $cleanupTimer.Stop()
+      $stageDurations.cleanup = [int64]$cleanupTimer.ElapsedMilliseconds
+      $stageDurations.total = [int64]$stageDurations.total + [int64]$stageDurations.cleanup
+      $finishedAt = [DateTimeOffset]::UtcNow
+      $evidenceJson = Write-RehearsalEvidence -CurrentStatus $status -Resolution $resolved -VerifiedDatabaseName $actualDatabaseName -Verification $inspection -Started $startedAt -Finished $finishedAt -Durations $stageDurations
     }
   }
-  Set-Content -LiteralPath $EvidencePath -Value $evidenceJson -Encoding utf8
+  finally {
+    [Environment]::SetEnvironmentVariable("SOURCE_DATABASE_URL", $previousSource, "Process")
+    [Environment]::SetEnvironmentVariable("RECOVERY_ADMIN_DATABASE_URL", $previousRecovery, "Process")
+    [Environment]::SetEnvironmentVariable("BACKUP_RUN_ID", $previousRunId, "Process")
+    [Environment]::SetEnvironmentVariable("REHEARSAL_EVIDENCE_JSON", $previousEvidence, "Process")
+  }
   Write-Output $evidenceJson
 }

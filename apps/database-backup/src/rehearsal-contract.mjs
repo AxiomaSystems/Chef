@@ -129,14 +129,23 @@ export function createRehearsalEvidence(input) {
   ) {
     fail("Rehearsal evidence status must be passed or failed.");
   }
-  const target = resolveRehearsalTarget(input.databaseName);
-  if (target.runId !== input.runId)
+  const attemptOneName = createRecoveryDatabaseName({
+    runId: input.runId,
+    attempt: 1,
+  });
+  const target = resolveRehearsalTarget(attemptOneName);
+  if (
+    !new Set([target.databaseName, target.retryDatabaseName]).has(
+      input.databaseName,
+    )
+  ) {
     fail("Rehearsal evidence target does not match run ID.");
+  }
 
   const evidence = {
     status: input.status,
     runId: target.runId,
-    databaseName: target.databaseName,
+    databaseName: input.databaseName,
     startedAt: validIsoTimestamp(input.startedAt, "startedAt"),
     finishedAt: validIsoTimestamp(input.finishedAt, "finishedAt"),
     stageDurationsMs: sanitizeDurations(input.stageDurationsMs),

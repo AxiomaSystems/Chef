@@ -135,6 +135,36 @@ test("emits only allowlisted metadata evidence", () => {
   );
 });
 
+test("accepts a verified retry target without weakening run ID binding", () => {
+  const evidence = createRehearsalEvidence({
+    status: "passed",
+    runId: "rehearsal_local_retry",
+    databaseName: "preppie_recovery_rehearsal_local_retry_a2",
+    startedAt: "2026-07-17T18:00:00.000Z",
+    finishedAt: "2026-07-17T18:00:12.000Z",
+    stageDurationsMs: { backupRestore: 12000, total: 12000 },
+    sourceLatestMigration: "20260717170000_add_database_release_compatibility",
+    restoredLatestMigration:
+      "20260717170000_add_database_release_compatibility",
+    migrationCount: 71,
+    databaseSizeBytes: "1048576",
+    tableCounts: { User: "1", BaseRecipe: "1", ShoppingCart: "1" },
+  });
+
+  assert.equal(
+    evidence.databaseName,
+    "preppie_recovery_rehearsal_local_retry_a2",
+  );
+  assert.throws(
+    () =>
+      createRehearsalEvidence({
+        ...evidence,
+        runId: "rehearsal_different",
+      }),
+    /does not match run ID/i,
+  );
+});
+
 test("failed evidence remains allowlisted when validation never produced counts", () => {
   const evidence = createRehearsalEvidence({
     status: "failed",

@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 const scriptPath = "scripts/rehearse-database-recovery.ps1";
@@ -55,4 +59,64 @@ test("recovery rehearsal inspects and cleans only resolved attempt names", async
   assert.match(script, /@\("cleanup", \$RecoveryDatabaseName, \$candidate\)/);
   assert.match(script, /--entrypoint node/);
   assert.doesNotMatch(script, /DROP\s+DATABASE/i);
+});
+
+test("recovery rehearsal persists verified evidence before guarded cleanup", async () => {
+  const script = await readFile(scriptPath, "utf8");
+  const preCleanupEvidence = script.indexOf(
+    "$evidenceJson = Write-RehearsalEvidence",
+  );
+  const cleanupGate = script.indexOf(
+    'if ($status -eq "passed" -and $Cleanup -and $null -ne $resolved)',
+  );
+
+  assert.ok(preCleanupEvidence >= 0, "pre-cleanup evidence write is missing");
+  assert.ok(
+    cleanupGate > preCleanupEvidence,
+    "cleanup precedes evidence write",
+  );
+});
+
+test("rejected targets never appear in stdout or persisted evidence", async () => {
+  const marker = `postgresql://operator:${randomUUID()}@production.invalid/db`;
+  const evidencePath = join(tmpdir(), `preppie-rejected-${randomUUID()}.json`);
+  try {
+    const result = spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-File",
+        scriptPath,
+        "-RecoveryDatabaseName",
+        marker,
+        "-SourceDatabaseUrlVariableName",
+        "MISSING_SOURCE_DATABASE_URL",
+        "-RecoveryAdminDatabaseUrlVariableName",
+        "MISSING_RECOVERY_DATABASE_URL",
+        "-EvidencePath",
+        evidencePath,
+      ],
+      { encoding: "utf8" },
+    );
+    const evidence = await readFile(evidencePath, "utf8");
+
+    assert.notEqual(result.status, 0);
+    assert.doesNotMatch(
+      result.stdout,
+      new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    );
+    assert.doesNotMatch(
+      result.stderr,
+      new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    );
+    assert.doesNotMatch(evidence, /postgres(?:ql)?:\/\//i);
+    assert.deepEqual(Object.keys(JSON.parse(evidence)).sort(), [
+      "finishedAt",
+      "stageDurationsMs",
+      "startedAt",
+      "status",
+    ]);
+  } finally {
+    await rm(evidencePath, { force: true });
+  }
 });
