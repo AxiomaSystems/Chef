@@ -1,6 +1,6 @@
 # Database release and recovery
 
-Status: approved design for issue #94. Last reviewed: 2026-07-17.
+Status: implemented beta recovery baseline for issue #94. Last reviewed: 2026-07-19.
 
 ## Objectives
 
@@ -26,15 +26,17 @@ the private beta, the database recovery objectives are:
 - The previous verified recovery database remains available until the new copy
   passes validation. A failed refresh must never destroy the last known-good
   copy.
-- Railway volume backups add daily snapshot retention around the restored
-  recovery databases.
-- Staging continues to use its isolated Railway PostgreSQL service and receives
-  its own Railway volume backup schedule. Production data is never restored
-  into staging.
+- Railway volume backups and point-in-time recovery are not enabled: the
+  Railway dashboard requires the Pro plan for both, while this project must
+  remain on its current non-Pro plan. The verified twice-daily logical copy
+  is the compensating control; this plan limitation is reviewed whenever the
+  recovery requirements or Railway plan changes.
+- Staging continues to use its isolated Railway PostgreSQL service. Production
+  data is never restored into staging.
 
 This design does not provide point-in-time recovery. Supabase Free does not
 include automated backups or PITR, so the accepted beta recovery point is the
-last successful daily logical copy.
+last successful twice-daily logical copy.
 
 ## Release flow
 
@@ -72,14 +74,23 @@ checksums; inspecting only the latest successful row is insufficient.
 
 Introducing compatibility metadata requires two separate releases:
 
-1. **Phase A — reader first:** deploy the compatibility-aware API with no
-   compatibility-table migration. While the table is absent, readiness uses
-   that API's packaged expected migration as the minimum compatible migration.
-2. Smoke Phase A in the hosted environment and confirm its revision, complete
-   migration history/checksums, and normal critical reads and writes.
-3. **Phase B — table second:** only a later release may add and initialize the
-   compatibility table. The already-serving Phase A API detects the table,
-   reads its declared minimum, and accepts the compatible database-ahead state.
+1. **Phase A — reader first (complete):** Railway production API deployment
+   `a452bdd6-67a8-40f3-938d-68ebe967885b` deployed main revision
+   `4a5ffccc2df33cd510b2f25d37347c6f42a23f65` with status `SUCCESS`. That
+   compatibility-aware API contains no compatibility-table migration. While the
+   table is absent, readiness uses the API's packaged expected migration as the
+   minimum compatible migration.
+2. On 2026-07-17, the production read-only readiness smoke against the public API
+   and web origins returned
+   `[READINESS] production API and web report ready required services.` Critical
+   application read/write smoke remains pending and must complete before any
+   destructive or cutover operation.
+3. **Phase B — table second:** migration
+   `20260717170000_add_database_release_compatibility` adds the singleton table
+   and declares `20260628120000_add_recipe_execution_metadata` as the minimum
+   compatible API migration. The already-serving Phase A API can detect this
+   floor and accept the compatible database-ahead state during rollout or an
+   application rollback.
 
 The compatibility-table migration must never ship in the same release that
 first teaches the API to read it. Otherwise pre-deploy can advance the database
@@ -123,7 +134,9 @@ it.
 ## Backup refresh contract
 
 The primary backup runs nightly, with a scheduled safety run 12 hours later.
-Each scheduled run has one bounded retry within 30 minutes. A single-job
+Each scheduled run, including its one bounded retry, has a shared 30-minute
+deadline. The worker reserves a maximum of 15 minutes for each attempt so the
+first cannot consume the retry window. A single-job
 advisory lock makes overlapping runs exit without changing either the source or
 last verified recovery copy. The backup owner is alerted when the last verified
 copy reaches 18 hours, escalation begins at 23 hours, and a copy older than 24
@@ -148,8 +161,9 @@ Each run must:
 8. emit metadata only: timestamps, migration version, duration, database size,
    and pass/fail status;
 9. delete expired logical copies only under the pre-approved retention policy:
-   keep at least two verified logical copies and six days of daily Railway
-   volume snapshots, and record every deletion without row data or secrets.
+   keep at least two verified logical copies and record every deletion without
+   row data or secrets. No snapshot-retention claim may be made while native
+   Railway backups remain unavailable on the current plan.
 
 The job exits non-zero on dump, restore, or validation failure. A failed partial
 restore is quarantined and never marked verified. The named backup-maintenance
@@ -163,7 +177,31 @@ source.
 The source credential is least-privilege and read-only where PostgreSQL dump
 requirements allow. The recovery credential may create and restore isolated
 databases but is not an application runtime credential. Both remain
-Railway-scoped secrets.
+Railway-scoped service references. The production backup owner is Piero
+Postigo; the operator performing a destructive recovery action and its approver
+must still be named in the incident record.
+
+## Backup worker implementation
+
+`apps/database-backup` is a JavaScript-only cron worker. It reads only
+`SOURCE_DATABASE_URL`, `RECOVERY_ADMIN_DATABASE_URL`, and optional
+`BACKUP_RUN_ID`. The production variables reference the API's Supabase direct
+URL and the recovery PostgreSQL service; both append `sslmode=require` without
+copying credential values. `railway.backup.json` uses
+`Dockerfile.database-backup` with no web healthcheck or restart loop.
+
+The worker uses a PostgreSQL advisory lock, passes credentials to the dump and
+restore clients through process environment only, and records metadata-only
+verification in the recovery admin database. It retains the two newest
+verified recovery databases only after migration, table, and row-count checks
+pass; failed attempts are quarantined for guarded operator cleanup and cannot
+remove a previous verified copy.
+
+The dump contains the app-owned `public` schema plus the required `pg_trgm`
+extension, and the restore cleans only the newly generated target before
+recreating archive objects. Validation uses the physical application tables
+`User`, `BaseRecipe`, `ShoppingCart`, and `_prisma_migrations`. A local rehearsal
+found and corrected the stale `Recipe` table assumption before hosted rollout.
 
 ## Failed migration runbook
 
@@ -183,6 +221,12 @@ Railway-scoped secrets.
 6. After repair, verify migration history/checksums, API readiness, critical
    reads and writes, and the web smoke path before resuming releases.
 
+Record the incident owner, database owner, release approver, migration name,
+candidate revision, decision, start/end timestamps, and verification result.
+Abort the retry and require a reviewed forward fix when the observed objects do
+not exactly match the committed SQL, the previous API is no longer compatible,
+or the recovery copy is older than the declared RPO.
+
 ## Application rollback runbook
 
 1. Identify whether the release applied no migration, a compatible expand
@@ -198,6 +242,11 @@ Railway-scoped secrets.
    rollback complete.
 6. Record the operator, approver, revisions, migration state, timestamps, and
    outcome without secrets or user data.
+
+Abort application rollback when the compatibility floor excludes the previous
+API, a contract migration removed data needed by it, or isolated readiness and
+critical read/write checks cannot pass. Keep writes paused and ship a forward
+fix instead.
 
 ## Recovery boundaries
 
@@ -231,11 +280,60 @@ Railway-scoped secrets.
    variables to the source and redeploy. Otherwise keep writes stopped and
    continue the reviewed forward repair.
 
+The incident owner authorizes cutover; the database owner selects and verifies
+the recovery database; the release approver authorizes API/web changes. Record
+all three fields before changing runtime variables. Abort before cutover when
+the target is not metadata-verified, migration compatibility is unknown, the
+credential scope is broader than the runtime needs, or the expected data-loss
+window has not been accepted.
+
+Rollback-of-cutover reverses the web first when necessary, restores the prior
+API database variables, redeploys the last known-compatible API, and repeats
+schema readiness, authentication, critical read/write, and web smoke checks.
+Never drop the recovery target or resume writes until the rollback result and
+incident evidence are recorded.
+
 A restore rehearsal uses a separate Railway database and temporary API target
 with provider calls and user communications disabled. It cannot overwrite or
 impair production, staging, or the last verified recovery copy. Access is
 limited to the rehearsal operators. Cleanup occurs only after evidence and
 rollback-of-cutover checks are complete.
+
+## Recovery rehearsal
+
+`scripts/rehearse-database-recovery.ps1` requires an explicit attempt-one name
+matching `^preppie_recovery_rehearsal_[a-z0-9_]+_a1$` and receives connection
+configuration through environment-variable names. It rejects normal recovery
+copies, production/staging database names, globs, interpolation, credentials in
+origins, and any cleanup target outside the resolved attempt-one/attempt-two
+pair. Optional readiness probes accept only clean isolated HTTPS origins whose
+host identifies them as rehearsal or recovery targets.
+
+The 2026-07-19 local synthetic rehearsal used disposable PostgreSQL 18 source
+and recovery databases. It applied all 67 Prisma migrations, restored and
+verified migration/checksum parity, and matched critical counts for `User` (2),
+`BaseRecipe` (69), and `ShoppingCart` (1). The verified database size was
+12,695,231 bytes; backup/restore took 2,431 ms, guarded cleanup took 1,243 ms,
+and the complete run took 4,478 ms. The target and retry target were deleted by
+the exact rehearsal guard after evidence capture. No hosted database, user row,
+credential value, or application runtime target was accessed or changed.
+
+The 2026-07-19 hosted rehearsal restored production into the isolated Railway
+recovery service without changing the production API target. It verified 67
+active Prisma migrations through
+`20260628120000_add_recipe_execution_metadata`, matched critical counts for
+`User` (40), `BaseRecipe` (158), and `ShoppingCart` (30), and measured a
+27,443,727-byte database. Backup/restore took 134,954 ms, guarded cleanup took
+4,408 ms, and the full rehearsal took 144,004 ms. The exact rehearsal guard
+deleted the temporary database after metadata-only evidence was captured.
+
+Railway production service `database-backup` is sourced from the dedicated
+branch using `/railway.backup.json`. Deployment
+`9385f3c5-3b12-4ee1-8128-e1fc2158f9d9` built commit `ad7948a` with status
+`SUCCESS`, Dockerfile `Dockerfile.database-backup`, restart policy `NEVER`, and
+cron `0 2,14 * * *`. Native snapshots/PITR were explicitly checked and remain
+unavailable on the current plan; they are an accepted limitation, not verified
+backup coverage.
 
 ## Verification design
 
@@ -243,7 +341,7 @@ Repository tests cover release metadata, the migration command boundary, and
 backup validation logic without contacting hosted databases. Deployment proof
 must additionally record:
 
-- production and staging backup schedule configuration and owner;
+- production backup schedule configuration and owner;
 - one successful production-to-isolated-Railway restore rehearsal;
 - measured dump, restore, validation, credential/config cutover, API deploy,
   readiness, web smoke, and incident-to-usable-service duration;
@@ -252,5 +350,8 @@ must additionally record:
 - a failed-migration rehearsal and an application rollback rehearsal against
   isolated infrastructure.
 
-The implementation remains incomplete until the real restore rehearsal and
-platform backup schedules are verified.
+The hosted restore and production schedule are verified. Application rollback,
+failed-migration, deletion, provider-outage, cutover, and rollback-of-cutover
+procedures are actionable runbooks; executing them is reserved for an incident
+or separately approved isolated exercise. Native Railway snapshots/PITR remain
+unavailable under the accepted plan constraint.

@@ -74,12 +74,18 @@ The seed is idempotent for the current catalog-style data and can be rerun when 
 
 ## Current Status
 
-As of April 30, 2026:
+Supabase Free is the production-primary PostgreSQL database. The application
+does not rely on Free-plan managed backups or point-in-time recovery: official
+Supabase guidance assigns Free projects responsibility for their own exports,
+while managed daily backup retention is provided on paid plans. Preppie's
+compensating recovery path is the twice-daily logical restore into isolated
+Railway PostgreSQL described in `docs/database-recovery.md`. Railway native
+volume backups/PITR also require a paid plan and are not active under the
+current plan, so they are not counted toward the recovery guarantee.
 
-- Supabase is the shared team database for the current demo branch.
-- All existing Prisma migrations have been applied.
-- Seed data has been loaded.
-- Local Docker Postgres remains available for isolated development.
+All production changes remain repo-owned Prisma migrations. Local Docker
+PostgreSQL stays available for isolated development and synthetic rehearsal;
+production data must never be copied into staging or a developer database.
 
 ## Row Level Security
 

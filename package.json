@@ -33,7 +33,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "postman:test": "pnpm --filter api postman:test",
-    "test": "pnpm test:repo && pnpm --filter api test:ci && pnpm --filter vision-lab test",
+    "test": "pnpm test:repo && pnpm --filter api test:ci && pnpm --filter database-backup test && pnpm --filter vision-lab test",
     "test:repo": "node --test scripts/*.test.mjs apps/web/src/lib/*.test.mts",
     "smoke:readiness": "node scripts/check-feature-readiness.mjs",
     "smoke:isolation": "node scripts/check-deployment-isolation.mjs",
