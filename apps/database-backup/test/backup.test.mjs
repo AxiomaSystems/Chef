@@ -30,10 +30,10 @@ function validMigrations() {
 
 function validValidationInput() {
   return {
-    sourceTables: ["User", "Recipe", "ShoppingCart", "_prisma_migrations"],
-    restoredTables: ["User", "Recipe", "ShoppingCart", "_prisma_migrations"],
-    sourceCounts: { User: "2", Recipe: "3", ShoppingCart: "4" },
-    restoredCounts: { User: "2", Recipe: "3", ShoppingCart: "4" },
+    sourceTables: ["User", "BaseRecipe", "ShoppingCart", "_prisma_migrations"],
+    restoredTables: ["User", "BaseRecipe", "ShoppingCart", "_prisma_migrations"],
+    sourceCounts: { User: "2", BaseRecipe: "3", ShoppingCart: "4" },
+    restoredCounts: { User: "2", BaseRecipe: "3", ShoppingCart: "4" },
   };
 }
 
@@ -94,15 +94,15 @@ test("requires complete, unique and matching active Prisma migration histories",
 
 test("requires critical public tables and exactly matching critical row counts", () => {
   assert.deepEqual(validateCriticalTablesAndCounts(validValidationInput()), {
-    tableCounts: { User: "2", Recipe: "3", ShoppingCart: "4" },
+    tableCounts: { User: "2", BaseRecipe: "3", ShoppingCart: "4" },
   });
   assert.throws(() => validateCriticalTablesAndCounts({
     ...validValidationInput(),
-    restoredTables: ["User", "Recipe", "ShoppingCart"],
+    restoredTables: ["User", "BaseRecipe", "ShoppingCart"],
   }));
   assert.throws(() => validateCriticalTablesAndCounts({
     ...validValidationInput(),
-    restoredCounts: { User: "2", Recipe: "999", ShoppingCart: "4" },
+    restoredCounts: { User: "2", BaseRecipe: "999", ShoppingCart: "4" },
   }));
 });
 
@@ -112,6 +112,7 @@ test("retention keeps the two newest verified recovery databases and never selec
     { databaseName: "preppie_recovery_mid", status: "verified", verifiedAt: "2026-07-16T02:00:00.000Z" },
     { databaseName: "preppie_recovery_old", status: "verified", verifiedAt: "2026-07-15T02:00:00.000Z" },
     { databaseName: "preppie_recovery_failed", status: "failed", verifiedAt: "2026-07-14T02:00:00.000Z" },
+    { databaseName: "preppie_recovery_rehearsal_local_a1", status: "verified", verifiedAt: "2026-07-18T02:00:00.000Z" },
   ]);
 
   assert.deepEqual(expired.map((database) => database.databaseName), ["preppie_recovery_old"]);
@@ -191,8 +192,8 @@ test("orchestration holds the bigint advisory lock, verifies once, logs only met
   const dump = events.find((event) => event.command === "pg_dump");
   const restore = events.find((event) => event.command === "pg_restore");
   const dumpPath = `/tmp/preppie-backup-test/${result.databaseName}.dump`;
-  assert.deepEqual(dump.args, ["--format=custom", "--schema=public", "--no-owner", "--no-acl", "--snapshot=00000001-00000001-1", "--file", dumpPath]);
-  assert.deepEqual(restore.args, ["--exit-on-error", "--no-owner", "--no-acl", dumpPath]);
+  assert.deepEqual(dump.args, ["--format=custom", "--schema=public", "--extension=pg_trgm", "--no-owner", "--no-acl", "--snapshot=00000001-00000001-1", "--file", dumpPath]);
+  assert.deepEqual(restore.args, ["--clean", "--if-exists", "--exit-on-error", "--no-owner", "--no-acl", `--dbname=${result.databaseName}`, dumpPath]);
   assert.match(restore.args.at(-1), /\.dump$/);
   assert.equal(dump.env.PGSSLMODE, "require");
   assert.equal(dump.timeoutMs, 15 * 60_000);

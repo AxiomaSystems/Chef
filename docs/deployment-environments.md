@@ -107,6 +107,12 @@ no secret values were read or recorded:
 This evidence proves the deployed topology and isolation checkpoint. A later
 source revision still needs its own feature-readiness smoke after deployment.
 
+Database recovery uses a separate Railway PostgreSQL destination and never the
+staging database. The guarded local rehearsal is recorded in
+`docs/database-recovery.md`; hosted backup-service, schedule, snapshot, and
+production-to-isolated-recovery evidence remain pending and must not be inferred
+from the deployment isolation checkpoint above.
+
 ## Feature readiness smoke
 
 Run the separate, read-only feature smoke only against a deployed staging or

@@ -15,7 +15,7 @@ import { createRuntimeDependencies } from "./pg-runtime.mjs";
 const LOG_FIELDS = new Set(["event", "status", "runId", "databaseName", "attempt", "durationMs", "migrationCount", "tableCounts", "databaseSizeBytes", "cleanupStatus", "warning", "errorCategory"]);
 const MIGRATIONS = `SELECT migration_name, checksum, finished_at, rolled_back_at, applied_steps_count FROM public."_prisma_migrations" ORDER BY started_at ASC, migration_name ASC`;
 const TABLES = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'";
-const COUNTS = `SELECT 'User' AS table, count(*)::text AS count FROM public."User" UNION ALL SELECT 'Recipe', count(*)::text FROM public."Recipe" UNION ALL SELECT 'ShoppingCart', count(*)::text FROM public."ShoppingCart"`;
+const COUNTS = `SELECT 'User' AS table, count(*)::text AS count FROM public."User" UNION ALL SELECT 'BaseRecipe', count(*)::text FROM public."BaseRecipe" UNION ALL SELECT 'ShoppingCart', count(*)::text FROM public."ShoppingCart"`;
 const RUN_DEADLINE_MS = 30 * 60_000;
 const ATTEMPT_RESERVE_MS = 15 * 60_000;
 
@@ -39,7 +39,9 @@ async function sequentialCleanup(tasks, primaryError, dependencies, context) {
   throw cleanupError;
 }
 async function snapshot(client) {
-  const [migrations, tables, counts] = await Promise.all([client.query(MIGRATIONS), client.query(TABLES), client.query(COUNTS)]);
+  const migrations = await client.query(MIGRATIONS);
+  const tables = await client.query(TABLES);
+  const counts = await client.query(COUNTS);
   return { migrations: migrations.rows, tables: tables.rows.map((row) => row.table_name), counts: Object.fromEntries(counts.rows.map((row) => [row.table, row.count])) };
 }
 async function metadataTable(admin) {
@@ -94,10 +96,10 @@ async function oneAttempt({ config, runId, attempt, admin, dependencies, deadlin
     sourceTransaction = true;
     const sourceState = await sourceSnapshot(source);
     const dumpPath = dependencies.makeDumpPath(directory, databaseName);
-    await dependencies.runCommand("pg_dump", ["--format=custom", "--schema=public", "--no-owner", "--no-acl", `--snapshot=${sourceState.snapshotId}`, "--file", dumpPath], { env: postgresChildEnvironment(config.source, dependencies.processEnvironment), timeoutMs: remaining() });
+    await dependencies.runCommand("pg_dump", ["--format=custom", "--schema=public", "--extension=pg_trgm", "--no-owner", "--no-acl", `--snapshot=${sourceState.snapshotId}`, "--file", dumpPath], { env: postgresChildEnvironment(config.source, dependencies.processEnvironment), timeoutMs: remaining() });
     await source.query("COMMIT"); sourceTransaction = false;
     restored = await dependencies.createClient({ ...config.recoveryAdmin, database: databaseName }); await restored.connect();
-    await dependencies.runCommand("pg_restore", ["--exit-on-error", "--no-owner", "--no-acl", dumpPath], { env: postgresChildEnvironment({ ...config.recoveryAdmin, database: databaseName }, dependencies.processEnvironment), timeoutMs: remaining() });
+    await dependencies.runCommand("pg_restore", ["--clean", "--if-exists", "--exit-on-error", "--no-owner", "--no-acl", `--dbname=${databaseName}`, dumpPath], { env: postgresChildEnvironment({ ...config.recoveryAdmin, database: databaseName }, dependencies.processEnvironment), timeoutMs: remaining() });
     const restoredState = await snapshot(restored);
     const { migrationCount } = validateMigrationParity(sourceState.validation.migrations, restoredState.migrations);
     const { tableCounts } = validateCriticalTablesAndCounts({ sourceTables: sourceState.validation.tables, restoredTables: restoredState.tables, sourceCounts: sourceState.validation.counts, restoredCounts: restoredState.counts });

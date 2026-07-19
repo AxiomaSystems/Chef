@@ -190,6 +190,12 @@ verified recovery databases only after migration, table, and row-count checks
 pass; failed attempts are quarantined for operator cleanup in Task 3 and cannot
 remove a previous verified copy.
 
+The dump contains the app-owned `public` schema plus the required `pg_trgm`
+extension, and the restore cleans only the newly generated target before
+recreating archive objects. Validation uses the physical application tables
+`User`, `BaseRecipe`, `ShoppingCart`, and `_prisma_migrations`. A local rehearsal
+found and corrected the stale `Recipe` table assumption before hosted rollout.
+
 ## Failed migration runbook
 
 1. Railway stops the candidate release when the pre-deploy command fails; keep
@@ -208,6 +214,12 @@ remove a previous verified copy.
 6. After repair, verify migration history/checksums, API readiness, critical
    reads and writes, and the web smoke path before resuming releases.
 
+Record the incident owner, database owner, release approver, migration name,
+candidate revision, decision, start/end timestamps, and verification result.
+Abort the retry and require a reviewed forward fix when the observed objects do
+not exactly match the committed SQL, the previous API is no longer compatible,
+or the recovery copy is older than the declared RPO.
+
 ## Application rollback runbook
 
 1. Identify whether the release applied no migration, a compatible expand
@@ -223,6 +235,11 @@ remove a previous verified copy.
    rollback complete.
 6. Record the operator, approver, revisions, migration state, timestamps, and
    outcome without secrets or user data.
+
+Abort application rollback when the compatibility floor excludes the previous
+API, a contract migration removed data needed by it, or isolated readiness and
+critical read/write checks cannot pass. Keep writes paused and ship a forward
+fix instead.
 
 ## Recovery boundaries
 
@@ -256,11 +273,47 @@ remove a previous verified copy.
    variables to the source and redeploy. Otherwise keep writes stopped and
    continue the reviewed forward repair.
 
+The incident owner authorizes cutover; the database owner selects and verifies
+the recovery database; the release approver authorizes API/web changes. Record
+all three fields before changing runtime variables. Abort before cutover when
+the target is not metadata-verified, migration compatibility is unknown, the
+credential scope is broader than the runtime needs, or the expected data-loss
+window has not been accepted.
+
+Rollback-of-cutover reverses the web first when necessary, restores the prior
+API database variables, redeploys the last known-compatible API, and repeats
+schema readiness, authentication, critical read/write, and web smoke checks.
+Never drop the recovery target or resume writes until the rollback result and
+incident evidence are recorded.
+
 A restore rehearsal uses a separate Railway database and temporary API target
 with provider calls and user communications disabled. It cannot overwrite or
 impair production, staging, or the last verified recovery copy. Access is
 limited to the rehearsal operators. Cleanup occurs only after evidence and
 rollback-of-cutover checks are complete.
+
+## Recovery rehearsal
+
+`scripts/rehearse-database-recovery.ps1` requires an explicit attempt-one name
+matching `^preppie_recovery_rehearsal_[a-z0-9_]+_a1$` and receives connection
+configuration through environment-variable names. It rejects normal recovery
+copies, production/staging database names, globs, interpolation, credentials in
+origins, and any cleanup target outside the resolved attempt-one/attempt-two
+pair. Optional readiness probes accept only clean isolated HTTPS origins whose
+host identifies them as rehearsal or recovery targets.
+
+The 2026-07-19 local synthetic rehearsal used disposable PostgreSQL 18 source
+and recovery databases. It applied all 67 Prisma migrations, restored and
+verified migration/checksum parity, and matched critical counts for `User` (2),
+`BaseRecipe` (69), and `ShoppingCart` (1). The verified database size was
+12,695,231 bytes; backup/restore took 2,431 ms, guarded cleanup took 1,243 ms,
+and the complete run took 4,478 ms. The target and retry target were deleted by
+the exact rehearsal guard after evidence capture. No hosted database, user row,
+credential value, or application runtime target was accessed or changed.
+
+Hosted production-to-isolated-Railway restore, failed-migration, application
+rollback, cutover, rollback-of-cutover, schedule, and snapshot evidence remain
+pending Task 4. Local evidence does not satisfy those platform acceptance gates.
 
 ## Verification design
 
@@ -277,5 +330,5 @@ must additionally record:
 - a failed-migration rehearsal and an application rollback rehearsal against
   isolated infrastructure.
 
-The implementation remains incomplete until the real restore rehearsal and
-platform backup schedules are verified.
+The implementation remains incomplete until the hosted restore rehearsals and
+platform backup schedules are verified in Task 4.

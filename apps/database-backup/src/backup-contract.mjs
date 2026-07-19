@@ -4,9 +4,11 @@ export const BACKUP_ADVISORY_LOCK_KEY = "684751928403617";
 
 const RECOVERY_DATABASE_PREFIX = "preppie_recovery_";
 const RECOVERY_DATABASE_PATTERN = /^preppie_recovery_[a-z0-9_]+$/;
+const REHEARSAL_DATABASE_PATTERN = /^preppie_recovery_rehearsal_[a-z0-9_]+$/;
 const RUN_ID_PATTERN = /^[a-z0-9_]{1,32}$/;
-const REQUIRED_TABLES = ["User", "Recipe", "ShoppingCart", "_prisma_migrations"];
-const COUNTED_TABLES = ["User", "Recipe", "ShoppingCart"];
+const REHEARSAL_RUN_ID_PATTERN = /^rehearsal_[a-z0-9_]+$/;
+const REQUIRED_TABLES = ["User", "BaseRecipe", "ShoppingCart", "_prisma_migrations"];
+const COUNTED_TABLES = ["User", "BaseRecipe", "ShoppingCart"];
 
 function fail(message) {
   throw new Error(message);
@@ -14,6 +16,9 @@ function fail(message) {
 function requireSafeRunId(runId) {
   if (typeof runId !== "string" || !RUN_ID_PATTERN.test(runId)) {
     fail("BACKUP_RUN_ID must contain only lowercase letters, digits, and underscores.");
+  }
+  if (runId.startsWith("rehearsal_") && !REHEARSAL_RUN_ID_PATTERN.test(runId)) {
+    fail("Rehearsal BACKUP_RUN_ID is invalid.");
   }
 
   return runId;
@@ -38,7 +43,9 @@ export function createRecoveryDatabaseName({ runId, now = new Date(), attempt = 
     fail("Generated recovery database suffix is invalid.");
   }
 
-  const parts = [timestampSegment(now), safeRunId ?? generatedSuffix, `a${attempt}`];
+  const parts = REHEARSAL_RUN_ID_PATTERN.test(safeRunId ?? "")
+    ? [safeRunId, `a${attempt}`]
+    : [timestampSegment(now), safeRunId ?? generatedSuffix, `a${attempt}`];
   const name = `${RECOVERY_DATABASE_PREFIX}${parts.join("_")}`;
   if (name.length > 63 || !RECOVERY_DATABASE_PATTERN.test(name)) {
     fail("Generated recovery database name is invalid.");
@@ -219,7 +226,12 @@ export function selectExpiredRecoveryDatabases(databases, keepCount = 2) {
   if (!Number.isInteger(keepCount) || keepCount < 2) fail("Recovery retention must keep at least two verified databases.");
   if (!Array.isArray(databases)) fail("Recovery database metadata must be an array.");
   return databases
-    .filter((database) => database?.status === "verified" && RECOVERY_DATABASE_PATTERN.test(database.databaseName))
+    .filter(
+      (database) =>
+        database?.status === "verified" &&
+        RECOVERY_DATABASE_PATTERN.test(database.databaseName) &&
+        !REHEARSAL_DATABASE_PATTERN.test(database.databaseName),
+    )
     .map((database) => ({ ...database, verifiedTimestamp: Date.parse(database.verifiedAt) }))
     .filter((database) => !Number.isNaN(database.verifiedTimestamp))
     .sort((left, right) => right.verifiedTimestamp - left.verifiedTimestamp)
