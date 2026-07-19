@@ -163,7 +163,7 @@ function normalizedMigration(row) {
   if (typeof checksum !== "string" || !/^[a-f0-9]{64}$/i.test(checksum)) {
     fail("Migration history contains an invalid checksum.");
   }
-  if (!row.finished_at || row.rolled_back_at || !Number.isInteger(Number(row.applied_steps_count)) || Number(row.applied_steps_count) < 1) {
+  if (!row.finished_at || row.rolled_back_at) {
     fail("Migration history contains an unfinished or invalid migration.");
   }
   return { name, checksum };
@@ -171,7 +171,10 @@ function normalizedMigration(row) {
 
 function normalizeMigrationHistory(rows) {
   if (!Array.isArray(rows) || rows.length === 0) fail("Migration history must not be empty.");
-  const migrations = rows.map(normalizedMigration);
+  const migrations = rows
+    .filter((row) => !row?.rolled_back_at)
+    .map(normalizedMigration);
+  if (migrations.length === 0) fail("Active migration history must not be empty.");
   const names = new Set();
   for (const migration of migrations) {
     if (names.has(migration.name)) fail("Migration history contains duplicate migration names.");

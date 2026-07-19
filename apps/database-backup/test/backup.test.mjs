@@ -87,6 +87,22 @@ test("redacts URL-like error content before it can be logged", () => {
 
 test("requires complete, unique and matching active Prisma migration histories", () => {
   assert.deepEqual(validateMigrationParity(validMigrations(), validMigrations()), { migrationCount: 1 });
+  const rolledBack = {
+    ...validMigrations()[0],
+    migration_name: "rolled_back_attempt",
+    finished_at: null,
+    rolled_back_at: "2026-07-17T17:59:00.000Z",
+    applied_steps_count: 0,
+  };
+  assert.deepEqual(
+    validateMigrationParity(
+      [rolledBack, ...validMigrations()],
+      [rolledBack, ...validMigrations()],
+    ),
+    { migrationCount: 1 },
+  );
+  const baselined = { ...validMigrations()[0], applied_steps_count: 0 };
+  assert.deepEqual(validateMigrationParity([baselined], [baselined]), { migrationCount: 1 });
   assert.throws(() => validateMigrationParity(validMigrations(), [{ ...validMigrations()[0], checksum: "b".repeat(64) }]));
   assert.throws(() => validateMigrationParity(validMigrations(), [{ ...validMigrations()[0], finished_at: null }]));
   assert.throws(() => validateMigrationParity(validMigrations(), [validMigrations()[0], validMigrations()[0]]));
