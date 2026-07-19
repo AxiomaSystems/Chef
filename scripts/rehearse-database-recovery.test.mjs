@@ -120,3 +120,48 @@ test("rejected targets never appear in stdout or persisted evidence", async () =
     await rm(evidencePath, { force: true });
   }
 });
+
+test("valid targets persist allowlisted evidence when setup fails", async () => {
+  const evidencePath = join(
+    tmpdir(),
+    `preppie-setup-failed-${randomUUID()}.json`,
+  );
+  try {
+    const result = spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-File",
+        scriptPath,
+        "-RecoveryDatabaseName",
+        "preppie_recovery_rehearsal_setup_failed_a1",
+        "-SourceDatabaseUrlVariableName",
+        "MISSING_SOURCE_DATABASE_URL",
+        "-RecoveryAdminDatabaseUrlVariableName",
+        "MISSING_RECOVERY_DATABASE_URL",
+        "-EvidencePath",
+        evidencePath,
+      ],
+      { encoding: "utf8" },
+    );
+    const evidence = JSON.parse(await readFile(evidencePath, "utf8"));
+
+    assert.notEqual(result.status, 0);
+    assert.equal(evidence.status, "failed");
+    assert.equal(evidence.runId, "rehearsal_setup_failed");
+    assert.equal(
+      evidence.databaseName,
+      "preppie_recovery_rehearsal_setup_failed_a1",
+    );
+    assert.deepEqual(Object.keys(evidence).sort(), [
+      "databaseName",
+      "finishedAt",
+      "runId",
+      "stageDurationsMs",
+      "startedAt",
+      "status",
+    ]);
+  } finally {
+    await rm(evidencePath, { force: true });
+  }
+});

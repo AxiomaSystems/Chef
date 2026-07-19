@@ -132,6 +132,7 @@ $previousEvidence = [Environment]::GetEnvironmentVariable("REHEARSAL_EVIDENCE_JS
 
 try {
   $resolved = Invoke-RehearsalHelper -Arguments @("resolve", $RecoveryDatabaseName)
+  $actualDatabaseName = $resolved.databaseName
   $sourceUrl = Get-RequiredEnvironmentValue -Name $SourceDatabaseUrlVariableName -Label "Source database URL"
   $recoveryUrl = Get-RequiredEnvironmentValue -Name $RecoveryAdminDatabaseUrlVariableName -Label "Recovery admin database URL"
   [Environment]::SetEnvironmentVariable("SOURCE_DATABASE_URL", $sourceUrl, "Process")
