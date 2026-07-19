@@ -194,3 +194,8 @@ Start here:
 - Direct retailer checkout is not the primary supported flow.
 - AI, voice, and vision usage need strict fair-use controls before broad premium scale.
 - Internal Chef naming remains in routes, DTOs, code, and some technical docs until a coordinated rename is planned.
+
+## License
+
+This repository is proprietary and is not open source. See [LICENSE](LICENSE)
+for the applicable terms and licensing contact.
