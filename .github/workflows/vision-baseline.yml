@@ -1,13 +1,20 @@
-name: Vision Baseline
+name: Vision Lab (Experimental)
 
 on:
   push:
     branches:
       - main
+    paths:
+      - "apps/vision-lab/**"
+      - ".github/workflows/vision-baseline.yml"
   pull_request:
+    paths:
+      - "apps/vision-lab/**"
+      - ".github/workflows/vision-baseline.yml"
+  workflow_dispatch:
 
 jobs:
-  vision-baseline:
+  vision-lab:
     runs-on: ubuntu-latest
 
     env:

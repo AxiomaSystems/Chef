@@ -52,4 +52,4 @@ if (-not $SkipVision) {
   Write-Host "Skipping vision setup"
 }
 
-Write-Host "Development setup complete. Run pnpm dev to start web, API, and vision."
+Write-Host "Development setup complete. Run pnpm dev to start web and API."

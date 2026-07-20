@@ -51,7 +51,6 @@ describe('AppService', () => {
       ...environment,
       CHEF_LLM_PROVIDER: 'openai',
       OPENAI_API_KEY: 'test-openai-key',
-      VISION_API_BASE_URL: 'https://vision.example.com',
       RAILWAY_GIT_COMMIT_SHA: '1'.repeat(40),
     };
   });
@@ -144,11 +143,6 @@ describe('AppService', () => {
       },
       features: {
         ai: { status: 'ready' },
-        vision: {
-          status: 'ready',
-          readiness_scope: 'configuration',
-          runtime_status: 'not_checked',
-        },
       },
     });
     expect(readiness.providers).toMatchObject({
@@ -290,7 +284,6 @@ describe('AppService', () => {
   it('keeps feature configuration when the database is unavailable', async () => {
     queryRaw.mockRejectedValueOnce(new Error('database unavailable'));
     process.env.CHEF_LLM_PROVIDER = 'mock';
-    process.env.VISION_API_BASE_URL = 'not-a-url';
 
     const readiness = await service.getReadiness();
 
@@ -307,11 +300,6 @@ describe('AppService', () => {
       },
       features: {
         ai: { status: 'disabled' },
-        vision: {
-          status: 'misconfigured',
-          readiness_scope: 'configuration',
-          runtime_status: 'not_checked',
-        },
       },
     });
     expect(readiness.providers).toEqual(expect.any(Object));

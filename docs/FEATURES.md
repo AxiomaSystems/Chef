@@ -89,11 +89,10 @@ Preppie helps young adults move through the complete Plan -> Shop -> Cook loop. 
 
 ## Vision-Assisted Inventory
 
-- **Kitchen scan UI**: Users can upload/select a kitchen image in the inventory flow.
-- **Vision sidecar support**: A Python/FastAPI vision service can detect food objects when deployed/configured.
-- **Detection review boundary**: Vision output creates observations/candidates for review; it does not automatically mutate inventory as truth.
-- **Observation-to-inventory flow**: Reviewed observations can be added to kitchen inventory.
-- **Current limitation**: Vision is a beta capability for demos and testing, not final pantry automation.
+- **Current status**: Planned but inactive; no Vision service or scan UI ships in the beta runtime.
+- **Research boundary**: `apps/vision-lab` contains opt-in experiments and is not a production service.
+- **Future review boundary**: Any future detection creates a review candidate and never mutates inventory automatically.
+- **Activation gate**: #135 owns model/provider selection, licensing, accuracy, security, privacy, cost, and operations.
 
 ## Profile Memory
 

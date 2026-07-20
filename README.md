@@ -116,7 +116,7 @@ Development tracks:
 - **Web**: Next.js, React, TypeScript
 - **API**: NestJS, Prisma, PostgreSQL
 - **Shared contracts**: workspace package `@cart/shared`
-- **AI/provider boundaries**: OpenAI-capable AI provider, retailer providers, cart export providers, vision sidecar support
+- **AI/provider boundaries**: OpenAI-capable AI provider, retailer providers, and cart export providers; Vision remains an inactive future capability tracked in #135
 - **Local infra**: Docker Postgres
 - **Deployment path**: Vercel web, Railway/API-oriented backend setup
 
@@ -189,7 +189,7 @@ Start here:
 ## Current Gaps
 
 - Full social-media ingestion is not complete.
-- Vision-assisted pantry updates are still review-first and beta.
+- Vision-assisted pantry updates are planned but inactive; #135 owns future activation.
 - Native app distribution is not the current launch path; the near-term product is a mobile-friendly PWA.
 - Direct retailer checkout is not the primary supported flow.
 - AI, voice, and vision usage need strict fair-use controls before broad premium scale.

@@ -32,11 +32,6 @@ const readyApi = {
   },
   features: {
     ai: { status: "disabled" },
-    vision: {
-      status: "ready",
-      readiness_scope: "configuration",
-      runtime_status: "not_checked",
-    },
   },
   providers: {
     instacart: {
@@ -338,15 +333,11 @@ test("requires a safe hosted release revision and compatibility floor", () => {
   }
 });
 
-test("requires exact AI and Vision configuration signals per environment", () => {
+test("requires exact AI configuration signals per environment", () => {
   for (const features of [
     {},
-    { vision: readyApi.features.vision },
-    { ...readyApi.features, unexpected: { status: "ready" } },
-    {
-      ...readyApi.features,
-      vision: { status: "ready" },
-    },
+    { unexpected: { status: "ready" } },
+    { ai: { status: "unknown" } },
   ]) {
     assert.throws(
       () =>
@@ -362,13 +353,7 @@ test("requires exact AI and Vision configuration signals per environment", () =>
   assert.throws(
     () =>
       assertFeatureReadinessPayloads(
-        {
-          ...productionApi,
-          features: {
-            ...productionApi.features,
-            ai: { status: "disabled" },
-          },
-        },
+        { ...productionApi, features: { ai: { status: "disabled" } } },
         productionWeb,
         "production",
       ),
@@ -377,35 +362,11 @@ test("requires exact AI and Vision configuration signals per environment", () =>
   assert.throws(
     () =>
       assertFeatureReadinessPayloads(
-        {
-          ...readyApi,
-          features: {
-            ...readyApi.features,
-            ai: { status: "ready" },
-          },
-        },
+        { ...readyApi, features: { ai: { status: "ready" } } },
         readyWeb,
         "staging",
       ),
     /staging AI must be disabled/,
-  );
-  assert.throws(
-    () =>
-      assertFeatureReadinessPayloads(
-        {
-          ...readyApi,
-          features: {
-            ...readyApi.features,
-            vision: {
-              ...readyApi.features.vision,
-              status: "disabled",
-            },
-          },
-        },
-        readyWeb,
-        "staging",
-      ),
-    /Vision configuration readiness is invalid/,
   );
 });
 

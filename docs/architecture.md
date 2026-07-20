@@ -28,7 +28,8 @@ This document distinguishes:
 
 The current web frontend should be considered a functional validation harness, not the final product interface. The architecture priority from here is to make the backend/API/tool contracts strong enough that a future frontend rebuild can sit on top cleanly.
 
-There is now also a stage-1 vision prototype in the API. It should be treated as an internal contract and provider boundary for kitchen object detection, not as finished pantry automation.
+Vision is planned but inactive. Experimental work lives in apps/vision-lab
+and is not connected to the beta runtime; #135 owns any future provider.
 
 ## Startup Product Shape
 
@@ -69,13 +70,8 @@ Visible recipes or user-provided meal idea
   -> Persisted shopping cart
 ```
 
-Separately, an internal stage-1 vision path now exists:
-
-```text
-ScanSession
-  -> frame observations
-  -> closed-set object detections
-```
+Provider-neutral Vision observations may be persisted and reviewed, but the
+current product performs no Vision inference.
 
 That flow is implemented in the NestJS API under:
 
@@ -317,7 +313,7 @@ Implemented today:
 - retailer capability reporting through `/api/v1/retailers/capabilities`
 - shared ingredient catalog and user kitchen inventory persistence
 - AI provider-backed preview endpoints under `/api/v1/ai`
-- computer-vision detection contract under `/api/v1/vision`
+- provider-neutral Vision observation lifecycle under `/api/v1/vision/observations`
 
 Planned provider categories:
 
@@ -424,7 +420,7 @@ Implemented mapping:
 - `/api/v1/me/profile-memory` exposes Profile Memory v2: structured food rules, weighted goals, rough pantry staples, and a derived Chef memory summary
 - `/api/v1/ai/*` now exposes the first integrated AI contract instead of leaving AI entirely out-of-band
 - `GET /api/v1/retailers/capabilities` reports which retailer paths currently support product search, location lookup, cart handoff, native checkout, and demo priority
-- `/api/v1/vision/*` exposes a detection-only computer-vision contract for inventory experiments without mutating inventory automatically
+- `/api/v1/vision/observations*` preserves reviewed observation lifecycle data without performing inference
 
 This keeps retailer integration behind the shopping-cart boundary instead of coupling it directly to recipe selection endpoints.
 
@@ -524,7 +520,7 @@ Implemented but still hardening:
 - external cart handoff through Instacart
 - provider-side throttling, token deduping, and location/query caching to reduce burst traffic
 - AI preview flows for chat, recipe generation, recipe import structuring, and ingredient swaps
-- vision detection as a safe backend contract, not automatic pantry state
+- provider-neutral Vision observation review; inference remains inactive
 
 Planned external tool posture:
 

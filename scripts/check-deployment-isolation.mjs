@@ -7,8 +7,6 @@ const REQUIRED_URLS = [
   "PRODUCTION_WEB_URL",
   "STAGING_API_BASE_URL",
   "PRODUCTION_API_BASE_URL",
-  "STAGING_VISION_BASE_URL",
-  "PRODUCTION_VISION_BASE_URL",
 ];
 
 function configuredUrl(env, key) {
@@ -37,7 +35,6 @@ export function assertDistinctEnvironmentOrigins(env) {
   for (const [stagingKey, productionKey] of [
     ["STAGING_WEB_URL", "PRODUCTION_WEB_URL"],
     ["STAGING_API_BASE_URL", "PRODUCTION_API_BASE_URL"],
-    ["STAGING_VISION_BASE_URL", "PRODUCTION_VISION_BASE_URL"],
   ]) {
     if (urls[stagingKey].origin === urls[productionKey].origin) {
       throw new Error(
@@ -78,18 +75,10 @@ export async function runIsolationSmoke(env = process.env) {
     expectOk(urls.PRODUCTION_WEB_URL, "production web"),
     expectApiEnvironment(urls.STAGING_API_BASE_URL, "staging"),
     expectApiEnvironment(urls.PRODUCTION_API_BASE_URL, "production"),
-    expectOk(
-      endpoint(urls.STAGING_VISION_BASE_URL, "health"),
-      "staging Vision",
-    ),
-    expectOk(
-      endpoint(urls.PRODUCTION_VISION_BASE_URL, "health"),
-      "production Vision",
-    ),
   ]);
 
   console.log(
-    "[ISOLATION] Web, API, and Vision staging origins are distinct and healthy.",
+    "[ISOLATION] Web and API staging origins are distinct and healthy.",
   );
 }
 

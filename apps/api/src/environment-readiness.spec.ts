@@ -7,7 +7,6 @@ const productionEnvironment = (): NodeJS.ProcessEnv => ({
   DEPLOYMENT_ENVIRONMENT: 'production',
   CHEF_LLM_PROVIDER: 'openai',
   OPENAI_API_KEY: 'test-openai-key',
-  VISION_API_BASE_URL: 'https://vision.example.com',
   API_CORS_ORIGINS: 'https://app.example.com,https://www.example.com',
   API_ENABLE_DOCS: 'false',
   RUN_DB_SEED_ON_STARTUP: 'false',
@@ -43,16 +42,9 @@ describe('API environment readiness', () => {
     const environment = productionEnvironment();
     environment.CHEF_LLM_PROVIDER = 'mock';
     environment.OPENAI_API_KEY = 'do-not-leak-this-value';
-    environment.VISION_API_BASE_URL = 'http://localhost:8000';
 
     expect(() => validateApiEnvironment(environment)).toThrow(
       'CHEF_LLM_PROVIDER must be openai in production',
-    );
-    expect(() => validateApiEnvironment(environment)).toThrow(
-      'VISION_API_BASE_URL must use HTTPS in production',
-    );
-    expect(() => validateApiEnvironment(environment)).toThrow(
-      'VISION_API_BASE_URL must not use localhost in production',
     );
     expect(() => validateApiEnvironment(environment)).not.toThrow(
       'do-not-leak-this-value',
@@ -69,16 +61,6 @@ describe('API environment readiness', () => {
       'a missing OpenAI key',
       { OPENAI_API_KEY: '' },
       'OPENAI_API_KEY is required in production',
-    ],
-    [
-      'a non-HTTPS Vision URL',
-      { VISION_API_BASE_URL: 'http://vision.example.com' },
-      'VISION_API_BASE_URL must use HTTPS in production',
-    ],
-    [
-      'a localhost Vision URL',
-      { VISION_API_BASE_URL: 'https://localhost:8000' },
-      'VISION_API_BASE_URL must not use localhost in production',
     ],
     [
       'a non-HTTPS CORS origin',
@@ -138,19 +120,6 @@ describe('API environment readiness', () => {
     expect(() =>
       validateApiEnvironment({ ...productionEnvironment(), ...overrides }),
     ).toThrow(expectedMessage);
-  });
-
-  it.each([
-    'https://127.0.0.2:8000',
-    'https://[::ffff:127.0.0.1]:8000',
-    'https://localhost.:8000',
-  ])('rejects production loopback Vision URL %s', (visionApiBaseUrl) => {
-    expect(() =>
-      validateApiEnvironment({
-        ...productionEnvironment(),
-        VISION_API_BASE_URL: visionApiBaseUrl,
-      }),
-    ).toThrow('VISION_API_BASE_URL must not use localhost in production');
   });
 
   it.each([
@@ -279,46 +248,18 @@ describe('API environment readiness', () => {
     },
   );
 
-  it('reports AI and Vision feature configuration without exposing values', () => {
+  it('reports active AI feature readiness without exposing values', () => {
     expect(
       getApiFeatureReadiness({
         CHEF_LLM_PROVIDER: 'openai',
         OPENAI_API_KEY: 'test-openai-key',
-        VISION_API_BASE_URL: 'https://vision.example.com',
       }),
-    ).toEqual({
-      ai: { status: 'ready' },
-      vision: {
-        status: 'ready',
-        readiness_scope: 'configuration',
-        runtime_status: 'not_checked',
-      },
-    });
+    ).toEqual({ ai: { status: 'ready' } });
   });
 
-  it('reports disabled and misconfigured optional features', () => {
-    expect(
-      getApiFeatureReadiness({
-        CHEF_LLM_PROVIDER: 'mock',
-        VISION_API_BASE_URL: 'not-a-url',
-      }),
-    ).toEqual({
+  it('reports disabled AI readiness', () => {
+    expect(getApiFeatureReadiness({ CHEF_LLM_PROVIDER: 'mock' })).toEqual({
       ai: { status: 'disabled' },
-      vision: {
-        status: 'misconfigured',
-        readiness_scope: 'configuration',
-        runtime_status: 'not_checked',
-      },
-    });
-  });
-
-  it('reports a missing Vision URL as configuration-scoped disabled', () => {
-    expect(
-      getApiFeatureReadiness({ CHEF_LLM_PROVIDER: 'mock' }).vision,
-    ).toEqual({
-      status: 'disabled',
-      readiness_scope: 'configuration',
-      runtime_status: 'not_checked',
     });
   });
 });

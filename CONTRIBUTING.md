@@ -119,21 +119,21 @@ Run the standard non-mutating pre-PR verification from the repository root:
 pnpm verify
 ```
 
-Run it after the normal `pnpm setup:main` setup path, which installs workspace
-dependencies and generates the Prisma client. Python 3.11+ must be available on
-`PATH` for the fast vision smoke tests; they do not require model checkpoints or
-provider credentials.
+Run it after the normal `pnpm setup` setup path, which installs workspace
+dependencies and generates the Prisma client. Vision lab checks are opt-in via
+`pnpm test:vision-lab` and are not a product release gate.
 
 The root commands select packages by capability instead of running every tool in every workspace:
 
-| Command             | Packages                                      | Behavior                                                                                                               |
-| ------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `pnpm build`        | `@cart/shared`, `api`, `web`                  | Builds shared contracts and the production web/API applications.                                                       |
-| `pnpm test`         | `api`, `database-backup`, `vision-lab`        | Runs API unit tests, backup-worker unit tests, and the four fast Python vision smoke tests.                            |
-| `pnpm typecheck`    | `@cart/shared`, `api`, `web`, `mobile`        | Checks TypeScript packages; Python-only `vision-lab` and JavaScript-only `database-backup` are intentionally excluded. |
-| `pnpm lint`         | `api`, `web`, `mobile`                        | Checks lint rules without modifying files.                                                                             |
-| `pnpm format:check` | repository                                    | Audits legacy repository formatting without modifying files; it is not part of `verify`.                               |
-| `pnpm verify`       | build, test, typecheck, and lint participants | Runs lint, typecheck, unit/smoke tests, and build in order.                                                            |
+| Command                | Packages                                      | Behavior                                                                                                               |
+| ---------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `pnpm build`           | `@cart/shared`, `api`, `web`                  | Builds shared contracts and the production web/API applications.                                                       |
+| `pnpm test`            | `api`, `database-backup`                      | Runs repository tests, API unit tests, and backup-worker unit tests.                                                   |
+| `pnpm test:vision-lab` | `vision-lab`                                  | Runs the opt-in Python research checks separately from product verification.                                           |
+| `pnpm typecheck`       | `@cart/shared`, `api`, `web`, `mobile`        | Checks TypeScript packages; Python-only `vision-lab` and JavaScript-only `database-backup` are intentionally excluded. |
+| `pnpm lint`            | `api`, `web`, `mobile`                        | Checks lint rules without modifying files.                                                                             |
+| `pnpm format:check`    | repository                                    | Audits legacy repository formatting without modifying files; it is not part of `verify`.                               |
+| `pnpm verify`          | build, test, typecheck, and lint participants | Runs lint, typecheck, unit/smoke tests, and build in order.                                                            |
 
 Automatic changes are always opt-in: use `pnpm lint:fix` for ESLint fixes or
 `pnpm format` for Prettier formatting. Neither command is part of `pnpm verify`.
