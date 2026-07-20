@@ -7,8 +7,6 @@ const isolatedEnvironment = {
   PRODUCTION_WEB_URL: "https://app.example.com",
   STAGING_API_BASE_URL: "https://api-staging.example.com/api/v1",
   PRODUCTION_API_BASE_URL: "https://api.example.com/api/v1",
-  STAGING_VISION_BASE_URL: "https://vision-staging.example.com",
-  PRODUCTION_VISION_BASE_URL: "https://vision.example.com",
 };
 
 test("accepts distinct HTTPS origins", () => {

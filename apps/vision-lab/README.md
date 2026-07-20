@@ -90,39 +90,15 @@ $env:PYTHONPATH="apps/vision-lab"
 .\.venv\Scripts\python.exe -m uvicorn fastapi_app:app --reload --app-dir apps/vision-lab
 ```
 
-## Railway Deployment
+## Deployment Status
 
-Deploy the vision sidecar as a separate Railway service from the same repo:
+This package is an opt-in research lab. It has no Preppie Railway service,
+Dockerfile, public domain, Web proxy, or Nest inference route. Do not deploy it
+through the product release path.
 
-- Source repo: `AxiomaSystems/Chef`
-- Root directory: `apps/vision-lab`
-- Builder: Dockerfile
-- Dockerfile path: `Dockerfile`
-- Healthcheck path: `/health`
-- Public networking: enabled
-
-Railway injects `PORT`; the Dockerfile starts:
-
-```sh
-uvicorn fastapi_app:app --host 0.0.0.0 --port ${PORT:-8000}
-```
-
-After the sidecar has a public URL, set the API service env var:
-
-```text
-VISION_API_BASE_URL=https://<vision-sidecar>.up.railway.app
-```
-
-Then redeploy the API service. The web app already proxies media uploads through
-the Nest API route `/api/v1/vision/detect/media`.
-
-The Docker image includes `yolo11n.pt` from this directory for the demo path.
-Custom detector/classifier checkpoints are still artifact-managed separately and
-should be added through a later storage/artifact flow, not committed directly.
-
-The image installs a small set of Debian runtime libraries required by OpenCV
-and Ultralytics on `python:3.11-slim`, including `libxcb1`, `libx11-6`,
-`libgl1`, `libglib2.0-0`, and `libgomp1`.
+Future integration requires #135, including an approved license and model,
+reproducible artifacts, security and resource limits, privacy/retention review,
+cost controls, accuracy evidence, and rollback.
 
 ## Recommended Architecture
 

@@ -6,14 +6,8 @@ type ApiFeature = {
   status: ApiFeatureStatus;
 };
 
-type VisionFeature = ApiFeature & {
-  readiness_scope: 'configuration';
-  runtime_status: 'not_checked';
-};
-
 export type ApiFeatureReadiness = {
   ai: ApiFeature;
-  vision: VisionFeature;
 };
 
 const RETAILER_CREDENTIALS = [
@@ -114,23 +108,6 @@ function validateProductionEnvironment(
 
   if (!hasValue(env, 'OPENAI_API_KEY')) {
     errors.push('OPENAI_API_KEY is required in production.');
-  }
-
-  const visionUrl = parseHttpUrl(env.VISION_API_BASE_URL);
-  if (!hasValue(env, 'VISION_API_BASE_URL')) {
-    errors.push('VISION_API_BASE_URL is required in production.');
-  } else if (!visionUrl) {
-    errors.push(
-      'VISION_API_BASE_URL must be a valid HTTP(S) URL in production.',
-    );
-  } else {
-    if (visionUrl.protocol !== 'https:') {
-      errors.push('VISION_API_BASE_URL must use HTTPS in production.');
-    }
-
-    if (isLocalUrl(visionUrl)) {
-      errors.push('VISION_API_BASE_URL must not use localhost in production.');
-    }
   }
 
   validateHostedCorsOrigins(env, 'production', errors);
@@ -272,10 +249,7 @@ export function validateApiEnvironment(env: NodeJS.ProcessEnv): void {
 export function getApiFeatureReadiness(
   env: NodeJS.ProcessEnv,
 ): ApiFeatureReadiness {
-  const ai = getAiFeatureReadiness(env);
-  const vision = getVisionFeatureReadiness(env);
-
-  return { ai, vision };
+  return { ai: getAiFeatureReadiness(env) };
 }
 
 function getAiFeatureReadiness(env: NodeJS.ProcessEnv): ApiFeature {
@@ -290,22 +264,4 @@ function getAiFeatureReadiness(env: NodeJS.ProcessEnv): ApiFeature {
   }
 
   return { status: 'ready' };
-}
-
-function getVisionFeatureReadiness(env: NodeJS.ProcessEnv): VisionFeature {
-  if (!hasValue(env, 'VISION_API_BASE_URL')) {
-    return visionFeature('disabled');
-  }
-
-  return visionFeature(
-    parseHttpUrl(env.VISION_API_BASE_URL) ? 'ready' : 'misconfigured',
-  );
-}
-
-function visionFeature(status: ApiFeatureStatus): VisionFeature {
-  return {
-    status,
-    readiness_scope: 'configuration',
-    runtime_status: 'not_checked',
-  };
 }

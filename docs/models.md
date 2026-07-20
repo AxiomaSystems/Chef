@@ -1176,26 +1176,33 @@ Current status:
 - `ShoppingCart.external_reference_id` stores Chef's reference id for the external handoff
 - Kroger remains the stronger line-by-line matching path; Instacart is the smoother demo/user handoff path
 
-### VisionDetectionProvider
+### Vision observations
 
 Current role:
 
-- expose a safe computer-vision contract for object-detection experiments
-- return structured detections without mutating inventory automatically
-- separate detection classes from ingredient and inventory truth
+- preserve provider-neutral, user-scoped observation evidence
+- require explicit user review before adding an observation to inventory
+- keep historical data compatible while hosted inference is inactive
 
 Implemented API shape:
 
-- `GET /api/v1/vision/pipeline`
-- `POST /api/v1/vision/detect`
+- `GET /api/v1/vision/observations`
+- `POST /api/v1/vision/observations`
+- `POST /api/v1/vision/observations/:id/add-to-inventory`
+- `POST /api/v1/vision/observations/:id/discard`
 
 Current status:
 
-- the API contract and mock detector provider are implemented
-- this is detection-only and review-oriented
-- packaged-food enrichment, embeddings, segmentation, and automatic inventory mutation are not implemented
+- no Vision inference provider or scan route is active in the beta
+- `apps/vision-lab` remains experimental
+- production activation is tracked in #135
 
-### VisionScanRequest
+### Experimental Vision scan contracts
+
+The shared scan request/response types below are retained for the opt-in lab and
+future compatibility. No beta API route currently consumes them.
+
+#### VisionScanRequest
 
 ```ts
 type VisionScanRequest = {
@@ -1223,7 +1230,7 @@ type VisionScanRequest = {
 };
 ```
 
-### VisionScanResponse
+#### VisionScanResponse
 
 ```ts
 type VisionScanResponse = {

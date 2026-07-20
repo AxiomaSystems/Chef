@@ -20,7 +20,7 @@ const PROVIDER_STATUSES = new Set([
   "missing_credentials",
 ]);
 const PROVIDER_MODES = new Set(["production", "development", "sandbox"]);
-const API_FEATURE_KEYS = ["ai", "vision"];
+const API_FEATURE_KEYS = ["ai"];
 const PROVIDER_KEYS = ["instacart", "kroger", "walmart"];
 const VOICE_CAPABILITY_KEYS = [
   "conversationalAgent",
@@ -217,13 +217,7 @@ function assertApiFeatures(features, expectedEnvironment) {
 
   if (
     !hasExactKeys(features.ai, ["status"]) ||
-    !API_FEATURE_STATUSES.has(features.ai.status) ||
-    !hasExactKeys(features.vision, [
-      "status",
-      "readiness_scope",
-      "runtime_status",
-    ]) ||
-    !API_FEATURE_STATUSES.has(features.vision.status)
+    !API_FEATURE_STATUSES.has(features.ai.status)
   ) {
     throw new Error("[READINESS] API feature readiness schema is invalid.");
   }
@@ -234,16 +228,6 @@ function assertApiFeatures(features, expectedEnvironment) {
 
   if (expectedEnvironment === "staging" && features.ai.status !== "disabled") {
     throw new Error("[READINESS] staging AI must be disabled.");
-  }
-
-  if (
-    features.vision.status !== "ready" ||
-    features.vision.readiness_scope !== "configuration" ||
-    features.vision.runtime_status !== "not_checked"
-  ) {
-    throw new Error(
-      "[READINESS] API Vision configuration readiness is invalid.",
-    );
   }
 }
 

@@ -3,11 +3,11 @@
 Preppie uses `main` as its production trunk. Staging is an isolated runtime
 environment, not a permanent Git branch.
 
-| Target     | Source              | Web               | API and Vision                  | Database and providers                                   |
-| ---------- | ------------------- | ----------------- | ------------------------------- | -------------------------------------------------------- |
-| Local      | developer checkout  | local Next.js     | local Nest and Vision processes | local Docker Postgres; provider mocks by default         |
-| Preview    | pull request branch | Vercel Preview    | Railway `staging` services      | staging-only database and restricted staging credentials |
-| Production | `main`              | Vercel Production | Railway `production` services   | production database and production credentials           |
+| Target     | Source              | Web               | API                           | Database and providers                                   |
+| ---------- | ------------------- | ----------------- | ----------------------------- | -------------------------------------------------------- |
+| Local      | developer checkout  | local Next.js     | local Nest API                | local Docker Postgres; provider mocks by default         |
+| Preview    | pull request branch | Vercel Preview    | Railway `staging` services    | staging-only database and restricted staging credentials |
+| Production | `main`              | Vercel Production | Railway `production` services | production database and production credentials           |
 
 Temporary `staging/*` or `integration/*` branches are optional release tools.
 They do not own an environment and never replace `main`.
@@ -16,18 +16,17 @@ They do not own an environment and never replace `main`.
 
 Contract version: **v1**. Last reviewed: **2026-07-17**.
 
-| Surface      | Staging / Preview                                                                                        | Production                                                                                                                                                   | Requirement                                                                                                                                                   |
-| ------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web          | Vercel Preview from the pull-request branch; `API_BASE_URL` targets the staging API                      | Vercel Production from `main`; `API_BASE_URL` targets the production API                                                                                     | Required; web readiness must identify the environment and report its API capability as `ready`                                                                |
-| API          | Railway `staging` API, isolated from production                                                          | Railway `production` API sourced from `main`                                                                                                                 | Required; `/ready` must identify `api`, report the expected environment, and reject redirects                                                                 |
-| Vision       | Railway `staging` Vision origin, distinct from production                                                | Railway `production` Vision origin                                                                                                                           | Configuration readiness is required; `/ready` reports `readiness_scope=configuration` and `runtime_status=not_checked`; runtime/model liveness belongs to #92 |
-| Database     | Staging-only database and credentials                                                                    | Production database and credentials                                                                                                                          | Required; connectivity must be `ready`, and safe non-empty `expected` and `applied` migration versions must match                                             |
-| AI           | Mock mode; readiness status `disabled`; no production provider credential                                | OpenAI mode with its production credential; readiness status `ready`                                                                                         | Required environment invariant                                                                                                                                |
-| Retailers    | Real providers disabled; no provider may report `configured` or `missing_credentials`                    | Optional per retailer; `configured` requires complete credentials, `mode=production`, and `is_available=true`; `disabled` or `partner_required` remain valid | Credentials are environment-scoped and never shared; readiness must report Kroger, Instacart, and Walmart                                                     |
-| Voice        | Optional; a complete enabled bundle reports `ready`; otherwise `disabled` or intentionally `degraded`    | Same, using Production-scoped credentials                                                                                                                    | Optional, but partial or `misconfigured` bundles fail readiness                                                                                               |
-| API docs     | `API_ENABLE_DOCS=false`                                                                                  | `API_ENABLE_DOCS=false`                                                                                                                                      | Required for hosted environments                                                                                                                              |
-| Startup seed | `RUN_DB_SEED_ON_STARTUP=false`                                                                           | `RUN_DB_SEED_ON_STARTUP=false`                                                                                                                               | Required; automatic hosted startup seeding is prohibited                                                                                                      |
-| CORS         | Non-empty canonical HTTPS, non-loopback origins; platform review confirms Preview scope and distinctness | Non-empty canonical HTTPS, non-loopback customer origins                                                                                                     | Required; startup validates origin syntax and safety, while platform review establishes environment scope                                                     |
+| Surface      | Staging / Preview                                                                                        | Production                                                                                                                                                   | Requirement                                                                                                       |
+| ------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Web          | Vercel Preview from the pull-request branch; `API_BASE_URL` targets the staging API                      | Vercel Production from `main`; `API_BASE_URL` targets the production API                                                                                     | Required; web readiness must identify the environment and report its API capability as `ready`                    |
+| API          | Railway `staging` API, isolated from production                                                          | Railway `production` API sourced from `main`                                                                                                                 | Required; `/ready` must identify `api`, report the expected environment, and reject redirects                     |
+| Database     | Staging-only database and credentials                                                                    | Production database and credentials                                                                                                                          | Required; connectivity must be `ready`, and safe non-empty `expected` and `applied` migration versions must match |
+| AI           | Mock mode; readiness status `disabled`; no production provider credential                                | OpenAI mode with its production credential; readiness status `ready`                                                                                         | Required environment invariant                                                                                    |
+| Retailers    | Real providers disabled; no provider may report `configured` or `missing_credentials`                    | Optional per retailer; `configured` requires complete credentials, `mode=production`, and `is_available=true`; `disabled` or `partner_required` remain valid | Credentials are environment-scoped and never shared; readiness must report Kroger, Instacart, and Walmart         |
+| Voice        | Optional; a complete enabled bundle reports `ready`; otherwise `disabled` or intentionally `degraded`    | Same, using Production-scoped credentials                                                                                                                    | Optional, but partial or `misconfigured` bundles fail readiness                                                   |
+| API docs     | `API_ENABLE_DOCS=false`                                                                                  | `API_ENABLE_DOCS=false`                                                                                                                                      | Required for hosted environments                                                                                  |
+| Startup seed | `RUN_DB_SEED_ON_STARTUP=false`                                                                           | `RUN_DB_SEED_ON_STARTUP=false`                                                                                                                               | Required; automatic hosted startup seeding is prohibited                                                          |
+| CORS         | Non-empty canonical HTTPS, non-loopback origins; platform review confirms Preview scope and distinctness | Non-empty canonical HTTPS, non-loopback customer origins                                                                                                     | Required; startup validates origin syntax and safety, while platform review establishes environment scope         |
 
 ## Required isolation
 
@@ -40,29 +39,25 @@ Vercel variables must be scoped by target:
 - Secrets and provider credentials must have separate Preview and Production
   entries. Do not assign one credential entry to both targets.
 
-Railway must contain distinct `staging` and `production` environments. Each has
-separate `api` and `vision` services. Staging must set:
+Railway must contain distinct `staging` and `production` environments with
+separate API services and databases. Staging must set:
 
 - `PRODUCTION_DATABASE_HOST` to the public hostname of the production database,
   without credentials;
-- `PRODUCTION_VISION_API_BASE_URL` to the production Vision URL;
 - `RUN_DB_SEED_ON_STARTUP=false`.
 
 Set each Railway service's **Config File** path exactly as follows:
 
 - API: `/railway.json`
-- Vision: `/railway.vision.json`
-
-These paths are absolute within the repository and do not follow Railway's
-**Root Directory** automatically. The Vision service root directory remains
-`apps/vision-lab`, so its `Dockerfile` path resolves within that service root.
+  The API path is absolute within the repository and does not follow Railway's
+  **Root Directory** automatically.
 
 If staging intentionally needs seed data, an operator runs
 `pnpm --filter api db:seed` once from a session explicitly scoped to the staging
 database. One-off seeding never uses `RUN_DB_SEED_ON_STARTUP=true`.
 
-The staging API refuses to boot when its database hostname or Vision origin
-matches the production sentinel. The production container refuses automatic
+The staging API refuses to boot when its database hostname matches the
+production sentinel. The production container refuses automatic
 seed-on-startup. The root `pnpm api:reset` command accepts only loopback database
 hosts and cannot reset a hosted database.
 
@@ -81,8 +76,6 @@ Before enabling Preview traffic:
    $env:PRODUCTION_WEB_URL = "https://<production-host>"
    $env:STAGING_API_BASE_URL = "https://<staging-api>/api/v1"
    $env:PRODUCTION_API_BASE_URL = "https://<production-api>/api/v1"
-   $env:STAGING_VISION_BASE_URL = "https://<staging-vision>"
-   $env:PRODUCTION_VISION_BASE_URL = "https://<production-vision>"
    pnpm smoke:isolation
    ```
 
@@ -98,7 +91,7 @@ service health, and the API environment identity; it does not inspect secrets.
 The following platform evidence was verified during the 2026-07-17 review;
 no secret values were read or recorded:
 
-- Railway production and staging API and Vision deployments reported `SUCCESS`
+- Railway production and staging API deployments reported `SUCCESS`
   at source revision `24193a3`.
 - Vercel Production and Preview were isolated, and `pnpm smoke:isolation`
   passed against those deployed targets.
@@ -119,7 +112,7 @@ production nor staging claims snapshot coverage on the current plan.
 
 Run the separate, read-only feature smoke only against a deployed staging or
 production web/API pair. It enforces deployment identity, web capability shape,
-database migration parity, environment-specific AI and Vision configuration,
+database migration parity, environment-specific AI configuration,
 and retailer mode/credential signals. Optional voice capabilities may report
 `disabled` or `degraded`; unknown, incomplete, or `misconfigured` states fail.
 
@@ -139,10 +132,9 @@ rejects redirects and emits only the checked environment and outcome; it never
 prints response bodies, secret values, or raw readiness payloads.
 
 The current command is a manual promotion gate. Issue #77 owns workflow wiring
-and retention of Preview/staging smoke evidence. Issue #92 owns Vision runtime
-and model liveness beyond the configuration-only signal consumed here. This
-repository command does not create a deployment, mutate platform variables, or
-turn a Preview into production.
+and retention of Preview/staging smoke evidence. Vision is inactive; #135 owns
+any future production activation. This repository command does not create a
+deployment, mutate platform variables, or turn a Preview into production.
 
 ## Boundary with production readiness
 

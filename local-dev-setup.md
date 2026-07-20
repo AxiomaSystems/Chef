@@ -57,16 +57,15 @@ pnpm dev:main
 - API: `http://localhost:3001`
 - Swagger: `http://localhost:3001/docs`
 
-## Full setup (includes vision)
+## Optional Vision research lab
 
 ```powershell
-pnpm setup
-pnpm dev
+pnpm vision:setup
+pnpm dev:vision
 ```
 
-Vision is optional for the main web/API flow. The Nest API can run without the
-Python sidecar, but real media scans through `/api/v1/vision` require the
-FastAPI sidecar at `VISION_API_BASE_URL` plus the expected checkpoint files.
+`apps/vision-lab` is experimental and is not connected to the beta Web/API
+runtime. Its dependencies and model artifacts are opt-in local research only.
 
 Optional live camera deps:
 
@@ -74,9 +73,8 @@ Optional live camera deps:
 pnpm setup:live
 ```
 
-The web inventory Live/Photo/Video vision scan flow is lab-only. It is not
-exposed from `/inventory` on main, and `/api/vision/analyze` returns `404`
-unless `VISION_SCAN_LAB_ENABLED=true`. See `docs/vision-scan-lab.md`.
+There is no supported Web/API media-scan route. Future activation is tracked in
+#135.
 
 ## API-only flow
 
@@ -152,4 +150,4 @@ Expected classifier path pattern:
 - Vercel/Web production source is branch `main`, root directory `apps/web`.
 - The production frontend domain is `chef.postigo.sh`; do not assign that domain to the Railway API service.
 - Optional web integrations such as `UNSPLASH_ACCESS_KEY`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, and `NEXT_PUBLIC_ELEVENLABS_AGENT_ID` should be configured in Vercel only when the corresponding UI feature is enabled for testing.
-- Real vision media scans need a deployed Python sidecar and `VISION_API_BASE_URL`; otherwise the product should treat vision as mock/optional.
+- Vision is not deployed or connected to the beta product; use only the explicit local lab commands.

@@ -1,5 +1,9 @@
 # Vision Main Convention
 
+> Historical research convention. The Web/API inference path and hosted
+> sidecar were retired under #92. Keep this document only as context for the
+> opt-in lab; #135 governs any future product integration.
+
 Date: 2026-05-08
 
 This document records the current main-product convention for Chef vision after the detector/classifier integration work.

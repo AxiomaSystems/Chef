@@ -35,14 +35,6 @@ function hostname(value: string, key: string) {
   }
 }
 
-function origin(value: string, key: string) {
-  try {
-    return new URL(value).origin.toLowerCase();
-  } catch {
-    throw new Error(`[ENV] ${key} must be a valid URL.`);
-  }
-}
-
 export function validateDeploymentIsolation(
   env: NodeJS.ProcessEnv = process.env,
 ) {
@@ -61,20 +53,7 @@ export function validateDeploymentIsolation(
     env,
     'PRODUCTION_DATABASE_HOST',
   ).toLowerCase();
-  const visionApiBaseUrl = requireValue(env, 'VISION_API_BASE_URL');
-  const productionVisionApiBaseUrl = requireValue(
-    env,
-    'PRODUCTION_VISION_API_BASE_URL',
-  );
-
   if (hostname(databaseUrl, 'DATABASE_URL') === productionDatabaseHost) {
     throw new Error('[ENV] Staging cannot use the production database host.');
-  }
-
-  if (
-    origin(visionApiBaseUrl, 'VISION_API_BASE_URL') ===
-    origin(productionVisionApiBaseUrl, 'PRODUCTION_VISION_API_BASE_URL')
-  ) {
-    throw new Error('[ENV] Staging cannot use the production Vision origin.');
   }
 }

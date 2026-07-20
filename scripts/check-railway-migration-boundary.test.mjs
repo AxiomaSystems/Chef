@@ -94,12 +94,8 @@ test("runs migrations in Railway pre-deploy and not API startup", async () => {
   assertNoDeployMigration([...startupInstructions, ...startupScripts]);
 });
 
-test("keeps Railway API and Vision service configuration isolated", async () => {
-  const [apiConfig, visionConfig] = await Promise.all(
-    ["railway.json", "railway.vision.json"].map(async (configPath) =>
-      JSON.parse(await readFile(configPath, "utf8")),
-    ),
-  );
+test("keeps Railway API migration configuration explicit", async () => {
+  const apiConfig = JSON.parse(await readFile("railway.json", "utf8"));
 
   assert.equal(
     apiConfig.deploy.preDeployCommand,
@@ -107,11 +103,4 @@ test("keeps Railway API and Vision service configuration isolated", async () => 
   );
   assert.equal(apiConfig.deploy.healthcheckPath, "/ready");
   assert.equal(apiConfig.build.dockerfilePath, "Dockerfile");
-  assert.equal(visionConfig.build.builder, "DOCKERFILE");
-  assert.equal(visionConfig.build.dockerfilePath, "Dockerfile");
-  assert.equal(visionConfig.deploy.healthcheckPath, "/health");
-  assert.equal(visionConfig.deploy.restartPolicyType, "ON_FAILURE");
-  assert.equal(visionConfig.deploy.preDeployCommand, undefined);
-  assert.doesNotMatch(JSON.stringify(visionConfig), MIGRATE_DEPLOY_PATTERN);
-  assert.doesNotMatch(JSON.stringify(visionConfig), API_COMMAND_PATTERN);
 });
