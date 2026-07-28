@@ -332,7 +332,6 @@ describe('Auth flow (e2e)', () => {
       .expect(200)
       .expect({
         success: true,
-        reauthentication_required: true,
       });
 
     await request(app.getHttpServer())
@@ -493,6 +492,7 @@ describe('Auth flow (e2e)', () => {
       .expect(200)
       .expect({
         success: true,
+        reauthentication_required: true,
       });
 
     const meAfterSet = await request(app.getHttpServer())
