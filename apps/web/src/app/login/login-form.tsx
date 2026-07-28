@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 import { PasswordInput } from "@/components/auth/password-input";
 import { loginAction, type LoginActionState } from "./actions";
 
@@ -37,6 +38,15 @@ export function LoginForm() {
           required
         />
       </label>
+
+      <div className="-mt-1 text-right">
+        <Link
+          href="/forgot-password"
+          className="text-sm font-semibold text-[#f4790d] hover:underline"
+        >
+          Forgot password?
+        </Link>
+      </div>
 
       <label className="grid gap-2">
         <span className="text-sm font-medium text-[#132326]">Password</span>

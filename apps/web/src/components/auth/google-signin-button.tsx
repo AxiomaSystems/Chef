@@ -27,6 +27,9 @@ type GoogleCredentialResponse = {
 
 type GoogleSigninButtonProps = {
   contextLabel?: string;
+  onCredential?: (
+    credential: string,
+  ) => Promise<{ error?: string; redirectTo?: string } | void>;
 };
 
 let googleScriptPromise: Promise<void> | null = null;
@@ -73,6 +76,7 @@ function loadGoogleScript() {
 
 export function GoogleSigninButton({
   contextLabel = "Continue with Google",
+  onCredential,
 }: GoogleSigninButtonProps) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const buttonId = useId();
@@ -112,6 +116,17 @@ export function GoogleSigninButton({
       setError(undefined);
 
       try {
+        if (onCredential) {
+          const result = await onCredential(credential);
+
+          if (result?.error) {
+            setError(result.error);
+          } else if (result?.redirectTo) {
+            window.location.assign(result.redirectTo);
+          }
+          return;
+        }
+
         const response = await fetch("/api/auth/google", {
           method: "POST",
           headers: {
@@ -190,7 +205,7 @@ export function GoogleSigninButton({
       isCancelled = true;
       googleCredentialHandler = null;
     };
-  }, [buttonWidth, clientId]);
+  }, [buttonWidth, clientId, onCredential]);
 
   if (!clientId) {
     return (

@@ -30,7 +30,6 @@ import {
   updateProfileMemoryRequestExample,
 } from '../common/http/swagger.examples';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { SetPasswordDto } from './dto/set-password.dto';
 import { UpdateCheckoutProfileDto } from './dto/update-checkout-profile.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateMePreferencesDto } from './dto/update-me-preferences.dto';
@@ -150,45 +149,6 @@ export const ApiChangePassword = () =>
     }),
     ApiUnauthorizedResponse({
       description: 'Authentication required or current password incorrect.',
-      type: ErrorResponseDto,
-    }),
-  );
-
-export const ApiSetPassword = () =>
-  applyDecorators(
-    ApiBearerAuth(),
-    ApiOperation({
-      summary:
-        'Set a password for the current authenticated user when the account is currently Google-only',
-    }),
-    ApiBody({ type: SetPasswordDto }),
-    ApiOkResponse({
-      description: 'Password set successfully.',
-      schema: {
-        example: {
-          success: true,
-        },
-      },
-    }),
-    ApiForbiddenResponse({
-      description: 'The account already has a password identity.',
-      type: ErrorResponseDto,
-      content: {
-        'application/json': {
-          examples: {
-            passwordAlreadyExists: {
-              summary: 'Password identity already exists',
-              value: {
-                ...forbiddenErrorExample,
-                message: 'This account already has a password identity',
-              },
-            },
-          },
-        },
-      },
-    }),
-    ApiUnauthorizedResponse({
-      description: 'Authentication required',
       type: ErrorResponseDto,
     }),
   );

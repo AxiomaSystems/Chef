@@ -7,6 +7,10 @@ const productionEnvironment = (): NodeJS.ProcessEnv => ({
   DEPLOYMENT_ENVIRONMENT: 'production',
   CHEF_LLM_PROVIDER: 'openai',
   OPENAI_API_KEY: 'test-openai-key',
+  PUBLIC_APP_URL: 'https://app.example.com',
+  AUTH_EMAIL_PROVIDER: 'resend',
+  RESEND_API_KEY: 'test-resend-key',
+  AUTH_EMAIL_FROM: 'Preppie <no-reply@app.example.com>',
   API_CORS_ORIGINS: 'https://app.example.com,https://www.example.com',
   API_ENABLE_DOCS: 'false',
   RUN_DB_SEED_ON_STARTUP: 'false',
@@ -18,6 +22,8 @@ const productionEnvironment = (): NodeJS.ProcessEnv => ({
 const stagingEnvironment = (): NodeJS.ProcessEnv => ({
   DEPLOYMENT_ENVIRONMENT: 'staging',
   CHEF_LLM_PROVIDER: 'mock',
+  PUBLIC_APP_URL: 'https://staging.example.com',
+  AUTH_EMAIL_PROVIDER: 'fake',
   API_CORS_ORIGINS: 'https://staging.example.com',
   API_ENABLE_DOCS: 'false',
   RUN_DB_SEED_ON_STARTUP: 'false',
@@ -61,6 +67,26 @@ describe('API environment readiness', () => {
       'a missing OpenAI key',
       { OPENAI_API_KEY: '' },
       'OPENAI_API_KEY is required in production',
+    ],
+    [
+      'a non-Resend email provider',
+      { AUTH_EMAIL_PROVIDER: 'fake' },
+      'AUTH_EMAIL_PROVIDER must be resend in production',
+    ],
+    [
+      'a missing Resend key',
+      { RESEND_API_KEY: '' },
+      'RESEND_API_KEY is required in production',
+    ],
+    [
+      'a missing sender',
+      { AUTH_EMAIL_FROM: '' },
+      'AUTH_EMAIL_FROM is required in production',
+    ],
+    [
+      'an insecure public app URL',
+      { PUBLIC_APP_URL: 'http://app.example.com' },
+      'PUBLIC_APP_URL must be a valid HTTPS URL in production',
     ],
     [
       'a non-HTTPS CORS origin',

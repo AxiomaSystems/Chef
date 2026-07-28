@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  applyAuthCookies,
-  buildApiUrl,
-  type AuthTokens,
-} from "@/lib/auth";
+import { applyAuthCookies, buildApiUrl, type AuthTokens } from "@/lib/auth";
 
 type RouteBody = {
   id_token?: unknown;
@@ -13,8 +9,8 @@ type GoogleAuthTokens = AuthTokens & {
   onboarding_completed_at?: string;
 };
 
-function errorResponse(message: string, status: number) {
-  return NextResponse.json({ error: message }, { status });
+function errorResponse(message: string, status: number, code?: string) {
+  return NextResponse.json({ error: message, code }, { status });
 }
 
 export async function POST(request: Request) {
@@ -41,7 +37,18 @@ export async function POST(request: Request) {
   }
 
   if (!authResponse.ok) {
-    return errorResponse("Unable to continue with Google right now.", 401);
+    const errorBody = (await authResponse.json().catch(() => null)) as {
+      code?: unknown;
+      message?: unknown;
+    } | null;
+    const code =
+      typeof errorBody?.code === "string" ? errorBody.code : undefined;
+    const message =
+      typeof errorBody?.message === "string"
+        ? errorBody.message
+        : "Unable to continue with Google right now.";
+
+    return errorResponse(message, authResponse.status, code);
   }
 
   const tokens = (await authResponse.json()) as GoogleAuthTokens;

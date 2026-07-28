@@ -12,7 +12,9 @@ export async function loginAction(
   _previousState: LoginActionState,
   formData: FormData,
 ): Promise<LoginActionState> {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
@@ -35,6 +37,20 @@ export async function loginAction(
     });
 
     if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as {
+        code?: string;
+        message?: string;
+      } | null;
+
+      if (
+        response.status === 403 &&
+        payload?.code === "email_verification_required"
+      ) {
+        return {
+          error: "Verify your email before signing in.",
+        };
+      }
+
       if (response.status === 401) {
         return {
           error: "Invalid email or password.",

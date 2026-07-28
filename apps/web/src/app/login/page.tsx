@@ -3,7 +3,30 @@ import Link from "next/link";
 import { LoginForm } from "./login-form";
 import { GoogleSigninButton } from "@/components/auth/google-signin-button";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    securityChanged?: string;
+    verified?: string;
+    verification?: string;
+    "password-reset"?: string;
+  }>;
+}) {
+  const params = await searchParams;
+  const notice =
+    params.securityChanged === "1"
+      ? "Security settings updated. Sign in again to continue."
+      : params.verified === "1"
+        ? "Email verified. You can now sign in."
+        : params["password-reset"] === "complete"
+          ? "Password reset. Sign in with your new password."
+          : undefined;
+  const errorNotice =
+    params.verification === "invalid"
+      ? "That verification link is invalid or expired."
+      : undefined;
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#fff8ef] px-4 py-6 sm:p-6">
       <div className="w-full max-w-[448px] rounded-2xl bg-white p-5 shadow-[0_4px_20px_-4px_rgba(60,154,158,0.12)] sm:p-8">
@@ -20,6 +43,16 @@ export default function LoginPage() {
         <p className="text-body-md text-[#315f62] mt-1">
           Sign in to your account
         </p>
+        {notice && (
+          <p className="mt-4 rounded-2xl bg-[#3c9a9e]/10 px-4 py-3 text-sm text-[#315f62]">
+            {notice}
+          </p>
+        )}
+        {errorNotice && (
+          <p className="mt-4 rounded-2xl bg-error/10 px-4 py-3 text-sm text-error">
+            {errorNotice}
+          </p>
+        )}
 
         <div className="mt-8">
           <LoginForm />

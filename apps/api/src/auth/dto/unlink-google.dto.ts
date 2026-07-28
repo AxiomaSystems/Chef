@@ -1,10 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, MaxLength, MinLength } from 'class-validator';
 
-export class SetPasswordDto {
-  @ApiProperty({ example: 'new-s3cure-passphrase' })
+export class UnlinkGoogleDto {
+  @ApiProperty({
+    description: 'Current password used for recent reauthentication.',
+  })
   @IsString()
   @MinLength(8)
   @MaxLength(256)
-  new_password!: string;
+  password!: string;
 }

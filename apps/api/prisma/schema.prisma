@@ -25,6 +25,20 @@ enum AuthProvider {
   password
 }
 
+enum AuthActionTokenType {
+  email_verification
+  password_reset
+}
+
+enum AuthSecurityEventType {
+  email_verified
+  password_reset
+  identity_linked
+  identity_unlinked
+  password_added
+  password_removed
+}
+
 enum TagScope {
   system
   user
@@ -258,6 +272,8 @@ model User {
   createdAt                 DateTime               @default(now())
   updatedAt                 DateTime               @updatedAt
   authIdentities            AuthIdentity[]
+  authActionTokens          AuthActionToken[]
+  authSecurityEvents        AuthSecurityEvent[]
   refreshTokens             RefreshToken[]
   ownedTags                 Tag[]
   ownedRecipes              BaseRecipe[]
@@ -289,7 +305,7 @@ model AuthIdentity {
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerSubject])
-  @@index([userId, provider])
+  @@unique([userId, provider])
   @@index([email])
 }
 
@@ -306,6 +322,31 @@ model RefreshToken {
 
   @@index([userId, createdAt])
   @@index([expiresAt])
+}
+
+model AuthActionToken {
+  id         String              @id @default(cuid())
+  userId     String
+  type       AuthActionTokenType
+  tokenHash  String              @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime            @default(now())
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, createdAt])
+  @@index([expiresAt])
+}
+
+model AuthSecurityEvent {
+  id        String                @id @default(cuid())
+  userId    String
+  type      AuthSecurityEventType
+  metadata  Json?
+  createdAt DateTime              @default(now())
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model BaseRecipe {

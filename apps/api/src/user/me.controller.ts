@@ -20,14 +20,12 @@ import {
   ApiGetMeStats,
   ApiMeController,
   ApiCompleteOnboarding,
-  ApiSetPassword,
   ApiUpdateMe,
   ApiUpdateCheckoutProfile,
   ApiUpdateMePreferences,
   ApiUpdateProfileMemory,
 } from './user.swagger';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { SetPasswordDto } from './dto/set-password.dto';
 import { UpdateCheckoutProfileDto } from './dto/update-checkout-profile.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateMePreferencesDto } from './dto/update-me-preferences.dto';
@@ -64,16 +62,6 @@ export class MeController {
     @Body() input: ChangePasswordDto,
   ) {
     return this.meService.changePassword(user.sub, input);
-  }
-
-  @Post('password/set')
-  @HttpCode(200)
-  @ApiSetPassword()
-  setPassword(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() input: SetPasswordDto,
-  ) {
-    return this.meService.setPassword(user.sub, input);
   }
 
   @Get('preferences')
