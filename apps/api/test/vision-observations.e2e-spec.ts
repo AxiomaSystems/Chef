@@ -57,16 +57,26 @@ describe('Vision observations flow (e2e)', () => {
       .slice(2)}@cart-generator.local`;
     createdEmails.push(email);
 
-    const response = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/api/v1/auth/register')
       .send({
         email,
         name: 'Vision Observation User',
         password: 's3cure-passphrase',
       })
-      .expect(201);
+      .expect(202);
 
-    return response.body.access_token as string;
+    await prisma.authIdentity.updateMany({
+      where: { user: { email }, provider: 'password' },
+      data: { emailVerified: true },
+    });
+
+    const login = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password: 's3cure-passphrase' })
+      .expect(200);
+
+    return login.body.access_token as string;
   }
 
   async function createIngredient(slug: string, canonicalName: string) {

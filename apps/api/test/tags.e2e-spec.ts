@@ -48,18 +48,31 @@ describe('Tags (e2e)', () => {
       .expect(200);
 
     expect(Array.isArray(publicTagsResponse.body)).toBe(true);
-    expect(publicTagsResponse.body.every((tag: { scope: string }) => tag.scope === 'system')).toBe(true);
+    expect(
+      publicTagsResponse.body.every(
+        (tag: { scope: string }) => tag.scope === 'system',
+      ),
+    ).toBe(true);
 
-    const registerResponse = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/api/v1/auth/register')
       .send({
         email,
         name: 'Tags Flow User',
         password,
       })
-      .expect(201);
+      .expect(202);
 
-    const accessToken = registerResponse.body.access_token as string;
+    await prisma.authIdentity.updateMany({
+      where: { user: { email }, provider: 'password' },
+      data: { emailVerified: true },
+    });
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(200);
+    const accessToken = loginResponse.body.access_token as string;
 
     const createdTagResponse = await request(app.getHttpServer())
       .post('/api/v1/tags')

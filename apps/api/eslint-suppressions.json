@@ -283,9 +283,6 @@
     },
     "@typescript-eslint/no-unsafe-member-access": {
       "count": 8
-    },
-    "prettier/prettier": {
-      "count": 1
     }
   },
   "test/vision-observations.e2e-spec.ts": {

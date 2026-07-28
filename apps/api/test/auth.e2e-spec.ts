@@ -332,6 +332,7 @@ describe('Auth flow (e2e)', () => {
       .expect(200)
       .expect({
         success: true,
+        reauthentication_required: true,
       });
 
     await request(app.getHttpServer())
