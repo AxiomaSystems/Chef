@@ -15,23 +15,10 @@
     }
   },
   "src/auth/auth.service.spec.ts": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
     "@typescript-eslint/no-unsafe-return": {
       "count": 1
     },
     "@typescript-eslint/require-await": {
-      "count": 1
-    }
-  },
-  "src/auth/auth.service.ts": {
-    "prettier/prettier": {
-      "count": 2
-    }
-  },
-  "src/auth/auth.swagger.ts": {
-    "prettier/prettier": {
       "count": 1
     }
   },
@@ -257,7 +244,7 @@
       "count": 9
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 34
+      "count": 32
     }
   },
   "test/capture.e2e-spec.ts": {
@@ -296,9 +283,6 @@
     },
     "@typescript-eslint/no-unsafe-member-access": {
       "count": 8
-    },
-    "prettier/prettier": {
-      "count": 1
     }
   },
   "test/vision-observations.e2e-spec.ts": {

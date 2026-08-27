@@ -17,6 +17,7 @@ function validateCriticalEnv() {
     'AUTH_JWT_SECRET',
     'AUTH_ACCESS_TOKEN_EXPIRES_IN',
     'AUTH_REFRESH_TOKEN_EXPIRES_IN_DAYS',
+    'PUBLIC_APP_URL',
   ];
 
   const missingKeys = getMissingOrEmptyKeys(criticalKeys);

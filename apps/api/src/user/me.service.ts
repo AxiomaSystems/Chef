@@ -38,7 +38,6 @@ import { mapCuisine } from '../cuisines/cuisines.mapper';
 import { PrismaService } from '../prisma/prisma.service';
 import { mapTag } from '../tags/tags.mapper';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { SetPasswordDto } from './dto/set-password.dto';
 import { UpdateCheckoutProfileDto } from './dto/update-checkout-profile.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateMePreferencesDto } from './dto/update-me-preferences.dto';
@@ -414,36 +413,6 @@ export class MeService {
       where: { id: passwordIdentity.id },
       data: {
         passwordHash: nextPasswordHash,
-      },
-    });
-
-    return { success: true };
-  }
-
-  async setPassword(userId: string, input: SetPasswordDto) {
-    const user = await this.findUserOrThrow(userId);
-    const passwordIdentity = user.authIdentities.find(
-      (identity) => identity.provider === 'password',
-    );
-
-    if (passwordIdentity) {
-      throw new ForbiddenException(
-        'This account already has a password identity',
-      );
-    }
-
-    const passwordHash = await this.passwordHasherService.hash(
-      input.new_password,
-    );
-
-    await this.prisma.authIdentity.create({
-      data: {
-        userId: user.id,
-        provider: 'password',
-        providerSubject: user.email.toLowerCase(),
-        email: user.email.toLowerCase(),
-        emailVerified: true,
-        passwordHash,
       },
     });
 

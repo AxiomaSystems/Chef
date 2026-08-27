@@ -6,18 +6,30 @@ import './../src/env';
 import { AppModule } from './../src/app.module';
 import { configureApp } from './../src/app.setup';
 import { AuthTokenService } from './../src/auth/auth-token.service';
+import { FakeEmailProvider } from './../src/auth/fake-email.provider';
+import { GoogleTokenVerifierService } from './../src/auth/google-token-verifier.service';
+import { TRANSACTIONAL_EMAIL_PROVIDER } from './../src/auth/transactional-email.provider';
 import { PrismaService } from './../src/prisma/prisma.service';
 
 describe('Auth flow (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
   let authTokenService: AuthTokenService;
+  let emailProvider: FakeEmailProvider;
   const createdEmails: string[] = [];
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(GoogleTokenVerifierService)
+      .useValue({
+        verify: jest.fn((idToken: string) => {
+          const [subject, email] = idToken.split('|');
+          return Promise.resolve({ subject, email, email_verified: true });
+        }),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     configureApp(app);
@@ -25,7 +37,44 @@ describe('Auth flow (e2e)', () => {
 
     prisma = app.get(PrismaService);
     authTokenService = app.get(AuthTokenService);
+    emailProvider = app.get(TRANSACTIONAL_EMAIL_PROVIDER);
   });
+
+  async function registerAndVerify(
+    email: string,
+    name: string,
+    password: string,
+  ) {
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ email, name, password })
+      .expect(202)
+      .expect({ status: 'verification_required' });
+
+    const verificationMessage = [...emailProvider.messages]
+      .reverse()
+      .find(
+        (message) =>
+          message.to === email &&
+          message.idempotencyKey.startsWith('email-verification/'),
+      );
+    expect(verificationMessage).toBeDefined();
+    const verificationUrl =
+      verificationMessage!.text.match(/https?:\/\/\S+/)?.[0];
+    expect(verificationUrl).toBeDefined();
+    const token = new URL(verificationUrl!).searchParams.get('token');
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/email-verifications')
+      .send({ token })
+      .expect(200)
+      .expect({ success: true });
+
+    return request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(200);
+  }
 
   afterAll(async () => {
     if (createdEmails.length > 0) {
@@ -46,22 +95,19 @@ describe('Auth flow (e2e)', () => {
     const password = 's3cure-passphrase';
     createdEmails.push(email);
 
-    const registerResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
-      .send({
-        email,
-        name: 'Auth Flow User',
-        password,
-      })
-      .expect(201);
+    const loginResponse = await registerAndVerify(
+      email,
+      'Auth Flow User',
+      password,
+    );
 
-    expect(registerResponse.body.access_token).toEqual(expect.any(String));
-    expect(registerResponse.body.refresh_token).toEqual(expect.any(String));
-    expect(registerResponse.body.expires_in).toBe('15m');
+    expect(loginResponse.body.access_token).toEqual(expect.any(String));
+    expect(loginResponse.body.refresh_token).toEqual(expect.any(String));
+    expect(loginResponse.body.expires_in).toBe('15m');
 
     const meAfterRegister = await request(app.getHttpServer())
       .get('/api/v1/me')
-      .set('authorization', `Bearer ${registerResponse.body.access_token}`)
+      .set('authorization', `Bearer ${loginResponse.body.access_token}`)
       .expect(200);
 
     expect(meAfterRegister.body).toEqual(
@@ -73,17 +119,6 @@ describe('Auth flow (e2e)', () => {
     );
     expect(meAfterRegister.body.auth_providers).toEqual(['password']);
     expect(meAfterRegister.body.onboarding_completed_at).toBeUndefined();
-
-    const loginResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
-      .send({
-        email,
-        password,
-      })
-      .expect(200);
-
-    expect(loginResponse.body.access_token).toEqual(expect.any(String));
-    expect(loginResponse.body.refresh_token).toEqual(expect.any(String));
 
     const refreshResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/refresh')
@@ -312,14 +347,11 @@ describe('Auth flow (e2e)', () => {
     const password = 's3cure-passphrase';
     createdEmails.push(email);
 
-    const registerResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
-      .send({
-        email,
-        name: 'Preferences User',
-        password,
-      })
-      .expect(201);
+    const registerResponse = await registerAndVerify(
+      email,
+      'Preferences User',
+      password,
+    );
 
     const [peruvianCuisine, userTag] = await Promise.all([
       prisma.cuisine.findUnique({ where: { slug: 'peruvian' } }),
@@ -350,14 +382,11 @@ describe('Auth flow (e2e)', () => {
     const password = 's3cure-passphrase';
     createdEmails.push(email);
 
-    const registerResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
-      .send({
-        email,
-        name: 'Invalid Preferences User',
-        password,
-      })
-      .expect(201);
+    const registerResponse = await registerAndVerify(
+      email,
+      'Invalid Preferences User',
+      password,
+    );
 
     const [peruvianCuisine, weeknightTag] = await Promise.all([
       prisma.cuisine.findUnique({ where: { slug: 'peruvian' } }),
@@ -383,14 +412,11 @@ describe('Auth flow (e2e)', () => {
     const nextPassword = 'even-m0re-s3cure';
     createdEmails.push(email);
 
-    const registerResponse = await request(app.getHttpServer())
-      .post('/api/v1/auth/register')
-      .send({
-        email,
-        name: 'Password Change User',
-        password,
-      })
-      .expect(201);
+    const registerResponse = await registerAndVerify(
+      email,
+      'Password Change User',
+      password,
+    );
 
     await request(app.getHttpServer())
       .post('/api/v1/me/password/change')
@@ -457,14 +483,16 @@ describe('Auth flow (e2e)', () => {
     });
 
     await request(app.getHttpServer())
-      .post('/api/v1/me/password/set')
+      .post('/api/v1/auth/identities/password')
       .set('authorization', `Bearer ${accessToken}`)
       .send({
-        new_password: newPassword,
+        id_token: `${googleSubject}|${email}`,
+        password: newPassword,
       })
       .expect(200)
       .expect({
         success: true,
+        reauthentication_required: true,
       });
 
     const meAfterSet = await request(app.getHttpServer())

@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ACCESS_TOKEN_COOKIE, buildApiUrl } from "@/lib/auth";
+import { ACCESS_TOKEN_COOKIE, buildApiUrl, clearAuthCookies } from "@/lib/auth";
 import type { UpdateUserProfileMemoryRequest } from "@cart/shared";
 
 export type ProfileActionState = {
@@ -291,20 +291,22 @@ export async function setPasswordAction(
   formData: FormData,
 ): Promise<SecurityActionState> {
   const newPassword = String(formData.get("new_password") ?? "");
+  const idToken = String(formData.get("id_token") ?? "");
 
-  if (!newPassword) {
+  if (!newPassword || !idToken) {
     return {
-      error: "A new password is required.",
+      error: "Verify with Google and enter a new password.",
     };
   }
 
-  const response = await callAuthedJson("/me/password/set", {
+  const response = await callAuthedJson("/auth/identities/password", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      new_password: newPassword,
+      id_token: idToken,
+      password: newPassword,
     }),
   }).catch(() => null);
 
@@ -314,13 +316,80 @@ export async function setPasswordAction(
     };
   }
 
-  revalidatePath("/account");
-  revalidatePath("/account/settings/overview");
-  revalidatePath("/account/settings/security");
+  clearAuthCookies(await cookies());
+  redirect("/login?securityChanged=1");
+}
 
-  return {
-    success: "Password added to this account.",
-  };
+export async function linkGoogleAction(
+  _previousState: SecurityActionState,
+  formData: FormData,
+): Promise<SecurityActionState> {
+  const idToken = String(formData.get("id_token") ?? "");
+
+  if (!idToken) {
+    return { error: "Verify with Google before connecting it." };
+  }
+
+  const response = await callAuthedJson("/auth/identities/google", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id_token: idToken }),
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return { error: "Unable to connect this Google account." };
+  }
+
+  clearAuthCookies(await cookies());
+  redirect("/login?securityChanged=1");
+}
+
+export async function unlinkGoogleAction(
+  _previousState: SecurityActionState,
+  formData: FormData,
+): Promise<SecurityActionState> {
+  const password = String(formData.get("password") ?? "");
+
+  if (!password) {
+    return { error: "Enter your current password." };
+  }
+
+  const response = await callAuthedJson("/auth/identities/google", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return { error: "Unable to remove Google. Check your password." };
+  }
+
+  clearAuthCookies(await cookies());
+  redirect("/login?securityChanged=1");
+}
+
+export async function removePasswordAction(
+  _previousState: SecurityActionState,
+  formData: FormData,
+): Promise<SecurityActionState> {
+  const idToken = String(formData.get("id_token") ?? "");
+
+  if (!idToken) {
+    return { error: "Verify with Google before removing your password." };
+  }
+
+  const response = await callAuthedJson("/auth/identities/password", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id_token: idToken }),
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return { error: "Unable to remove password sign-in." };
+  }
+
+  clearAuthCookies(await cookies());
+  redirect("/login?securityChanged=1");
 }
 
 export async function updateCheckoutProfileAction(payload: {

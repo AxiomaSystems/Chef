@@ -1,24 +1,15 @@
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { User } from '../../generated/prisma';
 import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
-  let prisma: {
-    user: {
-      findUnique: jest.Mock;
-      create: jest.Mock;
-    };
-    authIdentity: {
-      findUnique: jest.Mock;
-      create: jest.Mock;
-    };
-    refreshToken: {
-      create: jest.Mock;
-      findUnique: jest.Mock;
-      update: jest.Mock;
-    };
-    $transaction: jest.Mock;
-  };
+  let prisma: ReturnType<typeof createPrismaMock>;
   let authTokenService: {
     buildAuthTokens: jest.Mock;
     hashRefreshToken: jest.Mock;
@@ -27,34 +18,30 @@ describe('AuthService', () => {
     hash: jest.Mock;
     verify: jest.Mock;
   };
-  let googleTokenVerifierService: {
-    verify: jest.Mock;
+  let googleTokenVerifierService: { verify: jest.Mock };
+  let authEmailService: {
+    sendVerificationEmail: jest.Mock;
+    sendPasswordResetEmail: jest.Mock;
+    sendSecurityAlert: jest.Mock;
   };
   let service: AuthService;
 
-  const user: Pick<User, 'id' | 'email' | 'role'> = {
+  const user: Pick<
+    User,
+    'id' | 'email' | 'name' | 'role' | 'onboardingCompletedAt'
+  > = {
     id: 'user-1',
     email: 'user@example.com',
+    name: 'User',
     role: 'user',
+    onboardingCompletedAt: null,
   };
 
   beforeEach(() => {
-    prisma = {
-      user: {
-        findUnique: jest.fn(),
-        create: jest.fn(),
-      },
-      authIdentity: {
-        findUnique: jest.fn(),
-        create: jest.fn(),
-      },
-      refreshToken: {
-        create: jest.fn(),
-        findUnique: jest.fn(),
-        update: jest.fn(),
-      },
-      $transaction: jest.fn(),
-    };
+    prisma = createPrismaMock();
+    prisma.$transaction.mockImplementation(async (callback) =>
+      callback(prisma),
+    );
     authTokenService = {
       buildAuthTokens: jest.fn(),
       hashRefreshToken: jest.fn(),
@@ -63,8 +50,11 @@ describe('AuthService', () => {
       hash: jest.fn(),
       verify: jest.fn(),
     };
-    googleTokenVerifierService = {
-      verify: jest.fn(),
+    googleTokenVerifierService = { verify: jest.fn() };
+    authEmailService = {
+      sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
+      sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+      sendSecurityAlert: jest.fn().mockResolvedValue(undefined),
     };
 
     service = new AuthService(
@@ -72,20 +62,15 @@ describe('AuthService', () => {
       authTokenService as never,
       passwordHasherService as never,
       googleTokenVerifierService as never,
+      authEmailService as never,
     );
   });
 
-  it('registers a new password user and persists a refresh token', async () => {
+  it('registers an unverified password identity without issuing a session', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
     passwordHasherService.hash.mockResolvedValue('hashed-password');
     prisma.user.create.mockResolvedValue(user);
-    authTokenService.buildAuthTokens.mockResolvedValue({
-      access_token: 'access',
-      refresh_token: 'refresh',
-      expires_in: '15m',
-      refreshTokenHash: 'refresh-hash',
-      refreshTokenExpiresAt: new Date('2026-04-01T00:00:00.000Z'),
-    });
+    prisma.authActionToken.create.mockResolvedValue({ id: 'verify-1' });
 
     await expect(
       service.register({
@@ -93,140 +78,241 @@ describe('AuthService', () => {
         name: 'User',
         password: 's3cure-passphrase',
       }),
-    ).resolves.toEqual({
-      access_token: 'access',
-      refresh_token: 'refresh',
-      expires_in: '15m',
-      onboarding_completed_at: undefined,
-    });
+    ).resolves.toEqual({ status: 'verification_required' });
 
     expect(prisma.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           email: 'user@example.com',
+          authIdentities: {
+            create: expect.objectContaining({
+              provider: 'password',
+              emailVerified: false,
+            }),
+          },
         }),
       }),
     );
-    expect(prisma.refreshToken.create).toHaveBeenCalledWith({
-      data: {
-        userId: 'user-1',
-        tokenHash: 'refresh-hash',
-        expiresAt: new Date('2026-04-01T00:00:00.000Z'),
-      },
-    });
+    expect(authEmailService.sendVerificationEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'user@example.com',
+        actionTokenId: 'verify-1',
+        token: expect.any(String),
+      }),
+    );
+    expect(authTokenService.buildAuthTokens).not.toHaveBeenCalled();
   });
 
-  it('rejects register when the email already exists', async () => {
-    prisma.user.findUnique.mockResolvedValue({ id: 'existing-user' });
+  it('returns the same registration response for an existing verified email', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      ...user,
+      authIdentities: [
+        { provider: 'password', emailVerified: true, passwordHash: 'hash' },
+      ],
+    });
 
     await expect(
       service.register({
-        email: 'user@example.com',
-        name: 'User',
+        email: user.email,
+        name: user.name,
         password: 's3cure-passphrase',
       }),
-    ).rejects.toBeInstanceOf(ConflictException);
+    ).resolves.toEqual({ status: 'verification_required' });
+
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(authEmailService.sendVerificationEmail).not.toHaveBeenCalled();
   });
 
-  it('logs in a password user with valid credentials', async () => {
+  it('blocks password login until email ownership is verified', async () => {
     prisma.user.findUnique.mockResolvedValue({
       ...user,
       authIdentities: [
         {
           provider: 'password',
+          emailVerified: false,
           passwordHash: 'stored-hash',
         },
       ],
     });
     passwordHasherService.verify.mockResolvedValue(true);
-    authTokenService.buildAuthTokens.mockResolvedValue({
-      access_token: 'access',
-      refresh_token: 'refresh',
-      expires_in: '15m',
-      refreshTokenHash: 'refresh-hash',
-      refreshTokenExpiresAt: new Date('2026-04-01T00:00:00.000Z'),
-    });
 
     await expect(
       service.login({
-        email: 'user@example.com',
+        email: user.email,
         password: 's3cure-passphrase',
       }),
-    ).resolves.toEqual({
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(authTokenService.buildAuthTokens).not.toHaveBeenCalled();
+  });
+
+  it('issues tokens for a verified password login', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      ...user,
+      authIdentities: [
+        {
+          provider: 'password',
+          emailVerified: true,
+          passwordHash: 'stored-hash',
+        },
+      ],
+    });
+    passwordHasherService.verify.mockResolvedValue(true);
+    mockBuiltTokens(authTokenService);
+
+    await expect(
+      service.login({
+        email: user.email,
+        password: 's3cure-passphrase',
+      }),
+    ).resolves.toMatchObject({
       access_token: 'access',
       refresh_token: 'refresh',
-      expires_in: '15m',
-      onboarding_completed_at: undefined,
     });
   });
 
-  it('links a Google identity to an existing user by verified email', async () => {
+  it('verifies email with a single-use token', async () => {
+    prisma.authActionToken.findUnique.mockResolvedValue({
+      id: 'verify-1',
+      userId: user.id,
+      type: 'email_verification',
+      consumedAt: null,
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      user,
+    });
+    prisma.authActionToken.updateMany.mockResolvedValue({ count: 1 });
+    prisma.authIdentity.updateMany.mockResolvedValue({ count: 1 });
+    prisma.authSecurityEvent.create.mockResolvedValue({ id: 'event-1' });
+
+    await expect(service.verifyEmail('v'.repeat(43))).resolves.toEqual({
+      success: true,
+    });
+    expect(prisma.authIdentity.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { emailVerified: true } }),
+    );
+  });
+
+  it('does not reveal whether a password reset account exists', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.requestPasswordReset('missing@example.com'),
+    ).resolves.toEqual({ status: 'accepted' });
+    expect(authEmailService.sendPasswordResetEmail).not.toHaveBeenCalled();
+  });
+
+  it('resets a password, verifies ownership, and revokes existing sessions', async () => {
+    prisma.authActionToken.findUnique.mockResolvedValue({
+      id: 'reset-1',
+      userId: user.id,
+      type: 'password_reset',
+      consumedAt: null,
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      user,
+    });
+    prisma.authActionToken.updateMany.mockResolvedValue({ count: 1 });
+    prisma.authIdentity.updateMany.mockResolvedValue({ count: 1 });
+    prisma.refreshToken.updateMany.mockResolvedValue({ count: 2 });
+    prisma.authSecurityEvent.create.mockResolvedValue({ id: 'event-1' });
+    passwordHasherService.hash.mockResolvedValue('new-hash');
+
+    await expect(
+      service.resetPassword({
+        token: 'r'.repeat(43),
+        password: 'new-s3cure-passphrase',
+      }),
+    ).resolves.toEqual({ success: true });
+
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
+    expect(authEmailService.sendSecurityAlert).toHaveBeenCalled();
+  });
+
+  it('rejects expired password reset tokens', async () => {
+    prisma.authActionToken.findUnique.mockResolvedValue({
+      id: 'reset-expired',
+      userId: user.id,
+      type: 'password_reset',
+      consumedAt: null,
+      expiresAt: new Date('2000-01-01T00:00:00.000Z'),
+      user,
+    });
+
+    await expect(
+      service.resetPassword({
+        token: 'e'.repeat(43),
+        password: 'new-s3cure-passphrase',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(passwordHasherService.hash).not.toHaveBeenCalled();
+  });
+
+  it('rejects a password reset token consumed by a concurrent or prior request', async () => {
+    prisma.authActionToken.findUnique.mockResolvedValue({
+      id: 'reset-reused',
+      userId: user.id,
+      type: 'password_reset',
+      consumedAt: null,
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      user,
+    });
+    prisma.authActionToken.updateMany.mockResolvedValue({ count: 0 });
+    passwordHasherService.hash.mockResolvedValue('new-hash');
+
+    await expect(
+      service.resetPassword({
+        token: 'u'.repeat(43),
+        password: 'new-s3cure-passphrase',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.authIdentity.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('does not silently attach Google to an existing email account', async () => {
     googleTokenVerifierService.verify.mockResolvedValue({
       subject: 'google-subject-1',
-      email: 'user@example.com',
+      email: user.email,
       email_verified: true,
-      name: 'User',
     });
     prisma.authIdentity.findUnique.mockResolvedValue(null);
     prisma.user.findUnique.mockResolvedValue(user);
-    authTokenService.buildAuthTokens.mockResolvedValue({
-      access_token: 'access',
-      refresh_token: 'refresh',
-      expires_in: '15m',
-      refreshTokenHash: 'refresh-hash',
-      refreshTokenExpiresAt: new Date('2026-04-01T00:00:00.000Z'),
-    });
 
     await expect(
       service.loginWithGoogle({ id_token: 'google-id-token' }),
-    ).resolves.toEqual({
-      access_token: 'access',
-      refresh_token: 'refresh',
-      expires_in: '15m',
-      onboarding_completed_at: undefined,
-    });
-
-    expect(prisma.authIdentity.create).toHaveBeenCalledWith({
-      data: {
-        userId: 'user-1',
-        provider: 'google',
-        providerSubject: 'google-subject-1',
-        email: 'user@example.com',
-        emailVerified: true,
-      },
-    });
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.authIdentity.create).not.toHaveBeenCalled();
   });
 
-  it('rotates refresh tokens during refresh', async () => {
-    authTokenService.hashRefreshToken.mockReturnValue('current-hash');
-    prisma.refreshToken.findUnique.mockResolvedValue({
-      id: 'refresh-1',
-      revokedAt: null,
-      expiresAt: new Date('2099-04-01T00:00:00.000Z'),
-      user,
+  it('links Google only after authenticated matching Google reauthentication', async () => {
+    googleTokenVerifierService.verify.mockResolvedValue({
+      subject: 'google-subject-1',
+      email: user.email,
+      email_verified: true,
     });
-    authTokenService.buildAuthTokens.mockResolvedValue({
-      access_token: 'next-access',
-      refresh_token: 'next-refresh',
-      expires_in: '15m',
-      refreshTokenHash: 'next-hash',
-      refreshTokenExpiresAt: new Date('2099-04-02T00:00:00.000Z'),
+    prisma.user.findUnique.mockResolvedValue({
+      ...user,
+      authIdentities: [
+        { provider: 'password', emailVerified: true, passwordHash: 'hash' },
+      ],
     });
-    prisma.$transaction.mockImplementation(async (callback: never) =>
-      callback({
-        refreshToken: {
-          create: jest.fn().mockResolvedValue({ id: 'refresh-2' }),
-          update: jest.fn().mockResolvedValue({}),
-        },
-      }),
-    );
+    prisma.authIdentity.findUnique.mockResolvedValue(null);
+    prisma.authIdentity.create.mockResolvedValue({ id: 'google-identity' });
+    prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+    prisma.authSecurityEvent.create.mockResolvedValue({ id: 'event-1' });
 
     await expect(
-      service.refresh({ refresh_token: 'current-refresh-token' }),
+      service.linkGoogle(user.id, { id_token: 'fresh-google-id-token' }),
     ).resolves.toEqual({
-      access_token: 'next-access',
-      refresh_token: 'next-refresh',
-      expires_in: '15m',
+      success: true,
+      reauthentication_required: true,
+    });
+    expect(prisma.authIdentity.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: user.id,
+        provider: 'google',
+        providerSubject: 'google-subject-1',
+      }),
     });
   });
 
@@ -236,6 +322,7 @@ describe('AuthService', () => {
       authIdentities: [
         {
           provider: 'password',
+          emailVerified: true,
           passwordHash: 'stored-hash',
         },
       ],
@@ -244,9 +331,49 @@ describe('AuthService', () => {
 
     await expect(
       service.login({
-        email: 'user@example.com',
+        email: user.email,
         password: 'wrong-password',
       }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });
+
+function createPrismaMock() {
+  return {
+    user: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
+    authIdentity: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      updateMany: jest.fn(),
+      delete: jest.fn(),
+    },
+    authActionToken: {
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
+      create: jest.fn(),
+    },
+    authSecurityEvent: {
+      create: jest.fn(),
+    },
+    refreshToken: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    $transaction: jest.fn(),
+  };
+}
+
+function mockBuiltTokens(authTokenService: { buildAuthTokens: jest.Mock }) {
+  authTokenService.buildAuthTokens.mockResolvedValue({
+    access_token: 'access',
+    refresh_token: 'refresh',
+    expires_in: '15m',
+    refreshTokenHash: 'refresh-hash',
+    refreshTokenExpiresAt: new Date('2099-01-01T00:00:00.000Z'),
+  });
+}

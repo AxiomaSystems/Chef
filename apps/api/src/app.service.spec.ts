@@ -23,9 +23,9 @@ import type { PrismaService } from './prisma/prisma.service';
 
 describe('AppService', () => {
   const queryRaw = jest.fn();
-  const expectedMigration = '20260628120000_add_recipe_execution_metadata';
+  const expectedMigration = '20260717170000_add_database_release_compatibility';
   const compatibilityMigration =
-    '20260717170000_add_database_release_compatibility';
+    '20260728033000_harden_auth_identity_lifecycle';
   const checksum = 'a'.repeat(64);
   const mockGetKnownActiveProductionMigrationFingerprints = jest.mocked(
     getKnownActiveProductionMigrationFingerprints,
@@ -246,7 +246,7 @@ describe('AppService', () => {
   });
 
   it('rejects database-ahead history when the compatibility table is absent', async () => {
-    const futureMigration = '20260717170000_add_database_release_compatibility';
+    const futureMigration = '20260728033000_harden_auth_identity_lifecycle';
     queryRaw
       .mockResolvedValueOnce([{ '?column?': 1 }])
       .mockResolvedValueOnce([

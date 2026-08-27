@@ -111,6 +111,7 @@ function validateProductionEnvironment(
   }
 
   validateHostedCorsOrigins(env, 'production', errors);
+  validateHostedAuthEmail(env, 'production', errors);
   validateProductionRetailerModes(env, errors);
   requireFalse(env, 'API_ENABLE_DOCS', 'production', errors);
   requireFalse(env, 'RUN_DB_SEED_ON_STARTUP', 'production', errors);
@@ -194,8 +195,35 @@ function validateStagingEnvironment(env: NodeJS.ProcessEnv, errors: string[]) {
   }
 
   validateHostedCorsOrigins(env, 'staging', errors);
+  validateHostedAuthEmail(env, 'staging', errors);
   requireFalse(env, 'API_ENABLE_DOCS', 'staging', errors);
   requireFalse(env, 'RUN_DB_SEED_ON_STARTUP', 'staging', errors);
+}
+
+function validateHostedAuthEmail(
+  env: NodeJS.ProcessEnv,
+  environment: 'production' | 'staging',
+  errors: string[],
+) {
+  const publicAppUrl = parseHttpUrl(env.PUBLIC_APP_URL);
+
+  if (!publicAppUrl || publicAppUrl.protocol !== 'https:') {
+    errors.push(`PUBLIC_APP_URL must be a valid HTTPS URL in ${environment}.`);
+  } else if (isLocalUrl(publicAppUrl)) {
+    errors.push(`PUBLIC_APP_URL must not be local in ${environment}.`);
+  }
+
+  if (environment === 'production') {
+    if (env.AUTH_EMAIL_PROVIDER !== 'resend') {
+      errors.push('AUTH_EMAIL_PROVIDER must be resend in production.');
+    }
+
+    for (const key of ['RESEND_API_KEY', 'AUTH_EMAIL_FROM']) {
+      if (!hasValue(env, key)) {
+        errors.push(`${key} is required in production.`);
+      }
+    }
+  }
 }
 
 function requireFalse(
@@ -238,6 +266,17 @@ export function validateApiEnvironment(env: NodeJS.ProcessEnv): void {
   }
 
   validateEnabledRetailers(env, errors);
+
+  if (
+    env.AUTH_EMAIL_PROVIDER !== undefined &&
+    !['fake', 'resend'].includes(env.AUTH_EMAIL_PROVIDER)
+  ) {
+    errors.push('AUTH_EMAIL_PROVIDER must be fake or resend.');
+  }
+
+  if (!parseHttpUrl(env.PUBLIC_APP_URL)) {
+    errors.push('PUBLIC_APP_URL must be a valid HTTP(S) URL.');
+  }
 
   if (errors.length > 0) {
     throw new Error(
